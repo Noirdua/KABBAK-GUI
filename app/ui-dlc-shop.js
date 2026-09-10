@@ -2446,14 +2446,24 @@
       listEl.appendChild(empty);
       return;
     }
-    groupCatalogItems(availableItems).forEach(([kind, items]) => {
+    const bySource = new Map();
+    availableItems.forEach((item) => {
+      const key = String(item.sourceId || item.sourceName || "other");
+      if (!bySource.has(key)) {
+        bySource.set(key, { label: item.sourceName || key, items: [] });
+      }
+      bySource.get(key).items.push(item);
+    });
+    bySource.forEach((source) => {
+      listEl.appendChild(createKindHeading(source.label, source.items.length));
+      groupCatalogItems(source.items).forEach(([kind, items]) => {
       listEl.appendChild(createKindHeading(kind, items.length));
       items.forEach((item) => {
         listEl.appendChild(createPluginCard({
           title: item.title,
-          description: item.description,
+          description: [item.sourceName ? `Source: ${item.sourceName}` : "", item.duplicate ? "same name in another repo" : "", item.description].filter(Boolean).join(" — "),
           version: item.version,
-          badge: kind === "pack" ? "curated pack" : "",
+          badge: kind === "pack" ? "curated pack" : (item.duplicate ? "duplicate name" : ""),
           actionLabel: kind === "pack" ? "" : (isAdminUser ? "Install" : "Admin key required"),
           onAction: kind === "pack" ? null : async (button) => {
             if (!isAdminUser) return;
@@ -2463,7 +2473,7 @@
               const result = await window.TarotDataService.requestJson(
                 "POST",
                 window.TarotDataService.buildApiUrl("/api/v1/dlc/install"),
-                { kind: item.kind, name: item.name }
+                { kind: item.kind, name: item.name, sourceId: item.sourceId || "" }
               );
             const staged = result?.staged === true;
             setStatus(staged
@@ -2482,6 +2492,7 @@
             }
           }
         }));
+      });
       });
     });
   }

@@ -1290,7 +1290,17 @@
       return;
     }
 
-    groupCatalogItems(visibleItems).forEach(([kind, items]) => {
+    const bySource = new Map();
+    visibleItems.forEach((item) => {
+      const key = String(item.sourceId || item.sourceName || "other");
+      if (!bySource.has(key)) {
+        bySource.set(key, { label: item.sourceName || key, items: [] });
+      }
+      bySource.get(key).items.push(item);
+    });
+    bySource.forEach((source) => {
+      dlcCatalogEl.appendChild(createKindHeading(source.label, source.items.length));
+      groupCatalogItems(source.items).forEach(([kind, items]) => {
       dlcCatalogEl.appendChild(createKindHeading(kind, items.length));
       items.forEach((item) => {
         const isInstalled = item?.status === "installed" || item?.status === "staged";
@@ -1302,7 +1312,11 @@
 
         const card = createPluginCard({
           title: item.title,
-          description: [item.sourceName ? `Source: ${item.sourceName}` : "", item.description].filter(Boolean).join(" — "),
+          description: [
+            item.sourceName ? `Source: ${item.sourceName}` : "",
+            item.duplicate ? "same name in another repo" : "",
+            item.description
+          ].filter(Boolean).join(" — "),
           version: hasUpdate ? `installed ${item.version} · latest ${item.latestVersion}` : item.version,
           badge,
           actionLabel: kind === "pack"
@@ -1312,7 +1326,7 @@
             if (isInstalled && !window.confirm(`Uninstall '${item.title || item.name}' (${kind})?`)) return;
             button.disabled = true;
             try {
-              await requestJson("POST", `/api/v1/dlc/${isInstalled ? "uninstall" : "install"}`, { kind: item.kind, name: item.name });
+              await requestJson("POST", `/api/v1/dlc/${isInstalled ? "uninstall" : "install"}`, { kind: item.kind, name: item.name, sourceId: item.sourceId || "" });
               setStatus(isInstalled
                 ? `Uninstalled ${item.name}. Refreshing storage…`
                 : `Installing ${item.name}…`);
@@ -1349,7 +1363,7 @@
             if (!window.confirm(`Update '${item.title || item.name}' from v${item.version} to v${item.latestVersion}?${detail}`)) return;
             updateBtn.disabled = true;
             try {
-              await requestJson("POST", "/api/v1/dlc/update", { kind: item.kind, name: item.name });
+              await requestJson("POST", "/api/v1/dlc/update", { kind: item.kind, name: item.name, sourceId: item.sourceId || "" });
               await window.TaroTimePluginHost?.refresh?.();
               await loadPlugins();
               setStatus(`Updated ${item.name}.`);
@@ -1408,6 +1422,7 @@
         }
 
         dlcCatalogEl.appendChild(card);
+      });
       });
     });
   }

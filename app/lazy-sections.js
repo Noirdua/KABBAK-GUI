@@ -135,7 +135,7 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260907-uptime"
+      "app/ui-admin.js?v=20260910-dlc-repos"
     ],
     profile: [
       "app/ui-profile.js?v=20260910-export-folder"
