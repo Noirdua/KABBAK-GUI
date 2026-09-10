@@ -26,7 +26,7 @@
     "check": "npm run check:syntax && npm run check:html",
     "check:syntax": "node scripts/check-syntax.js app.js app scripts",
     "check:html": "node scripts/check-html-safety.js app.js app",
-    "start": "npx serve . -l 8080 -n -o /",
+    "start": "npx serve . -l 8080 -n",
     "dev": "npm run start"
   }
 }
