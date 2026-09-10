@@ -13,7 +13,7 @@
     "suncalc": "^1.9.0"
   },
   "devDependencies": {
-    "http-server": "^14.1.1"
+    "serve": "^14.2.6"
   },
   "overrides": {
     "isomorphic-dompurify": "3.0.0",
@@ -26,7 +26,7 @@
     "check": "npm run check:syntax && npm run check:html",
     "check:syntax": "node scripts/check-syntax.js app.js app scripts",
     "check:html": "node scripts/check-html-safety.js app.js app",
-    "start": "npx http-server . -o index.html",
+    "start": "npx serve . -l 8080 -n -o /",
     "dev": "npm run start"
   }
 }

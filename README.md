@@ -10,7 +10,7 @@ A web-based esoteric correspondence app for tarot, astrology, calendars, symbols
 
 - Correspondence explorer for multiple occult/esoteric systems.
 - Tarot deck support served by the KABBAK API.
-- Fast local static shell serving with `http-server`.
+- Fast local static shell serving with `serve`.
 
 ## Quick Start
 
