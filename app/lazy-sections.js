@@ -135,7 +135,7 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260910-dlc-repos"
+      "app/ui-admin.js?v=20260910-dlc-remove"
     ],
     profile: [
       "app/ui-profile.js?v=20260910-export-folder"

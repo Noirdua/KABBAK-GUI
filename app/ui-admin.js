@@ -1509,24 +1509,22 @@
         }
       });
       actions.append(urlInput, branchInput, saveBtn, syncBtn);
-      if (!source.primary) {
-        const removeBtn = document.createElement("button");
-        removeBtn.type = "button";
-        removeBtn.className = "dlc-shop-btn";
-        removeBtn.textContent = "Remove";
-        removeBtn.addEventListener("click", async () => {
-          if (!window.confirm(`Remove DLC repository '${source.name}'? Local checkout files are kept.`)) return;
-          try {
-            await requestJson("DELETE", `/api/v1/admin/dlc/sources/${encodeURIComponent(source.id)}`);
-            await loadDlcSources();
-            await loadPlugins();
-            setStatus(`Removed ${source.name}.`);
-          } catch (error) {
-            setStatus(`Could not remove ${source.name}. ${error?.message || ""}`, true);
-          }
-        });
-        actions.appendChild(removeBtn);
-      }
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "dlc-shop-btn";
+      removeBtn.textContent = "Remove";
+      removeBtn.addEventListener("click", async () => {
+        if (!window.confirm(`Remove DLC repository '${source.name}'? Local checkout files are kept.`)) return;
+        try {
+          await requestJson("DELETE", `/api/v1/admin/dlc/sources/${encodeURIComponent(source.id)}`);
+          await loadDlcSources();
+          await loadPlugins();
+          setStatus(`Removed ${source.name}.`);
+        } catch (error) {
+          setStatus(`Could not remove ${source.name}. ${error?.message || ""}`, true);
+        }
+      });
+      actions.appendChild(removeBtn);
       card.appendChild(actions);
       host.appendChild(card);
     });
