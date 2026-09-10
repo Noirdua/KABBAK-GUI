@@ -18,35 +18,6 @@
   let refreshPromise = null;
   let activeSkinId = null;
 
-  // The built-in welcome is hidden by default so it never flashes while the
-  // homepage plugin loads. Capture its markup so it can be restored when the
-  // homepage plugin is absent (or was uninstalled and left no content behind).
-  const defaultHomeWelcomeHtml = (() => {
-    const el = document.getElementById("home-welcome");
-    return el ? el.innerHTML : "";
-  })();
-
-  function syncHomeWelcomeFallback(plugins) {
-    const el = document.getElementById("home-welcome");
-    if (!el) return;
-    const hasHomepage = Array.isArray(plugins)
-      && plugins.some((plugin) => String(plugin?.name || "").trim() === "homepage")
-      && mounted.has("homepage");
-    if (hasHomepage) {
-      // The homepage plugin owns the home content. Keep the built-in welcome
-      // hidden; the plugin replaces it once its page HTML loads and reveals it
-      // again itself if that fetch fails.
-      return;
-    }
-    if (!el.children.length && defaultHomeWelcomeHtml) {
-      el.innerHTML = defaultHomeWelcomeHtml;
-    }
-    const fallback = el.querySelector("#home-welcome-default");
-    if (fallback) {
-      fallback.hidden = false;
-    }
-  }
-
   function getHostEl() {
     return document.getElementById("plugin-topbar-host") || null;
   }
@@ -663,13 +634,11 @@
         if (activeSkinId && selectedSkinId() !== activeSkinId) {
           unmountPlugin(activeSkinId);
         }
-        syncHomeWelcomeFallback(plugins);
         document.dispatchEvent(new CustomEvent("taro-plugins-ready"));
         emitSkinChanged();
         return plugins;
       } catch (error) {
         console.warn("[plugins] refresh failed", error);
-        syncHomeWelcomeFallback([]);
         return [];
       }
     })().finally(() => {

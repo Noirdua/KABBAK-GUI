@@ -5560,11 +5560,6 @@
     }
     #home-welcome[hidden] { display: none; }
 
-    /* The built-in welcome stays hidden until the app knows the homepage
-       plugin is absent, so it never flashes before the plugin HTML loads.
-       !important beats the placeholder's inline display:flex. */
-    #home-welcome-default[hidden] { display: none !important; }
-
     .kabbalah-placeholder {
       height: 100%;
       display: grid;

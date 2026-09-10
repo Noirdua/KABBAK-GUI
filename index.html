@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260910-admin-scroll">
+  <link rel="stylesheet" href="app/styles.css?v=20260910-no-home-example">
   <link rel="stylesheet" href="app/ui-look.css?v=20260902-theme-surfaces">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -2414,18 +2414,7 @@
     <div id="calendar"></div>
   </section>
 
-  <div id="home-welcome">
-    <div id="home-welcome-default" class="kabbalah-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center" hidden>
-      <div class="kabbalah-placeholder-card">
-        <strong>Welcome to KABBAK</strong>
-        <div class="body-text">Select a section from the top menu, or visit <strong>Astronomy &gt; Sky</strong> for the live sky view.</div>
-      </div>
-    </div>
-  </div>
-  <script>
-    // The homepage is now a DLC plugin (plugins/homepage/index.html). It replaces
-    // the welcome content above when installed. Nothing is embedded here anymore.
-  </script>
+  <div id="home-welcome"></div>
   <!-- Core runtime: home/sky/settings/nav only. Heavy sections load on demand. -->
   <script src="node_modules/@toast-ui/calendar/dist/toastui-calendar.min.js"></script>
   <script src="node_modules/suncalc/suncalc.js"></script>
@@ -2437,7 +2426,7 @@
   <script src="app/app-config.js?v=20260910-no-config-example"></script>
   <script src="app/data-service.js?v=20260907-network-lost"></script>
   <script src="app/ui-library-marks.js?v=20260830-library"></script>
-  <script src="app/plugins-host.js?v=20260907-hardening"></script>
+  <script src="app/plugins-host.js?v=20260910-no-home-example"></script>
   <script src="app/cache-manager.js?v=20260902-plugin-nocache"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
   <script src="app/card-images.js?v=20260821-deck-cache"></script>
