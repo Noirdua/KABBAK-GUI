@@ -1,0 +1,2472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>KABBAK</title>
+  <link rel="icon" href="favicon.ico">
+  <link rel="stylesheet" href="node_modules/@toast-ui/calendar/dist/toastui-calendar.min.css?v=20260309-home-calendar-fix">
+  <link rel="stylesheet" href="node_modules/@fontsource/noto-sans-hebrew/hebrew-400.css">
+  <link rel="stylesheet" href="node_modules/@fontsource/noto-sans-hebrew/hebrew-700.css">
+  <link rel="stylesheet" href="node_modules/@fontsource/noto-serif/greek-400.css">
+  <link rel="stylesheet" href="node_modules/@fontsource/noto-serif/greek-700.css">
+  <link rel="stylesheet" href="node_modules/@fontsource/noto-serif/greek-ext-400.css">
+  <link rel="stylesheet" href="node_modules/@fontsource/noto-serif/greek-ext-700.css">
+  <link rel="stylesheet" href="node_modules/@fontsource/noto-sans-phoenician/phoenician-400.css">
+  <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-400.css">
+  <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
+  <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
+  <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
+  <link rel="stylesheet" href="app/styles.css?v=20260907-ui-skin">
+  <link rel="stylesheet" href="app/ui-look.css?v=20260902-theme-surfaces">
+  <style>
+    /* The splash only shows on the first load of a tab session. Refreshes
+       after the first successful boot skip it, so it never flashes over the
+       interface again. */
+    html[data-kabbak-booted="1"] #app-loading-screen {
+      display: none;
+    }
+    #app-loading-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 110;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0a0a10;
+      color: #e0d4ff;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+    #app-loading-screen.is-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .app-loading-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .app-loading-mark {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.32em;
+      color: #c4b5fd;
+    }
+    .app-loading-spinner {
+      width: 26px;
+      height: 26px;
+      border: 3px solid rgba(139, 92, 246, 0.25);
+      border-top-color: #8b5cf6;
+      border-radius: 50%;
+      animation: app-loading-spin 0.9s linear infinite;
+    }
+    .app-loading-note {
+      font-size: 12px;
+      color: #8b7fb8;
+      letter-spacing: 0.06em;
+    }
+    @keyframes app-loading-spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+  <script>
+    // Set before first paint so refreshes skip the boot splash entirely.
+    try {
+      if (sessionStorage.getItem("kabbak-booted") === "1") {
+        document.documentElement.setAttribute("data-kabbak-booted", "1");
+      }
+    } catch (_error) {}
+  </script>
+</head>
+<body>
+  <div id="app-loading-screen" aria-hidden="true">
+    <div class="app-loading-inner">
+      <div class="app-loading-mark">KABBAK</div>
+      <div class="app-loading-spinner" aria-label="Loading"></div>
+      <div class="app-loading-note">Loading the interface…</div>
+    </div>
+  </div>
+  <div class="topbar">
+    <button id="open-home" class="topbar-home-button" type="button" aria-pressed="true">KABBAK</button>
+    <div class="topbar-history" id="topbar-history">
+      <button id="topbar-back" class="topbar-history-back" type="button" disabled aria-label="Go back">← Back</button>
+      <div id="topbar-history-trail" class="topbar-history-trail" hidden></div>
+    </div>
+    <button id="topbar-menu-toggle" class="topbar-menu-toggle" type="button" aria-expanded="false" aria-controls="topbar-actions" aria-label="Open navigation menu">Menu</button>
+    <div id="plugin-topbar-host" class="plugin-topbar-host"></div>
+    <div id="topbar-actions" class="topbar-actions">
+      <button id="open-home-menu" class="settings-trigger topbar-menu-home" type="button">Home</button>
+      <div class="topbar-dropdown" aria-label="Alphabet menu">
+        <button id="open-alphabet" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="alphabet-subpages" aria-expanded="false">Alphabet ▾</button>
+        <div id="alphabet-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Alphabet subpages">
+          <button id="open-alphabet-word" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Word</button>
+          <button id="open-alphabet-letters" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Letter</button>
+          <button id="open-alphabet-text" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Text</button>
+          <button id="open-alphabet-reference" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Reference</button>
+        </div>
+      </div>
+      <div class="topbar-dropdown" aria-label="Astronomy menu">
+        <button id="open-astronomy" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="astronomy-subpages" aria-expanded="false">Astronomy ▾</button>
+        <div id="astronomy-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Astronomy subpages">
+          <button id="open-cycles" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Cycles</button>
+          <button id="open-modalities" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Modalities</button>
+          <button id="open-natal" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Natal Chart</button>
+          <button id="open-planets" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Planet</button>
+          <button id="open-zodiac" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Zodiac</button>
+          <button id="open-sky" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Sky</button>
+        </div>
+      </div>
+      <div class="topbar-dropdown" aria-label="Audio menu">
+        <button id="open-audio" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="audio-subpages" aria-expanded="false">Audio ▾</button>
+        <div id="audio-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Audio subpages">
+          <button id="open-audio-circle" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Circle</button>
+          <button id="open-audio-notes" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Notes</button>
+        </div>
+      </div>
+      <div class="topbar-dropdown" aria-label="Calendar menu">
+        <button id="open-calendar" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="calendar-subpages" aria-expanded="false">Calendar ▾</button>
+        <div id="calendar-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Calendar subpages">
+          <button id="open-holidays" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Holidays</button>
+          <button id="open-calendar-months" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Months</button>
+          <button id="open-calendar-timeline" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Timeline</button>
+        </div>
+      </div>
+      <button id="open-elements" class="settings-trigger" type="button" aria-pressed="false">Elements</button>
+      <button id="open-tattvas" class="settings-trigger" type="button" aria-pressed="false">Tattvas</button>
+      <button id="open-enochian" class="settings-trigger" type="button" aria-pressed="false">Enochian</button>
+      <button id="open-gods" class="settings-trigger" type="button" aria-pressed="false">Gods</button>
+      <div class="topbar-dropdown" aria-label="I Ching menu">
+        <button id="open-iching" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="iching-subpages" aria-expanded="false">I Ching ▾</button>
+        <div id="iching-subpages" class="topbar-dropdown-menu" role="menu" aria-label="I Ching subpages">
+          <button id="open-iching-hexagrams" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Hexagrams</button>
+          <button id="open-iching-trigrams" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Trigrams</button>
+          <button id="open-iching-bigrams" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Bigrams</button>
+          <button id="open-iching-phases" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Phases</button>
+        </div>
+      </div>
+      <div class="topbar-dropdown" aria-label="Kabbalah menu">
+        <button id="open-kabbalah" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="kabbalah-subpages" aria-expanded="false">Kabbalah ▾</button>
+        <div id="kabbalah-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Kabbalah subpages">
+          <button id="open-kabbalah-sephirot" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Sefirot</button>
+          <button id="open-kabbalah-worlds" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Qabalistic Worlds</button>
+          <button id="open-kabbalah-paths" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Paths</button>
+          <button id="open-kabbalah-cross" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Rosicrucian Cross</button>
+          <button id="open-kabbalah-tree" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Tree</button>
+          <button id="open-kabbalah-cube" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Cube</button>
+        </div>
+      </div>
+      <div class="topbar-dropdown" aria-label="Numbers menu">
+        <button id="open-numbers" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="numbers-subpages" aria-expanded="false">Numbers ▾</button>
+        <div id="numbers-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Numbers subpages">
+          <button id="open-numbers-browse" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Browse</button>
+          <button id="open-numbers-theory" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Theory</button>
+          <button id="open-numbers-num-pad" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Num Pad</button>
+        </div>
+      </div>
+      <button id="open-quiz" class="settings-trigger" type="button" aria-pressed="false">Quiz</button>
+      <button id="open-scriber" class="settings-trigger" type="button" aria-pressed="false">Scriber</button>
+      <div class="topbar-dropdown" aria-label="Tarot menu">
+        <button id="open-tarot" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="tarot-subpages" aria-expanded="false">Tarot ▾</button>
+        <div id="tarot-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Tarot subpages">
+          <button id="open-tarot-cards" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Cards</button>
+          <button id="open-tarot-spread" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Draw Spread</button>
+          <button id="open-tarot-frame" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Frame</button>
+          <button id="open-tarot-house" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">House</button>
+        </div>
+      </div>
+      <button id="open-admin" class="settings-trigger topbar-menu-admin" type="button" aria-pressed="false" hidden>Admin</button>
+      <button id="open-settings" class="settings-trigger topbar-menu-settings" type="button" aria-pressed="false">Settings</button>
+      <button id="open-profile" class="settings-trigger topbar-menu-profile" type="button" aria-pressed="false" hidden>Profile</button>
+    </div>
+  </div>
+  <div id="connection-gate" class="connection-gate" hidden>
+    <div class="connection-gate-card" role="dialog" aria-modal="true" aria-labelledby="connection-gate-title">
+      <div class="connection-gate-eyebrow">API Connection Required</div>
+      <h1 id="connection-gate-title" class="connection-gate-title">Connect KABBAK to its API</h1>
+      <p class="connection-gate-copy">This client stays in shell mode until it has a reachable API URL and, if required by the server, a valid API key.</p>
+      <div class="connection-gate-fields">
+        <label class="settings-field settings-field-full" for="connection-gate-base-url">API Base URL
+          <input id="connection-gate-base-url" type="url" inputmode="url" placeholder="http://localhost:3100">
+        </label>
+        <label class="settings-field settings-field-full" for="connection-gate-api-key">API Key
+          <input id="connection-gate-api-key" type="password" autocomplete="off" placeholder="Leave blank only if your API does not require a key">
+        </label>
+      </div>
+      <div id="connection-gate-demo" class="connection-gate-demo" hidden>
+        <div class="connection-gate-demo-row">
+          <strong>Try the shared demo user</strong>
+          <button id="connection-gate-demo-use" class="connection-gate-demo-btn" type="button">Use Demo Access</button>
+        </div>
+        <div id="connection-gate-demo-details" class="connection-gate-demo-details" aria-live="polite"></div>
+      </div>
+      <div id="connection-gate-status" class="connection-gate-status" aria-live="polite">Enter your API details to continue.</div>
+      <div class="connection-gate-actions">
+        <button id="connection-gate-connect" type="button">Save And Connect</button>
+      </div>
+    </div>
+  </div>
+  <section id="profile-section" hidden>
+    <div class="profile-shell">
+      <header class="profile-head">
+        <div>
+          <div class="profile-eyebrow">Your Profile</div>
+          <h1 class="profile-title">Profile</h1>
+          <p class="profile-sub" id="profile-client-label">Signed in with your API key.</p>
+          <div class="profile-name-edit">
+            <input id="profile-display-name" type="text" maxlength="100" placeholder="Set a display name">
+            <button id="profile-display-name-save" class="profile-btn profile-btn-primary" type="button">Save Name</button>
+            <span id="profile-display-name-status" class="profile-location-status" aria-live="polite"></span>
+          </div>
+        </div>
+      </header>
+      <div id="profile-hub" class="profile-hub">
+        <button id="profile-open-notes" class="profile-hub-card" type="button">
+          <span class="profile-hub-card-kicker">Journal</span>
+          <span class="profile-hub-card-title">Notes</span>
+          <span class="profile-hub-card-copy">Dreams and waking entries, kept simple.</span>
+          <span class="profile-hub-card-meta" id="profile-notes-count">--</span>
+        </button>
+        <div class="profile-hub-card profile-library-card">
+          <span class="profile-hub-card-kicker">Library</span>
+          <span class="profile-hub-card-title">Bookmarks & Notes</span>
+          <span class="profile-hub-card-copy">Saved verses, cards, and other marks on this API key.</span>
+          <span class="profile-hub-card-meta" id="profile-library-count">--</span>
+          <div class="profile-library-columns">
+            <div>
+              <strong>Bookmarks</strong>
+              <div id="profile-library-bookmarks" class="profile-library-list"></div>
+            </div>
+            <div>
+              <strong>Notes</strong>
+              <div id="profile-library-notes" class="profile-library-list"></div>
+            </div>
+          </div>
+        </div>
+        <div class="profile-location-card">
+          <div class="profile-location-head">
+            <span class="profile-hub-card-kicker">Sky Accuracy</span>
+            <h2>Your Location</h2>
+          </div>
+          <p class="profile-location-copy">Pick a place (United States → California → Los Angeles) or enter coordinates. Used for planetary hours and sky cards.</p>
+          <label class="profile-field" for="profile-location-country">Country
+            <select id="profile-location-country">
+              <option value="">Select a country…</option>
+            </select>
+          </label>
+          <label class="profile-field" for="profile-location-region">State / region
+            <select id="profile-location-region" disabled>
+              <option value="">Select a region…</option>
+            </select>
+          </label>
+          <label class="profile-field" for="profile-location-city">City
+            <select id="profile-location-city" disabled>
+              <option value="">Select a city…</option>
+            </select>
+          </label>
+          <label class="profile-field" for="profile-location-lat">Latitude
+            <input id="profile-location-lat" type="number" step="any" min="-90" max="90" placeholder="e.g. 51.5074">
+          </label>
+          <label class="profile-field" for="profile-location-lng">Longitude
+            <input id="profile-location-lng" type="number" step="any" min="-180" max="180" placeholder="e.g. -0.1278">
+          </label>
+          <label class="profile-field" for="profile-location-label">Label (optional)
+            <input id="profile-location-label" type="text" maxlength="200" placeholder="e.g. Home, London">
+          </label>
+          <div class="profile-location-actions">
+            <button id="profile-location-detect" class="profile-btn" type="button">Use My Location</button>
+            <button id="profile-location-save" class="profile-btn profile-btn-primary" type="button">Save</button>
+          </div>
+          <div id="profile-location-status" class="profile-location-status" aria-live="polite"></div>
+        </div>
+        <div class="profile-deck-card">
+          <div class="profile-location-head">
+            <span class="profile-hub-card-kicker">Tarot</span>
+            <h2>Preferred Deck</h2>
+          </div>
+          <p class="profile-location-copy">Used for mood cards, hour cards, frame defaults, and PDF exports across the app.</p>
+          <label class="profile-field" for="profile-deck-select">Deck
+            <select id="profile-deck-select" title="Preferred deck for card images"></select>
+          </label>
+          <div id="profile-deck-status" class="profile-location-status" aria-live="polite"></div>
+        </div>
+        <div class="profile-cache-card">
+          <div class="profile-location-head">
+            <span class="profile-hub-card-kicker">Offline</span>
+            <h2>App Cache</h2>
+          </div>
+          <p class="profile-location-copy">Preloads app scripts, styles, fonts, reference data, and tarot deck images into a local cache — so browsers that disable HTTP caching don't redownload everything each visit.</p>
+          <div id="profile-cache-status" class="profile-location-status" aria-live="polite">Loading cache status…</div>
+          <div class="profile-location-actions">
+            <button id="profile-cache-now" class="profile-btn profile-btn-primary" type="button">Cache App Now</button>
+            <button id="profile-cache-clear" class="profile-btn" type="button">Clear Cache</button>
+          </div>
+        </div>
+        <div class="profile-quiz">
+          <h2>Quiz Progress</h2>
+          <div class="profile-quiz-overall">
+            <div class="profile-quiz-accuracy"><span id="profile-quiz-accuracy">--</span><small>accuracy</small></div>
+            <div class="profile-quiz-counts">
+              <div><strong id="profile-quiz-attempts">--</strong><small>attempts</small></div>
+              <div><strong id="profile-quiz-correct">--</strong><small>correct</small></div>
+              <div><strong id="profile-quiz-questions">--</strong><small>questions</small></div>
+            </div>
+          </div>
+          <div id="profile-quiz-categories" class="profile-quiz-categories"></div>
+          <div id="profile-quiz-empty" class="profile-quiz-empty">No quiz attempts recorded yet. Play a round of Quiz and your progress will appear here.</div>
+        </div>
+      </div>
+      <div id="profile-notes-panel" class="profile-notes-panel" hidden>
+        <div class="profile-notebook-head">
+          <button id="profile-notes-back" class="profile-btn" type="button">Back</button>
+          <h2>Notes</h2>
+          <button id="profile-note-new" class="profile-btn profile-btn-primary" type="button">New Entry</button>
+        </div>
+        <div id="profile-note-type-picker" class="profile-note-type-picker" hidden>
+          <p class="profile-note-type-copy">What kind of entry is this?</p>
+          <div class="profile-note-type-choices">
+            <button id="profile-note-type-dream" class="profile-type-card" type="button" data-kind="dream">
+              <span>Dream</span>
+              <small>What happened while you slept</small>
+            </button>
+            <button id="profile-note-type-waking" class="profile-type-card" type="button" data-kind="waking">
+              <span>Waking</span>
+              <small>What happened while you were awake</small>
+            </button>
+          </div>
+          <button id="profile-note-type-cancel" class="profile-btn" type="button">Cancel</button>
+        </div>
+         <div id="profile-note-filters" class="profile-note-filters">
+           <button type="button" class="profile-filter-btn is-active" data-filter="all">All</button>
+           <button type="button" class="profile-filter-btn" data-filter="dream">Dreams</button>
+           <button type="button" class="profile-filter-btn" data-filter="waking">Waking</button>
+         </div>
+          <div id="profile-note-list" class="profile-note-list"></div>
+          <div class="profile-quicknote">
+            <div class="profile-quicknote-head">
+              <h3>Quick Notes</h3>
+              <span class="profile-quicknote-hint">Jot an idea — it saves the time and the planetary alignment. Drag a note into any scene's Thoughts or Notes (click to copy).</span>
+            </div>
+            <div class="profile-quicknote-input-row">
+              <input id="profile-quicknote-time" type="datetime-local" aria-label="Quick note time">
+              <input id="profile-quicknote-input" type="text" maxlength="1000" placeholder="e.g. saw the same butterfly from before" autocomplete="off">
+              <button id="profile-quicknote-save" class="profile-btn profile-btn-primary" type="button">Save Quick Note</button>
+            </div>
+            <div id="profile-quicknotes-list" class="profile-quicknotes-list"></div>
+          </div>
+         <div id="profile-note-editor" class="profile-note-editor" hidden>
+          <div class="profile-note-meta-row">
+            <div class="profile-kind-toggle" role="group" aria-label="Entry type">
+              <button id="profile-kind-dream" class="profile-kind-btn" type="button" data-kind="dream">Dream</button>
+              <button id="profile-kind-waking" class="profile-kind-btn" type="button" data-kind="waking">Waking</button>
+            </div>
+            <label class="profile-field" for="profile-note-date">Date
+              <input id="profile-note-date" type="date" required>
+            </label>
+            <div id="profile-day-cards" class="profile-day-cards" title="Date tarot cards for occurredOn (court + active decan). Click to use as mood."></div>
+          </div>
+          <label class="profile-field" for="profile-note-title">Title
+            <input id="profile-note-title" type="text" maxlength="300" placeholder="Filled in for you">
+          </label>
+          <div id="profile-dream-prompts" class="profile-dream-prompts" hidden>
+            <span class="profile-dream-prompts-label">Dream journaling prompts</span>
+            <span>Where did you go? · How did it feel? · Who was there? · What happened next?</span>
+          </div>
+          <div class="profile-scenes">
+            <div class="profile-scenes-head">
+              <span class="profile-scenes-label">Scenes (drag to reorder)</span>
+              <button id="profile-scene-add" class="profile-btn" type="button">+ New Scene</button>
+            </div>
+            <div id="profile-scene-list"></div>
+          </div>
+           <div class="profile-editor-actions">
+             <button id="profile-note-save" class="profile-btn profile-btn-primary" type="button">Save</button>
+             <button id="profile-note-cancel" class="profile-btn" type="button">Cancel</button>
+             <button id="profile-note-export-pdf" class="profile-btn" type="button">Export PDF</button>
+             <button id="profile-note-delete" class="profile-btn profile-btn-danger" type="button">Delete</button>
+           </div>
+          <div id="profile-note-status" class="profile-note-status" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="settings-section" hidden>
+    <div class="settings-page-shell">
+      <div class="settings-page-hero">
+        <div>
+          <div class="settings-page-eyebrow">Configuration</div>
+          <h1 class="settings-page-title">Settings</h1>
+          <p class="settings-page-copy">A dedicated page for app behavior, deck caching, and API connection settings. This stays scrollable and leaves room for more controls later.</p>
+        </div>
+        <button id="close-settings" class="settings-page-back" type="button">Back</button>
+      </div>
+      <div class="settings-page-layout">
+        <section id="settings-tarot-panel" class="settings-panel">
+          <div class="settings-panel-head">
+            <strong>Time And Birth Date</strong>
+            <span>Controls calendar rendering, the Now panel, and optional sky background.</span>
+          </div>
+          <div class="settings-grid">
+            <label class="settings-field settings-field-full">Time Format
+              <select id="time-format">
+                <option value="minutes" selected>Minutes (default)</option>
+                <option value="hours">Hours</option>
+                <option value="seconds">Seconds</option>
+              </select>
+            </label>
+            <label class="settings-field settings-field-full">Birth Date
+              <input id="birth-date" type="date">
+            </label>
+          </div>
+         </section>
+         <section class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>Navigation Menu</strong>
+            <span>Choose how the top navigation menu opens.</span>
+          </div>
+          <div class="settings-grid">
+            <label class="settings-field settings-field-full">Menu Style
+              <select id="menu-layout">
+                <option value="drawer" selected>Side drawer (slides in from the left)</option>
+                <option value="panel">Drop-down panel</option>
+              </select>
+              <small class="settings-field-hint">The side drawer overlays the page from the left edge, like a phone menu. Tap outside it or press Escape to close.</small>
+            </label>
+            <label class="settings-field settings-field-full">UI Overhaul
+              <select id="ui-skin">
+                <option value="" selected>Default layout</option>
+              </select>
+              <small class="settings-field-hint">Installed layout plugins. Default Layout is the built-in top bar; only one is active.</small>
+            </label>
+          </div>
+        </section>
+        <section class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>Look</strong>
+            <span>Materials and structure. Palettes below retint every look — Neon + Crimson is red glow, Paper + Ocean is blue parchment.</span>
+          </div>
+          <div id="look-preset-list" class="look-preset-grid" role="radiogroup" aria-label="App look"></div>
+        </section>
+        <section class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>Color Palette</strong>
+            <span>Retints the active look. Live preview as you pick or edit colors.</span>
+          </div>
+          <div id="theme-preset-list" class="theme-preset-grid" role="radiogroup" aria-label="Color theme"></div>
+          <div class="theme-custom-editor">
+            <div class="settings-panel-head">
+              <strong>Create Your Own Palette</strong>
+              <span>Colors preview live as you edit. Save them as a named palette to reuse later.</span>
+            </div>
+            <div class="theme-custom-swatches">
+              <label class="theme-color-field">Background<input id="theme-color-bg" type="color" value="#18181b"></label>
+              <label class="theme-color-field">Surface<input id="theme-color-surface" type="color" value="#27272a"></label>
+              <label class="theme-color-field">Border<input id="theme-color-border" type="color" value="#3f3f46"></label>
+              <label class="theme-color-field">Text<input id="theme-color-text" type="color" value="#f4f4f5"></label>
+              <label class="theme-color-field">Muted Text<input id="theme-color-muted" type="color" value="#a1a1aa"></label>
+              <label class="theme-color-field">Accent<input id="theme-color-accent" type="color" value="#6366f1"></label>
+              <label class="theme-color-field">Brand<input id="theme-color-brand" type="color" value="#fbbf24"></label>
+            </div>
+            <div class="theme-custom-actions">
+              <input id="theme-custom-name" type="text" class="theme-custom-name-input" placeholder="Theme name" maxlength="40">
+              <button id="theme-save-new-btn" type="button">Save As New Theme</button>
+              <button id="theme-update-btn" type="button" hidden>Update This Theme</button>
+              <button id="theme-reset-btn" type="button">Reset Colors</button>
+            </div>
+            <small id="theme-custom-status" class="settings-field-hint" aria-live="polite">Pick a theme above to load its colors into the editor.</small>
+          </div>
+        </section>
+        <section class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>Detail Text</strong>
+            <span>Adjust the font size used by tarot detail panes and alphabet readers.</span>
+          </div>
+          <div class="settings-grid">
+            <label class="settings-field settings-field-full settings-range-field">Font Size
+              <div class="settings-range-row">
+                <input id="detail-text-scale" class="settings-range-input" type="range" min="85" max="135" step="5" value="100">
+                <span id="detail-text-scale-value" class="settings-range-value">100%</span>
+              </div>
+              <small class="settings-field-hint">Lower values fit more text; higher values make detail panes and alphabet content easier to read.</small>
+            </label>
+          </div>
+        </section>
+        <section class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>API Connection</strong>
+            <span>Set the API base URL and key used by this client shell.</span>
+          </div>
+          <div class="settings-grid">
+            <label class="settings-field settings-field-full">API Base URL
+              <input id="api-base-url" type="url" inputmode="url" placeholder="http://localhost:3100">
+            </label>
+            <label class="settings-field settings-field-full">API Key
+              <input id="api-key" type="password" autocomplete="off" placeholder="Optional unless the API requires one">
+            </label>
+          </div>
+          <div id="api-connection-summary" class="settings-connection-summary" data-tone="neutral" aria-live="polite">
+            <div class="settings-connection-summary-row">
+              <span class="settings-connection-summary-label">Status</span>
+              <span id="api-connection-summary-state" class="settings-connection-summary-value">Not checked yet.</span>
+            </div>
+            <div class="settings-connection-summary-row">
+              <span class="settings-connection-summary-label">Client</span>
+              <span id="api-connection-summary-client" class="settings-connection-summary-value">No authenticated API identity.</span>
+            </div>
+            <div class="settings-connection-summary-row">
+              <span class="settings-connection-summary-label">Access</span>
+              <span id="api-connection-summary-access" class="settings-connection-summary-value">Unknown</span>
+            </div>
+            <div class="settings-connection-summary-row">
+              <span class="settings-connection-summary-label">Permissions</span>
+              <span id="api-connection-summary-permissions" class="settings-connection-summary-value">Save settings to validate this API key.</span>
+      </div>
+      <div id="num-pad-action-sheet" class="num-pad-sheet" hidden>
+        <button id="num-pad-action-backdrop" class="num-pad-sheet-backdrop" type="button" aria-label="Close actions"></button>
+        <div class="num-pad-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="num-pad-action-title">
+          <div class="num-pad-sheet-head">
+            <strong id="num-pad-action-title">Actions</strong>
+            <button id="num-pad-action-close" class="num-pad-toggle" type="button">Done</button>
+          </div>
+          <p id="num-pad-action-target" class="num-pad-sheet-label">Pick a chain first</p>
+          <div class="num-pad-action-buttons">
+            <button id="num-pad-action-fill" class="num-pad-toggle" type="button">Fill</button>
+            <button id="num-pad-action-draw" class="num-pad-toggle" type="button">Draw</button>
+            <button id="num-pad-action-keypad" class="num-pad-reset" type="button">Keypad</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+        <section class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>DLC</strong>
+            <span>DLC and plugin management is available in the Admin panel (requires an admin API key).</span>
+          </div>
+        </section>
+      </div>
+      <div class="settings-actions settings-page-actions">
+        <div id="settings-page-status" class="settings-page-status" data-tone="neutral" aria-live="polite">
+          <span id="settings-page-status-text" class="settings-page-status-text">Settings ready.</span>
+          <span id="settings-page-status-time" class="settings-page-status-time" hidden></span>
+        </div>
+        <button id="save-settings" type="button">Save Settings</button>
+      </div>
+    </div>
+  </section>
+  <section id="admin-section" hidden>
+    <div class="settings-page-shell">
+      <div class="settings-page-hero">
+        <div>
+          <div class="settings-page-eyebrow">Administration</div>
+          <h1 class="settings-page-title">Admin Panel</h1>
+          <p class="settings-page-copy">Manage API clients, the DLC catalog, plugins, and the user registry.</p>
+        </div>
+        <button id="close-admin" class="settings-page-back" type="button">Back</button>
+      </div>
+      <div class="admin-tabs" role="tablist" aria-label="Admin panels">
+        <button id="admin-tab-overview" class="admin-tab is-active" type="button" role="tab" aria-selected="true">Overview</button>
+        <button id="admin-tab-clients" class="admin-tab" type="button" role="tab" aria-selected="false">Users</button>
+        <button id="admin-tab-tiers" class="admin-tab" type="button" role="tab" aria-selected="false">Tiers</button>
+        <button id="admin-tab-plugins" class="admin-tab" type="button" role="tab" aria-selected="false">Plugins &amp; DLC</button>
+        <button id="admin-tab-server" class="admin-tab" type="button" role="tab" aria-selected="false">Server</button>
+      </div>
+      <div id="admin-status" class="settings-page-status" data-tone="neutral" aria-live="polite">
+        <span id="admin-status-text" class="settings-page-status-text">Loading admin data…</span>
+      </div>
+      <section id="admin-panel-overview" class="admin-panel">
+        <div id="admin-overview-grid" class="admin-overview-grid"></div>
+      </section>
+      <section id="admin-panel-clients" class="admin-panel" hidden>
+        <div class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>Create User / API Client</strong>
+            <span>Omit id and key to have them generated. The full key is shown once after creation.</span>
+          </div>
+          <div class="settings-grid admin-client-create-grid">
+            <label class="settings-field">Name
+              <input id="admin-client-name" type="text" maxlength="100" placeholder="e.g. Mystic Maya">
+            </label>
+            <label class="settings-field">Client Id (optional)
+              <input id="admin-client-id" type="text" maxlength="100" placeholder="auto-generated">
+            </label>
+            <label class="settings-field">Access Level
+              <select id="admin-client-access">
+                <option value="basic">basic</option>
+                <option value="premium" selected>premium</option>
+                <option value="pro+">pro+</option>
+              </select>
+            </label>
+            <label class="settings-field">Tiers (comma separated)
+              <input id="admin-client-roles" type="text" maxlength="300" placeholder="e.g. mystic-moon, admin">
+            </label>
+            <label class="settings-field settings-field-full">API Key (optional)
+              <input id="admin-client-key" type="text" maxlength="200" placeholder="auto-generated">
+            </label>
+          </div>
+          <button id="admin-client-create" class="settings-button-primary" type="button">Create Client</button>
+        </div>
+        <div class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>Users</strong>
+            <span>Merged view: API keys, tiers, and profile activity. Presence reflects activity in the last 10 minutes.</span>
+          </div>
+          <div id="admin-clients-table" class="admin-clients-table"></div>
+        </div>
+      </section>
+      <section id="admin-panel-tiers" class="admin-panel" hidden>
+        <div class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>Base Access Tiers</strong>
+            <span>What each fixed tier means — description, price, default capabilities, and limits are editable. Tier ids stay fixed (basic, premium, pro+).</span>
+          </div>
+          <div id="admin-levels-list" class="admin-roles-list"></div>
+        </div>
+        <div class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>Create Tier</strong>
+            <span>Custom subscriber tiers bundle an access rank, capabilities, limits, and pricing. Pricing is stored now and plugs into a payment provider later. Assign tiers to clients in the API Clients tab.</span>
+          </div>
+          <div class="settings-grid admin-client-create-grid">
+            <label class="settings-field">Tier Id
+              <input id="admin-role-id" type="text" maxlength="40" placeholder="e.g. mystic-moon">
+            </label>
+            <label class="settings-field">Label
+              <input id="admin-role-label" type="text" maxlength="80" placeholder="Mystic Moon">
+            </label>
+            <label class="settings-field">Access Rank
+              <select id="admin-role-access">
+                <option value="" selected>(inherit from assigned client)</option>
+                <option value="basic">basic</option>
+                <option value="premium">premium</option>
+                <option value="pro+">pro+</option>
+              </select>
+            </label>
+            <label class="settings-field">Price
+              <input id="admin-role-price" type="number" min="0" step="0.01" placeholder="0.00">
+            </label>
+            <label class="settings-field">Currency
+              <select id="admin-role-currency">
+                <option value="USD" selected>USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="AUD">AUD</option>
+                <option value="CAD">CAD</option>
+              </select>
+            </label>
+            <label class="settings-field">Provider Plan Id (future billing)
+              <input id="admin-role-provider-plan" type="text" maxlength="120" placeholder="e.g. price_123 from Stripe">
+            </label>
+            <label class="settings-field settings-field-full">Description
+              <input id="admin-role-description" type="text" maxlength="400" placeholder="What subscribers get">
+            </label>
+          </div>
+          <div id="admin-role-capabilities" class="admin-role-flags"></div>
+          <div id="admin-role-limits" class="admin-role-limits"></div>
+          <div class="dlc-shop-actions" style="margin-top:10px;">
+            <button id="admin-role-create" class="settings-button-primary" type="button">Create Tier</button>
+          </div>
+        </div>
+        <div class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>Custom Tiers</strong>
+            <span>Subscriber tiers you define. Grants merge across a client's tiers — the highest limit wins. The built-in admin tier always grants admin access.</span>
+          </div>
+          <div id="admin-roles-list" class="admin-roles-list"></div>
+        </div>
+      </section>
+      <section id="admin-panel-plugins" class="admin-panel" hidden>
+        <div class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>DLC Repositories</strong>
+            <span>The primary repo is the main catalog checkout. Additional repos merge into the shop; matching names keep the primary copy.</span>
+          </div>
+          <div id="admin-dlc-sources" class="dlc-plugin-list"></div>
+          <div class="settings-grid admin-client-create-grid" style="margin-top:10px;">
+            <label class="settings-field">Name
+              <input id="admin-dlc-source-name" type="text" maxlength="80" placeholder="Community DLC">
+            </label>
+            <label class="settings-field">Repository URL
+              <input id="admin-dlc-source-url" type="url" placeholder="https://example.com/org/kabbak-dlc">
+            </label>
+            <label class="settings-field">Branch
+              <input id="admin-dlc-source-branch" type="text" value="main" placeholder="main">
+            </label>
+          </div>
+          <div class="dlc-shop-actions" style="margin-top:10px;">
+            <button id="admin-dlc-source-add" class="settings-button-primary" type="button">Add Repository</button>
+          </div>
+        </div>
+        <div class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>DLC Catalog</strong>
+            <span>Everything in one list: installed items get Uninstall, plugins get Settings, available items get Install. Packs are curated lists.</span>
+          </div>
+          <div id="admin-dlc-filter" class="admin-dlc-filter" role="group" aria-label="Filter DLC by type">
+            <button type="button" class="dlc-shop-btn is-active" data-dlc-filter="all">All</button>
+            <button type="button" class="dlc-shop-btn" data-dlc-filter="plugin">Plugins</button>
+            <button type="button" class="dlc-shop-btn" data-dlc-filter="api">API</button>
+            <button type="button" class="dlc-shop-btn" data-dlc-filter="deck">Decks</button>
+            <button type="button" class="dlc-shop-btn" data-dlc-filter="text">Texts</button>
+            <button type="button" class="dlc-shop-btn" data-dlc-filter="reference">References</button>
+            <button type="button" class="dlc-shop-btn" data-dlc-filter="pack">Packs</button>
+          </div>
+          <div id="admin-dlc-catalog" class="dlc-plugin-list"></div>
+          <div class="dlc-shop-actions" style="margin-top:10px;">
+            <button id="admin-plugins-reload" class="dlc-shop-btn" type="button">Reload Plugins</button>
+            <button id="admin-dlc-update" class="dlc-shop-btn" type="button" title="Pull the latest DLC repository files into the server checkout">Update DLC</button>
+            <button id="admin-dlc-reload" class="dlc-shop-btn" type="button">Refresh Storage</button>
+            <button id="admin-create-plugin" class="dlc-shop-btn" type="button">Create Plugin</button>
+          </div>
+        </div>
+      </section>
+      <section id="admin-panel-server" class="admin-panel" hidden>
+        <div class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>Server Settings</strong>
+            <span>Editable values apply immediately and persist across restarts. Only port and host require a restart.</span>
+          </div>
+          <div class="settings-grid admin-client-create-grid">
+            <label class="settings-field">Request Log Mode
+              <select id="admin-setting-log-mode">
+                <option value="errors">errors (default)</option>
+                <option value="all">all</option>
+                <option value="none">none</option>
+              </select>
+              <span class="settings-field-hint">Env: KABBAK_REQUEST_LOG</span>
+            </label>
+            <label class="settings-field">Allow Null Origin
+              <select id="admin-setting-allow-null">
+                <option value="false">off</option>
+                <option value="true">on</option>
+              </select>
+              <span class="settings-field-hint">Env: KABBAK_ALLOW_NULL_ORIGIN</span>
+            </label>
+            <label class="settings-field settings-field-full">Allowed CORS Origins (one per line)
+              <textarea id="admin-setting-origins" rows="4" placeholder="https://gui.typhon.dev"></textarea>
+              <span class="settings-field-hint">Env: KABBAK_ALLOWED_ORIGINS — leave empty to fall back to the environment value</span>
+            </label>
+            <label class="settings-field">Request body limit
+              <input id="admin-setting-body-limit" type="text" placeholder="64mb">
+              <span class="settings-field-hint">Env: KABBAK_JSON_BODY_LIMIT — e.g. 10mb, 500kb, 1gb</span>
+            </label>
+            <label class="settings-field">Plugin upload limit (MB)
+              <input id="admin-setting-plugin-limit-mb" type="number" min="1" max="1024" step="1" placeholder="25">
+              <span class="settings-field-hint">Env: KABBAK_MAX_PLUGIN_UPLOAD_MB</span>
+            </label>
+            <label class="settings-field">Auto migrate
+              <select id="admin-setting-auto-migrate">
+                <option value="true">on</option>
+                <option value="false">off</option>
+              </select>
+              <span class="settings-field-hint">Env: KABBAK_AUTO_MIGRATE — applies at the next startup/storage check</span>
+            </label>
+            <div class="settings-field">Profile encryption secret
+              <input id="admin-setting-encryption-secret" type="password" placeholder="(leave blank to keep current)" autocomplete="new-password">
+              <span id="admin-setting-secret-state" class="settings-field-hint">not set</span>
+              <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
+                <input id="admin-setting-secret-clear" type="checkbox"> Clear saved secret
+              </label>
+            </div>
+            <label class="settings-field">Browser tab title
+              <input id="admin-setting-browser-title" type="text" maxlength="100" placeholder="KABBAK">
+              <span class="settings-field-hint">Env: KABBAK_BROWSER_TITLE — blank uses the app default</span>
+            </label>
+            <label class="settings-field settings-field-full">Tarot card viewer background
+              <input id="admin-setting-overlay-url" type="url" maxlength="500" placeholder="https://… or leave blank for the look’s backdrop">
+              <span class="settings-field-hint">Background behind the enlarged tarot card. Upload an image or paste a URL.</span>
+              <div class="dlc-shop-actions" style="margin-top:8px;">
+                <label class="mp-upload-btn">Upload overlay
+                  <input id="admin-setting-overlay-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+                </label>
+                <button id="admin-setting-overlay-clear" class="dlc-shop-btn" type="button">Clear overlay</button>
+              </div>
+            </label>
+          </div>
+          <div id="admin-env-readonly" class="admin-env-readonly"></div>
+          <div class="dlc-shop-actions" style="margin-top:10px;">
+            <button id="admin-settings-save" class="settings-button-primary" type="button">Save Settings</button>
+          </div>
+        </div>
+        <div class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>Server Logs</strong>
+            <span>Live view of the in-memory log buffer (requests, bandwidth summaries, errors).</span>
+          </div>
+          <div class="dlc-shop-actions" style="margin-bottom:10px;">
+            <select id="admin-log-level" class="dlc-menu-preset-select" style="max-width:150px;">
+              <option value="all">All levels</option>
+              <option value="info">Info</option>
+              <option value="warn">Warn</option>
+              <option value="error">Error</option>
+            </select>
+            <label class="dlc-menu-hide-label">
+              <input id="admin-log-autorefresh" type="checkbox" checked>
+              Auto-refresh (3s)
+            </label>
+            <button id="admin-log-refresh" class="dlc-shop-btn" type="button">Refresh</button>
+            <button id="admin-log-clear" class="dlc-shop-btn" type="button">Clear Buffer</button>
+          </div>
+          <div id="admin-log-list" class="admin-log-list"></div>
+        </div>
+      </section>
+    </div>
+  </section>
+  <section id="calendar-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong id="calendar-list-title">Calendar > Months</strong>
+          <span id="calendar-month-count" class="list-count">--</span>
+        </div>
+        <div class="dataset-search-wrap" id="calendar-type-wrap">
+          <label for="calendar-type-select">Calendar System</label>
+          <select id="calendar-type-select" class="quiz-category-select" aria-label="Select calendar system">
+            <option value="gregorian">Gregorian Calendar</option>
+            <option value="hebrew">Hebrew Calendar</option>
+            <option value="islamic">Islamic Calendar</option>
+            <option value="wheel-of-year">Wheel of the Year</option>
+          </select>
+        </div>
+        <div class="dataset-search-wrap calendar-year-control" id="calendar-year-wrap">
+          <label for="calendar-year-input">Year for month facts</label>
+          <input id="calendar-year-input" type="number" min="1900" max="2500" step="1" value="2026">
+        </div>
+        <div class="dataset-search-wrap">
+          <input id="calendar-search-input" class="dataset-search-input" type="search" placeholder="Search months and events" aria-label="Search calendar months and events">
+          <button id="calendar-search-clear" class="dataset-search-clear" type="button" aria-label="Clear calendar search" disabled>×</button>
+        </div>
+        <div id="calendar-month-list" class="card-list" role="listbox" aria-label="Calendar months"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="calendar-detail-name">--</h2>
+          <div id="calendar-detail-sub" class="detail-type">Select a month to explore</div>
+          <div class="detail-sequence-nav" aria-label="Browse months">
+            <button id="calendar-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous month">Back</button>
+            <div id="calendar-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
+            <button id="calendar-detail-next" class="detail-sequence-btn" type="button" aria-label="Next month">Next</button>
+          </div>
+        </div>
+        <div id="calendar-detail-body"></div>
+      </section>
+    </div>
+  </section>
+  <section id="holiday-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Holiday Repository</strong>
+          <span id="holiday-count" class="list-count">--</span>
+        </div>
+        <div class="dataset-search-wrap calendar-holiday-filter">
+          <label for="holiday-source-select">Holiday Source</label>
+          <select id="holiday-source-select" class="quiz-category-select" aria-label="Filter holidays by source calendar">
+            <option value="all">All Calendars</option>
+            <option value="gregorian">Gregorian</option>
+            <option value="hebrew">Hebrew</option>
+            <option value="islamic">Islamic</option>
+            <option value="wheel-of-year">Wheel of the Year</option>
+          </select>
+        </div>
+        <div class="dataset-search-wrap calendar-year-control">
+          <label for="holiday-year-input">Reference Year</label>
+          <input id="holiday-year-input" type="number" min="1900" max="2500" step="1" value="2026">
+        </div>
+        <div class="dataset-search-wrap">
+          <input id="holiday-search-input" class="dataset-search-input" type="search" placeholder="Search holidays, calendars, date equivalents" aria-label="Search holiday repository">
+          <button id="holiday-search-clear" class="dataset-search-clear" type="button" aria-label="Clear holiday search" disabled>×</button>
+        </div>
+        <div id="holiday-list" class="card-list" role="listbox" aria-label="Holidays"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="holiday-detail-name">--</h2>
+          <div id="holiday-detail-sub" class="detail-type">Select a holiday to explore</div>
+          <div class="detail-sequence-nav" aria-label="Browse holidays">
+            <button id="holiday-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous holiday">Back</button>
+            <div id="holiday-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
+            <button id="holiday-detail-next" class="detail-sequence-btn" type="button" aria-label="Next holiday">Next</button>
+          </div>
+        </div>
+        <div id="holiday-detail-body"></div>
+      </section>
+    </div>
+  </section>
+  <section id="tarot-section" hidden>
+    <div id="tarot-browse-view">
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Tarot Database</strong>
+          <span id="tarot-card-count" class="list-count">--</span>
+        </div>
+        <div class="dataset-search-wrap">
+          <input id="tarot-search-input" class="dataset-search-input" type="search" placeholder="Search cards, keywords, relations" aria-label="Search tarot cards">
+          <button id="tarot-search-clear" class="dataset-search-clear" type="button" aria-label="Clear tarot search" disabled>×</button>
+        </div>
+        <div id="tarot-card-list" class="card-list" role="listbox" aria-label="Tarot cards"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="tarot-detail-top">
+          <div class="detail-heading">
+            <h2 id="tarot-detail-name">--</h2>
+            <div id="tarot-detail-type" class="detail-type">--</div>
+            <div class="detail-sequence-nav" aria-label="Browse tarot cards">
+              <button id="tarot-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous tarot card">Back</button>
+              <div id="tarot-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
+              <button id="tarot-detail-next" class="detail-sequence-btn" type="button" aria-label="Next tarot card">Next</button>
+            </div>
+            <div id="tarot-detail-summary" class="detail-summary">--</div>
+            <div id="tarot-library-actions"></div>
+          </div>
+        </div>
+        <div id="tarot-meta-deck-gallery-card" class="meta-card tarot-deck-gallery-card" hidden>
+          <strong>Deck Variants</strong>
+          <div id="tarot-detail-deck-gallery" class="tarot-deck-gallery"></div>
+        </div>
+        <div class="tarot-meanings">
+          <div class="tarot-meaning-card">
+            <strong>Upright</strong>
+            <div id="tarot-detail-upright">--</div>
+          </div>
+          <div class="tarot-meaning-card">
+            <strong>Reversed</strong>
+            <div id="tarot-detail-reversed">--</div>
+          </div>
+        </div>
+        <div class="meta-grid">
+          <div id="tarot-meta-meaning-card" class="meta-card" hidden>
+            <strong>Traditional Meaning</strong>
+            <div id="tarot-detail-meaning" class="body-text">--</div>
+          </div>
+          <div class="meta-card">
+            <strong>Keywords</strong>
+            <div id="tarot-detail-keywords" class="tarot-keywords"></div>
+          </div>
+          <div id="tarot-meta-planet-card" class="meta-card" hidden>
+            <strong>Planet</strong>
+            <ul id="tarot-detail-planet" class="tarot-relations"></ul>
+          </div>
+          <div id="tarot-meta-element-card" class="meta-card" hidden>
+            <strong>Element</strong>
+            <ul id="tarot-detail-element" class="tarot-relations"></ul>
+          </div>
+          <div id="tarot-meta-tetragrammaton-card" class="meta-card" hidden>
+            <strong>Tetragrammaton</strong>
+            <ul id="tarot-detail-tetragrammaton" class="tarot-relations"></ul>
+          </div>
+          <div id="tarot-meta-zodiac-card" class="meta-card" hidden>
+            <strong>Zodiac</strong>
+            <ul id="tarot-detail-zodiac" class="tarot-relations"></ul>
+          </div>
+          <div id="tarot-meta-courtdate-card" class="meta-card" hidden>
+            <strong>Court Date Window</strong>
+            <ul id="tarot-detail-courtdate" class="tarot-relations"></ul>
+          </div>
+          <div id="tarot-meta-hebrew-card" class="meta-card" hidden>
+            <strong>Hebrew Letter</strong>
+            <ul id="tarot-detail-hebrew" class="tarot-relations"></ul>
+          </div>
+          <div id="tarot-meta-cube-card" class="meta-card" hidden>
+            <strong>Cube of Space</strong>
+            <ul id="tarot-detail-cube" class="tarot-relations"></ul>
+          </div>
+          <div id="tarot-meta-iching-card" class="meta-card" hidden>
+            <strong>I Ching</strong>
+            <ul id="tarot-detail-iching" class="tarot-relations"></ul>
+          </div>
+          <div id="tarot-meta-calendar-card" class="meta-card" hidden>
+            <strong>Calendar Months</strong>
+            <ul id="tarot-detail-calendar" class="tarot-relations"></ul>
+          </div>
+        </div>
+        <div id="tarot-kab-path" class="tarot-kab-path-card" hidden></div>
+      </section>
+    </div>
+    </div>
+    <div id="tarot-spread-view" hidden>
+      <div class="tarot-spread-toolbar">
+        <div class="tarot-spread-type-controls" role="group" aria-label="Spread type">
+          <button id="tarot-spread-btn-three" class="tarot-spread-type-btn" type="button">3 Card</button>
+          <button id="tarot-spread-btn-celtic" class="tarot-spread-type-btn" type="button">Celtic Cross</button>
+        </div>
+        <div class="tarot-spread-type-controls" role="group" aria-label="Card orientation">
+          <button id="tarot-spread-btn-reverse" class="tarot-spread-type-btn" type="button" aria-pressed="false">Reverse</button>
+        </div>
+        <button id="tarot-spread-reveal-all" class="tarot-spread-redraw-btn" type="button">Reveal All</button>
+        <button id="tarot-spread-redraw" class="tarot-spread-redraw-btn" type="button">⟳ Redraw</button>
+      </div>
+      <div id="tarot-spread-meanings" class="tarot-spread-meanings" aria-live="polite"></div>
+      <div id="tarot-spread-board" class="tarot-spread-board" aria-live="polite"></div>
+    </div>
+  </section>
+  <section id="tarot-frame-section" hidden>
+    <div id="tarot-frame-view" class="tarot-frame-view">
+      <div class="tarot-frame-shell">
+        <div class="tarot-frame-header">
+          <div>
+            <h2 class="tarot-frame-title">Tarot Frame</h2>
+          </div>
+          <div class="tarot-frame-actions">
+            <button id="tarot-frame-selection-chip" class="tarot-frame-selection-chip" type="button" hidden>0 Selected</button>
+            <div id="tarot-frame-settings-panel" class="tarot-frame-settings-panel" role="dialog" aria-label="Tarot Frame settings" hidden>
+              <div class="tarot-frame-settings-heading">Layout</div>
+              <div id="tarot-frame-layout-options" class="tarot-frame-layout-options">
+                <button class="tarot-frame-layout-option" type="button" data-layout-preset-id="frames" role="menuitemradio" aria-checked="true">
+                  <strong>Frames</strong>
+                  <span>The current master frame with top-row extras and nested chronological rings.</span>
+                </button>
+                <button class="tarot-frame-layout-option" type="button" data-layout-preset-id="house" role="menuitemradio" aria-checked="false">
+                  <strong>House of Cards</strong>
+                  <span>The legacy house composition rebuilt inside the 18×18 snap grid.</span>
+                </button>
+              </div>
+              <label class="tarot-frame-field" for="tarot-frame-grid-zoom">
+                <span>Grid Zoom</span>
+                <select id="tarot-frame-grid-zoom">
+                  <option value="0">100%</option>
+                  <option value="1">120%</option>
+                  <option value="2">140%</option>
+                  <option value="3">170%</option>
+                  <option value="4">200%</option>
+                  <option value="5">240%</option>
+                  <option value="6">300%</option>
+                  <option value="7">360%</option>
+                  <option value="8">420%</option>
+                  <option value="9">520%</option>
+                  <option value="10">640%</option>
+                  <option value="11">800%</option>
+                  <option value="12">1000%</option>
+                  <option value="13">1200%</option>
+                  <option value="14">1400%</option>
+                </select>
+              </label>
+              <label class="tarot-frame-field" for="tarot-frame-deck-select">
+                <span>Frame Deck</span>
+                <select id="tarot-frame-deck-select"></select>
+              </label>
+              <label class="tarot-frame-toggle" for="tarot-frame-show-info">
+                <input id="tarot-frame-show-info" type="checkbox">
+                <span>Display Info</span>
+              </label>
+              <div id="tarot-frame-house-settings" class="tarot-frame-settings-group">
+                <div class="tarot-frame-settings-heading">Card Display Settings</div>
+                <div class="tarot-frame-settings-note">These controls apply to every Frame layout. Top settings affect major arcana, and lower settings affect minor and court cards.</div>
+                <label class="tarot-frame-toggle" for="tarot-frame-house-top-cards-visible">
+                  <input id="tarot-frame-house-top-cards-visible" type="checkbox" checked>
+                  <span>Show top card images</span>
+                </label>
+                <div class="tarot-frame-settings-subheading">Top Info</div>
+                <div class="tarot-frame-checkbox-grid">
+                  <label class="tarot-frame-check" for="tarot-frame-house-top-info-hebrew"><input id="tarot-frame-house-top-info-hebrew" type="checkbox" checked><span>Hebrew</span></label>
+                  <label class="tarot-frame-check" for="tarot-frame-house-top-info-planet"><input id="tarot-frame-house-top-info-planet" type="checkbox" checked><span>Planet</span></label>
+                  <label class="tarot-frame-check" for="tarot-frame-house-top-info-zodiac"><input id="tarot-frame-house-top-info-zodiac" type="checkbox" checked><span>Zodiac</span></label>
+                  <label class="tarot-frame-check" for="tarot-frame-house-top-info-trump"><input id="tarot-frame-house-top-info-trump" type="checkbox" checked><span>Trump</span></label>
+                  <label class="tarot-frame-check" for="tarot-frame-house-top-info-path"><input id="tarot-frame-house-top-info-path" type="checkbox" checked><span>Path</span></label>
+                  <label class="tarot-frame-check" for="tarot-frame-house-top-info-date"><input id="tarot-frame-house-top-info-date" type="checkbox"><span>Date</span></label>
+                </div>
+                <label class="tarot-frame-toggle" for="tarot-frame-house-bottom-cards-visible">
+                  <input id="tarot-frame-house-bottom-cards-visible" type="checkbox" checked>
+                  <span>Show lower card images</span>
+                </label>
+                <div class="tarot-frame-settings-subheading">Lower Info</div>
+                <div class="tarot-frame-checkbox-grid">
+                  <label class="tarot-frame-check" for="tarot-frame-house-bottom-info-zodiac"><input id="tarot-frame-house-bottom-info-zodiac" type="checkbox" checked><span>Zodiac</span></label>
+                  <label class="tarot-frame-check" for="tarot-frame-house-bottom-info-decan"><input id="tarot-frame-house-bottom-info-decan" type="checkbox" checked><span>Decan</span></label>
+                  <label class="tarot-frame-check" for="tarot-frame-house-bottom-info-month"><input id="tarot-frame-house-bottom-info-month" type="checkbox" checked><span>Month</span></label>
+                  <label class="tarot-frame-check" for="tarot-frame-house-bottom-info-ruler"><input id="tarot-frame-house-bottom-info-ruler" type="checkbox" checked><span>Ruler</span></label>
+                  <label class="tarot-frame-check" for="tarot-frame-house-bottom-info-date"><input id="tarot-frame-house-bottom-info-date" type="checkbox"><span>Date</span></label>
+                </div>
+              </div>
+              <div class="tarot-frame-settings-actions">
+                <button id="tarot-frame-clear-grid" class="tarot-frame-action-btn tarot-frame-clear-btn" type="button">Clear Grid</button>
+                <button id="tarot-frame-export-webp" class="tarot-frame-action-btn tarot-frame-export-btn" type="button">Export WebP</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="tarot-frame-overview" class="tarot-frame-overview-host"></div>
+        <div id="tarot-frame-status" class="tarot-frame-status" aria-live="polite">Loading tarot cards...</div>
+        <button id="tarot-frame-focus-exit" class="tarot-frame-focus-exit" type="button" aria-expanded="false" aria-controls="tarot-frame-settings-panel">Settings</button>
+        <div id="tarot-frame-board" class="tarot-frame-board-grid"></div>
+      </div>
+    </div>
+  </section>
+  <section id="tarot-house-section" hidden>
+    <div id="tarot-house-view" class="tarot-house-view">
+      <section class="tarot-misc-section tarot-section-house-top tarot-section-house-page" aria-label="Tarot house of cards">
+        <div class="meta-card tarot-house-card">
+          <div class="tarot-house-card-head">
+            <strong>House of Cards</strong>
+            <div class="tarot-house-card-actions">
+              <button id="tarot-house-settings-toggle" class="tarot-house-action-btn tarot-house-settings-toggle" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="tarot-house-settings-panel">Settings</button>
+            </div>
+            <div id="tarot-house-settings-panel" class="tarot-house-settings-panel" role="dialog" aria-label="House of Cards settings" hidden>
+              <label class="tarot-house-toggle" for="tarot-house-top-cards-visible">
+                <input id="tarot-house-top-cards-visible" type="checkbox" checked>
+                <span>Show Top Cards</span>
+              </label>
+              <fieldset class="tarot-house-filter-group">
+                <legend>Top Info</legend>
+                <label class="tarot-house-mini-toggle" for="tarot-house-top-info-hebrew">
+                  <input id="tarot-house-top-info-hebrew" type="checkbox" checked>
+                  <span>Hebrew</span>
+                </label>
+                <label class="tarot-house-mini-toggle" for="tarot-house-top-info-planet">
+                  <input id="tarot-house-top-info-planet" type="checkbox" checked>
+                  <span>Planet</span>
+                </label>
+                <label class="tarot-house-mini-toggle" for="tarot-house-top-info-zodiac">
+                  <input id="tarot-house-top-info-zodiac" type="checkbox" checked>
+                  <span>Zodiac</span>
+                </label>
+                <label class="tarot-house-mini-toggle" for="tarot-house-top-info-trump">
+                  <input id="tarot-house-top-info-trump" type="checkbox" checked>
+                  <span>Trump</span>
+                </label>
+                <label class="tarot-house-mini-toggle" for="tarot-house-top-info-path">
+                  <input id="tarot-house-top-info-path" type="checkbox" checked>
+                  <span>Path</span>
+                </label>
+                <label class="tarot-house-mini-toggle" for="tarot-house-top-info-date">
+                  <input id="tarot-house-top-info-date" type="checkbox">
+                  <span>Date</span>
+                </label>
+              </fieldset>
+              <label class="tarot-house-toggle" for="tarot-house-bottom-cards-visible">
+                <input id="tarot-house-bottom-cards-visible" type="checkbox" checked>
+                <span>Show Bottom Cards</span>
+              </label>
+              <fieldset class="tarot-house-filter-group">
+                <legend>Bottom Info</legend>
+                <label class="tarot-house-mini-toggle" for="tarot-house-bottom-info-zodiac">
+                  <input id="tarot-house-bottom-info-zodiac" type="checkbox" checked>
+                  <span>Sign</span>
+                </label>
+                <label class="tarot-house-mini-toggle" for="tarot-house-bottom-info-decan">
+                  <input id="tarot-house-bottom-info-decan" type="checkbox" checked>
+                  <span>Decan</span>
+                </label>
+                <label class="tarot-house-mini-toggle" for="tarot-house-bottom-info-month">
+                  <input id="tarot-house-bottom-info-month" type="checkbox" checked>
+                  <span>Month</span>
+                </label>
+                <label class="tarot-house-mini-toggle" for="tarot-house-bottom-info-ruler">
+                  <input id="tarot-house-bottom-info-ruler" type="checkbox" checked>
+                  <span>Ruler</span>
+                </label>
+                <label class="tarot-house-mini-toggle" for="tarot-house-bottom-info-date">
+                  <input id="tarot-house-bottom-info-date" type="checkbox">
+                  <span>Date</span>
+                </label>
+              </fieldset>
+              <button id="tarot-house-export-webp" class="tarot-house-action-btn" type="button">Export WebP</button>
+            </div>
+          </div>
+          <div id="tarot-house-of-cards" class="tarot-house-layout" aria-live="polite"></div>
+        </div>
+      </section>
+    </div>
+  </section>
+  <section id="planet-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Planet Database</strong>
+          <span id="planet-card-count" class="list-count">--</span>
+        </div>
+        <div class="dataset-search-wrap">
+          <input id="planet-search-input" class="dataset-search-input" type="search" placeholder="Search planets, class, correspondence" aria-label="Search planets">
+          <button id="planet-search-clear" class="dataset-search-clear" type="button" aria-label="Clear planet search" disabled>×</button>
+        </div>
+        <div id="planet-card-list" class="card-list" role="listbox" aria-label="Planets"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="planet-detail-name">--</h2>
+          <div id="planet-detail-type" class="detail-type">--</div>
+          <div class="detail-sequence-nav" aria-label="Browse planets">
+            <button id="planet-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous planet">Back</button>
+            <div id="planet-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
+            <button id="planet-detail-next" class="detail-sequence-btn" type="button" aria-label="Next planet">Next</button>
+          </div>
+          <div id="planet-detail-summary" class="detail-summary">--</div>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-card">
+            <strong>Science Facts</strong>
+            <div id="planet-detail-facts" class="planet-facts-list"></div>
+          </div>
+          <div class="meta-card">
+            <strong>Atmosphere</strong>
+            <p id="planet-detail-atmosphere" class="body-text">--</p>
+          </div>
+          <div class="meta-card">
+            <strong>Notable Facts</strong>
+            <ul id="planet-detail-notable" class="planet-notes"></ul>
+          </div>
+          <div class="meta-card">
+            <strong>Tarot / Weekday Relation</strong>
+            <div id="planet-detail-correspondence" class="body-text">--</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+  <section id="cycles-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Cycles Dataset</strong>
+          <span id="cycles-count" class="list-count">--</span>
+        </div>
+        <div class="dataset-search-wrap">
+          <input id="cycles-search-input" class="dataset-search-input" type="search" placeholder="Search cycles, periods, categories" aria-label="Search astronomy cycles">
+          <button id="cycles-search-clear" class="dataset-search-clear" type="button" aria-label="Clear cycles search" disabled>×</button>
+        </div>
+        <div id="cycles-list" class="card-list" role="listbox" aria-label="Astronomy cycles"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="cycles-detail-name">--</h2>
+          <div id="cycles-detail-type" class="detail-type">Select a cycle to explore</div>
+          <div id="cycles-detail-summary" class="detail-summary">--</div>
+        </div>
+        <div id="cycles-detail-body" class="meta-grid"></div>
+      </section>
+    </div>
+  </section>
+  <section id="tattvas-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Golden Dawn Tattvas</strong>
+          <span id="tattvas-count" class="list-count">--</span>
+        </div>
+        <div class="dataset-search-wrap">
+          <input id="tattvas-search-input" class="dataset-search-input" type="search" placeholder="Search tattvas, shapes, elements" aria-label="Search tattvas">
+          <button id="tattvas-search-clear" class="dataset-search-clear" type="button" aria-label="Clear tattvas search" disabled>×</button>
+        </div>
+        <div id="tattvas-list" class="card-list" role="listbox" aria-label="Golden Dawn tattvas"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="tattvas-detail-name">--</h2>
+          <div id="tattvas-detail-sub" class="detail-type">Select a tattva to explore</div>
+        </div>
+        <div id="tattvas-detail-body"></div>
+      </section>
+    </div>
+  </section>
+  <section id="elements-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Classical Elements</strong>
+          <span id="elements-count" class="list-count">--</span>
+        </div>
+        <div class="dataset-search-wrap">
+          <input id="elements-search-input" class="dataset-search-input" type="search" placeholder="Search elements, symbols, tarot ace" aria-label="Search classical elements">
+          <button id="elements-search-clear" class="dataset-search-clear" type="button" aria-label="Clear elements search" disabled>×</button>
+        </div>
+        <div id="elements-list" class="card-list" role="listbox" aria-label="Classical elements"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="elements-detail-name">--</h2>
+          <div id="elements-detail-sub" class="detail-type">Select an element to explore</div>
+        </div>
+        <div id="elements-detail-body"></div>
+      </section>
+    </div>
+  </section>
+  <section id="modalities-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Zodiac Modalities</strong>
+          <span id="modalities-count" class="list-count">--</span>
+        </div>
+        <div class="dataset-search-wrap">
+          <input id="modalities-search-input" class="dataset-search-input" type="search" placeholder="Search modalities, signs, elements" aria-label="Search zodiac modalities">
+          <button id="modalities-search-clear" class="dataset-search-clear" type="button" aria-label="Clear modalities search" disabled>×</button>
+        </div>
+        <div id="modalities-list" class="card-list" role="listbox" aria-label="Zodiac modalities"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="modalities-detail-name">--</h2>
+          <div id="modalities-detail-sub" class="detail-type">Select a modality to explore</div>
+        </div>
+        <div id="modalities-detail-body"></div>
+      </section>
+    </div>
+  </section>
+  <section id="audio-notes-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Audio &gt; Notes</strong>
+          <span id="audio-note-count" class="list-count">--</span>
+        </div>
+        <div class="audio-note-intro body-text">Browse the 12 equal-tempered pitch classes with reference frequencies anchored to A4 = 440 Hz.</div>
+        <div class="dataset-search-wrap">
+          <input id="audio-note-search-input" class="dataset-search-input" type="search" placeholder="Search note names, aliases, intervals" aria-label="Search audio notes">
+          <button id="audio-note-search-clear" class="dataset-search-clear" type="button" aria-label="Clear audio note search" disabled>×</button>
+        </div>
+        <div id="audio-note-list" class="card-list" role="listbox" aria-label="Audio notes"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="audio-note-detail-name">--</h2>
+          <div id="audio-note-detail-sub" class="detail-type">Select a note to explore</div>
+          <div id="audio-note-detail-summary" class="detail-summary">--</div>
+        </div>
+        <div id="audio-note-detail-body" class="audio-note-detail-stack"></div>
+      </section>
+    </div>
+  </section>
+  <section id="audio-circle-section" hidden>
+    <div class="audio-circle-layout">
+      <aside class="audio-circle-stage-panel">
+        <div class="list-header">
+          <strong>Audio &gt; Circle</strong>
+          <span class="list-count">12 Keys</span>
+        </div>
+        <div class="audio-circle-intro body-text">The Circle of Fifths orders keys by perfect fifth motion. Tap any key to hear its tonic and inspect its clockwise and counter-clockwise neighbors.</div>
+        <div id="audio-circle-stage" class="audio-circle-stage" aria-label="Circle of Fifths"></div>
+      </aside>
+      <section class="detail-panel audio-circle-detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="audio-circle-detail-name">Circle of Fifths</h2>
+          <div id="audio-circle-detail-sub" class="detail-type">Select a key to explore its tonic, relative minor, and neighbors</div>
+          <div id="audio-circle-detail-summary" class="detail-summary">--</div>
+        </div>
+        <div id="audio-circle-detail-body" class="audio-circle-detail-stack"></div>
+      </section>
+    </div>
+  </section>
+  <section id="iching-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>I Ching Database</strong>
+          <span id="iching-card-count" class="list-count">--</span>
+        </div>
+        <div class="dataset-search-wrap">
+          <input id="iching-search-input" class="dataset-search-input" type="search" placeholder="Search hexagrams, trigrams, keywords" aria-label="Search I Ching hexagrams">
+          <button id="iching-search-clear" class="dataset-search-clear" type="button" aria-label="Clear I Ching search" disabled>×</button>
+        </div>
+        <div id="iching-card-list" class="card-list" role="listbox" aria-label="I Ching hexagrams"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="iching-detail-name">--</h2>
+          <div id="iching-detail-type" class="detail-type">--</div>
+          <div id="iching-detail-summary" class="detail-summary">--</div>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-card">
+            <strong>Oracle Text</strong>
+            <p id="iching-detail-judgement" class="body-text">--</p>
+            <p id="iching-detail-image" class="body-text">--</p>
+          </div>
+          <div class="meta-card">
+            <strong>Binary Pattern</strong>
+            <p id="iching-detail-binary" class="body-text">--</p>
+            <div id="iching-detail-line" class="iching-diagram">--</div>
+          </div>
+          <div class="meta-card">
+            <strong>Keywords</strong>
+            <div id="iching-detail-keywords" class="tarot-keywords"></div>
+          </div>
+          <div class="meta-card">
+            <strong>Planetary Influence</strong>
+            <p id="iching-detail-planet" class="body-text">--</p>
+          </div>
+          <div class="meta-card">
+            <strong>Tarot Correspondences</strong>
+            <div id="iching-detail-tarot" class="body-text iching-tarot-text">--</div>
+          </div>
+          <div class="meta-card">
+            <strong>Calendar Months</strong>
+            <div id="iching-detail-calendar" class="alpha-nav-btns"></div>
+          </div>
+          <div class="meta-card">
+            <strong>Trigrams</strong>
+            <div id="iching-detail-trigrams" class="iching-trigram-grid"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section id="iching-trigram-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Eight Trigrams</strong>
+          <span id="iching-trigram-count" class="list-count">8</span>
+        </div>
+        <div id="iching-trigram-list" class="card-list" role="listbox" aria-label="I Ching trigrams"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="iching-trigram-detail-name">--</h2>
+          <div id="iching-trigram-detail-type" class="detail-type">--</div>
+          <div id="iching-trigram-detail-summary" class="detail-summary">--</div>
+        </div>
+        <div id="iching-trigram-detail-body" class="meta-grid">
+          <div class="meta-card">
+            <strong>Description</strong>
+            <p id="iching-trigram-detail-description" class="body-text">--</p>
+          </div>
+          <div class="meta-card">
+            <strong>Binary Pattern</strong>
+            <div id="iching-trigram-detail-binary" class="body-text">--</div>
+            <div id="iching-trigram-line-diagram" class="iching-diagram">--</div>
+          </div>
+          <div class="meta-card">
+            <strong>Attributes</strong>
+            <div id="iching-trigram-detail-attributes" class="body-text">--</div>
+          </div>
+          <div class="meta-card">
+            <strong>Hexagram Associations</strong>
+            <div id="iching-trigram-detail-hexagrams" class="body-text iching-tarot-text">--</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section id="iching-bigram-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Four Bigrams</strong>
+          <span id="iching-bigram-count" class="list-count">4</span>
+        </div>
+        <div id="iching-bigram-list" class="card-list" role="listbox" aria-label="I Ching bigrams"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="iching-bigram-detail-name">--</h2>
+          <div id="iching-bigram-detail-type" class="detail-type">--</div>
+          <div id="iching-bigram-detail-summary" class="detail-summary">--</div>
+        </div>
+        <div id="iching-bigram-detail-body" class="meta-grid">
+          <div class="meta-card">
+            <strong>Description</strong>
+            <p id="iching-bigram-detail-description" class="body-text">--</p>
+          </div>
+          <div class="meta-card">
+            <strong>Binary Pattern</strong>
+            <div id="iching-bigram-detail-binary" class="body-text">--</div>
+            <div id="iching-bigram-line-diagram" class="iching-diagram">--</div>
+          </div>
+          <div class="meta-card">
+            <strong>Attributes</strong>
+            <div id="iching-bigram-detail-attributes" class="body-text">--</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section id="iching-phase-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Five Phases</strong>
+          <span id="iching-phase-count" class="list-count">5</span>
+        </div>
+        <div id="iching-phase-list" class="card-list" role="listbox" aria-label="I Ching five phases"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="iching-phase-detail-name">--</h2>
+          <div id="iching-phase-detail-type" class="detail-type">--</div>
+          <div id="iching-phase-detail-summary" class="detail-summary">--</div>
+        </div>
+        <div id="iching-phase-detail-body" class="meta-grid">
+          <div class="meta-card">
+            <strong>Description</strong>
+            <p id="iching-phase-detail-description" class="body-text">--</p>
+          </div>
+          <div class="meta-card">
+            <strong>Correspondences</strong>
+            <div id="iching-phase-detail-correspondences" class="body-text">--</div>
+          </div>
+          <div class="meta-card">
+            <strong>Cycles</strong>
+            <div id="iching-phase-detail-cycles" class="body-text">--</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section id="sky-section" hidden>
+    <div id="now-panel">
+    <iframe id="now-sky-layer" aria-hidden="true" scrolling="no" allow="geolocation"></iframe>
+    <div class="now-panel-controls">
+      <label class="now-panel-toggle" for="now-overlay-toggle">
+        <input id="now-overlay-toggle" type="checkbox" checked />
+        <span>Show Overlay</span>
+      </label>
+      <button id="now-settings-toggle" class="now-panel-toggle" type="button" aria-expanded="false" aria-controls="now-settings-panel">Settings</button>
+    </div>
+    <div id="now-settings-panel" class="now-settings-panel" hidden>
+      <div class="now-settings-head">
+        <strong>Sky Settings</strong>
+        <span>Location, live background, and card deck for this page.</span>
+      </div>
+      <div class="now-settings-row">
+        <label class="settings-field">Latitude
+          <input id="now-lat" type="number" step="0.0001" value="51.5074">
+        </label>
+        <label class="settings-field">Longitude
+          <input id="now-lng" type="number" step="0.0001" value="-0.1278">
+        </label>
+        <button id="now-use-location" type="button" class="settings-action-btn">Use My Location</button>
+        <label class="settings-field now-settings-check" for="now-stellarium-toggle">
+          <span>Sky Background</span>
+          <input id="now-stellarium-toggle" type="checkbox" />
+        </label>
+        <label id="now-deck-field" class="settings-field settings-field-full">Tarot Deck
+          <select id="now-tarot-deck" aria-label="Tarot deck for Sky cards"></select>
+        </label>
+        <label class="settings-field settings-field-full">Countdown Format
+          <select id="now-time-format" aria-label="Countdown time format">
+            <option value="minutes" selected>Minutes</option>
+            <option value="hours">Hours</option>
+            <option value="seconds">Seconds</option>
+          </select>
+        </label>
+      </div>
+      <div class="now-settings-actions">
+        <button id="now-settings-save" type="button" class="settings-action-btn now-settings-save-btn">Save</button>
+        <span id="now-settings-status" class="now-settings-status" aria-live="polite"></span>
+      </div>
+    </div>
+    <div class="now-panel-square">
+      <div class="now-section now-section-hour">
+        <div class="now-title">Current Planetary Hour</div>
+        <img id="now-hour-card" class="now-card" alt="Current planetary hour card" />
+        <div id="now-hour" class="now-primary now-primary-hour">--</div>
+        <div id="now-hour-tarot" class="now-tarot">--</div>
+        <div class="now-countdown-row">
+          <span id="now-countdown" class="now-countdown-value">--</span>
+          <span id="now-hour-next" class="now-countdown-next">> --</span>
+        </div>
+      </div>
+      <div class="now-section now-section-moon">
+        <div class="now-title">Moon Phase</div>
+        <img id="now-moon-card" class="now-card" alt="Current moon phase card" />
+        <div id="now-moon" class="now-primary now-primary-moon">--</div>
+        <div id="now-moon-tarot" class="now-tarot">--</div>
+        <div class="now-countdown-row">
+          <span id="now-moon-countdown" class="now-countdown-value">--</span>
+          <span id="now-moon-next" class="now-countdown-next">> --</span>
+        </div>
+      </div>
+      <div class="now-section now-section-decan">
+        <div class="now-title">Current Decan (Sun)</div>
+        <img id="now-decan-card" class="now-card" alt="Current decan card" />
+        <div id="now-decan" class="now-primary now-primary-decan">--</div>
+        <div id="now-decan-tarot" class="now-tarot">--</div>
+        <div class="now-countdown-row">
+          <span id="now-decan-countdown" class="now-countdown-value">--</span>
+          <span id="now-decan-next" class="now-countdown-next">> --</span>
+        </div>
+      </div>
+      <div class="now-stats-section">
+        <div class="now-stats-title">Planet Positions</div>
+        <div id="now-stats-planets" class="now-stats-planets">--</div>
+        <div id="now-stats-sabian" class="now-stats-sabian">--</div>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <section id="astronomy-section" hidden>
+    <div class="kabbalah-placeholder">
+      <div class="kabbalah-placeholder-card">
+        <strong>Astronomy</strong>
+        <div class="body-text">Use the Astronomy menu to explore Planet, Zodiac, Natal Chart, or Sky.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="natal-section" hidden>
+    <div class="kabbalah-placeholder">
+      <div class="kabbalah-placeholder-card">
+        <strong>Natal Chart</strong>
+        <div class="body-text">Natal chart scaffolding and anchor summary.</div>
+        <pre id="natal-chart-summary" class="body-text natal-chart-summary">Natal Chart Scaffold: --</pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="quiz-section" hidden>
+    <div class="quiz-layout">
+      <div class="quiz-card">
+        <div class="detail-heading">
+          <h2>Correspondence Quiz</h2>
+          <div class="detail-type">Random correspondence questions with real-value options only</div>
+        </div>
+        <div class="quiz-toolbar">
+          <label class="quiz-category-label" for="quiz-category">Category</label>
+          <select id="quiz-category" class="quiz-category-select" aria-label="Quiz category">
+            <option value="random">Random</option>
+            <option value="all">All</option>
+          </select>
+          <label class="quiz-difficulty-label" for="quiz-difficulty">Difficulty</label>
+          <select id="quiz-difficulty" class="quiz-difficulty-select" aria-label="Quiz difficulty">
+            <option value="easy">Easy</option>
+            <option value="normal" selected>Normal</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+        <div class="quiz-score-grid" aria-live="polite">
+          <div class="quiz-score-item">
+            <div class="quiz-score-label">Correct</div>
+            <div id="quiz-score-correct" class="quiz-score-value">0</div>
+          </div>
+          <div class="quiz-score-item">
+            <div class="quiz-score-label">Answered</div>
+            <div id="quiz-score-answered" class="quiz-score-value">0</div>
+          </div>
+          <div class="quiz-score-item">
+            <div class="quiz-score-label">Accuracy</div>
+            <div id="quiz-score-accuracy" class="quiz-score-value">0%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quiz-card" aria-live="polite">
+        <div id="quiz-question-type" class="detail-type">--</div>
+        <p id="quiz-question" class="quiz-question">Loading question…</p>
+        <div id="quiz-options" class="quiz-options"></div>
+        <div id="quiz-feedback" class="body-text">Choose the best answer.</div>
+        <div class="quiz-actions">
+          <button id="quiz-reset" class="settings-trigger" type="button">Reset Score</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="scriber-section" hidden>
+    <div class="scriber-layout">
+      <aside class="scriber-sidebar">
+        <div class="scriber-sidebar-head">
+          <strong>Scriber</strong>
+          <span id="scriber-doc-count" class="list-count">--</span>
+        </div>
+        <div class="scriber-sidebar-intro body-text">A writing studio for poetry and short stories. Hover any letter in your text to reveal its gematria, tarot, astrology, and sister letters.</div>
+        <div class="scriber-doc-actions">
+          <button id="scriber-new-btn" class="scriber-btn" type="button" title="Start a new document">＋ New</button>
+          <button id="scriber-save-btn" class="scriber-btn scriber-btn-primary" type="button" title="Save the current document (Ctrl+S)">Save</button>
+          <button id="scriber-delete-btn" class="scriber-btn" type="button" title="Delete the current document" disabled>Delete</button>
+        </div>
+        <div id="scriber-doc-list" class="card-list" role="listbox" aria-label="Scriber documents"></div>
+        <div class="scriber-tools-head">
+          <strong>Tools</strong>
+        </div>
+        <div class="scriber-tools">
+          <div class="scriber-tool">
+            <div class="scriber-tool-label">Dictionary</div>
+            <div class="scriber-tool-row">
+              <input id="scriber-dict-input" class="scriber-tool-input" type="search" placeholder="Prefix, e.g. lu*" aria-label="Dictionary lookup">
+            </div>
+            <div id="scriber-dict-results" class="scriber-tool-results" aria-live="polite"></div>
+          </div>
+          <div class="scriber-tool">
+            <div class="scriber-tool-label">Gematria</div>
+            <div class="scriber-tool-row">
+              <input id="scriber-gem-input" class="scriber-tool-input" type="text" placeholder="Word or phrase" aria-label="Gematria calculator">
+            </div>
+            <div id="scriber-gem-results" class="scriber-tool-results" aria-live="polite"></div>
+          </div>
+          <div class="scriber-tool">
+            <div class="scriber-tool-label">Reverse Gematria</div>
+            <div class="scriber-tool-row">
+              <input id="scriber-revgem-input" class="scriber-tool-input" type="number" min="1" step="1" placeholder="Value, e.g. 137" aria-label="Reverse gematria lookup">
+            </div>
+            <div id="scriber-revgem-results" class="scriber-tool-results" aria-live="polite"></div>
+          </div>
+          <div class="scriber-tool">
+            <div class="scriber-tool-label">Anagram</div>
+            <div class="scriber-tool-row">
+              <input id="scriber-anagram-input" class="scriber-tool-input" type="text" placeholder="Letters" aria-label="Anagram lookup">
+            </div>
+            <div id="scriber-anagram-results" class="scriber-tool-results" aria-live="polite"></div>
+          </div>
+        </div>
+      </aside>
+      <section class="scriber-editor">
+        <div class="scriber-editor-head">
+          <input id="scriber-title" type="text" maxlength="200" placeholder="Untitled work" aria-label="Document title">
+          <button id="scriber-assist-toggle" class="scriber-btn scriber-assist-toggle" type="button" aria-pressed="true" title="Show dictionary suggestions for the word you are typing">Dictionary assist: On</button>
+          <div class="scriber-editor-meta" id="scriber-editor-meta"></div>
+        </div>
+        <div class="scriber-writing-shell">
+          <div id="scriber-writing-area" class="scriber-writing-area" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" aria-label="Writing area"></div>
+          <div id="scriber-suggest-words" class="scriber-word-suggest" hidden></div>
+        </div>
+        <div id="scriber-suggest" class="scriber-suggest" hidden>
+          <div class="scriber-suggest-gem" id="scriber-suggest-gem"></div>
+        </div>
+        <div class="scriber-statusbar">
+          <span id="scriber-word-count" class="scriber-word-count"></span>
+          <span id="scriber-save-status" class="scriber-save-status" aria-live="polite"></span>
+        </div>
+      </section>
+      <aside class="scriber-relations">
+        <div class="scriber-relations-head">
+          <strong>Relations</strong>
+          <button id="scriber-pin-clear" class="scriber-btn" type="button" hidden title="Unpin the letter">Unpin</button>
+        </div>
+        <div id="scriber-relations-body" class="scriber-relations-body">
+          <div class="scriber-relations-hint">
+            <p>Hover a letter for its mystical reading. Dictionary lookups use the whole word around that letter.</p>
+            <p>Click a letter to pin it. Press Esc to unpin.</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="kabbalah-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Sefirot</strong>
+          <span id="kab-browser-count" class="list-count">--</span>
+        </div>
+        <div class="kab-browser-intro body-text">Browse the 11 sefiroth, including Daath. Use Tree for the diagram and Paths for the 22 letter paths.</div>
+        <div id="kab-browser-list" class="card-list" role="listbox" aria-label="Kabbalah sefirot"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="kab-browser-detail-name">Kabbalah Sefirot</h2>
+          <div id="kab-browser-detail-sub" class="detail-type">Select a sephira or path to explore</div>
+          <div class="detail-sequence-nav" aria-label="Browse Kabbalah sefirot">
+            <button id="kab-browser-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous Kabbalah sephirah">Back</button>
+            <div id="kab-browser-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
+            <button id="kab-browser-detail-next" class="detail-sequence-btn" type="button" aria-label="Next Kabbalah sephirah">Next</button>
+          </div>
+        </div>
+        <div id="kab-browser-detail-body" class="meta-grid"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="kabbalah-worlds-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Qabalistic Worlds</strong>
+          <span id="kab-worlds-count" class="list-count">--</span>
+        </div>
+        <div class="kab-browser-intro body-text">Browse the four Qabalistic Worlds and their corresponding soul layers as a dedicated page.</div>
+        <div id="kab-worlds-list" class="card-list" role="listbox" aria-label="Qabalistic worlds"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="kab-worlds-detail-name">Qabalistic Worlds</h2>
+          <div id="kab-worlds-detail-sub" class="detail-type">Select a world layer to explore</div>
+          <div class="detail-sequence-nav" aria-label="Browse Qabalistic Worlds">
+            <button id="kab-worlds-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous Qabalistic world">Back</button>
+            <div id="kab-worlds-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
+            <button id="kab-worlds-detail-next" class="detail-sequence-btn" type="button" aria-label="Next Qabalistic world">Next</button>
+          </div>
+        </div>
+        <div id="kab-worlds-detail-body" class="meta-grid"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="kabbalah-paths-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Paths</strong>
+          <span id="kab-paths-count" class="list-count">--</span>
+        </div>
+        <div class="kab-browser-intro body-text">Browse the 22 Hebrew letter paths as their own entry page. Use Rosicrucian Cross for the petal view.</div>
+        <div id="kab-paths-list" class="card-list" role="listbox" aria-label="Kabbalah paths"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="kab-paths-detail-name">Kabbalah Paths</h2>
+          <div id="kab-paths-detail-sub" class="detail-type">Select a path to explore</div>
+          <div class="detail-sequence-nav" aria-label="Browse Kabbalah paths">
+            <button id="kab-paths-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous Kabbalah path">Back</button>
+            <div id="kab-paths-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
+            <button id="kab-paths-detail-next" class="detail-sequence-btn" type="button" aria-label="Next Kabbalah path">Next</button>
+          </div>
+        </div>
+        <div id="kab-paths-detail-body" class="meta-grid"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="kabbalah-cross-section" hidden>
+    <div class="kab-rose-layout">
+      <aside class="kab-rose-panel">
+        <div class="list-header">
+          <strong>Rosicrucian Cross</strong>
+          <span class="list-count">22 Hebrew Letter Petals</span>
+        </div>
+        <div class="kab-rose-intro body-text">Browse the Rosicrucian Cross as its own page. Click a Hebrew letter petal to explore the linked path from the cross view.</div>
+        <div id="kab-rose-cross-container" class="kab-rose-cross-container"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="kab-rose-detail-name">Rosicrucian Cross</h2>
+          <div id="kab-rose-detail-sub" class="detail-type">Select a Hebrew letter petal to explore the path</div>
+          <div class="detail-sequence-nav" aria-label="Browse Rosicrucian Cross paths">
+            <button id="kab-rose-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous Rosicrucian Cross path">Back</button>
+            <div id="kab-rose-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
+            <button id="kab-rose-detail-next" class="detail-sequence-btn" type="button" aria-label="Next Rosicrucian Cross path">Next</button>
+          </div>
+        </div>
+        <div id="kab-rose-detail-body" class="meta-grid"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="kabbalah-tree-section" hidden>
+    <div class="kab-tree-stage">
+      <header class="kab-tree-stage-header">
+        <div>
+          <h2 class="kab-tree-stage-title">Tree of Life</h2>
+          <p class="kab-tree-stage-copy">Drag to orbit. Sephira opens Sefirot, a path opens Paths, a card enlarges.</p>
+        </div>
+        <div class="kab-tree-stage-actions">
+          <label class="kab-tree-chip" for="kab-tree-spin-toggle">
+            <input id="kab-tree-spin-toggle" type="checkbox" checked>
+            <span>Spin</span>
+          </label>
+          <label class="kab-tree-chip" for="kab-path-letter-toggle">
+            <input id="kab-path-letter-toggle" type="checkbox" checked>
+            <span>Letters</span>
+          </label>
+          <label class="kab-tree-chip" for="kab-path-number-toggle">
+            <input id="kab-path-number-toggle" type="checkbox" checked>
+            <span>Numbers</span>
+          </label>
+          <label class="kab-tree-chip" for="kab-path-tarot-toggle">
+            <input id="kab-path-tarot-toggle" type="checkbox">
+            <span>Tarot</span>
+          </label>
+          <button id="kab-tree-export-webp" class="kab-export-btn" type="button">Export WebP</button>
+        </div>
+      </header>
+      <div id="kab-tree-viewport" class="kab-tree-viewport">
+        <div id="kab-tree-world" class="kab-tree-world">
+          <div id="kab-tree-container" class="kab-tree-container"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="alphabet-section" hidden>
+    <div class="alpha-lookup-shell">
+      <section class="alpha-special-top" aria-label="Alphabet special tools">
+        <div class="meta-card alpha-gematria-card">
+          <strong>Word Lookup</strong>
+          <div class="alpha-gematria-toolbar">
+            <fieldset class="alpha-tool-mode-group" aria-label="Alphabet tool mode">
+              <label class="alpha-tool-mode-option" for="alpha-tool-mode-gematria">
+                <input id="alpha-tool-mode-gematria" name="alpha-tool-mode" type="radio" value="forward" checked>
+                <span>Gematria</span>
+              </label>
+              <label class="alpha-tool-mode-option" for="alpha-tool-mode-reverse">
+                <input id="alpha-tool-mode-reverse" name="alpha-tool-mode" type="radio" value="reverse">
+                <span>Reverse Lookup</span>
+              </label>
+              <label class="alpha-tool-mode-option" for="alpha-tool-mode-dictionary">
+                <input id="alpha-tool-mode-dictionary" name="alpha-tool-mode" type="radio" value="dictionary">
+                <span>Dictionary</span>
+              </label>
+              <label class="alpha-tool-mode-option" for="alpha-tool-mode-anagram">
+                <input id="alpha-tool-mode-anagram" name="alpha-tool-mode" type="radio" value="anagram">
+                <span>Anagram Maker</span>
+              </label>
+            </fieldset>
+            <label class="alpha-script-field" for="alpha-script-select">
+              <span>Hebrew Script</span>
+              <select id="alpha-script-select" class="alpha-script-select" aria-label="Hebrew letter script">
+                <option value="ashuri">Ashuri (Square)</option>
+                <option value="rashi">Rashi</option>
+              </select>
+            </label>
+          </div>
+          <div class="alpha-gematria-controls">
+            <div class="alpha-gematria-field alpha-gematria-field-cipher">
+              <span id="alpha-gematria-cipher-label">Cipher</span>
+              <select id="alpha-gematria-cipher" class="alpha-gematria-cipher" aria-label="Gematria cipher"></select>
+              <div id="alpha-gematria-reverse-ciphers" class="alpha-gematria-reverse-ciphers" role="group" aria-label="Reverse lookup ciphers" hidden></div>
+              <div id="alpha-gematria-reverse-cipher-hint" class="alpha-gematria-reverse-cipher-hint" hidden>Select one or more ciphers to narrow reverse lookup results.</div>
+            </div>
+          <label class="alpha-gematria-field" for="alpha-gematria-input">
+              <span id="alpha-gematria-input-label">Text</span>
+            <textarea id="alpha-gematria-input" class="alpha-gematria-input" placeholder="Type or paste text"></textarea>
+          </label>
+        </div>
+        <div id="alpha-gematria-result" class="alpha-gematria-result">Total: --</div>
+        <div id="alpha-gematria-breakdown" class="alpha-gematria-breakdown">Type text to calculate.</div>
+          <div id="alpha-gematria-keyboard" class="alpha-gematria-keyboard" aria-label="On-screen language keyboard">
+            <div class="alpha-gematria-keyboard-head">
+              <label class="alpha-gematria-keyboard-label" for="alpha-gematria-keyboard-script">Keyboard</label>
+              <select id="alpha-gematria-keyboard-script" class="alpha-gematria-keyboard-script" aria-label="Choose keyboard language"></select>
+            </div>
+            <div id="alpha-gematria-keyboard-grid" class="alpha-gematria-keyboard-grid" role="group" aria-label="Language letters"></div>
+            <div id="alpha-gematria-keyboard-actions" class="alpha-gematria-keyboard-actions" role="group" aria-label="Keyboard actions">
+              <button type="button" class="alpha-gematria-keyboard-action alpha-gematria-keyboard-shift" data-keyboard-action="shift" aria-pressed="false" hidden>Shift</button>
+              <button type="button" class="alpha-gematria-keyboard-action" data-keyboard-action="backspace">Backspace</button>
+              <button type="button" class="alpha-gematria-keyboard-action" data-keyboard-action="space">Space</button>
+              <button type="button" class="alpha-gematria-keyboard-action" data-keyboard-action="star">*</button>
+              <button type="button" class="alpha-gematria-keyboard-action" data-keyboard-action="question">?</button>
+              <button type="button" class="alpha-gematria-keyboard-action" data-keyboard-action="clear">Clear</button>
+            </div>
+          </div>
+          <div id="alpha-gematria-matches" class="alpha-gematria-matches" aria-live="polite" hidden></div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section id="alphabet-letters-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Alphabet Letter Database</strong>
+          <span id="alpha-letter-count" class="list-count">--</span>
+        </div>
+        <div class="alpha-tabs">
+          <button id="alpha-tab-all" class="alpha-tab-btn alpha-tab-active" data-alpha="all">All</button>
+          <button id="alpha-tab-hebrew"  class="alpha-tab-btn" data-alpha="hebrew">Hebrew</button>
+          <button id="alpha-tab-greek"   class="alpha-tab-btn" data-alpha="greek">Greek (Classical/Koine)</button>
+          <button id="alpha-tab-greek-archaic" class="alpha-tab-btn" data-alpha="greekArchaic">Greek (Archaic)</button>
+          <button id="alpha-tab-english" class="alpha-tab-btn" data-alpha="english">English</button>
+          <button id="alpha-tab-arabic"  class="alpha-tab-btn" data-alpha="arabic">Arabic</button>
+          <button id="alpha-tab-enochian" class="alpha-tab-btn" data-alpha="enochian">Enochian</button>
+        </div>
+        <div class="dataset-search-wrap alpha-filter-search-wrap">
+          <input id="alpha-search-input" class="dataset-search-input" type="search" placeholder="Search letters, meanings, transliteration, or position (e.g., 13)" aria-label="Search alphabet letters">
+          <button id="alpha-search-clear" class="dataset-search-clear" type="button" aria-label="Clear alphabet search" disabled>×</button>
+        </div>
+        <div class="alpha-filter-type-wrap">
+          <label for="alpha-type-filter">Class</label>
+          <select id="alpha-type-filter" class="alpha-type-filter" aria-label="Filter by letter class">
+            <option value="">All</option>
+            <option value="mother">Mother</option>
+            <option value="double">Double</option>
+            <option value="simple">Simple</option>
+          </select>
+        </div>
+        <div id="alpha-letter-list" class="card-list" role="listbox" aria-label="Letters"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="alpha-detail-name">--</h2>
+          <div id="alpha-detail-sub" class="detail-type">Select a letter to explore</div>
+          <div class="detail-sequence-nav" aria-label="Browse letters">
+            <button id="alpha-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous letter">Back</button>
+            <div id="alpha-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
+            <button id="alpha-detail-next" class="detail-sequence-btn" type="button" aria-label="Next letter">Next</button>
+          </div>
+        </div>
+        <div id="alpha-detail-body" class="meta-grid"></div>
+      </div>
+      </section>
+    </div>
+  </section>
+
+  <section id="alphabet-text-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Alphabet &gt; Text</strong>
+          <span id="alpha-text-source-count" class="list-count">--</span>
+        </div>
+        <form id="alpha-text-global-search-form" class="alpha-text-search-controls alpha-text-search-controls--sidebar">
+          <label class="alpha-text-control" for="alpha-text-global-search-input">
+            <span>Search All Texts</span>
+          </label>
+          <div class="alpha-text-search-inline">
+            <input id="alpha-text-global-search-input" class="alpha-text-search-input" type="search" placeholder="Search across every text source" aria-label="Search all texts">
+            <button id="alpha-text-global-search-submit" class="alpha-nav-btn alpha-text-search-submit-inline" type="submit">Search</button>
+            <button id="alpha-text-global-search-clear" class="alpha-nav-btn alpha-text-search-submit-inline" type="button">Clear</button>
+          </div>
+        </form>
+        <div id="alpha-text-source-list" class="card-list" role="listbox" aria-label="Text sources"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading alpha-text-detail-heading">
+          <div class="alpha-text-heading-main">
+            <h2 id="alpha-text-detail-name">--</h2>
+            <div id="alpha-text-detail-sub" class="detail-type">Select a text source to begin reading</div>
+          </div>
+          <div class="detail-sequence-nav" aria-label="Browse sections">
+            <div class="detail-pane-export-controls">
+              <button type="button" class="detail-sequence-btn detail-export-btn">Export WebP</button>
+              <button type="button" class="detail-sequence-btn" id="alpha-text-settings-btn" aria-label="Reader settings" aria-haspopup="true" aria-expanded="false">Settings</button>
+            </div>
+          </div>
+          <div id="alpha-text-settings-popover" class="alpha-text-settings-popover" hidden aria-hidden="true">
+            <div class="alpha-text-settings-popover-inner">
+              <div class="alpha-text-settings-popover-head">
+                <strong>Reader Settings</strong>
+                <button type="button" class="alpha-text-settings-close" aria-label="Close settings">×</button>
+              </div>
+              <div class="alpha-text-reader-toggle-list">
+                <label class="alpha-text-reader-toggle" for="alpha-text-show-verse-heads">
+                  <input id="alpha-text-show-verse-heads" type="checkbox" checked>
+                  <span>Show headings and letter/word stats</span>
+                </label>
+                <label class="alpha-text-reader-toggle" for="alpha-text-show-source-overview">
+                  <input id="alpha-text-show-source-overview" type="checkbox" checked>
+                  <span>Show Source Overview</span>
+                </label>
+                <label class="alpha-text-reader-toggle" for="alpha-text-show-entry-totals">
+                  <input id="alpha-text-show-entry-totals" type="checkbox" checked>
+                  <span>Show Entry Totals</span>
+                </label>
+                <label class="alpha-text-reader-toggle" for="alpha-text-show-local-search">
+                  <input id="alpha-text-show-local-search" type="checkbox" checked>
+                  <span>Show Search This Source</span>
+                </label>
+                <label class="alpha-text-reader-toggle" for="alpha-text-show-work-section">
+                  <input id="alpha-text-show-work-section" type="checkbox" checked>
+                  <span>Show Work / Section selectors</span>
+                </label>
+                <label class="alpha-text-reader-toggle" for="alpha-text-show-extra-card">
+                  <input id="alpha-text-show-extra-card" type="checkbox" checked>
+                  <span>Show Extra card</span>
+                </label>
+                <div class="alpha-text-reader-toggle alpha-text-font-size-control">
+                  <span>Font Size</span>
+                  <select id="alpha-text-font-size-select" class="alpha-text-select" aria-label="Reader font size">
+                    <option value="small">Small</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="large">Large</option>
+                    <option value="xlarge">Extra Large</option>
+                  </select>
+                </div>
+                <div class="alpha-text-reader-toggle alpha-text-font-size-control">
+                  <span>Gematria</span>
+                  <select id="alpha-text-gematria-cipher-select" class="alpha-text-select" aria-label="Gematria cipher">
+                    <option value="">None</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="alpha-text-heading-tools">
+            <div class="alpha-text-controls alpha-text-controls--heading">
+              <label class="alpha-text-control" for="alpha-text-translation-select" hidden>
+                <span>Translation</span>
+                <select id="alpha-text-translation-select" class="alpha-text-select" aria-label="Select text translation"></select>
+              </label>
+              <div id="alpha-text-compare-toggle-control" class="alpha-text-control alpha-text-control--toggle" hidden>
+                <span>Compare</span>
+                <button id="alpha-text-compare-toggle" class="alpha-nav-btn alpha-text-compare-toggle" type="button" aria-pressed="false">Off</button>
+              </div>
+              <label class="alpha-text-control" for="alpha-text-compare-select" hidden>
+                <span>Compare With</span>
+                <select id="alpha-text-compare-select" class="alpha-text-select" aria-label="Select comparison translation"></select>
+              </label>
+              <label class="alpha-text-control" for="alpha-text-work-select">
+                <span>Work</span>
+                <select id="alpha-text-work-select" class="alpha-text-select" aria-label="Select text work"></select>
+              </label>
+              <label class="alpha-text-control" for="alpha-text-section-select">
+                <span>Section</span>
+                <select id="alpha-text-section-select" class="alpha-text-select" aria-label="Select text section"></select>
+              </label>
+            </div>
+            <form id="alpha-text-local-search-form" class="alpha-text-search-controls alpha-text-search-controls--detail alpha-text-search-controls--heading">
+              <label class="alpha-text-control" for="alpha-text-local-search-input">
+                <span>Search This Source</span>
+              </label>
+              <div class="alpha-text-search-inline">
+                <input id="alpha-text-local-search-input" class="alpha-text-search-input" type="search" placeholder="Search within the selected source" aria-label="Search current text source">
+                <button id="alpha-text-local-search-submit" class="alpha-nav-btn alpha-text-search-submit-inline" type="submit">Search</button>
+                <button id="alpha-text-local-search-clear" class="alpha-nav-btn alpha-text-search-submit-inline" type="button">Clear</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div id="alpha-text-detail-body" class="alpha-text-detail-body"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="alphabet-reference-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Alphabet &gt; Reference</strong>
+          <span id="alpha-reference-count" class="list-count">--</span>
+        </div>
+        <div id="alpha-reference-list" class="card-list" role="listbox" aria-label="References"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading alpha-text-detail-heading">
+          <div class="alpha-text-heading-main">
+            <h2 id="alpha-reference-detail-name">--</h2>
+            <div id="alpha-reference-detail-sub" class="detail-type">Select a reference to browse</div>
+          </div>
+          <div class="detail-sequence-nav" aria-label="Reference options">
+            <div class="detail-pane-export-controls">
+              <button type="button" class="detail-sequence-btn" id="alpha-reference-settings-btn" aria-label="Reference settings" aria-haspopup="true" aria-expanded="false">Settings</button>
+            </div>
+          </div>
+          <div id="alpha-reference-settings-popover" class="alpha-text-settings-popover" hidden aria-hidden="true">
+            <div class="alpha-text-settings-popover-inner">
+              <div class="alpha-text-settings-popover-head">
+                <strong>Reference Settings</strong>
+                <button type="button" class="alpha-text-settings-close" aria-label="Close settings">×</button>
+              </div>
+              <div class="alpha-text-reader-toggle-list">
+                <label class="alpha-text-reader-toggle" for="alpha-reference-show-info">
+                  <input id="alpha-reference-show-info" type="checkbox" checked>
+                  <span>Show Reference Info</span>
+                </label>
+                <div class="alpha-text-reader-toggle alpha-text-font-size-control">
+                  <span>Font Size</span>
+                  <select id="alpha-reference-font-size-select" class="alpha-text-select" aria-label="Entry font size">
+                    <option value="small">Small</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="large">Large</option>
+                    <option value="xlarge">Extra Large</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="alpha-text-heading-tools">
+            <form id="alpha-reference-search-form" class="alpha-text-search-controls alpha-text-search-controls--heading">
+              <label class="alpha-text-control" for="alpha-reference-search-input">
+                <span>Search Entries</span>
+              </label>
+              <div class="alpha-text-search-inline">
+                <input id="alpha-reference-search-input" class="alpha-text-search-input" type="search" placeholder="Search by name, pronunciation, or definition" aria-label="Search reference entries">
+                <button id="alpha-reference-search-submit" class="alpha-nav-btn alpha-text-search-submit-inline" type="submit">Search</button>
+                <button id="alpha-reference-search-clear" class="alpha-nav-btn alpha-text-search-submit-inline" type="button">Clear</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div id="alpha-reference-detail-body" class="alpha-text-detail-body"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="cube-section" hidden>
+    <div id="cube-layout" class="kab-layout">
+      <aside class="kab-tree-panel">
+        <div class="list-header">
+          <strong>Cube of Space</strong>
+          <span class="list-count">6 Walls · 12 Edges</span>
+        </div>
+        <div id="cube-rotation-controls" class="cube-rotation-controls" aria-label="Rotate cube">
+          <button id="cube-rotate-left" class="cube-rotation-btn" type="button" title="Rotate left">←</button>
+          <button id="cube-rotate-right" class="cube-rotation-btn" type="button" title="Rotate right">→</button>
+          <button id="cube-rotate-up" class="cube-rotation-btn" type="button" title="Rotate up">↑</button>
+          <button id="cube-rotate-down" class="cube-rotation-btn" type="button" title="Rotate down">↓</button>
+          <button id="cube-rotate-reset" class="cube-rotation-btn" type="button" title="Reset rotation">Reset</button>
+          <button id="cube-focus-toggle" class="cube-rotation-btn cube-focus-toggle" type="button" aria-pressed="false">Focus Cube</button>
+          <button id="cube-export-webp" class="cube-rotation-btn cube-export-btn" type="button">Export WebP</button>
+          <div class="cube-marker-mode-control">
+            <label for="cube-marker-mode" class="cube-marker-mode-label">Marker display</label>
+            <select id="cube-marker-mode" class="cube-marker-mode-select" aria-label="Cube marker display mode">
+              <option value="both" selected>Letter + Astrology</option>
+              <option value="letter">Letter only</option>
+              <option value="astro">Astrology only</option>
+              <option value="tarot">Tarot Cards</option>
+            </select>
+          </div>
+          <label class="cube-connector-toggle-control" for="cube-connector-toggle">
+            <input id="cube-connector-toggle" type="checkbox" checked>
+            <span>Show mother connector lines</span>
+          </label>
+          <label class="cube-primal-toggle-control" for="cube-primal-toggle">
+            <input id="cube-primal-toggle" type="checkbox" checked>
+            <span>Show primal point</span>
+          </label>
+          <div id="cube-rotation-readout" class="cube-rotation-readout">X 0° · Y 0°</div>
+        </div>
+        <div id="cube-view-container" class="kab-tree-container"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="cube-detail-name">Cube of Space</h2>
+          <div id="cube-detail-sub" class="detail-type">Select a wall or edge to explore</div>
+          <div class="detail-sequence-nav" aria-label="Cube navigation">
+            <button id="cube-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous cube selection">Back</button>
+            <div id="cube-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
+            <button id="cube-detail-next" class="detail-sequence-btn" type="button" aria-label="Next cube selection">Next</button>
+          </div>
+        </div>
+        <div id="cube-detail-body" class="meta-grid"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="zodiac-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Zodiac Signs</strong>
+          <span id="zodiac-sign-count" class="list-count">--</span>
+        </div>
+        <div class="dataset-search-wrap">
+          <input id="zodiac-search-input" class="dataset-search-input" type="search" placeholder="Search signs, element, modality" aria-label="Search zodiac signs">
+          <button id="zodiac-search-clear" class="dataset-search-clear" type="button" aria-label="Clear zodiac search" disabled>×</button>
+        </div>
+        <div id="zodiac-sign-list" class="card-list" role="listbox" aria-label="Zodiac signs"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="zodiac-detail-name" class="zod-detail-name">--</h2>
+          <div id="zodiac-detail-sub" class="detail-type">Select a sign to explore</div>
+          <div class="detail-sequence-nav" aria-label="Zodiac sign navigation">
+            <button id="zodiac-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous zodiac sign">Back</button>
+            <div id="zodiac-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
+            <button id="zodiac-detail-next" class="detail-sequence-btn" type="button" aria-label="Next zodiac sign">Next</button>
+          </div>
+        </div>
+        <div id="zodiac-detail-body"></div>
+      </section>
+    </div>
+  </section>
+
+  </section>
+
+  <section id="gods-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Divine Pantheons</strong>
+          <span id="gods-count" class="list-count">--</span>
+        </div>
+        <div id="gods-tabs" class="gods-tabs"></div>
+        <div class="dataset-search-wrap">
+          <input id="gods-search-input" class="dataset-search-input" type="search" placeholder="Search gods, sephiroth, paths…" aria-label="Search divine names">
+          <button id="gods-search-clear" class="dataset-search-clear" type="button" aria-label="Clear search" disabled>×</button>
+        </div>
+        <div id="gods-list" class="card-list" role="listbox" aria-label="Divine correspondences"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="gods-detail-name">--</h2>
+          <div id="gods-detail-sub" class="detail-type">Select a deity to explore</div>
+        </div>
+        <div id="gods-detail-body"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="enochian-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Enochian Tablets</strong>
+          <span id="enochian-count" class="list-count">--</span>
+        </div>
+        <div class="dataset-search-wrap">
+          <input id="enochian-search-input" class="dataset-search-input" type="search" placeholder="Search tablets, elements, letters" aria-label="Search Enochian tablets">
+          <button id="enochian-search-clear" class="dataset-search-clear" type="button" aria-label="Clear Enochian search" disabled>×</button>
+        </div>
+        <div id="enochian-list" class="card-list" role="listbox" aria-label="Enochian tablets"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="enochian-detail-name">--</h2>
+          <div id="enochian-detail-sub" class="detail-type">Select a tablet to explore</div>
+        </div>
+        <div id="enochian-detail-body"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="num-pad-section" hidden>
+    <div class="num-pad-layout">
+      <header class="num-pad-header">
+        <div class="num-pad-heading">
+          <strong>Num Pad</strong>
+          <span id="num-pad-status" class="list-count">Keys 1–9</span>
+        </div>
+        <div class="num-pad-mobile-chrome">
+          <button id="num-pad-mobile-filters" class="num-pad-toggle" type="button" aria-expanded="false" aria-controls="num-pad-filter-sheet">Filters</button>
+          <button id="num-pad-mobile-chains" class="num-pad-toggle" type="button" aria-expanded="false" aria-controls="num-pad-chains">Chains</button>
+          <button id="num-pad-mobile-actions" class="num-pad-toggle" type="button" aria-expanded="false" aria-controls="num-pad-action-sheet">Actions</button>
+        </div>
+      </header>
+      <div class="num-pad-body">
+        <div class="num-pad-grid-panel">
+          <div class="num-pad-panel-toolbar" aria-label="Grid settings">
+            <div class="num-pad-display-toggles" role="group" aria-label="Grid number display">
+              <button id="num-pad-toggle-product" class="num-pad-toggle is-active" type="button" aria-pressed="true">Product</button>
+              <button id="num-pad-toggle-root" class="num-pad-toggle is-active" type="button" aria-pressed="true">Digital Root</button>
+            </div>
+            <div class="num-pad-place-toggles" role="radiogroup" aria-label="Grid place value">
+              <button id="num-pad-place-full" class="num-pad-toggle is-active" type="button" aria-pressed="true">Full</button>
+              <button id="num-pad-place-huns" class="num-pad-toggle" type="button" aria-pressed="false">Huns</button>
+              <button id="num-pad-place-tens" class="num-pad-toggle" type="button" aria-pressed="false">Tens</button>
+              <button id="num-pad-place-ones" class="num-pad-toggle" type="button" aria-pressed="false">Ones</button>
+            </div>
+            <div class="num-pad-degree" role="group" aria-label="Degree">
+              <button id="num-pad-degree-down" class="num-pad-toggle" type="button" aria-label="Decrease degree">−</button>
+              <span class="num-pad-degree-label">Degree <strong id="num-pad-degree-value">0</strong></span>
+              <span id="num-pad-degree-range" class="list-count">× 1–9</span>
+              <button id="num-pad-degree-up" class="num-pad-toggle" type="button" aria-label="Increase degree">+</button>
+            </div>
+            <button id="num-pad-reset" class="num-pad-reset" type="button">Keypad</button>
+          </div>
+          <div class="num-pad-stage-wrap">
+            <div id="num-pad-stage" class="num-pad-stage" role="grid" aria-label="Num pad 3 by 3 grid" aria-rowcount="3" aria-colcount="3"></div>
+            <svg id="num-pad-path" class="num-pad-path" aria-hidden="true"></svg>
+            <div id="num-pad-path-note" class="num-pad-path-note" hidden></div>
+          </div>
+        </div>
+        <div class="num-pad-chain-panel">
+          <div class="num-pad-panel-toolbar" aria-label="Chain settings">
+            <div class="num-pad-display-toggles" role="group" aria-label="Chain number display">
+              <button id="num-pad-chain-toggle-product" class="num-pad-toggle is-active" type="button" aria-pressed="true">Product</button>
+              <button id="num-pad-chain-toggle-root" class="num-pad-toggle is-active" type="button" aria-pressed="true">Digital Root</button>
+            </div>
+            <div class="num-pad-place-toggles" role="radiogroup" aria-label="Chain place value">
+              <button id="num-pad-chain-place-full" class="num-pad-toggle is-active" type="button" aria-pressed="true">Full</button>
+              <button id="num-pad-chain-place-huns" class="num-pad-toggle" type="button" aria-pressed="false">Huns</button>
+              <button id="num-pad-chain-place-tens" class="num-pad-toggle" type="button" aria-pressed="false">Tens</button>
+              <button id="num-pad-chain-place-ones" class="num-pad-toggle" type="button" aria-pressed="false">Ones</button>
+            </div>
+          </div>
+          <aside id="num-pad-chains" class="num-pad-chains" aria-label="Number chains"></aside>
+        </div>
+      </div>
+      <div id="num-pad-filter-sheet" class="num-pad-sheet" hidden>
+        <button id="num-pad-filter-backdrop" class="num-pad-sheet-backdrop" type="button" aria-label="Close filters"></button>
+        <div class="num-pad-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="num-pad-filter-title">
+          <div class="num-pad-sheet-head">
+            <strong id="num-pad-filter-title">Filters</strong>
+            <button id="num-pad-filter-close" class="num-pad-toggle" type="button">Done</button>
+          </div>
+          <div id="num-pad-filter-grid-slot" class="num-pad-sheet-slot" data-slot="grid">
+            <span class="num-pad-sheet-label">Grid</span>
+          </div>
+          <div id="num-pad-filter-chain-slot" class="num-pad-sheet-slot" data-slot="chain">
+            <span class="num-pad-sheet-label">Chains</span>
+          </div>
+        </div>
+      </div>
+      <div id="num-pad-action-sheet" class="num-pad-sheet" hidden>
+        <button id="num-pad-action-backdrop" class="num-pad-sheet-backdrop" type="button" aria-label="Close actions"></button>
+        <div class="num-pad-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="num-pad-action-title">
+          <div class="num-pad-sheet-head">
+            <strong id="num-pad-action-title">Actions</strong>
+            <button id="num-pad-action-close" class="num-pad-toggle" type="button">Done</button>
+          </div>
+          <p id="num-pad-action-target" class="num-pad-sheet-label">Pick a chain first</p>
+          <div class="num-pad-action-buttons">
+            <button id="num-pad-action-fill" class="num-pad-toggle" type="button">Fill</button>
+            <button id="num-pad-action-draw" class="num-pad-toggle" type="button">Draw</button>
+            <button id="num-pad-action-keypad" class="num-pad-reset" type="button">Keypad</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="numbers-section" hidden>
+    <div class="kab-layout numbers-layout">
+      <aside id="numbers-special-panel" class="numbers-special-panel" aria-label="4 card arrangement"></aside>
+      <div class="browse-layout numbers-main-layout">
+        <aside class="list-panel">
+          <div class="list-header">
+            <strong>Numbers (Digital Root)</strong>
+            <span id="numbers-count" class="list-count">--</span>
+          </div>
+          <div id="numbers-list" class="card-list" role="listbox" aria-label="Numbers 0 through 9"></div>
+        </aside>
+        <section class="detail-panel" aria-live="polite">
+          <div class="detail-heading">
+            <h2 id="numbers-detail-name">--</h2>
+            <div id="numbers-detail-type" class="detail-type">--</div>
+            <div id="numbers-detail-summary" class="detail-summary">--</div>
+          </div>
+          <div id="numbers-detail-body" class="numbers-detail-body"></div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section id="timeline-section" hidden>
+    <div id="month-strip" aria-hidden="true"></div>
+    <div id="calendar"></div>
+  </section>
+
+  <div id="home-welcome">
+    <div id="home-welcome-default" class="kabbalah-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center" hidden>
+      <div class="kabbalah-placeholder-card">
+        <strong>Welcome to KABBAK</strong>
+        <div class="body-text">Select a section from the top menu, or visit <strong>Astronomy &gt; Sky</strong> for the live sky view.</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // The homepage is now a DLC plugin (plugins/homepage/index.html). It replaces
+    // the welcome content above when installed. Nothing is embedded here anymore.
+  </script>
+  <!-- Core runtime: home/sky/settings/nav only. Heavy sections load on demand. -->
+  <script src="node_modules/@toast-ui/calendar/dist/toastui-calendar.min.js"></script>
+  <script src="node_modules/suncalc/suncalc.js"></script>
+  <script src="node_modules/astronomy-engine/astronomy.browser.min.js"></script>
+  <script src="app/html-safe.js?v=20260803-html-safe"></script>
+  <script src="app/ui-theme.js?v=20260902-matrix"></script>
+  <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
+  <script src="app/astro-calcs.js"></script>
+  <script src="app/app-config.js?v=20260902-auth-gate"></script>
+  <script src="app/data-service.js?v=20260907-network-lost"></script>
+  <script src="app/ui-library-marks.js?v=20260830-library"></script>
+  <script src="app/plugins-host.js?v=20260907-hardening"></script>
+  <script src="app/cache-manager.js?v=20260902-plugin-nocache"></script>
+  <script src="app/calendar-events.js?v=20260807-perf-02"></script>
+  <script src="app/card-images.js?v=20260821-deck-cache"></script>
+  <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
+  <script src="app/ui-now.js?v=20260807-perf-01"></script>
+  <script src="app/lazy-sections.js?v=20260910-export-folder"></script>
+  <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
+  <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
+  <script src="app/ui-settings.js?v=20260907-layout-default"></script>
+  <script src="app/ui-dlc-shop.js?v=20260907-kind-order"></script>
+  <script src="app/ui-chrome.js?v=20260820-template"></script>
+  <script src="app/ui-navigation.js?v=20260902-syn"></script>
+  <script src="app/ui-calendar-formatting.js?v=20260307b"></script>
+  <script src="app/ui-calendar-visuals.js?v=20260307b"></script>
+  <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
+  <script src="app/ui-section-state.js?v=20260907-hardening"></script>
+  <script src="app/app-runtime.js?v=20260807-fast-boot"></script>
+  <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
+  <script src="app.js?v=20260907-network-lost"></script>
+
+  <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
+    <div class="cache-loader-card" role="status" aria-live="polite">
+      <strong>Caching Content</strong>
+      <p id="cache-loader-status">Preparing…</p>
+      <div class="cache-loader-progress-wrap">
+        <progress id="cache-loader-progress" max="100" value="0"></progress>
+        <span id="cache-loader-progress-label">0%</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

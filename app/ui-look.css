@@ -1,0 +1,786 @@
+.look-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+.look-preset-option {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--tt-border);
+  border-radius: 12px;
+  background: var(--tt-bg-deep);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.look-preset-option.is-active {
+  border-color: var(--tt-accent);
+  box-shadow: 0 0 0 1px var(--tt-accent);
+}
+.look-preset-option small {
+  color: var(--tt-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.look-preset-preview {
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid var(--tt-border);
+}
+.look-preset-preview.is-default {
+  background: linear-gradient(135deg, var(--tt-bg), var(--tt-surface) 55%, var(--tt-accent));
+}
+.look-preset-preview.is-neon {
+  background: linear-gradient(135deg, var(--tt-bg-deepest), var(--tt-bg) 50%, var(--tt-accent));
+  box-shadow: inset 0 0 12px color-mix(in srgb, var(--tt-accent) 70%, transparent);
+}
+.look-preset-preview.is-wood {
+  background: repeating-linear-gradient(90deg, var(--tt-bg-deepest) 0 6px, var(--tt-surface) 6px 14px);
+}
+.look-preset-preview.is-paper {
+  background: repeating-linear-gradient(0deg, var(--tt-border) 0 1px, var(--tt-bg-deep) 1px 8px);
+}
+.look-preset-preview.is-stone {
+  background: linear-gradient(135deg, var(--tt-surface-alt), var(--tt-bg-deepest));
+}
+.look-preset-preview.is-velvet {
+  background: radial-gradient(circle at 20% 0, var(--tt-surface), var(--tt-bg-deepest) 70%);
+}
+
+body[data-app-look="neon"] {
+  --tt-overlay-look: radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--tt-accent) 35%, transparent), transparent 36%),
+    repeating-linear-gradient(to bottom, transparent 0 3px, color-mix(in srgb, var(--tt-accent) 12%, transparent) 3px 4px),
+    radial-gradient(circle at 80% 90%, color-mix(in srgb, var(--tt-brand) 22%, transparent), var(--tt-page-bg) 55%);
+  --tt-overlay-scrim: color-mix(in srgb, var(--tt-bg-deepest) 48%, transparent);
+  --tt-lightbox-look: var(--tt-overlay-look);
+  --tt-lightbox-scrim: color-mix(in srgb, var(--tt-bg-deepest) 52%, transparent);
+}
+body[data-app-look="wood"] {
+  --tt-overlay-look: repeating-linear-gradient(90deg, color-mix(in srgb, var(--tt-bg-deepest) 75%, black) 0 8px, color-mix(in srgb, var(--tt-surface) 80%, white) 8px 16px, color-mix(in srgb, var(--tt-bg) 82%, black) 16px 22px);
+  --tt-overlay-scrim: color-mix(in srgb, var(--tt-bg-deepest) 40%, transparent);
+  --tt-lightbox-look: var(--tt-overlay-look);
+  --tt-lightbox-scrim: color-mix(in srgb, var(--tt-bg-deepest) 38%, transparent);
+}
+body[data-app-look="paper"] {
+  --tt-overlay-look: repeating-linear-gradient(0deg, color-mix(in srgb, var(--tt-accent) 22%, var(--tt-border)) 0 1px, transparent 1px 28px),
+    var(--tt-bg-deep);
+  --tt-overlay-scrim: color-mix(in srgb, var(--tt-bg) 28%, transparent);
+  --tt-lightbox-look: var(--tt-overlay-look);
+  --tt-lightbox-scrim: color-mix(in srgb, var(--tt-bg) 22%, transparent);
+}
+body[data-app-look="stone"] {
+  --tt-overlay-look: linear-gradient(180deg, var(--tt-surface-alt), var(--tt-bg-deepest));
+  --tt-overlay-scrim: color-mix(in srgb, var(--tt-bg-deepest) 35%, transparent);
+  --tt-lightbox-look: var(--tt-overlay-look);
+  --tt-lightbox-scrim: color-mix(in srgb, var(--tt-bg-deepest) 32%, transparent);
+}
+body[data-app-look="velvet"] {
+  --tt-overlay-look: radial-gradient(circle at 18% 0, var(--tt-surface), var(--tt-page-bg) 52%);
+  --tt-overlay-scrim: color-mix(in srgb, var(--tt-bg-deepest) 42%, transparent);
+  --tt-lightbox-look: var(--tt-overlay-look);
+  --tt-lightbox-scrim: color-mix(in srgb, var(--tt-bg-deepest) 40%, transparent);
+}
+
+/* Shared: drawer header strip follows the look */
+body[data-app-look][data-menu-layout="drawer"] .topbar.is-menu-open::after {
+  background: var(--tt-bg);
+  border-bottom: 1px solid var(--tt-border);
+}
+
+/* ==========================================================================
+   NEON — HUD, scanlines, LED pips, glow
+   ========================================================================== */
+body[data-app-look="neon"] {
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 3px, color-mix(in srgb, var(--tt-accent) 10%, transparent) 3px 4px),
+    radial-gradient(circle at 8% -10%, color-mix(in srgb, var(--tt-accent) 28%, var(--tt-page-bg)), var(--tt-page-bg) 46%);
+}
+body[data-app-look="neon"] .topbar {
+  background: var(--tt-bg-deepest);
+  border-bottom: 1px solid color-mix(in srgb, var(--tt-accent) 55%, transparent);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--tt-accent) 28%, transparent);
+}
+body[data-app-look="neon"] .topbar-home-button,
+body[data-app-look="neon"] .mp-menu-title {
+  color: var(--tt-accent-strong);
+  text-shadow: 0 0 8px var(--tt-accent), 0 0 18px color-mix(in srgb, var(--tt-accent) 55%, transparent);
+  letter-spacing: 0.08em;
+}
+body[data-app-look="neon"] .browse-layout,
+body[data-app-look="neon"] .list-panel,
+body[data-app-look="neon"] .detail-panel,
+body[data-app-look="neon"] #settings-section,
+body[data-app-look="neon"] .settings-panel,
+body[data-app-look="neon"] .profile-shell,
+body[data-app-look="neon"] .admin-panel,
+body[data-app-look="neon"] .admin-card,
+body[data-app-look="neon"] .profile-card,
+body[data-app-look="neon"] .profile-hub-card,
+body[data-app-look="neon"] .profile-location-card,
+body[data-app-look="neon"] .profile-deck-card,
+body[data-app-look="neon"] .profile-cache-card,
+body[data-app-look="neon"] .profile-notes-panel,
+body[data-app-look="neon"] .now-panel,
+body[data-app-look="neon"] .now-panel-square,
+body[data-app-look="neon"] .plugin-api-section,
+body[data-app-look="neon"] .home-welcome,
+body[data-app-look="neon"] .dlc-plugin-settings,
+body[data-app-look="neon"] .links-dir {
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 3px, color-mix(in srgb, var(--tt-accent) 8%, transparent) 3px 4px),
+    var(--tt-bg) !important;
+  border: 1px solid color-mix(in srgb, var(--tt-accent) 45%, var(--tt-border)) !important;
+  border-radius: 6px;
+  box-shadow: 0 0 22px color-mix(in srgb, var(--tt-accent) 16%, transparent);
+}
+body[data-app-look="neon"] .settings-trigger,
+body[data-app-look="neon"] .profile-btn,
+body[data-app-look="neon"] .settings-page-back,
+body[data-app-look="neon"] .settings-button-primary {
+  border-radius: 4px !important;
+  border: 1px solid color-mix(in srgb, var(--tt-accent) 55%, transparent) !important;
+  background: var(--tt-bg-deepest) !important;
+  color: var(--tt-accent-strong) !important;
+  text-shadow: 0 0 6px var(--tt-accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--tt-accent) 22%, transparent);
+  display: inline-flex;
+  align-items: center;
+}
+body[data-app-look="neon"] .settings-trigger::before {
+  content: "";
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tt-brand);
+  box-shadow: 0 0 8px var(--tt-brand);
+  margin: 0 8px 0 0;
+  flex: 0 0 auto;
+  align-self: center;
+  animation: mp-app-led 2.4s ease-in-out infinite;
+}
+@keyframes mp-app-led {
+  0%, 100% { opacity: 1; }
+  48% { opacity: 1; }
+  50% { opacity: 0.2; }
+  52% { opacity: 1; }
+}
+body[data-app-look="neon"] .list-header,
+body[data-app-look="neon"] .detail-heading,
+body[data-app-look="neon"] .settings-panel-head strong,
+body[data-app-look="neon"] .settings-page-title,
+body[data-app-look="neon"] .settings-page-eyebrow,
+body[data-app-look="neon"] .profile-title,
+body[data-app-look="neon"] .profile-hub-card-title,
+body[data-app-look="neon"] .profile-notebook-head h2,
+body[data-app-look="neon"] .detail-heading h2 {
+  color: var(--tt-accent-strong);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--tt-accent) 50%, transparent);
+  letter-spacing: 0.06em;
+}
+body[data-app-look="neon"] .list-item,
+body[data-app-look="neon"] .dataset-search-wrap,
+body[data-app-look="neon"] .card-list button,
+body[data-app-look="neon"] .meta-card,
+body[data-app-look="neon"] .tarot-meaning-card,
+body[data-app-look="neon"] .tarot-spread-meaning-card,
+body[data-app-look="neon"] .tarot-kab-path-card,
+body[data-app-look="neon"] .tarot-house-card,
+body[data-app-look="neon"] .numbers-detail-card,
+body[data-app-look="neon"] .alpha-reference-info-card,
+body[data-app-look="neon"] .admin-stat-card,
+body[data-app-look="neon"] .dlc-plugin-card,
+body[data-app-look="neon"] .links-card,
+body[data-app-look="neon"] .urantia-item,
+body[data-app-look="neon"] .urantia-para,
+body[data-app-look="neon"] .tarot-keyword-chip,
+body[data-app-look="neon"] .profile-note-card,
+body[data-app-look="neon"] .profile-scene,
+body[data-app-look="neon"] .profile-type-card,
+body[data-app-look="neon"] .profile-quiz,
+body[data-app-look="neon"] .profile-cam-card,
+body[data-app-look="neon"] .profile-quicknote-item,
+body[data-app-look="neon"] .profile-library-item {
+  background: var(--tt-bg-deep) !important;
+  border: 1px solid color-mix(in srgb, var(--tt-accent) 50%, transparent) !important;
+  border-radius: 6px;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--tt-accent) 18%, transparent), inset 0 0 14px color-mix(in srgb, var(--tt-accent) 8%, transparent);
+}
+body[data-app-look="neon"] .list-item:hover,
+body[data-app-look="neon"] .list-item.is-selected {
+  background: var(--tt-surface) !important;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--tt-accent) 35%, transparent);
+}
+body[data-app-look="neon"] .meta-card strong,
+body[data-app-look="neon"] .tarot-meaning-card strong {
+  color: var(--tt-accent-strong);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--tt-accent) 45%, transparent);
+}
+body[data-app-look="neon"][data-menu-layout="drawer"] .topbar.is-menu-open::after {
+  background: var(--tt-bg-deepest);
+  border-bottom: 1px solid color-mix(in srgb, var(--tt-accent) 50%, transparent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--tt-bg-deepest) 80%, transparent);
+}
+
+/* ==========================================================================
+   WOOD — grain, carved edges, serif
+   ========================================================================== */
+body[data-app-look="wood"] {
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--tt-bg-deepest) 70%, black) 0 7px,
+    color-mix(in srgb, var(--tt-surface) 78%, white) 7px 15px,
+    color-mix(in srgb, var(--tt-bg) 82%, black) 15px 20px
+  );
+}
+body[data-app-look="wood"] .topbar {
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--tt-bg) 75%, black) 0 4px,
+    var(--tt-surface) 4px 10px
+  );
+  border-bottom: 4px solid var(--tt-bg-deepest);
+}
+body[data-app-look="wood"] .topbar-home-button,
+body[data-app-look="wood"] .mp-menu-title,
+body[data-app-look="wood"] .list-header,
+body[data-app-look="wood"] .detail-heading,
+body[data-app-look="wood"] .detail-heading h2,
+body[data-app-look="wood"] .settings-panel-head strong,
+body[data-app-look="wood"] .settings-page-title,
+body[data-app-look="wood"] .settings-page-eyebrow,
+body[data-app-look="wood"] .profile-title,
+body[data-app-look="wood"] .profile-hub-card-title,
+body[data-app-look="wood"] .profile-notebook-head h2,
+body[data-app-look="wood"] .meta-card strong,
+body[data-app-look="wood"] .tarot-meaning-card strong {
+  font-family: Georgia, "Times New Roman", serif;
+  color: var(--tt-brand);
+}
+body[data-app-look="wood"] .browse-layout,
+body[data-app-look="wood"] .list-panel,
+body[data-app-look="wood"] .detail-panel,
+body[data-app-look="wood"] #settings-section,
+body[data-app-look="wood"] .settings-panel,
+body[data-app-look="wood"] .profile-shell,
+body[data-app-look="wood"] .admin-panel,
+body[data-app-look="wood"] .admin-card,
+body[data-app-look="wood"] .profile-card,
+body[data-app-look="wood"] .profile-hub-card,
+body[data-app-look="wood"] .profile-location-card,
+body[data-app-look="wood"] .profile-deck-card,
+body[data-app-look="wood"] .profile-cache-card,
+body[data-app-look="wood"] .profile-notes-panel,
+body[data-app-look="wood"] .now-panel,
+body[data-app-look="wood"] .now-panel-square,
+body[data-app-look="wood"] .plugin-api-section,
+body[data-app-look="wood"] .home-welcome,
+body[data-app-look="wood"] .dlc-plugin-settings,
+body[data-app-look="wood"] .links-dir {
+  background: repeating-linear-gradient(
+    180deg,
+    var(--tt-surface) 0 9px,
+    color-mix(in srgb, var(--tt-bg) 80%, black) 9px 18px
+  ) !important;
+  border: 3px solid var(--tt-bg-deepest) !important;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--tt-brand) 40%, transparent), 0 10px 0 var(--tt-bg-deepest);
+}
+body[data-app-look="wood"] .settings-trigger,
+body[data-app-look="wood"] .detail-sequence-btn,
+body[data-app-look="wood"] .dlc-shop-btn,
+body[data-app-look="wood"] .profile-btn,
+body[data-app-look="wood"] .settings-page-back,
+body[data-app-look="wood"] .settings-button-primary {
+  border-radius: 6px !important;
+  border: 2px solid var(--tt-brand) !important;
+  background: linear-gradient(180deg, var(--tt-surface-alt), var(--tt-bg-deep)) !important;
+  color: var(--tt-text) !important;
+  font-family: Georgia, serif;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tt-brand) 50%, white), 0 3px 0 var(--tt-bg-deepest);
+}
+body[data-app-look="wood"] .list-item,
+body[data-app-look="wood"] .dataset-search-wrap,
+body[data-app-look="wood"] .card-list button,
+body[data-app-look="wood"] .meta-card,
+body[data-app-look="wood"] .tarot-meaning-card,
+body[data-app-look="wood"] .tarot-spread-meaning-card,
+body[data-app-look="wood"] .tarot-kab-path-card,
+body[data-app-look="wood"] .tarot-house-card,
+body[data-app-look="wood"] .numbers-detail-card,
+body[data-app-look="wood"] .alpha-reference-info-card,
+body[data-app-look="wood"] .admin-stat-card,
+body[data-app-look="wood"] .dlc-plugin-card,
+body[data-app-look="wood"] .links-card,
+body[data-app-look="wood"] .urantia-item,
+body[data-app-look="wood"] .urantia-para,
+body[data-app-look="wood"] .profile-note-card,
+body[data-app-look="wood"] .profile-scene,
+body[data-app-look="wood"] .profile-type-card,
+body[data-app-look="wood"] .profile-quiz,
+body[data-app-look="wood"] .profile-cam-card,
+body[data-app-look="wood"] .profile-quicknote-item,
+body[data-app-look="wood"] .profile-library-item {
+  background: linear-gradient(180deg, var(--tt-surface), var(--tt-bg-deep)) !important;
+  border: 2px solid var(--tt-brand) !important;
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tt-brand) 40%, transparent);
+}
+body[data-app-look="wood"] .list-item:hover,
+body[data-app-look="wood"] .list-item.is-selected {
+  background: var(--tt-surface-alt) !important;
+}
+body[data-app-look="wood"][data-menu-layout="drawer"] .topbar.is-menu-open::after {
+  background: repeating-linear-gradient(180deg, var(--tt-surface) 0 6px, var(--tt-bg) 6px 12px);
+  border-bottom: 3px solid var(--tt-bg-deepest);
+}
+
+/* ==========================================================================
+   PAPER — ruled sheet, offset ink, sharp corners
+   ========================================================================== */
+body[data-app-look="paper"] {
+  background: var(--tt-page-bg);
+}
+body[data-app-look="paper"] .topbar {
+  background: var(--tt-bg);
+  border-bottom: 1px dashed var(--tt-border);
+}
+body[data-app-look="paper"] .topbar-home-button,
+body[data-app-look="paper"] .mp-menu-title,
+body[data-app-look="paper"] .list-header,
+body[data-app-look="paper"] .detail-heading,
+body[data-app-look="paper"] .detail-heading h2,
+body[data-app-look="paper"] .settings-panel-head strong,
+body[data-app-look="paper"] .settings-page-title,
+body[data-app-look="paper"] .settings-page-eyebrow,
+body[data-app-look="paper"] .profile-title,
+body[data-app-look="paper"] .profile-hub-card-title,
+body[data-app-look="paper"] .profile-notebook-head h2,
+body[data-app-look="paper"] .meta-card strong,
+body[data-app-look="paper"] .tarot-meaning-card strong {
+  font-family: Georgia, Palatino, "Times New Roman", serif;
+}
+body[data-app-look="paper"] .browse-layout,
+body[data-app-look="paper"] .list-panel,
+body[data-app-look="paper"] .detail-panel,
+body[data-app-look="paper"] #settings-section,
+body[data-app-look="paper"] .settings-panel,
+body[data-app-look="paper"] .profile-shell,
+body[data-app-look="paper"] .admin-panel,
+body[data-app-look="paper"] .admin-card,
+body[data-app-look="paper"] .profile-card,
+body[data-app-look="paper"] .profile-hub-card,
+body[data-app-look="paper"] .profile-location-card,
+body[data-app-look="paper"] .profile-deck-card,
+body[data-app-look="paper"] .profile-cache-card,
+body[data-app-look="paper"] .profile-notes-panel,
+body[data-app-look="paper"] .now-panel,
+body[data-app-look="paper"] .now-panel-square,
+body[data-app-look="paper"] .plugin-api-section,
+body[data-app-look="paper"] .home-welcome,
+body[data-app-look="paper"] .dlc-plugin-settings,
+body[data-app-look="paper"] .links-dir {
+  background:
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--tt-accent) 28%, var(--tt-border)) 0 1px, transparent 1px 26px),
+    var(--tt-bg-deep) !important;
+  border: 1px solid var(--tt-border) !important;
+  border-radius: 2px !important;
+  box-shadow: 5px 6px 0 color-mix(in srgb, var(--tt-border) 55%, transparent);
+}
+body[data-app-look="paper"] .settings-trigger,
+body[data-app-look="paper"] .detail-sequence-btn,
+body[data-app-look="paper"] .dlc-shop-btn,
+body[data-app-look="paper"] .profile-btn,
+body[data-app-look="paper"] .settings-page-back,
+body[data-app-look="paper"] .settings-button-primary {
+  border-radius: 2px !important;
+  border: 1px solid var(--tt-border) !important;
+  background: var(--tt-bg-deep) !important;
+  color: var(--tt-text) !important;
+  font-family: Georgia, serif;
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--tt-border) 60%, transparent);
+}
+body[data-app-look="paper"] .list-item,
+body[data-app-look="paper"] .dataset-search-wrap,
+body[data-app-look="paper"] .card-list button,
+body[data-app-look="paper"] .meta-card,
+body[data-app-look="paper"] .tarot-meaning-card,
+body[data-app-look="paper"] .tarot-spread-meaning-card,
+body[data-app-look="paper"] .tarot-kab-path-card,
+body[data-app-look="paper"] .tarot-house-card,
+body[data-app-look="paper"] .numbers-detail-card,
+body[data-app-look="paper"] .alpha-reference-info-card,
+body[data-app-look="paper"] .admin-stat-card,
+body[data-app-look="paper"] .dlc-plugin-card,
+body[data-app-look="paper"] .links-card,
+body[data-app-look="paper"] .urantia-item,
+body[data-app-look="paper"] .urantia-para,
+body[data-app-look="paper"] .profile-note-card,
+body[data-app-look="paper"] .profile-scene,
+body[data-app-look="paper"] .profile-type-card,
+body[data-app-look="paper"] .profile-quiz,
+body[data-app-look="paper"] .profile-cam-card,
+body[data-app-look="paper"] .profile-quicknote-item,
+body[data-app-look="paper"] .profile-library-item {
+  background: var(--tt-bg-deep) !important;
+  border: 1px solid var(--tt-border) !important;
+  border-radius: 2px !important;
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--tt-border) 50%, transparent);
+}
+body[data-app-look="paper"] .list-item:hover,
+body[data-app-look="paper"] .list-item.is-selected {
+  background: var(--tt-surface) !important;
+}
+body[data-app-look="paper"][data-menu-layout="drawer"] .topbar.is-menu-open::after {
+  background: var(--tt-bg);
+  border-bottom: 1px dashed var(--tt-border);
+}
+
+/* ==========================================================================
+   STONE — blocks, no radius, carved caps
+   ========================================================================== */
+body[data-app-look="stone"] {
+  background: linear-gradient(180deg, var(--tt-surface-alt), var(--tt-bg-deepest));
+}
+body[data-app-look="stone"] .topbar {
+  background: linear-gradient(180deg, var(--tt-surface-alt), var(--tt-surface));
+  border-bottom: 4px solid var(--tt-bg-deepest);
+}
+body[data-app-look="stone"] .topbar-home-button,
+body[data-app-look="stone"] .mp-menu-title,
+body[data-app-look="stone"] .list-header,
+body[data-app-look="stone"] .detail-heading,
+body[data-app-look="stone"] .detail-heading h2,
+body[data-app-look="stone"] .settings-panel-head strong,
+body[data-app-look="stone"] .settings-page-title,
+body[data-app-look="stone"] .settings-page-eyebrow,
+body[data-app-look="stone"] .profile-title,
+body[data-app-look="stone"] .profile-hub-card-title,
+body[data-app-look="stone"] .profile-notebook-head h2,
+body[data-app-look="stone"] .meta-card strong,
+body[data-app-look="stone"] .tarot-meaning-card strong {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+body[data-app-look="stone"] .browse-layout,
+body[data-app-look="stone"] .list-panel,
+body[data-app-look="stone"] .detail-panel,
+body[data-app-look="stone"] #settings-section,
+body[data-app-look="stone"] .settings-panel,
+body[data-app-look="stone"] .profile-shell,
+body[data-app-look="stone"] .admin-panel,
+body[data-app-look="stone"] .admin-card,
+body[data-app-look="stone"] .profile-card,
+body[data-app-look="stone"] .profile-hub-card,
+body[data-app-look="stone"] .profile-location-card,
+body[data-app-look="stone"] .profile-deck-card,
+body[data-app-look="stone"] .profile-cache-card,
+body[data-app-look="stone"] .profile-notes-panel,
+body[data-app-look="stone"] .now-panel,
+body[data-app-look="stone"] .now-panel-square,
+body[data-app-look="stone"] .plugin-api-section,
+body[data-app-look="stone"] .home-welcome,
+body[data-app-look="stone"] .dlc-plugin-settings,
+body[data-app-look="stone"] .links-dir {
+  background: linear-gradient(180deg, var(--tt-surface), var(--tt-bg)) !important;
+  border: 3px solid var(--tt-bg-deepest) !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--tt-text) 22%, transparent), 0 6px 0 var(--tt-bg-deepest);
+}
+body[data-app-look="stone"] .settings-trigger,
+body[data-app-look="stone"] .detail-sequence-btn,
+body[data-app-look="stone"] .dlc-shop-btn,
+body[data-app-look="stone"] .profile-btn,
+body[data-app-look="stone"] .settings-page-back,
+body[data-app-look="stone"] .settings-button-primary {
+  border-radius: 0 !important;
+  border: 2px solid var(--tt-bg-deepest) !important;
+  background: linear-gradient(180deg, var(--tt-surface-alt), var(--tt-bg-deep)) !important;
+  color: var(--tt-text) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tt-text) 25%, transparent), 0 3px 0 var(--tt-bg-deepest);
+}
+body[data-app-look="stone"] .list-item,
+body[data-app-look="stone"] .dataset-search-wrap,
+body[data-app-look="stone"] .card-list button,
+body[data-app-look="stone"] .meta-card,
+body[data-app-look="stone"] .tarot-meaning-card,
+body[data-app-look="stone"] .tarot-spread-meaning-card,
+body[data-app-look="stone"] .tarot-kab-path-card,
+body[data-app-look="stone"] .tarot-house-card,
+body[data-app-look="stone"] .numbers-detail-card,
+body[data-app-look="stone"] .alpha-reference-info-card,
+body[data-app-look="stone"] .admin-stat-card,
+body[data-app-look="stone"] .dlc-plugin-card,
+body[data-app-look="stone"] .links-card,
+body[data-app-look="stone"] .urantia-item,
+body[data-app-look="stone"] .urantia-para,
+body[data-app-look="stone"] .profile-note-card,
+body[data-app-look="stone"] .profile-scene,
+body[data-app-look="stone"] .profile-type-card,
+body[data-app-look="stone"] .profile-quiz,
+body[data-app-look="stone"] .profile-cam-card,
+body[data-app-look="stone"] .profile-quicknote-item,
+body[data-app-look="stone"] .profile-library-item {
+  background: linear-gradient(180deg, var(--tt-surface-alt), var(--tt-bg-deep)) !important;
+  border: 2px solid var(--tt-bg-deepest) !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tt-text) 18%, transparent);
+}
+body[data-app-look="stone"] .list-item:hover,
+body[data-app-look="stone"] .list-item.is-selected {
+  background: var(--tt-surface) !important;
+}
+body[data-app-look="stone"][data-menu-layout="drawer"] .topbar.is-menu-open::after {
+  background: linear-gradient(180deg, var(--tt-surface-alt), var(--tt-surface));
+  border-bottom: 3px solid var(--tt-bg-deepest);
+  border-radius: 0;
+}
+
+/* ==========================================================================
+   VELVET — plush, gold trim, pills
+   ========================================================================== */
+body[data-app-look="velvet"] {
+  background: radial-gradient(circle at 12% -8%, var(--tt-surface), var(--tt-page-bg) 48%);
+}
+body[data-app-look="velvet"] .topbar {
+  background: radial-gradient(circle at 18% 0, var(--tt-surface), var(--tt-bg-deepest) 70%);
+  border-bottom: 1px solid var(--tt-brand);
+}
+body[data-app-look="velvet"] .topbar-home-button,
+body[data-app-look="velvet"] .mp-menu-title,
+body[data-app-look="velvet"] .list-header,
+body[data-app-look="velvet"] .detail-heading,
+body[data-app-look="velvet"] .detail-heading h2,
+body[data-app-look="velvet"] .settings-panel-head strong,
+body[data-app-look="velvet"] .settings-page-title,
+body[data-app-look="velvet"] .settings-page-eyebrow,
+body[data-app-look="velvet"] .profile-title,
+body[data-app-look="velvet"] .profile-hub-card-title,
+body[data-app-look="velvet"] .profile-notebook-head h2,
+body[data-app-look="velvet"] .meta-card strong,
+body[data-app-look="velvet"] .tarot-meaning-card strong {
+  font-family: Georgia, serif;
+  color: var(--tt-brand);
+  letter-spacing: 0.06em;
+}
+body[data-app-look="velvet"] .browse-layout,
+body[data-app-look="velvet"] .list-panel,
+body[data-app-look="velvet"] .detail-panel,
+body[data-app-look="velvet"] #settings-section,
+body[data-app-look="velvet"] .settings-panel,
+body[data-app-look="velvet"] .profile-shell,
+body[data-app-look="velvet"] .admin-panel,
+body[data-app-look="velvet"] .admin-card,
+body[data-app-look="velvet"] .profile-card,
+body[data-app-look="velvet"] .profile-hub-card,
+body[data-app-look="velvet"] .profile-location-card,
+body[data-app-look="velvet"] .profile-deck-card,
+body[data-app-look="velvet"] .profile-cache-card,
+body[data-app-look="velvet"] .profile-notes-panel,
+body[data-app-look="velvet"] .now-panel,
+body[data-app-look="velvet"] .now-panel-square,
+body[data-app-look="velvet"] .plugin-api-section,
+body[data-app-look="velvet"] .home-welcome,
+body[data-app-look="velvet"] .dlc-plugin-settings,
+body[data-app-look="velvet"] .links-dir {
+  background:
+    radial-gradient(circle at 80% 0, color-mix(in srgb, var(--tt-brand) 14%, transparent), transparent 42%),
+    linear-gradient(180deg, var(--tt-surface), var(--tt-bg-deepest)) !important;
+  border: 1px solid var(--tt-brand) !important;
+  border-radius: 22px;
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--tt-bg-deepest) 70%, transparent);
+}
+body[data-app-look="velvet"] .settings-trigger,
+body[data-app-look="velvet"] .detail-sequence-btn,
+body[data-app-look="velvet"] .dlc-shop-btn,
+body[data-app-look="velvet"] .profile-btn,
+body[data-app-look="velvet"] .settings-page-back,
+body[data-app-look="velvet"] .settings-button-primary {
+  border-radius: 999px !important;
+  border: 1px solid var(--tt-brand) !important;
+  background: linear-gradient(180deg, var(--tt-surface-alt), var(--tt-bg-deep)) !important;
+  color: var(--tt-text) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tt-brand) 35%, transparent);
+}
+body[data-app-look="velvet"] .list-item,
+body[data-app-look="velvet"] .dataset-search-wrap,
+body[data-app-look="velvet"] .card-list button,
+body[data-app-look="velvet"] .meta-card,
+body[data-app-look="velvet"] .tarot-meaning-card,
+body[data-app-look="velvet"] .tarot-spread-meaning-card,
+body[data-app-look="velvet"] .tarot-kab-path-card,
+body[data-app-look="velvet"] .tarot-house-card,
+body[data-app-look="velvet"] .numbers-detail-card,
+body[data-app-look="velvet"] .alpha-reference-info-card,
+body[data-app-look="velvet"] .admin-stat-card,
+body[data-app-look="velvet"] .dlc-plugin-card,
+body[data-app-look="velvet"] .links-card,
+body[data-app-look="velvet"] .urantia-item,
+body[data-app-look="velvet"] .urantia-para,
+body[data-app-look="velvet"] .profile-note-card,
+body[data-app-look="velvet"] .profile-scene,
+body[data-app-look="velvet"] .profile-type-card,
+body[data-app-look="velvet"] .profile-quiz,
+body[data-app-look="velvet"] .profile-cam-card,
+body[data-app-look="velvet"] .profile-quicknote-item,
+body[data-app-look="velvet"] .profile-library-item {
+  background: linear-gradient(180deg, var(--tt-surface), var(--tt-bg-deepest)) !important;
+  border: 1px solid var(--tt-brand) !important;
+  border-radius: 16px;
+}
+body[data-app-look="velvet"] .list-item:hover,
+body[data-app-look="velvet"] .list-item.is-selected {
+  background: var(--tt-surface-alt) !important;
+}
+body[data-app-look="velvet"][data-menu-layout="drawer"] .topbar.is-menu-open::after {
+  background: radial-gradient(circle at 20% 0, var(--tt-surface), var(--tt-bg-deepest) 70%);
+  border-bottom: 1px solid var(--tt-brand);
+}
+
+/* Music player bar + settings list */
+body[data-app-look="neon"] .mp-root {
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--tt-accent) 55%, transparent);
+  background: var(--tt-bg-deepest);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tt-accent) 22%, transparent);
+}
+body[data-app-look="neon"] .mp-tracks-panel,
+body[data-app-look="neon"] .mp-admin-file-list,
+body[data-app-look="neon"] .mp-admin-file-row {
+  background: var(--tt-bg-deepest);
+  border: 1px solid color-mix(in srgb, var(--tt-accent) 45%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--tt-accent) 16%, transparent);
+}
+body[data-app-look="neon"] .mp-play,
+body[data-app-look="neon"] .mp-preset,
+body[data-app-look="neon"] .mp-song-btn,
+body[data-app-look="neon"] .mp-upload-btn,
+body[data-app-look="neon"] .mp-track-play {
+  border-radius: 4px;
+  color: var(--tt-accent-strong);
+  text-shadow: 0 0 6px var(--tt-accent);
+}
+body[data-app-look="neon"] .mp-volume {
+  accent-color: var(--tt-accent);
+}
+
+body[data-app-look="wood"] .mp-root {
+  border-radius: 8px;
+  border: 2px solid var(--tt-brand);
+  background: linear-gradient(180deg, var(--tt-surface), var(--tt-bg-deep));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tt-brand) 40%, transparent), 0 3px 0 var(--tt-bg-deepest);
+}
+body[data-app-look="wood"] .mp-tracks-panel,
+body[data-app-look="wood"] .mp-admin-file-list,
+body[data-app-look="wood"] .mp-admin-file-row {
+  background: repeating-linear-gradient(180deg, var(--tt-surface) 0 8px, var(--tt-bg) 8px 16px);
+  border: 2px solid var(--tt-brand);
+}
+body[data-app-look="wood"] .mp-play,
+body[data-app-look="wood"] .mp-preset,
+body[data-app-look="wood"] .mp-song-btn,
+body[data-app-look="wood"] .mp-upload-btn,
+body[data-app-look="wood"] .mp-track-play {
+  font-family: Georgia, serif;
+  border-radius: 6px;
+  border-color: var(--tt-brand);
+  background: var(--tt-bg-deep);
+  color: var(--tt-text);
+}
+body[data-app-look="wood"] .mp-volume {
+  accent-color: var(--tt-brand);
+}
+
+body[data-app-look="paper"] .mp-root {
+  border-radius: 2px;
+  border: 1px solid var(--tt-border);
+  background: var(--tt-bg-deep);
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--tt-border) 55%, transparent);
+}
+body[data-app-look="paper"] .mp-tracks-panel,
+body[data-app-look="paper"] .mp-admin-file-list,
+body[data-app-look="paper"] .mp-admin-file-row {
+  background:
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--tt-accent) 22%, var(--tt-border)) 0 1px, transparent 1px 22px),
+    var(--tt-bg-deep);
+  border: 1px solid var(--tt-border);
+  border-radius: 2px;
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--tt-border) 45%, transparent);
+}
+body[data-app-look="paper"] .mp-play,
+body[data-app-look="paper"] .mp-preset,
+body[data-app-look="paper"] .mp-song-btn,
+body[data-app-look="paper"] .mp-upload-btn,
+body[data-app-look="paper"] .mp-track-play {
+  font-family: Georgia, serif;
+  border-radius: 2px;
+  background: var(--tt-bg-deep);
+  color: var(--tt-text);
+  box-shadow: 2px 2px 0 color-mix(in srgb, var(--tt-border) 50%, transparent);
+}
+body[data-app-look="paper"] .mp-volume {
+  accent-color: var(--tt-accent);
+}
+
+body[data-app-look="stone"] .mp-root {
+  border-radius: 0;
+  border: 2px solid var(--tt-bg-deepest);
+  background: linear-gradient(180deg, var(--tt-surface-alt), var(--tt-bg-deep));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tt-text) 20%, transparent), 0 3px 0 var(--tt-bg-deepest);
+}
+body[data-app-look="stone"] .mp-tracks-panel,
+body[data-app-look="stone"] .mp-admin-file-list,
+body[data-app-look="stone"] .mp-admin-file-row {
+  background: linear-gradient(180deg, var(--tt-surface), var(--tt-bg-deep));
+  border: 2px solid var(--tt-bg-deepest);
+  border-radius: 0;
+}
+body[data-app-look="stone"] .mp-play,
+body[data-app-look="stone"] .mp-preset,
+body[data-app-look="stone"] .mp-song-btn,
+body[data-app-look="stone"] .mp-upload-btn,
+body[data-app-look="stone"] .mp-track-play {
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--tt-bg-deep);
+  color: var(--tt-text);
+  border: 1px solid var(--tt-bg-deepest);
+}
+body[data-app-look="stone"] .mp-volume {
+  accent-color: var(--tt-text-muted);
+}
+
+body[data-app-look="velvet"] .mp-root {
+  border-radius: 999px;
+  border: 1px solid var(--tt-brand);
+  background: linear-gradient(180deg, var(--tt-surface), var(--tt-bg-deepest));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tt-brand) 35%, transparent);
+}
+body[data-app-look="velvet"] .mp-tracks-panel,
+body[data-app-look="velvet"] .mp-admin-file-list,
+body[data-app-look="velvet"] .mp-admin-file-row {
+  background: linear-gradient(180deg, var(--tt-surface), var(--tt-bg-deepest));
+  border: 1px solid var(--tt-brand);
+  border-radius: 16px;
+}
+body[data-app-look="velvet"] .mp-play,
+body[data-app-look="velvet"] .mp-preset,
+body[data-app-look="velvet"] .mp-song-btn,
+body[data-app-look="velvet"] .mp-upload-btn,
+body[data-app-look="velvet"] .mp-track-play {
+  border-radius: 999px;
+  border: 1px solid var(--tt-brand);
+  background: var(--tt-bg-deep);
+  color: var(--tt-brand);
+  font-family: Georgia, serif;
+}
+body[data-app-look="velvet"] .mp-volume {
+  accent-color: var(--tt-brand);
+}

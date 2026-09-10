@@ -1,0 +1,32 @@
+{
+  "dependencies": {
+    "@fontsource/amiri": "^5.2.8",
+    "@fontsource/noto-naskh-arabic": "^5.2.11",
+    "@fontsource/noto-rashi-hebrew": "^5.3.0",
+    "@fontsource/noto-sans-hebrew": "^5.2.8",
+    "@fontsource/noto-sans-phoenician": "^5.2.6",
+    "@fontsource/noto-serif": "^5.2.9",
+    "@toast-ui/calendar": "^2.1.3",
+    "astronomy-engine": "^2.1.19",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
+    "suncalc": "^1.9.0"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "overrides": {
+    "isomorphic-dompurify": "3.0.0",
+    "dompurify": "3.3.2",
+    "jsdom": "28.1.0",
+    "http-proxy-agent": "7.0.2",
+    "@tootallnate/once": "3.0.1"
+  },
+  "scripts": {
+    "check": "npm run check:syntax && npm run check:html",
+    "check:syntax": "node scripts/check-syntax.js app.js app scripts",
+    "check:html": "node scripts/check-html-safety.js app.js app",
+    "start": "npx http-server . -o index.html",
+    "dev": "npm run start"
+  }
+}

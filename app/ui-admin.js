@@ -1,0 +1,1725 @@
+/* ui-admin.js — Admin panel: overview, API clients, plugins & DLC, users. */
+(function () {
+  "use strict";
+
+  function getElements() {
+    return {
+      statusText: document.getElementById("admin-status-text"),
+      overviewGrid: document.getElementById("admin-overview-grid"),
+      clientsTable: document.getElementById("admin-clients-table"),
+      clientNameEl: document.getElementById("admin-client-name"),
+      clientIdEl: document.getElementById("admin-client-id"),
+      clientAccessEl: document.getElementById("admin-client-access"),
+      clientKeyEl: document.getElementById("admin-client-key"),
+      clientCreateBtn: document.getElementById("admin-client-create"),
+      rolesListEl: document.getElementById("admin-roles-list"),
+      roleIdEl: document.getElementById("admin-role-id"),
+      roleLabelEl: document.getElementById("admin-role-label"),
+      roleAccessEl: document.getElementById("admin-role-access"),
+      roleDescriptionEl: document.getElementById("admin-role-description"),
+      roleCapabilitiesEl: document.getElementById("admin-role-capabilities"),
+      roleLimitsEl: document.getElementById("admin-role-limits"),
+      roleCreateBtn: document.getElementById("admin-role-create"),
+      rolePriceEl: document.getElementById("admin-role-price"),
+      roleCurrencyEl: document.getElementById("admin-role-currency"),
+      roleProviderPlanEl: document.getElementById("admin-role-provider-plan"),
+      levelsListEl: document.getElementById("admin-levels-list"),
+      dlcCatalogEl: document.getElementById("admin-dlc-catalog"),
+      pluginsReloadBtn: document.getElementById("admin-plugins-reload"),
+      settingLogModeEl: document.getElementById("admin-setting-log-mode"),
+      settingAllowNullEl: document.getElementById("admin-setting-allow-null"),
+      settingOriginsEl: document.getElementById("admin-setting-origins"),
+      settingBodyLimitEl: document.getElementById("admin-setting-body-limit"),
+      settingPluginLimitMbEl: document.getElementById("admin-setting-plugin-limit-mb"),
+      settingAutoMigrateEl: document.getElementById("admin-setting-auto-migrate"),
+      settingSecretEl: document.getElementById("admin-setting-encryption-secret"),
+      settingSecretStateEl: document.getElementById("admin-setting-secret-state"),
+      settingSecretClearEl: document.getElementById("admin-setting-secret-clear"),
+      settingBrowserTitleEl: document.getElementById("admin-setting-browser-title"),
+      settingOverlayUrlEl: document.getElementById("admin-setting-overlay-url"),
+      settingOverlayFileEl: document.getElementById("admin-setting-overlay-file"),
+      settingOverlayClearEl: document.getElementById("admin-setting-overlay-clear"),
+      settingsSaveBtn: document.getElementById("admin-settings-save"),
+      envReadonlyEl: document.getElementById("admin-env-readonly"),
+      logLevelEl: document.getElementById("admin-log-level"),
+      logAutoRefreshEl: document.getElementById("admin-log-autorefresh"),
+      logRefreshBtn: document.getElementById("admin-log-refresh"),
+      logClearBtn: document.getElementById("admin-log-clear"),
+      logListEl: document.getElementById("admin-log-list")
+    };
+  }
+
+  function escapeHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function isAdmin() {
+    return window.TarotAppConfig?.hasAdminApiManagementAccess?.() === true;
+  }
+
+  function setStatus(text, isError = false) {
+    const { statusText } = getElements();
+    if (!statusText) return;
+    statusText.textContent = text;
+    const statusWrap = statusText.closest(".settings-page-status");
+    if (statusWrap) {
+      statusWrap.dataset.tone = isError ? "error" : "neutral";
+    }
+  }
+
+  function requestJson(method, path, body) {
+    const service = window.TarotDataService;
+    return service.requestJson(method, service.buildApiUrl(path), body);
+  }
+
+  function copyText(text, label) {
+    if (!text) return;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(
+        () => setStatus(`${label || "Key"} copied to clipboard.`),
+        () => setStatus(text)
+      );
+      return;
+    }
+    window.prompt(`${label || "Copy"} (press Ctrl+C):`, text);
+  }
+
+  function showKeyOnce(key, contextLabel) {
+    if (!key) return;
+    const holder = document.createElement("div");
+    holder.className = "admin-key-once";
+    holder.innerHTML = `
+      <strong>${escapeHtml(contextLabel)} key (shown once):</strong>
+      <code>${escapeHtml(key)}</code>
+      <div class="dlc-shop-actions" style="margin-top:6px;">
+        <button type="button" class="dlc-shop-btn" data-action="copy">Copy</button>
+        <button type="button" class="dlc-shop-btn" data-action="dismiss">Dismiss</button>
+      </div>
+    `;
+    holder.querySelector('[data-action="copy"]').addEventListener("click", () => copyText(key, "API key"));
+    holder.querySelector('[data-action="dismiss"]').addEventListener("click", () => holder.remove());
+    const { clientsTable } = getElements();
+    if (clientsTable) {
+      clientsTable.prepend(holder);
+    } else {
+      document.body.appendChild(holder);
+    }
+  }
+
+  // --- Tabs ------------------------------------------------------------------
+
+  function activateTab(tabId) {
+    document.querySelectorAll(".admin-tab").forEach((tab) => {
+      const active = tab.id === tabId;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    const panelIds = ["overview", "clients", "tiers", "plugins", "server"];
+    panelIds.forEach((panelId) => {
+      const panel = document.getElementById(`admin-panel-${panelId}`);
+      if (panel) {
+        panel.hidden = panelId !== tabId.split("-").pop();
+      }
+    });
+  }
+
+  function bindTabs() {
+    ["overview", "clients", "tiers", "plugins", "server"].forEach((panelId) => {
+      const tab = document.getElementById(`admin-tab-${panelId}`);
+      if (tab) {
+        tab.addEventListener("click", () => activateTab(`admin-tab-${panelId}`));
+      }
+    });
+    const backBtn = document.getElementById("close-admin");
+    if (backBtn) {
+      backBtn.addEventListener("click", () => {
+        document.getElementById("open-home")?.click();
+      });
+    }
+  }
+
+  // --- Overview --------------------------------------------------------------
+
+  function createStatCard(label, value, hint) {
+    const card = document.createElement("div");
+    card.className = "admin-stat-card";
+    card.innerHTML = `
+      <span class="admin-stat-label">${escapeHtml(label)}</span>
+      <strong class="admin-stat-value">${escapeHtml(value)}</strong>
+      ${hint ? `<span class="admin-stat-hint">${escapeHtml(hint)}</span>` : ""}
+    `;
+    return card;
+  }
+
+  async function loadOverview() {
+    const { overviewGrid } = getElements();
+    if (!overviewGrid) return;
+    try {
+      const [overview, health] = await Promise.all([
+        requestJson("GET", "/api/v1/admin/overview"),
+        requestJson("GET", "/api/v1/health").catch(() => null)
+      ]);
+      overviewGrid.innerHTML = "";
+      const uptimeSeconds = Number(health?.uptimeSeconds);
+      const uptimeHint = Number.isFinite(uptimeSeconds) && uptimeSeconds >= 0
+        ? (uptimeSeconds < 120
+          ? `up ${Math.round(uptimeSeconds)}s`
+          : uptimeSeconds < 7200
+            ? `up ${Math.round(uptimeSeconds / 60)}m`
+            : `up ${(uptimeSeconds / 3600).toFixed(1)}h`)
+        : "online";
+      overviewGrid.appendChild(createStatCard("Server", `kabbak-api v${health?.version || "?"}`, uptimeHint));
+      overviewGrid.appendChild(createStatCard("GUI", `v${window.KABBAK_GUI_VERSION || "?"}`, window.TarotDataService?.getApiBaseUrl?.() || ""));
+      const limits = overview?.limits || {};
+      overviewGrid.appendChild(createStatCard(
+        "Upload Limits",
+        limits.pluginUploadBytes ? `${Math.round(limits.pluginUploadBytes / 1048576)}MB plugin upload` : "--",
+        `request body: ${limits.jsonBodyLimit || "?"}`
+      ));
+      overviewGrid.appendChild(createStatCard("Users", String(overview?.counts?.apiClients ?? "--"), `${overview?.counts?.registryOnline ?? 0} online now`));
+      overviewGrid.appendChild(createStatCard("Installed Plugins", String(overview?.counts?.installedPlugins ?? "--"), overview?.installedPlugins?.map((p) => p.name).join(", ") || ""));
+      overviewGrid.appendChild(createStatCard("DLC Catalog", overview?.catalog?.origin || "--", `${overview?.catalog?.items ?? 0} items`));
+      const counts = overview?.catalog?.counts || {};
+      overviewGrid.appendChild(createStatCard("Catalog Breakdown", Object.keys(counts).length ? Object.entries(counts).map(([kind, count]) => `${kind}: ${count}`).join(" · ") : "--", ""));
+      overviewGrid.appendChild(createStatCard("DLC Repo", overview?.dlcRepo?.present ? "checked out" : "missing", overview?.dlcRepo?.present ? `${overview.dlcRepo.branch || "?"} · ${overview.dlcRepo.url || ""}` : "run dlc init"));
+      overviewGrid.appendChild(createStatCard("Server Time", String(overview?.serverTime || "").replace("T", " ").slice(0, 19), ""));
+      setStatus("Admin overview loaded.");
+    } catch (error) {
+      setStatus(`Could not load overview. ${error?.message || ""}`, true);
+      overviewGrid.innerHTML = "";
+      const errorCard = document.createElement("div");
+      errorCard.className = "admin-stat-card";
+      errorCard.innerHTML = `
+        <span class="admin-stat-label">Error</span>
+        <strong class="admin-stat-value">${escapeHtml(error?.message || "Unknown error")}</strong>
+        <div class="dlc-shop-actions" style="margin-top:6px;">
+          <button type="button" class="dlc-shop-btn" data-action="retry">Retry</button>
+        </div>
+      `;
+      errorCard.querySelector('[data-action="retry"]').addEventListener("click", () => {
+        void loadOverview();
+      });
+      overviewGrid.appendChild(errorCard);
+    }
+  }
+
+  // --- API Clients -----------------------------------------------------------
+
+  async function loadClients() {
+    const { clientsTable } = getElements();
+    if (!clientsTable) return;
+    try {
+      const payload = await requestJson("GET", "/api/v1/admin/users");
+      const clients = Array.isArray(payload?.users) ? payload.users : [];
+      clientsTable.innerHTML = "";
+      if (!clients.length) {
+        const empty = document.createElement("span");
+        empty.className = "settings-field-hint";
+        empty.textContent = "No users yet.";
+        clientsTable.appendChild(empty);
+        return;
+      }
+      clients.forEach((client) => {
+        const row = document.createElement("div");
+        row.className = "admin-client-row";
+        row.dataset.clientId = client.id;
+        const displayName = client.displayName || client.name || client.id;
+        const isOnline = client.status === "online";
+        const lastSeen = client.lastSeen ? String(client.lastSeen).replace("T", " ").slice(0, 19) : "never seen";
+        const tiersText = (client.roles || []).map((role) => escapeHtml(role)).join(" · ");
+        row.innerHTML = `
+          <span class="admin-user-status ${isOnline ? "is-online" : ""}">${isOnline ? "●" : "○"}</span>
+          <div class="admin-client-main">
+            <strong>${escapeHtml(displayName)}</strong>
+            <span class="admin-client-id">${escapeHtml(client.id)}</span>
+            ${client.bio ? `<span class="admin-user-bio">${escapeHtml(String(client.bio).slice(0, 160))}</span>` : ""}
+          </div>
+          <span class="admin-client-access">${escapeHtml(client.accessLevel || "—")}</span>
+          ${tiersText ? `<span class="admin-role-caps">${tiersText}</span>` : ""}
+          <span class="admin-client-key-preview">${escapeHtml(client.keyPreview || (client.hasKey ? "•••" : "no key"))}</span>
+          <span class="admin-user-last-seen">${escapeHtml(lastSeen)}</span>
+          <div class="admin-client-actions">
+            <button type="button" class="dlc-shop-btn" data-action="edit">Edit</button>
+            <button type="button" class="dlc-shop-btn" data-action="rotate">Rotate Key</button>
+            <button type="button" class="dlc-shop-btn" data-action="delete">Delete</button>
+          </div>
+        `;
+        row.querySelector('[data-action="rotate"]').addEventListener("click", async () => {
+          if (!window.confirm(`Rotate the API key for ${client.id}? The old key stops working immediately.`)) return;
+          try {
+            const result = await requestJson("POST", `/api/v1/admin/api-clients/${encodeURIComponent(client.id)}/rotate-key`);
+            setStatus(`Key rotated for ${client.id}.`);
+            showKeyOnce(result?.apiKey, `New ${client.id}`);
+            await loadClients();
+          } catch (error) {
+            setStatus(`Could not rotate key. ${error?.message || ""}`, true);
+          }
+        });
+        row.querySelector('[data-action="delete"]').addEventListener("click", async () => {
+          if (!window.confirm(`Delete user ${client.id}? Their key, profile, and API access stop immediately.`)) return;
+          try {
+            await requestJson("DELETE", `/api/v1/admin/api-clients/${encodeURIComponent(client.id)}`);
+            setStatus(`Deleted ${client.id}.`);
+            await loadClients();
+          } catch (error) {
+            setStatus(`Could not delete user. ${error?.message || ""}`, true);
+          }
+        });
+        row.querySelector('[data-action="edit"]').addEventListener("click", () => openClientEditor(row, client));
+        clientsTable.appendChild(row);
+      });
+
+      const demoClient = clients.find((client) => client.id === "cli_demo");
+      const demoCard = document.createElement("div");
+      demoCard.className = "admin-demo-card";
+      const demoMain = document.createElement("div");
+      demoMain.className = "admin-demo-main";
+      const demoTitle = document.createElement("strong");
+      demoTitle.textContent = demoClient ? "Shared Demo User" : "Shared Demo User (not created)";
+      demoMain.appendChild(demoTitle);
+      const demoHint = document.createElement("span");
+      demoHint.className = "settings-field-hint";
+      demoHint.textContent = demoClient
+        ? "Many people can connect at once with the same demo key. Everyone shares the demo profile — reset it whenever it gets messy."
+        : "The demo user is usually created on server boot. You can also create it here.";
+      demoMain.appendChild(demoHint);
+      demoCard.appendChild(demoMain);
+
+      const demoActions = document.createElement("div");
+      demoActions.className = "admin-client-actions";
+      const createDemoButton = (label, action) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "dlc-shop-btn";
+        button.textContent = label;
+        button.addEventListener("click", () => {
+          void action(button);
+        });
+        demoActions.appendChild(button);
+      };
+
+      if (!demoClient) {
+        createDemoButton("Create Demo User", async (button) => {
+          button.disabled = true;
+          try {
+            const result = await requestJson("POST", "/api/v1/admin/demo-user");
+            setStatus(`Demo user created (${result?.id || ""}).`);
+            showKeyOnce(result?.apiKey, "Demo user");
+            await loadClients();
+          } catch (error) {
+            setStatus(`Could not create demo user. ${error?.message || ""}`, true);
+          } finally {
+            button.disabled = false;
+          }
+        });
+      } else {
+        createDemoButton("Copy Demo Key", async () => {
+          try {
+            const result = await requestJson("GET", "/api/v1/admin/demo-key");
+            const baseUrl = window.TarotDataService?.getApiBaseUrl?.() || "";
+            showKeyOnce(result?.apiKey, "Demo user");
+            if (baseUrl) {
+              setStatus(`Share this: Base URL ${baseUrl} + the demo key shown above.`);
+            }
+          } catch (error) {
+            setStatus(`Could not load the demo key. ${error?.message || ""}`, true);
+          }
+        });
+        createDemoButton("Rotate Demo Key", async (button) => {
+          if (!window.confirm("Rotate the demo key? Everyone using the current demo key will be disconnected.")) return;
+          button.disabled = true;
+          try {
+            const result = await requestJson("POST", "/api/v1/admin/demo-user/rotate-key");
+            setStatus("Demo key rotated.");
+            showKeyOnce(result?.apiKey, "New demo");
+          } catch (error) {
+            setStatus(`Could not rotate the demo key. ${error?.message || ""}`, true);
+          } finally {
+            button.disabled = false;
+          }
+        });
+        createDemoButton("Reset Demo Profile", async (button) => {
+          if (!window.confirm("Reset the shared demo profile? Its notes, quiz progress, and settings will be wiped.")) return;
+          button.disabled = true;
+          try {
+            await requestJson("POST", "/api/v1/admin/demo-user/reset-profile");
+            setStatus("Demo profile reset. Next visitors start clean.");
+          } catch (error) {
+            setStatus(`Could not reset the demo profile. ${error?.message || ""}`, true);
+          } finally {
+            button.disabled = false;
+          }
+        });
+        createDemoButton("Delete Demo User", async (button) => {
+          if (!window.confirm("Delete the demo user? The shared demo key stops working immediately.")) return;
+          button.disabled = true;
+          try {
+            await requestJson("DELETE", "/api/v1/admin/demo-user");
+            setStatus("Demo user deleted.");
+            await loadClients();
+          } catch (error) {
+            setStatus(`Could not delete the demo user. ${error?.message || ""}`, true);
+          } finally {
+            button.disabled = false;
+          }
+        });
+      }
+
+      demoCard.appendChild(demoActions);
+      clientsTable.prepend(demoCard);
+
+      setStatus(`Users loaded (${clients.length}).`);
+    } catch (error) {
+      setStatus(`Could not load users. ${error?.message || ""}`, true);
+    }
+  }
+
+  function openClientEditor(rowEl, client) {
+    const existing = rowEl.querySelector(".admin-client-editor");
+    if (existing) {
+      existing.remove();
+      return;
+    }
+    const editor = document.createElement("div");
+    editor.className = "admin-client-editor";
+    editor.innerHTML = `
+      <input type="text" class="admin-client-edit-name" maxlength="100" value="${escapeHtml(client.name || "")}" placeholder="Name">
+      <select class="admin-client-edit-access">
+        <option value="basic"${client.accessLevel === "basic" ? " selected" : ""}>basic</option>
+        <option value="premium"${client.accessLevel === "premium" ? " selected" : ""}>premium</option>
+        <option value="pro+"${client.accessLevel === "pro+" ? " selected" : ""}>pro+</option>
+      </select>
+      <input type="text" class="admin-client-edit-roles" maxlength="300" value="${escapeHtml((client.roles || []).join(", "))}" placeholder="Tiers (comma separated)">
+      <button type="button" class="dlc-shop-btn" data-action="save">Save</button>
+      <button type="button" class="dlc-shop-btn" data-action="cancel">Cancel</button>
+    `;
+    editor.querySelector('[data-action="save"]').addEventListener("click", async () => {
+      const name = editor.querySelector(".admin-client-edit-name").value.trim();
+      const accessLevel = editor.querySelector(".admin-client-edit-access").value;
+      const roles = editor.querySelector(".admin-client-edit-roles").value
+        .split(",")
+        .map((role) => role.trim())
+        .filter(Boolean);
+      try {
+        await requestJson("PATCH", `/api/v1/admin/api-clients/${encodeURIComponent(client.id)}`, { name, accessLevel, roles });
+        setStatus(`Updated ${client.id}.`);
+        editor.remove();
+        await loadClients();
+      } catch (error) {
+        setStatus(`Could not update client. ${error?.message || ""}`, true);
+      }
+    });
+    editor.querySelector('[data-action="cancel"]').addEventListener("click", () => editor.remove());
+    rowEl.appendChild(editor);
+  }
+
+  function bindClientCreate() {
+    const { clientCreateBtn } = getElements();
+    if (!clientCreateBtn) return;
+    clientCreateBtn.addEventListener("click", async () => {
+      const { clientNameEl, clientIdEl, clientAccessEl, clientKeyEl } = getElements();
+      const rolesEl = document.getElementById("admin-client-roles");
+      const body = {
+        name: String(clientNameEl?.value || "").trim(),
+        accessLevel: String(clientAccessEl?.value || "premium")
+      };
+      if (rolesEl?.value.trim()) {
+        body.roles = rolesEl.value.split(",").map((role) => role.trim()).filter(Boolean);
+      }
+      if (clientIdEl?.value.trim()) body.id = clientIdEl.value.trim();
+      if (clientKeyEl?.value.trim()) body.key = clientKeyEl.value.trim();
+      clientCreateBtn.disabled = true;
+      try {
+        const result = await requestJson("POST", "/api/v1/admin/api-clients", body);
+        setStatus(`Created client ${result?.client?.id || ""}.`);
+        showKeyOnce(result?.apiKey, `New ${result?.client?.id || "client"}`);
+        if (clientIdEl) clientIdEl.value = "";
+        if (clientKeyEl) clientKeyEl.value = "";
+        if (rolesEl) rolesEl.value = "";
+        await loadClients();
+      } catch (error) {
+        setStatus(`Could not create client. ${error?.message || ""}`, true);
+      } finally {
+        clientCreateBtn.disabled = false;
+      }
+    });
+  }
+
+  // --- Roles -----------------------------------------------------------------
+
+  const LIMIT_FIELDS = [
+    { key: "notes", label: "Max notebook entries", step: 1, isBytes: false },
+    { key: "attachmentsPerScene", label: "Attachments per scene", step: 1, isBytes: false },
+    { key: "attachmentBytes", label: "Max attachment size (MB)", step: 1, isBytes: true },
+    { key: "storageBytes", label: "Storage quota (MB)", step: 5, isBytes: true }
+  ];
+
+  function formatBytesMb(bytesValue) {
+    const numeric = Number(bytesValue);
+    if (!Number.isFinite(numeric) || numeric <= 0) return "";
+    return String(Math.round((numeric / (1024 * 1024)) * 100) / 100);
+  }
+
+  function formatPrice(price) {
+    const amount = Number(price?.amount);
+    const currency = String(price?.currency || "").trim();
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return price?.providerPlanId ? `plan: ${price.providerPlanId}` : "";
+    }
+    const amountText = `${currency} ${amount}`;
+    return price?.providerPlanId ? `${amountText} · ${price.providerPlanId}` : amountText;
+  }
+
+  function renderRoleFlagInputs({ capabilities = [], limitKeys = [], defaultLimits = {} }, overrides = null) {
+    const { roleCapabilitiesEl, roleLimitsEl } = getElements();
+    if (!roleCapabilitiesEl || !roleLimitsEl) return;
+
+    roleCapabilitiesEl.innerHTML = "";
+    capabilities.forEach((capability) => {
+      const label = document.createElement("label");
+      label.className = "admin-role-flag";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = capability;
+      checkbox.dataset.capability = capability;
+      if (overrides?.capabilities?.includes(capability)) {
+        checkbox.checked = true;
+      }
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(capability));
+      roleCapabilitiesEl.appendChild(label);
+    });
+
+    roleLimitsEl.innerHTML = "";
+    LIMIT_FIELDS.forEach((field) => {
+      if (!limitKeys.includes(field.key)) return;
+      const label = document.createElement("label");
+      label.className = "settings-field";
+      const text = document.createElement("span");
+      text.textContent = field.label;
+      label.appendChild(text);
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = "1";
+      input.step = String(field.step);
+      input.dataset.limitKey = field.key;
+      input.dataset.isBytes = field.isBytes ? "1" : "0";
+      let displayValue = "";
+      if (overrides?.limits?.[field.key] != null) {
+        displayValue = field.isBytes
+          ? formatBytesMb(overrides.limits[field.key])
+          : String(overrides.limits[field.key]);
+      } else if (defaultLimits?.[field.key] != null) {
+        displayValue = field.isBytes
+          ? formatBytesMb(defaultLimits[field.key])
+          : String(defaultLimits[field.key]);
+      }
+      input.value = displayValue;
+      label.appendChild(input);
+      roleLimitsEl.appendChild(label);
+    });
+  }
+
+  function readRoleForm() {
+    const { roleIdEl, roleLabelEl, roleAccessEl, roleDescriptionEl, rolePriceEl, roleCurrencyEl, roleProviderPlanEl } = getElements();
+    const capabilities = Array.from(
+      document.querySelectorAll("#admin-role-capabilities input[type='checkbox']")
+    )
+      .filter((checkbox) => checkbox.checked)
+      .map((checkbox) => checkbox.value);
+    const limits = {};
+    document.querySelectorAll("#admin-role-limits input[type='number']").forEach((input) => {
+      const key = input.dataset.limitKey;
+      const numeric = Number(input.value);
+      if (!key || !Number.isFinite(numeric) || numeric <= 0) return;
+      limits[key] = input.dataset.isBytes === "1"
+        ? Math.floor(numeric * 1024 * 1024)
+        : Math.floor(numeric);
+    });
+    return {
+      id: String(roleIdEl?.value || "").trim(),
+      label: String(roleLabelEl?.value || "").trim(),
+      description: String(roleDescriptionEl?.value || "").trim(),
+      accessLevel: String(roleAccessEl?.value || ""),
+      capabilities,
+      limits,
+      price: {
+        amount: Number(rolePriceEl?.value) || 0,
+        currency: String(roleCurrencyEl?.value || "USD"),
+        providerPlanId: String(roleProviderPlanEl?.value || "").trim()
+      }
+    };
+  }
+
+  function renderRoleCard(role, catalog) {
+    const card = document.createElement("div");
+    card.className = "admin-role-card";
+    const limitsText = Object.entries(role.limits || {})
+      .map(([key, value]) => {
+        const isBytes = key === "attachmentBytes" || key === "storageBytes";
+        return `${key}=${isBytes ? `${formatBytesMb(value)}MB` : value}`;
+      })
+      .join(" · ");
+    const priceText = formatPrice(role.price);
+    card.innerHTML = `
+      <div class="admin-role-main">
+        <div class="dlc-plugin-name-row">
+          <strong>${escapeHtml(role.label || role.id)}</strong>
+          <span class="admin-client-id">${escapeHtml(role.id)}</span>
+          ${role.accessLevel ? `<span class="admin-client-access">${escapeHtml(role.accessLevel)}</span>` : ""}
+          ${priceText ? `<span class="admin-tier-price">${escapeHtml(priceText)}</span>` : ""}
+        </div>
+        ${role.description ? `<span class="admin-role-description">${escapeHtml(role.description)}</span>` : ""}
+        ${(role.capabilities || []).length ? `<span class="admin-role-caps">${(role.capabilities || []).map((cap) => escapeHtml(cap)).join(" · ")}</span>` : ""}
+        ${limitsText ? `<span class="admin-role-limits-text">${escapeHtml(limitsText)}</span>` : ""}
+      </div>
+      <div class="admin-client-actions">
+        <button type="button" class="dlc-shop-btn" data-action="edit">Edit</button>
+        <button type="button" class="dlc-shop-btn" data-action="delete">Delete</button>
+      </div>
+    `;
+    card.querySelector('[data-action="edit"]').addEventListener("click", () => {
+      openRoleEditor(card, role, catalog);
+    });
+    card.querySelector('[data-action="delete"]').addEventListener("click", async () => {
+      if (!window.confirm(`Delete tier '${role.id}'? Clients keep working; they just lose this tier's grants.`)) return;
+      try {
+        await requestJson("DELETE", `/api/v1/admin/roles/${encodeURIComponent(role.id)}`);
+        setStatus(`Deleted tier ${role.id}.`);
+        await loadTiers();
+      } catch (error) {
+        setStatus(`Could not delete tier. ${error?.message || ""}`, true);
+      }
+    });
+    return card;
+  }
+
+  async function loadTiers() {
+    const { rolesListEl, levelsListEl } = getElements();
+    let catalog = { baseTiers: [], customTiers: [], capabilities: [], limitKeys: [], defaultLimits: {} };
+    try {
+      catalog = await requestJson("GET", "/api/v1/admin/tiers");
+    } catch (error) {
+      setStatus(`Could not load tiers. ${error?.message || ""}`, true);
+      return;
+    }
+    renderRoleFlagInputs(catalog, null);
+
+    if (levelsListEl) {
+      levelsListEl.innerHTML = "";
+      (catalog.baseTiers || []).forEach((level) => {
+        levelsListEl.appendChild(renderLevelCard(level, catalog));
+      });
+    }
+
+    if (rolesListEl) {
+      rolesListEl.innerHTML = "";
+      if (!catalog.customTiers?.length) {
+        const empty = document.createElement("span");
+        empty.className = "settings-field-hint";
+        empty.textContent = "No custom tiers yet. Create one above (e.g. a Patreon-style subscriber tier).";
+        rolesListEl.appendChild(empty);
+      } else {
+        catalog.customTiers.forEach((tier) => {
+          rolesListEl.appendChild(renderRoleCard(tier, catalog));
+        });
+      }
+    }
+
+    setStatus(`Tiers loaded (${catalog.baseTiers?.length || 0} base, ${catalog.customTiers?.length || 0} custom).`);
+  }
+
+  function renderLevelCard(level, catalog) {
+    const card = document.createElement("div");
+    card.className = "admin-role-card";
+    const limitsText = Object.entries(level.limits || {})
+      .map(([key, value]) => {
+        const isBytes = key === "attachmentBytes" || key === "storageBytes";
+        return `${key}=${isBytes ? `${formatBytesMb(value)}MB` : value}`;
+      })
+      .join(" · ");
+    const capabilityText = [(level.roles || []).map((role) => `role:${role}`), (level.scopes || []).map((scope) => `scope:${scope}`)]
+      .flat()
+      .filter(Boolean)
+      .join(" · ");
+    const priceText = formatPrice(level.price);
+    card.innerHTML = `
+      <div class="admin-role-main">
+        <div class="dlc-plugin-name-row">
+          <strong>${escapeHtml(level.label || level.id)}</strong>
+          <span class="admin-client-id">${escapeHtml(level.id)}</span>
+          ${priceText ? `<span class="admin-tier-price">${escapeHtml(priceText)}</span>` : ""}
+        </div>
+        ${level.description ? `<span class="admin-role-description">${escapeHtml(level.description)}</span>` : ""}
+        ${capabilityText ? `<span class="admin-role-caps">${escapeHtml(capabilityText)}</span>` : ""}
+        ${limitsText ? `<span class="admin-role-limits-text">${escapeHtml(limitsText)}</span>` : ""}
+      </div>
+      <div class="admin-client-actions">
+        <button type="button" class="dlc-shop-btn" data-action="edit">Edit</button>
+      </div>
+    `;
+    card.querySelector('[data-action="edit"]').addEventListener("click", () => {
+      openLevelEditor(card, level, catalog);
+    });
+    return card;
+  }
+
+  function openLevelEditor(cardEl, level, catalog) {
+    const existing = cardEl.querySelector(".admin-role-editor");
+    if (existing) {
+      existing.remove();
+      return;
+    }
+    const editor = document.createElement("div");
+    editor.className = "admin-role-editor";
+    editor.innerHTML = `
+      <input type="text" class="admin-level-edit-label" maxlength="80" value="${escapeHtml(level.label || "")}" placeholder="Label">
+      <input type="text" class="admin-level-edit-description" maxlength="400" value="${escapeHtml(level.description || "")}" placeholder="What this tier does">
+      <input type="text" class="admin-level-edit-roles" maxlength="300" value="${escapeHtml((level.roles || []).join(", "))}" placeholder="Default roles (comma separated)">
+      <input type="text" class="admin-level-edit-scopes" maxlength="300" value="${escapeHtml((level.scopes || []).join(", "))}" placeholder="Default scopes (comma separated)">
+      <div class="admin-tier-price-row">
+        <input type="number" class="admin-level-edit-price" min="0" step="0.01" value="${escapeHtml(level.price?.amount ?? "")}" placeholder="Price">
+        <select class="admin-level-edit-currency">
+          ${(catalog?.currencies || ["USD"]).map((currency) => `<option value="${escapeHtml(currency)}"${(level.price?.currency || "USD") === currency ? " selected" : ""}>${escapeHtml(currency)}</option>`).join("")}
+        </select>
+        <input type="text" class="admin-level-edit-provider-plan" maxlength="120" value="${escapeHtml(level.price?.providerPlanId || "")}" placeholder="Provider plan id (future billing)">
+      </div>
+      <button type="button" class="dlc-shop-btn" data-action="save">Save</button>
+      <button type="button" class="dlc-shop-btn" data-action="cancel">Cancel</button>
+    `;
+
+    const limitsWrap = document.createElement("div");
+    limitsWrap.className = "admin-role-limits";
+    LIMIT_FIELDS.forEach((field) => {
+      if (!catalog?.limitKeys?.includes(field.key)) return;
+      const label = document.createElement("label");
+      label.className = "settings-field";
+      const text = document.createElement("span");
+      text.textContent = field.label;
+      label.appendChild(text);
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = "1";
+      input.step = String(field.step);
+      input.dataset.limitKey = field.key;
+      input.dataset.isBytes = field.isBytes ? "1" : "0";
+      const value = level.limits?.[field.key] ?? catalog.defaultLimits?.[field.key];
+      input.value = field.isBytes ? (formatBytesMb(value) || "") : String(value ?? "");
+      label.appendChild(input);
+      limitsWrap.appendChild(label);
+    });
+    editor.appendChild(limitsWrap);
+
+    editor.querySelector('[data-action="save"]').addEventListener("click", async () => {
+      const limits = {};
+      limitsWrap.querySelectorAll("input[type='number']").forEach((input) => {
+        const key = input.dataset.limitKey;
+        const numeric = Number(input.value);
+        if (!key || !Number.isFinite(numeric) || numeric <= 0) return;
+        limits[key] = input.dataset.isBytes === "1"
+          ? Math.floor(numeric * 1024 * 1024)
+          : Math.floor(numeric);
+      });
+      const splitList = (value) => value.split(",").map((entry) => entry.trim()).filter(Boolean);
+      const payload = {
+        label: editor.querySelector(".admin-level-edit-label").value.trim(),
+        description: editor.querySelector(".admin-level-edit-description").value.trim(),
+        roles: splitList(editor.querySelector(".admin-level-edit-roles").value),
+        scopes: splitList(editor.querySelector(".admin-level-edit-scopes").value),
+        limits,
+        price: {
+          amount: Number(editor.querySelector(".admin-level-edit-price").value) || 0,
+          currency: editor.querySelector(".admin-level-edit-currency").value || "USD",
+          providerPlanId: editor.querySelector(".admin-level-edit-provider-plan").value.trim()
+        }
+      };
+      try {
+        await requestJson("PUT", `/api/v1/admin/access-levels/${encodeURIComponent(level.id)}`, payload);
+        setStatus(`Saved ${level.id} access level.`);
+        editor.remove();
+        await loadTiers();
+      } catch (error) {
+        setStatus(`Could not save access level. ${error?.message || ""}`, true);
+      }
+    });
+    editor.querySelector('[data-action="cancel"]').addEventListener("click", () => editor.remove());
+    cardEl.appendChild(editor);
+  }
+
+  function openRoleEditor(cardEl, role, catalog) {
+    const existing = cardEl.querySelector(".admin-role-editor");
+    if (existing) {
+      existing.remove();
+      return;
+    }
+    const editor = document.createElement("div");
+    editor.className = "admin-role-editor";
+    editor.innerHTML = `
+      <input type="text" class="admin-role-edit-label" maxlength="80" value="${escapeHtml(role.label || "")}" placeholder="Label">
+      <select class="admin-role-edit-access">
+        <option value=""${!role.accessLevel ? " selected" : ""}>(inherit rank)</option>
+        <option value="basic"${role.accessLevel === "basic" ? " selected" : ""}>basic</option>
+        <option value="premium"${role.accessLevel === "premium" ? " selected" : ""}>premium</option>
+        <option value="pro+"${role.accessLevel === "pro+" ? " selected" : ""}>pro+</option>
+      </select>
+      <input type="text" class="admin-role-edit-description" maxlength="400" value="${escapeHtml(role.description || "")}" placeholder="Description">
+      <div class="admin-tier-price-row">
+        <input type="number" class="admin-role-edit-price" min="0" step="0.01" value="${escapeHtml(role.price?.amount ?? "")}" placeholder="Price">
+        <select class="admin-role-edit-currency">
+          ${(catalog?.currencies || ["USD"]).map((currency) => `<option value="${escapeHtml(currency)}"${(role.price?.currency || "USD") === currency ? " selected" : ""}>${escapeHtml(currency)}</option>`).join("")}
+        </select>
+        <input type="text" class="admin-role-edit-provider-plan" maxlength="120" value="${escapeHtml(role.price?.providerPlanId || "")}" placeholder="Provider plan id (future billing)">
+      </div>
+      <button type="button" class="dlc-shop-btn" data-action="save">Save</button>
+      <button type="button" class="dlc-shop-btn" data-action="cancel">Cancel</button>
+    `;
+    const capabilitiesWrap = document.createElement("div");
+    capabilitiesWrap.className = "admin-role-flags";
+    (catalog?.capabilities || []).forEach((capability) => {
+      const label = document.createElement("label");
+      label.className = "admin-role-flag";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = capability;
+      checkbox.dataset.capability = capability;
+      checkbox.checked = (role.capabilities || []).includes(capability);
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(capability));
+      capabilitiesWrap.appendChild(label);
+    });
+    editor.appendChild(capabilitiesWrap);
+
+    const limitsWrap = document.createElement("div");
+    limitsWrap.className = "admin-role-limits";
+    LIMIT_FIELDS.forEach((field) => {
+      if (!catalog?.limitKeys?.includes(field.key)) return;
+      const label = document.createElement("label");
+      label.className = "settings-field";
+      const text = document.createElement("span");
+      text.textContent = field.label;
+      label.appendChild(text);
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = "1";
+      input.step = String(field.step);
+      input.dataset.limitKey = field.key;
+      input.dataset.isBytes = field.isBytes ? "1" : "0";
+      const value = role.limits?.[field.key] != null
+        ? role.limits[field.key]
+        : catalog.defaultLimits?.[field.key];
+      input.value = field.isBytes ? (formatBytesMb(value) || "") : String(value ?? "");
+      label.appendChild(input);
+      limitsWrap.appendChild(label);
+    });
+    editor.appendChild(limitsWrap);
+
+    editor.querySelector('[data-action="save"]').addEventListener("click", async () => {
+      const capabilities = Array.from(capabilitiesWrap.querySelectorAll("input[type='checkbox']"))
+        .filter((checkbox) => checkbox.checked)
+        .map((checkbox) => checkbox.value);
+      const limits = {};
+      limitsWrap.querySelectorAll("input[type='number']").forEach((input) => {
+        const key = input.dataset.limitKey;
+        const numeric = Number(input.value);
+        if (!key || !Number.isFinite(numeric) || numeric <= 0) return;
+        limits[key] = input.dataset.isBytes === "1"
+          ? Math.floor(numeric * 1024 * 1024)
+          : Math.floor(numeric);
+      });
+      const payload = {
+        label: editor.querySelector(".admin-role-edit-label").value.trim(),
+        description: editor.querySelector(".admin-role-edit-description").value.trim(),
+        accessLevel: editor.querySelector(".admin-role-edit-access").value,
+        capabilities,
+        limits,
+        price: {
+          amount: Number(editor.querySelector(".admin-role-edit-price").value) || 0,
+          currency: editor.querySelector(".admin-role-edit-currency").value || "USD",
+          providerPlanId: editor.querySelector(".admin-role-edit-provider-plan").value.trim()
+        }
+      };
+      try {
+        await requestJson("PUT", `/api/v1/admin/roles/${encodeURIComponent(role.id)}`, payload);
+        setStatus(`Saved tier ${role.id}.`);
+        editor.remove();
+        await loadTiers();
+      } catch (error) {
+        setStatus(`Could not save tier. ${error?.message || ""}`, true);
+      }
+    });
+    editor.querySelector('[data-action="cancel"]').addEventListener("click", () => editor.remove());
+    cardEl.appendChild(editor);
+  }
+
+  function bindRoleCreate() {
+    const { roleCreateBtn, roleIdEl, roleLabelEl, rolePriceEl, roleProviderPlanEl } = getElements();
+    if (!roleCreateBtn) return;
+    roleCreateBtn.addEventListener("click", async () => {
+      const form = readRoleForm();
+      if (!form.id) {
+        setStatus("Enter a tier id (e.g. mystic-moon).", true);
+        return;
+      }
+      roleCreateBtn.disabled = true;
+      try {
+        await requestJson("PUT", `/api/v1/admin/roles/${encodeURIComponent(form.id)}`, {
+          label: form.label,
+          description: form.description,
+          accessLevel: form.accessLevel,
+          capabilities: form.capabilities,
+          limits: form.limits,
+          price: form.price
+        });
+        setStatus(`Created tier ${form.id}. Assign it to clients in the API Clients tab.`);
+        if (roleIdEl) roleIdEl.value = "";
+        if (roleLabelEl) roleLabelEl.value = "";
+        if (rolePriceEl) rolePriceEl.value = "";
+        if (roleProviderPlanEl) roleProviderPlanEl.value = "";
+        await loadTiers();
+      } catch (error) {
+        setStatus(`Could not create tier. ${error?.message || ""}`, true);
+      } finally {
+        roleCreateBtn.disabled = false;
+      }
+    });
+  }
+
+  // --- Server settings & logs -------------------------------------------------
+
+  async function loadServerSettings() {
+    const {
+      settingLogModeEl,
+      settingAllowNullEl,
+      settingOriginsEl,
+      settingBodyLimitEl,
+      settingPluginLimitMbEl,
+      settingAutoMigrateEl,
+      settingSecretEl,
+      settingSecretStateEl,
+      settingSecretClearEl,
+      settingBrowserTitleEl,
+      settingOverlayUrlEl,
+      envReadonlyEl
+    } = getElements();
+    if (!settingLogModeEl) return;
+    try {
+      const settings = await requestJson("GET", "/api/v1/admin/settings");
+      settingLogModeEl.value = settings?.requestLogMode === "all" || settings?.requestLogMode === "none"
+        ? settings.requestLogMode
+        : "errors";
+      settingAllowNullEl.value = settings?.allowNullOrigin ? "true" : "false";
+      if (settingOriginsEl) {
+        settingOriginsEl.value = (settings?.allowedOrigins || []).join("\n");
+      }
+      if (settingBodyLimitEl) {
+        settingBodyLimitEl.value = settings?.jsonBodyLimit || "";
+      }
+      if (settingPluginLimitMbEl) {
+        const bytes = Number(settings?.pluginUploadLimitBytes);
+        settingPluginLimitMbEl.value = Number.isFinite(bytes) && bytes > 0 ? String(Math.round(bytes / 1048576)) : "";
+      }
+      if (settingAutoMigrateEl) {
+        settingAutoMigrateEl.value = settings?.autoMigrateEnabled ? "true" : "false";
+      }
+      if (settingSecretEl) {
+        settingSecretEl.value = "";
+      }
+      if (settingSecretStateEl) {
+        settingSecretStateEl.textContent = settings?.profileEncryptionSecretSet
+          ? "set — enter a new value to replace it, or clear it below"
+          : "not set";
+      }
+      if (settingSecretClearEl) {
+        settingSecretClearEl.checked = false;
+      }
+      if (settingBrowserTitleEl) {
+        settingBrowserTitleEl.value = String(settings?.browserTitle || "");
+      }
+      if (settingOverlayUrlEl) {
+        settingOverlayUrlEl.value = String(settings?.overlayBackgroundUrl || "");
+      }
+      if (envReadonlyEl) {
+        const env = settings?.envOnly || {};
+        envReadonlyEl.innerHTML = "";
+        const rows = [
+          ["Port", String(env.port ?? "?"), env.envVarNames?.port || "PORT"],
+          ["Host", String(env.host ?? "?"), env.envVarNames?.host || "HOST"]
+        ];
+        rows.forEach(([label, value, envVar]) => {
+          const row = document.createElement("div");
+          row.className = "admin-env-row";
+          row.innerHTML = `<span class="admin-env-label">${escapeHtml(label)} (restart-only)</span><span class="admin-env-value">${escapeHtml(value)}</span><span class="admin-env-var">${escapeHtml(envVar)}</span>`;
+          envReadonlyEl.appendChild(row);
+        });
+      }
+      setStatus("Server settings loaded.");
+    } catch (error) {
+      setStatus(`Could not load server settings. ${error?.message || ""}`, true);
+    }
+  }
+
+  async function saveServerSettings() {
+    const {
+      settingLogModeEl,
+      settingAllowNullEl,
+      settingOriginsEl,
+      settingBodyLimitEl,
+      settingPluginLimitMbEl,
+      settingAutoMigrateEl,
+      settingSecretEl,
+      settingSecretClearEl,
+      settingBrowserTitleEl,
+      settingOverlayUrlEl,
+      settingsSaveBtn
+    } = getElements();
+    if (!settingsSaveBtn) return;
+    settingsSaveBtn.disabled = true;
+    try {
+      const body = {
+        requestLogMode: settingLogModeEl?.value || "errors",
+        allowNullOrigin: settingAllowNullEl?.value === "true",
+        allowedOrigins: String(settingOriginsEl?.value || "")
+          .split(/[\r\n,;]+/)
+          .map((entry) => entry.trim())
+          .filter(Boolean),
+        autoMigrateEnabled: settingAutoMigrateEl?.value === "true",
+        browserTitle: String(settingBrowserTitleEl?.value || "").trim(),
+        overlayBackgroundUrl: String(settingOverlayUrlEl?.value || "").trim()
+      };
+      const bodyLimit = String(settingBodyLimitEl?.value || "").trim();
+      if (bodyLimit) {
+        body.jsonBodyLimit = bodyLimit;
+      }
+      const pluginLimitMb = Number(settingPluginLimitMbEl?.value);
+      if (Number.isFinite(pluginLimitMb) && pluginLimitMb > 0) {
+        body.pluginUploadLimitBytes = Math.round(pluginLimitMb * 1048576);
+      }
+      const secret = String(settingSecretEl?.value || "").trim();
+      if (settingSecretClearEl?.checked) {
+        body.profileEncryptionSecret = null;
+      } else if (secret) {
+        body.profileEncryptionSecret = secret;
+      }
+      await requestJson("PATCH", "/api/v1/admin/settings", body);
+      if (settingSecretEl) settingSecretEl.value = "";
+      if (settingSecretClearEl) settingSecretClearEl.checked = false;
+      // Apply the tab title to this browser immediately; everyone else gets it
+      // on their next page load (the shell reads /api/v1/branding at boot).
+      const savedTitle = String(body.browserTitle || "").trim();
+      if (savedTitle) {
+        document.title = savedTitle;
+      } else {
+        document.title = String(window.TarotAppConfig?.getBranding?.()?.title || "KABBAK");
+      }
+      window.TarotAppConfig?.applyOverlayBackground?.(
+        body.overlayBackgroundUrl,
+        window.TarotDataService?.getApiBaseUrl?.() || window.TarotAppConfig?.apiBaseUrl
+      );
+      await loadServerSettings();
+      setStatus("Server settings saved — applied immediately.");
+    } catch (error) {
+      setStatus(`Could not save server settings. ${error?.message || ""}`, true);
+    } finally {
+      settingsSaveBtn.disabled = false;
+    }
+  }
+
+  let logPollTimer = null;
+
+  async function loadLogs() {
+    const { logLevelEl, logListEl } = getElements();
+    if (!logListEl) return;
+    try {
+      const level = String(logLevelEl?.value || "all");
+      const payload = await requestJson("GET", `/api/v1/admin/logs?level=${encodeURIComponent(level)}&limit=200`);
+      const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+      logListEl.innerHTML = "";
+      if (!entries.length) {
+        const empty = document.createElement("span");
+        empty.className = "settings-field-hint";
+        empty.textContent = "No log entries in the buffer yet.";
+        logListEl.appendChild(empty);
+        return;
+      }
+      entries.forEach((entry) => {
+        const row = document.createElement("div");
+        row.className = "admin-log-row";
+        const levelClass = `is-${String(entry.level || "info")}`;
+        const time = String(entry.timestamp || "").replace("T", " ").slice(5, 19);
+        row.innerHTML = `
+          <span class="admin-log-level ${levelClass}">${escapeHtml(String(entry.level || "info").toUpperCase())}</span>
+          <span class="admin-log-event">${escapeHtml(entry.event || "")}</span>
+          <span class="admin-log-time">${escapeHtml(time)}</span>
+          <span class="admin-log-message">${escapeHtml(String(entry.message || "").slice(0, 400))}</span>
+        `;
+        logListEl.appendChild(row);
+      });
+    } catch (error) {
+      // Silent for polling; surface once via status only on manual refresh.
+    }
+  }
+
+  function syncLogPolling() {
+    const { logAutoRefreshEl } = getElements();
+    const activePanel = String(window.TarotSectionStateUi?.getActiveSection?.() || "");
+    const shouldPoll = logAutoRefreshEl?.checked === true;
+    if (shouldPoll && activePanel === "admin") {
+      if (!logPollTimer) {
+        logPollTimer = window.setInterval(() => {
+          void loadLogs();
+        }, 3000);
+      }
+    } else if (logPollTimer) {
+      window.clearInterval(logPollTimer);
+      logPollTimer = null;
+    }
+  }
+
+  function bindServerControls() {
+    const { logLevelEl, logAutoRefreshEl, logRefreshBtn, logClearBtn, settingsSaveBtn } = getElements();
+    if (settingsSaveBtn) {
+      settingsSaveBtn.addEventListener("click", () => {
+        void saveServerSettings();
+      });
+    }
+    const { settingOverlayFileEl, settingOverlayClearEl, settingOverlayUrlEl } = getElements();
+    if (settingOverlayFileEl) {
+      settingOverlayFileEl.addEventListener("change", async () => {
+        const file = settingOverlayFileEl.files?.[0];
+        settingOverlayFileEl.value = "";
+        if (!file) return;
+        try {
+          const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error("Could not read image."));
+            reader.readAsDataURL(file);
+          });
+          const payload = await requestJson("POST", "/api/v1/admin/overlay-background", { data: dataUrl });
+          if (settingOverlayUrlEl) settingOverlayUrlEl.value = String(payload?.overlayBackgroundUrl || "");
+          window.TarotAppConfig?.applyOverlayBackground?.(
+            payload?.overlayBackgroundUrl,
+            window.TarotDataService?.getApiBaseUrl?.() || window.TarotAppConfig?.apiBaseUrl
+          );
+          setStatus("Overlay background uploaded.");
+        } catch (error) {
+          setStatus(`Could not upload overlay. ${error?.message || ""}`, true);
+        }
+      });
+    }
+    if (settingOverlayClearEl) {
+      settingOverlayClearEl.addEventListener("click", async () => {
+        try {
+          await requestJson("DELETE", "/api/v1/admin/overlay-background");
+          if (settingOverlayUrlEl) settingOverlayUrlEl.value = "";
+          window.TarotAppConfig?.applyOverlayBackground?.("");
+          setStatus("Overlay background cleared.");
+        } catch (error) {
+          setStatus(`Could not clear overlay. ${error?.message || ""}`, true);
+        }
+      });
+    }
+    if (logLevelEl) {
+      logLevelEl.addEventListener("change", () => {
+        void loadLogs();
+      });
+    }
+    if (logAutoRefreshEl) {
+      logAutoRefreshEl.addEventListener("change", syncLogPolling);
+    }
+    if (logRefreshBtn) {
+      logRefreshBtn.addEventListener("click", () => {
+        void loadLogs();
+      });
+    }
+    if (logClearBtn) {
+      logClearBtn.addEventListener("click", async () => {
+        try {
+          await requestJson("DELETE", "/api/v1/admin/logs");
+          setStatus("Log buffer cleared.");
+          void loadLogs();
+        } catch (error) {
+          setStatus(`Could not clear logs. ${error?.message || ""}`, true);
+        }
+      });
+    }
+  }
+
+  // --- Plugins & DLC ---------------------------------------------------------
+
+  const KIND_ORDER = ["api", "plugin", "pack", "deck", "text", "reference"];
+  const KIND_LABELS = {
+    pack: "Packs",
+    deck: "Decks",
+    text: "Texts",
+    reference: "References",
+    plugin: "Plugins",
+    api: "API"
+  };
+
+  function groupCatalogItems(items) {
+    const groups = new Map();
+    items.forEach((item) => {
+      const kind = String(item?.kind || "other");
+      if (!groups.has(kind)) groups.set(kind, []);
+      groups.get(kind).push(item);
+    });
+    return [...groups.entries()].sort((a, b) => {
+      const indexA = KIND_ORDER.indexOf(a[0]);
+      const indexB = KIND_ORDER.indexOf(b[0]);
+      return (indexA < 0 ? 99 : indexA) - (indexB < 0 ? 99 : indexB);
+    });
+  }
+
+  function createKindHeading(kind, count) {
+    const head = document.createElement("div");
+    head.className = "dlc-kind-head";
+    head.innerHTML = `<strong>${escapeHtml(KIND_LABELS[kind] || kind)}</strong><span>${Number(count) || 0}</span>`;
+    return head;
+  }
+
+  function createPluginCard({ title, description, version, badge, actionLabel, onAction }) {    const card = document.createElement("div");
+    card.className = "dlc-plugin-card";
+    const info = document.createElement("div");
+    info.className = "dlc-plugin-info";
+    const nameRow = document.createElement("div");
+    nameRow.className = "dlc-plugin-name-row";
+    const nameEl = document.createElement("strong");
+    nameEl.textContent = title || "Untitled plugin";
+    nameRow.appendChild(nameEl);
+    if (version) {
+      const versionEl = document.createElement("span");
+      versionEl.className = "dlc-plugin-version";
+      versionEl.textContent = `v${version}`;
+      nameRow.appendChild(versionEl);
+    }
+    info.appendChild(nameRow);
+    if (description) {
+      const descriptionEl = document.createElement("span");
+      descriptionEl.className = "dlc-plugin-description";
+      descriptionEl.textContent = description;
+      info.appendChild(descriptionEl);
+    }
+    card.appendChild(info);
+
+    const actions = document.createElement("div");
+    actions.className = "dlc-plugin-actions";
+    if (badge) {
+      const badgeEl = document.createElement("span");
+      badgeEl.className = "dlc-plugin-badge";
+      badgeEl.textContent = badge;
+      actions.appendChild(badgeEl);
+    }
+    if (actionLabel && typeof onAction === "function") {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "dlc-shop-btn";
+      button.textContent = actionLabel;
+      button.addEventListener("click", () => {
+        void onAction(button);
+      });
+      actions.appendChild(button);
+    }
+    card.appendChild(actions);
+    return card;
+  }
+
+  async function pollReloadStatus(onUpdate) {
+    for (let attempt = 0; attempt < 240; attempt += 1) {
+      let status = null;
+      try {
+        status = await requestJson("GET", "/api/v1/admin/dlc/reload-status");
+      } catch (_error) {
+        break;
+      }
+      if (!status) break;
+      if (status.state === "done") {
+        onUpdate?.("Storage refreshed — changes are live. No server restart needed.");
+        return;
+      }
+      if (status.state === "error") {
+        onUpdate?.(`Storage refresh failed. ${status.message || ""}`, true);
+        return;
+      }
+      if (attempt === 0) {
+        onUpdate?.("Refreshing storage snapshot…");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+    onUpdate?.("Storage refresh is still running. Changes will appear shortly.");
+  }
+
+  async function reloadStorageInBackground() {
+    try {
+      await requestJson("POST", "/api/v1/admin/dlc/reload");
+    } catch (_error) {
+      // The background reload may already be running; polling still works.
+    }
+  }
+
+  let allDlcItems = [];
+  let activeDlcFilter = "all";
+
+  function syncDlcFilterButtons() {
+    document.querySelectorAll("#admin-dlc-filter [data-dlc-filter]").forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.dlcFilter === activeDlcFilter);
+    });
+  }
+
+  function renderDlcCatalog() {
+    const { dlcCatalogEl } = getElements();
+    if (!dlcCatalogEl) return;
+    dlcCatalogEl.innerHTML = "";
+
+    const visibleItems = activeDlcFilter === "all"
+      ? allDlcItems
+      : allDlcItems.filter((item) => item?.kind === activeDlcFilter);
+
+    if (!visibleItems.length) {
+      const empty = document.createElement("span");
+      empty.className = "settings-field-hint";
+      empty.textContent = activeDlcFilter === "all"
+        ? "The DLC catalog is empty."
+        : `No ${KIND_LABELS[activeDlcFilter] || activeDlcFilter} in the catalog.`;
+      dlcCatalogEl.appendChild(empty);
+      return;
+    }
+
+    groupCatalogItems(visibleItems).forEach(([kind, items]) => {
+      dlcCatalogEl.appendChild(createKindHeading(kind, items.length));
+      items.forEach((item) => {
+        const isInstalled = item?.status === "installed" || item?.status === "staged";
+        const isPlugin = kind === "plugin" || kind === "api";
+        const hasUpdate = isPlugin && item?.updateAvailable === true;
+        const badge = item?.status === "staged"
+          ? (isPlugin ? "plugin · staged" : "staged")
+          : (isInstalled ? (isPlugin ? (hasUpdate ? "plugin · update available" : "plugin · installed") : "installed") : (isPlugin ? "plugin" : ""));
+
+        const card = createPluginCard({
+          title: item.title,
+          description: [item.sourceName ? `Source: ${item.sourceName}` : "", item.description].filter(Boolean).join(" — "),
+          version: hasUpdate ? `installed ${item.version} · latest ${item.latestVersion}` : item.version,
+          badge,
+          actionLabel: kind === "pack"
+            ? (isInstalled ? "Uninstall Pack" : "")
+            : (isInstalled ? "Uninstall" : "Install"),
+          onAction: kind === "pack" && !isInstalled ? null : async (button) => {
+            if (isInstalled && !window.confirm(`Uninstall '${item.title || item.name}' (${kind})?`)) return;
+            button.disabled = true;
+            try {
+              await requestJson("POST", `/api/v1/dlc/${isInstalled ? "uninstall" : "install"}`, { kind: item.kind, name: item.name });
+              setStatus(isInstalled
+                ? `Uninstalled ${item.name}. Refreshing storage…`
+                : `Installing ${item.name}…`);
+              await loadPlugins();
+              if (isPlugin) {
+                await window.TaroTimePluginHost?.refresh?.();
+              } else {
+                void pollReloadStatus((text, isError) => setStatus(text, isError));
+              }
+              setStatus(isInstalled ? `Uninstalled ${item.name}.` : `Installed ${item.name}.`);
+            } catch (error) {
+              setStatus(`Could not ${isInstalled ? "uninstall" : "install"} ${item.name}. ${error?.message || ""}`, true);
+            } finally {
+              button.disabled = false;
+            }
+          }
+        });
+
+        if (hasUpdate) {
+          const updateBtn = document.createElement("button");
+          updateBtn.type = "button";
+          updateBtn.className = "dlc-shop-btn";
+          updateBtn.textContent = "Update";
+          updateBtn.title = `Update ${item.title || item.name} from ${item.version} to ${item.latestVersion}`;
+          card.querySelector(".dlc-plugin-actions")?.appendChild(updateBtn);
+          updateBtn.addEventListener("click", async () => {
+            const changelogLines = (Array.isArray(item.changelog) ? item.changelog : [])
+              .filter((entry) => entry?.version)
+              .map((entry) => {
+                const notes = (Array.isArray(entry.notes) ? entry.notes : []).join("; ");
+                return `v${entry.version}${entry.date ? ` (${entry.date})` : ""}${notes ? ` — ${notes}` : ""}`;
+              });
+            const detail = changelogLines.length ? `\n\nChangelog:\n${changelogLines.join("\n")}` : "";
+            if (!window.confirm(`Update '${item.title || item.name}' from v${item.version} to v${item.latestVersion}?${detail}`)) return;
+            updateBtn.disabled = true;
+            try {
+              await requestJson("POST", "/api/v1/dlc/update", { kind: item.kind, name: item.name });
+              await window.TaroTimePluginHost?.refresh?.();
+              await loadPlugins();
+              setStatus(`Updated ${item.name}.`);
+            } catch (error) {
+              setStatus(`Could not update ${item.name}. ${error?.message || ""}`, true);
+            } finally {
+              updateBtn.disabled = false;
+            }
+          });
+        }
+
+        if (isInstalled && isPlugin) {
+          const skinIds = new Set((window.TaroTimePluginHost?.listSkins?.() || []).map((skin) => skin.id));
+          const isSkin = item.role === "skin" || skinIds.has(item.name) || skinIds.has(item.id);
+          if (isSkin) {
+            const activeSkin = window.TaroTimePluginHost?.getActiveSkin?.() || "";
+            const useBtn = document.createElement("button");
+            useBtn.type = "button";
+            useBtn.className = "dlc-shop-btn";
+            const skinId = skinIds.has(item.name) ? item.name : (skinIds.has(item.id) ? item.id : item.name);
+            const isActive = activeSkin === skinId;
+            useBtn.textContent = isActive ? "Active layout" : "Use layout";
+            useBtn.disabled = isActive;
+            card.querySelector(".dlc-plugin-actions")?.appendChild(useBtn);
+            useBtn.addEventListener("click", () => {
+              window.TaroTimePluginHost?.setActiveSkin?.(skinId);
+              useBtn.textContent = "Active layout";
+              useBtn.disabled = true;
+              card.querySelectorAll(".dlc-shop-btn").forEach((button) => {
+                if (button !== useBtn && button.textContent === "Active layout") {
+                  button.textContent = "Use layout";
+                  button.disabled = false;
+                }
+              });
+            });
+          }
+          const settingsBtn = document.createElement("button");
+          settingsBtn.type = "button";
+          settingsBtn.className = "dlc-shop-btn";
+          settingsBtn.textContent = "Settings";
+          settingsBtn.title = `Configure ${item.title || item.name}`;
+          card.querySelector(".dlc-plugin-actions")?.appendChild(settingsBtn);
+          settingsBtn.addEventListener("click", () => {
+            if (item.name === "menu-plugin") {
+              if (window.TaroTimeDlcShop?.openMenuEditorInto) {
+                window.TaroTimeDlcShop.openMenuEditorInto(card);
+              } else {
+                setStatus("Menu editor is available in Settings > DLC Shop & Plugins.", true);
+              }
+            } else if (window.TaroTimeDlcShop?.openPluginSettings) {
+              window.TaroTimeDlcShop.openPluginSettings(card, item);
+            } else {
+              setStatus("Plugin settings are available in Settings > DLC Shop & Plugins.", true);
+            }
+          });
+        }
+
+        dlcCatalogEl.appendChild(card);
+      });
+    });
+  }
+
+  function renderDlcSources(sources) {
+    const host = document.getElementById("admin-dlc-sources");
+    if (!host) return;
+    host.innerHTML = "";
+    const list = Array.isArray(sources) ? sources : [];
+    if (!list.length) {
+      const empty = document.createElement("span");
+      empty.className = "settings-field-hint";
+      empty.textContent = "No DLC repositories configured yet.";
+      host.appendChild(empty);
+      return;
+    }
+    list.forEach((source) => {
+      const card = document.createElement("div");
+      card.className = "dlc-plugin-card";
+      const info = document.createElement("div");
+      info.className = "dlc-plugin-info";
+      const nameRow = document.createElement("div");
+      nameRow.className = "dlc-plugin-name-row";
+      const nameEl = document.createElement("strong");
+      nameEl.textContent = source.name || source.id;
+      nameRow.appendChild(nameEl);
+      const badge = document.createElement("span");
+      badge.className = "dlc-plugin-badge";
+      badge.textContent = source.primary ? "primary" : (source.enabled === false ? "disabled" : "additional");
+      nameRow.appendChild(badge);
+      info.appendChild(nameRow);
+      const meta = document.createElement("span");
+      meta.className = "dlc-plugin-description";
+      meta.textContent = `${source.url || "—"}${source.branch ? ` · ${source.branch}` : ""}${source.head ? ` · ${source.head}` : ""}${source.present ? "" : " · not cloned"}`;
+      info.appendChild(meta);
+      card.appendChild(info);
+
+      const actions = document.createElement("div");
+      actions.className = "dlc-plugin-actions";
+      const urlInput = document.createElement("input");
+      urlInput.type = "url";
+      urlInput.value = source.url || "";
+      urlInput.style.minWidth = "220px";
+      const branchInput = document.createElement("input");
+      branchInput.type = "text";
+      branchInput.value = source.branch || "main";
+      branchInput.style.width = "90px";
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "dlc-shop-btn";
+      saveBtn.textContent = "Save";
+      saveBtn.addEventListener("click", async () => {
+        saveBtn.disabled = true;
+        try {
+          await requestJson("PATCH", `/api/v1/admin/dlc/sources/${encodeURIComponent(source.id)}`, {
+            url: urlInput.value,
+            branch: branchInput.value
+          });
+          await loadDlcSources();
+          await loadPlugins();
+          setStatus(`Saved ${source.name}.`);
+        } catch (error) {
+          setStatus(`Could not save ${source.name}. ${error?.message || ""}`, true);
+        } finally {
+          saveBtn.disabled = false;
+        }
+      });
+      const syncBtn = document.createElement("button");
+      syncBtn.type = "button";
+      syncBtn.className = "dlc-shop-btn";
+      syncBtn.textContent = "Sync";
+      syncBtn.addEventListener("click", async () => {
+        syncBtn.disabled = true;
+        setStatus(`Syncing ${source.name}…`);
+        try {
+          await requestJson("POST", `/api/v1/admin/dlc/sources/${encodeURIComponent(source.id)}/sync`, {});
+          await loadDlcSources();
+          await loadPlugins();
+          setStatus(`Synced ${source.name}.`);
+        } catch (error) {
+          setStatus(`Could not sync ${source.name}. ${error?.message || ""}`, true);
+        } finally {
+          syncBtn.disabled = false;
+        }
+      });
+      actions.append(urlInput, branchInput, saveBtn, syncBtn);
+      if (!source.primary) {
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "dlc-shop-btn";
+        removeBtn.textContent = "Remove";
+        removeBtn.addEventListener("click", async () => {
+          if (!window.confirm(`Remove DLC repository '${source.name}'? Local checkout files are kept.`)) return;
+          try {
+            await requestJson("DELETE", `/api/v1/admin/dlc/sources/${encodeURIComponent(source.id)}`);
+            await loadDlcSources();
+            await loadPlugins();
+            setStatus(`Removed ${source.name}.`);
+          } catch (error) {
+            setStatus(`Could not remove ${source.name}. ${error?.message || ""}`, true);
+          }
+        });
+        actions.appendChild(removeBtn);
+      }
+      card.appendChild(actions);
+      host.appendChild(card);
+    });
+  }
+
+  async function loadDlcSources() {
+    try {
+      const payload = await requestJson("GET", "/api/v1/admin/dlc/sources");
+      renderDlcSources(payload?.sources || payload?.data?.sources);
+    } catch (error) {
+      renderDlcSources([]);
+      setStatus(`Could not load DLC repositories. ${error?.message || ""}`, true);
+    }
+  }
+
+  async function loadPlugins() {
+    const { dlcCatalogEl } = getElements();
+    if (!dlcCatalogEl) return;
+    try {
+      const catalog = await requestJson("GET", "/api/v1/dlc/catalog");
+      allDlcItems = Array.isArray(catalog?.items) ? catalog.items : [];
+      renderDlcCatalog();
+      const baseUrl = window.TarotDataService?.getApiBaseUrl?.() || "";
+      const pluginCount = allDlcItems.filter((item) => item?.kind === "plugin").length;
+      setStatus(`DLC loaded (server: ${baseUrl || "?"}, source: ${catalog?.origin || "none"}, plugins: ${pluginCount}).`);
+    } catch (error) {
+      setStatus(`Could not load DLC. ${error?.message || ""}`, true);
+      dlcCatalogEl.innerHTML = "";
+      const errorCard = document.createElement("div");
+      errorCard.className = "admin-stat-card";
+      errorCard.innerHTML = `
+        <span class="admin-stat-label">Error</span>
+        <strong class="admin-stat-value">${escapeHtml(error?.message || "Could not load the DLC catalog.")}</strong>
+        <div class="dlc-shop-actions" style="margin-top:6px;">
+          <button type="button" class="dlc-shop-btn" data-action="retry">Retry</button>
+        </div>
+      `;
+      errorCard.querySelector('[data-action="retry"]').addEventListener("click", () => {
+        void loadPlugins();
+      });
+      dlcCatalogEl.appendChild(errorCard);
+    }
+  }
+
+  // --- Gate + lifecycle ------------------------------------------------------
+
+  function syncGate() {
+    const adminBtn = document.getElementById("open-admin");
+    const adminSection = document.getElementById("admin-section");
+    const allowed = isAdmin();
+    if (adminBtn) {
+      adminBtn.classList.remove("mp-hidden");
+      adminBtn.style.removeProperty("display");
+      adminBtn.hidden = !allowed;
+    }
+    if (!allowed && adminSection && !adminSection.hidden) {
+      document.getElementById("open-home")?.click();
+    }
+    if (allowed) {
+      void loadOverview();
+    }
+  }
+
+  function init() {
+    bindTabs();
+    bindClientCreate();
+    bindRoleCreate();
+    bindServerControls();
+    const { pluginsReloadBtn } = getElements();
+    if (pluginsReloadBtn) {
+      pluginsReloadBtn.addEventListener("click", () => {
+        setStatus("Reloading plugins…");
+        void window.TaroTimePluginHost?.refresh?.().then(() => {
+          // Re-fetch the catalog too — the browser host reload alone does not
+          // refresh the DLC list after a failed/slow first load.
+          void loadPlugins();
+          setStatus("Plugins reloaded.");
+        });
+      });
+    }
+    const storageReloadBtn = document.getElementById("admin-dlc-reload");
+    if (storageReloadBtn) {
+      storageReloadBtn.addEventListener("click", () => {
+        storageReloadBtn.disabled = true;
+        setStatus("Refreshing storage snapshot…");
+        void reloadStorageInBackground()
+          .then(() => pollReloadStatus((text, isError) => setStatus(text, isError)))
+          .finally(() => {
+            storageReloadBtn.disabled = false;
+          });
+      });
+    }
+    const dlcUpdateBtn = document.getElementById("admin-dlc-update");
+    if (dlcUpdateBtn) {
+      dlcUpdateBtn.addEventListener("click", async () => {
+        dlcUpdateBtn.disabled = true;
+        setStatus("Updating DLC checkout…");
+        try {
+          const result = await requestJson("POST", "/api/v1/admin/dlc/update", {});
+          if (result?.updated !== true) {
+            setStatus(`Could not update DLC. ${result?.error || "Update failed."}`, true);
+            return;
+          }
+          await window.TaroTimePluginHost?.refresh?.();
+          await loadPlugins();
+          setStatus(`DLC updated to ${result?.head || "latest"}.`);
+        } catch (error) {
+          setStatus(`Could not update DLC. ${error?.message || ""}`, true);
+        } finally {
+          dlcUpdateBtn.disabled = false;
+        }
+      });
+    }
+    const addSourceBtn = document.getElementById("admin-dlc-source-add");
+    if (addSourceBtn) {
+      addSourceBtn.addEventListener("click", async () => {
+        const name = String(document.getElementById("admin-dlc-source-name")?.value || "").trim();
+        const url = String(document.getElementById("admin-dlc-source-url")?.value || "").trim();
+        const branch = String(document.getElementById("admin-dlc-source-branch")?.value || "main").trim();
+        if (!url) {
+          setStatus("A repository URL is required.", true);
+          return;
+        }
+        addSourceBtn.disabled = true;
+        setStatus("Adding DLC repository…");
+        try {
+          await requestJson("POST", "/api/v1/admin/dlc/sources", { name, url, branch });
+          const nameEl = document.getElementById("admin-dlc-source-name");
+          const urlEl = document.getElementById("admin-dlc-source-url");
+          if (nameEl) nameEl.value = "";
+          if (urlEl) urlEl.value = "";
+          await loadDlcSources();
+          await loadPlugins();
+          setStatus("DLC repository added.");
+        } catch (error) {
+          setStatus(`Could not add repository. ${error?.message || ""}`, true);
+        } finally {
+          addSourceBtn.disabled = false;
+        }
+      });
+    }
+    const createPluginBtn = document.getElementById("admin-create-plugin");
+    if (createPluginBtn) {
+      createPluginBtn.addEventListener("click", () => {
+        const { dlcCatalogEl } = getElements();
+        if (window.TaroTimeDlcShop?.openCreatePlugin) {
+          window.TaroTimeDlcShop.openCreatePlugin(dlcCatalogEl, {
+            onCreated: () => loadPlugins()
+          });
+        } else {
+          setStatus("Plugin creation is available in Settings > DLC Shop & Plugins.", true);
+        }
+      });
+    }
+    document.querySelectorAll("#admin-dlc-filter [data-dlc-filter]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activeDlcFilter = String(button.dataset.dlcFilter || "all");
+        syncDlcFilterButtons();
+        renderDlcCatalog();
+      });
+    });
+    syncDlcFilterButtons();
+
+    const refreshPanel = (panelId) => {
+      if (panelId === "overview") void loadOverview();
+      if (panelId === "clients") void loadClients();
+      if (panelId === "tiers") void loadTiers();
+      if (panelId === "plugins") {
+        void loadDlcSources();
+        void loadPlugins();
+      }
+      if (panelId === "server") {
+        void loadServerSettings();
+        void loadLogs();
+      }
+    };
+
+    document.querySelectorAll(".admin-tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        refreshPanel(String(tab.id).replace("admin-tab-", ""));
+        syncLogPolling();
+      });
+    });
+
+    document.addEventListener("connection:access-updated", () => {
+      syncGate();
+      const active = String(window.TarotSectionStateUi?.getActiveSection?.() || "");
+      if (active === "admin") {
+        void loadOverview();
+      }
+      syncLogPolling();
+    });
+    document.addEventListener("connection:updated", syncGate);
+
+    // Load panels when the admin section first opens.
+    const openAdminBtn = document.getElementById("open-admin");
+    if (openAdminBtn) {
+      openAdminBtn.addEventListener("click", () => {
+        void loadOverview();
+      });
+    }
+
+    syncGate();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+  } else {
+    init();
+  }
+})();
