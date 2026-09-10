@@ -1976,6 +1976,15 @@
     allowLabel.appendChild(document.createTextNode("Allow search"));
     body.appendChild(allowLabel);
 
+    const collapseLabel = document.createElement("label");
+    collapseLabel.className = "dlc-menu-hide-label";
+    const collapseTags = document.createElement("input");
+    collapseTags.type = "checkbox";
+    collapseTags.disabled = !adminMode;
+    collapseLabel.appendChild(collapseTags);
+    collapseLabel.appendChild(document.createTextNode("Collapse tags (title only until expanded)"));
+    body.appendChild(collapseLabel);
+
     const listEl = document.createElement("div");
     listEl.className = "dlc-link-entries";
     body.appendChild(listEl);
@@ -2024,6 +2033,7 @@
       const payload = await service.requestJson("GET", service.buildApiUrl(`/api/v1/plugins/${plugin.name}/config`));
       const config = payload?.config && typeof payload.config === "object" ? payload.config : {};
       allowSearch.checked = Boolean(config.allowSearch);
+      collapseTags.checked = config.collapseTags !== false;
       originInput.value = String(config.origin || "");
       apiKeyInput.value = String(config.apiKey || "");
       (Array.isArray(config.categories) ? config.categories : []).forEach((item) => addEntry(item));
@@ -2045,6 +2055,7 @@
           {
             config: {
               allowSearch: allowSearch.checked,
+              collapseTags: collapseTags.checked,
               origin: String(originInput.value || "").trim(),
               apiKey: String(apiKeyInput.value || "").trim(),
               categories: collectCategories()
@@ -2393,6 +2404,34 @@
     api: "API"
   };
 
+  function mergeCatalogItems(items) {
+    const rank = { installed: 0, staged: 1, available: 2, partial: 3 };
+    const byKey = new Map();
+    (Array.isArray(items) ? items : []).forEach((item) => {
+      const name = String(item?.name || "").trim();
+      if (!name) return;
+      const key = `${String(item.kind || "")}:${name.toLowerCase()}`;
+      const existing = byKey.get(key);
+      if (!existing) {
+        byKey.set(key, { ...item });
+        return;
+      }
+      const existingRank = rank[existing.status] ?? 9;
+      const nextRank = rank[item.status] ?? 9;
+      if (nextRank < existingRank) {
+        byKey.set(key, {
+          ...item,
+          updateAvailable: Boolean(item.updateAvailable || existing.updateAvailable),
+          latestVersion: item.latestVersion || existing.latestVersion
+        });
+        return;
+      }
+      if (item.updateAvailable) existing.updateAvailable = true;
+      if (item.latestVersion && !existing.latestVersion) existing.latestVersion = item.latestVersion;
+    });
+    return [...byKey.values()];
+  }
+
   function groupCatalogItems(items) {
     const groups = new Map();
     items.forEach((item) => {
@@ -2446,24 +2485,14 @@
       listEl.appendChild(empty);
       return;
     }
-    const bySource = new Map();
-    availableItems.forEach((item) => {
-      const key = String(item.sourceId || item.sourceName || "other");
-      if (!bySource.has(key)) {
-        bySource.set(key, { label: item.sourceName || key, items: [] });
-      }
-      bySource.get(key).items.push(item);
-    });
-    bySource.forEach((source) => {
-      listEl.appendChild(createKindHeading(source.label, source.items.length));
-      groupCatalogItems(source.items).forEach(([kind, items]) => {
+    groupCatalogItems(mergeCatalogItems(availableItems)).forEach(([kind, items]) => {
       listEl.appendChild(createKindHeading(kind, items.length));
       items.forEach((item) => {
         listEl.appendChild(createPluginCard({
           title: item.title,
-          description: [item.sourceName ? `Source: ${item.sourceName}` : "", item.duplicate ? "same name in another repo" : "", item.description].filter(Boolean).join(" — "),
+          description: item.description,
           version: item.version,
-          badge: kind === "pack" ? "curated pack" : (item.duplicate ? "duplicate name" : ""),
+          badge: kind === "pack" ? "curated pack" : "",
           actionLabel: kind === "pack" ? "" : (isAdminUser ? "Install" : "Admin key required"),
           onAction: kind === "pack" ? null : async (button) => {
             if (!isAdminUser) return;
@@ -2492,7 +2521,6 @@
             }
           }
         }));
-      });
       });
     });
   }

@@ -219,6 +219,13 @@
       // Keep whatever localStorage provided.
     }
 
+    if (!storedBaseUrl) {
+      const host = String(window.location.hostname || "");
+      if (host === "localhost" || host === "127.0.0.1") {
+        storedBaseUrl = "http://localhost:3100";
+      }
+    }
+
     return normalizeConnectionSettings({
       apiBaseUrl: storedBaseUrl,
       apiKey: storedApiKey

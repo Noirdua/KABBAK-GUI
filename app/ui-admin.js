@@ -1162,6 +1162,34 @@
     api: "API"
   };
 
+  function mergeCatalogItems(items) {
+    const rank = { installed: 0, staged: 1, available: 2, partial: 3 };
+    const byKey = new Map();
+    (Array.isArray(items) ? items : []).forEach((item) => {
+      const name = String(item?.name || "").trim();
+      if (!name) return;
+      const key = `${String(item.kind || "")}:${name.toLowerCase()}`;
+      const existing = byKey.get(key);
+      if (!existing) {
+        byKey.set(key, { ...item });
+        return;
+      }
+      const existingRank = rank[existing.status] ?? 9;
+      const nextRank = rank[item.status] ?? 9;
+      if (nextRank < existingRank) {
+        byKey.set(key, {
+          ...item,
+          updateAvailable: Boolean(item.updateAvailable || existing.updateAvailable),
+          latestVersion: item.latestVersion || existing.latestVersion
+        });
+        return;
+      }
+      if (item.updateAvailable) existing.updateAvailable = true;
+      if (item.latestVersion && !existing.latestVersion) existing.latestVersion = item.latestVersion;
+    });
+    return [...byKey.values()];
+  }
+
   function groupCatalogItems(items) {
     const groups = new Map();
     items.forEach((item) => {
@@ -1276,9 +1304,9 @@
     if (!dlcCatalogEl) return;
     dlcCatalogEl.innerHTML = "";
 
-    const visibleItems = activeDlcFilter === "all"
+    const visibleItems = mergeCatalogItems(activeDlcFilter === "all"
       ? allDlcItems
-      : allDlcItems.filter((item) => item?.kind === activeDlcFilter);
+      : allDlcItems.filter((item) => item?.kind === activeDlcFilter));
 
     if (!visibleItems.length) {
       const empty = document.createElement("span");
@@ -1290,17 +1318,7 @@
       return;
     }
 
-    const bySource = new Map();
-    visibleItems.forEach((item) => {
-      const key = String(item.sourceId || item.sourceName || "other");
-      if (!bySource.has(key)) {
-        bySource.set(key, { label: item.sourceName || key, items: [] });
-      }
-      bySource.get(key).items.push(item);
-    });
-    bySource.forEach((source) => {
-      dlcCatalogEl.appendChild(createKindHeading(source.label, source.items.length));
-      groupCatalogItems(source.items).forEach(([kind, items]) => {
+    groupCatalogItems(visibleItems).forEach(([kind, items]) => {
       dlcCatalogEl.appendChild(createKindHeading(kind, items.length));
       items.forEach((item) => {
         const isInstalled = item?.status === "installed" || item?.status === "staged";
@@ -1312,11 +1330,7 @@
 
         const card = createPluginCard({
           title: item.title,
-          description: [
-            item.sourceName ? `Source: ${item.sourceName}` : "",
-            item.duplicate ? "same name in another repo" : "",
-            item.description
-          ].filter(Boolean).join(" — "),
+          description: item.description,
           version: hasUpdate ? `installed ${item.version} · latest ${item.latestVersion}` : item.version,
           badge,
           actionLabel: kind === "pack"
@@ -1422,7 +1436,6 @@
         }
 
         dlcCatalogEl.appendChild(card);
-      });
       });
     });
   }

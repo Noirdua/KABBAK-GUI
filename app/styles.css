@@ -813,6 +813,16 @@
       box-sizing: border-box;
       overflow: auto;
     }
+    #admin-section {
+      height: calc(100vh - 61px);
+      height: calc(100dvh - 61px);
+      background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--tt-brand) 18%, transparent), transparent 30%),
+        radial-gradient(circle at top right, color-mix(in srgb, var(--tt-accent) 16%, transparent), transparent 32%),
+        linear-gradient(180deg, var(--tt-bg-deepest), var(--tt-bg) 40%, var(--tt-bg-deepest));
+      box-sizing: border-box;
+      overflow: auto;
+    }
     #tarot-section[hidden] {
       display: none;
     }
@@ -850,6 +860,9 @@
       display: none;
     }
     #settings-section[hidden] {
+      display: none;
+    }
+    #admin-section[hidden] {
       display: none;
     }
     .plugin-api-section[hidden] {

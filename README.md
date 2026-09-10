@@ -27,14 +27,9 @@ npm install
 npm run start
 ```
 
-The app opens in your browser (typically at `http://127.0.0.1:8080`) and stays in shell mode until you enter a reachable API base URL and a valid API key.
+The app opens in your browser (typically at `http://127.0.0.1:8080`). On localhost it pre-fills `http://localhost:3100`. Enter an API key in the connection gate (or Settings). The browser remembers URL and key.
 
-For local development with a default local API configuration:
-
-```powershell
-API Base URL: http://localhost:3100
-API Key: <value accepted by KABBAK_API_KEY or KABBAK_API_KEYS>
-```
+Create keys in the API Admin panel, or set them in the API `.env` (`KABBAK_API_KEY` / `KABBAK_API_KEYS`). For a keyless local server use `KABBAK_NO_AUTH=1`. Branding, theme, and other site defaults are edited in Admin / Settings — there is no client `config.json` to copy.
 
 ## NPM Scripts
 
@@ -43,67 +38,8 @@ API Key: <value accepted by KABBAK_API_KEY or KABBAK_API_KEYS>
 | `npm run start` | Serve the static client locally and open `index.html`. |
 | `npm run dev` | Alias of `npm run start`. |
 
-## Server Admin Defaults (`config.json`)
+## Connection and site defaults
 
-Copy `config.example.json` to `config.json` in the client root. First-time visitors inherit these defaults; users who already saved settings keep their own choices.
+The static client does not use `.env`. API keys and bind address live in the **API** `.env`. After you connect once, the GUI stores the API URL and key in the browser.
 
-```json
-{
-  "apiBaseUrl": "http://localhost:3100",
-  "apiKey": "",
-  "branding": {
-    "title": "My Site",
-    "homeLabel": "My Site",
-    "logo": "logo.png"
-  },
-  "defaults": {
-    "menuLayout": "drawer",
-    "timeFormat": "minutes",
-    "tarotDeck": "ceremonial-magick",
-    "detailTextScale": 1,
-    "themeId": "ocean",
-    "stellariumBackgroundEnabled": false,
-    "latitude": 51.5074,
-    "longitude": -0.1278
-  }
-}
-```
-
-### Branding / logo
-
-| Field | Purpose |
-| --- | --- |
-| `branding.title` | Browser tab title |
-| `branding.homeLabel` | Top-left home control text (and image alt text) |
-| `branding.logo` | `false` (default text), `"logo.png"` (explicit path), or `true` (auto-detect) |
-
-With `"logo": true`, auto-detect checks `logo.png`, `logo.svg`, `logo.webp`, `logo.jpg`, then `logo.jpeg`. Prefer an explicit path like `"logo": "logo.png"` after placing the file next to `index.html`.
-
-### Theme defaults
-
-| Field | Purpose |
-| --- | --- |
-| `defaults.themeId` | Built-in theme id: `midnight`, `amethyst`, `emerald`, `crimson`, `ocean`, `solar` |
-| `defaults.theme` | Optional custom palette object (`id`, `name`, `base` colors) |
-
-Example custom theme:
-
-```json
-"defaults": {
-  "theme": {
-    "id": "site-brand",
-    "name": "Site Brand",
-    "base": {
-      "bg": "#101418",
-      "surface": "#1b242c",
-      "border": "#334155",
-      "text": "#f8fafc",
-      "muted": "#94a3b8",
-      "accent": "#38bdf8",
-      "brand": "#fbbf24"
-    }
-  }
-}
-```
-
-Theme defaults apply only when the browser has no saved theme yet.
+Site title, overlay, CORS, and other server options are in **Admin → Server**. Theme, location, deck, and menu layout are in **Settings**.

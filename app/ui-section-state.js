@@ -246,6 +246,19 @@
     renderSectionHistory();
   }
 
+  function resetBrowseLayoutToList(sectionId) {
+    const special = {
+      tarot: "#tarot-browse-view .browse-layout",
+      cube: "#cube-layout"
+    };
+    const selector = special[sectionId] || `#${sectionId}-section .browse-layout, #${sectionId}-section .kab-layout`;
+    const layout = document.querySelector(selector);
+    if (!(layout instanceof HTMLElement)) {
+      return;
+    }
+    window.TarotChromeUi?.showSidebarOnly?.(layout, true);
+  }
+
   function setActiveSection(nextSection) {
     const previousSection = activeSection;
     const requestedSection = VALID_SECTIONS.has(nextSection) ? nextSection : "home";
@@ -422,6 +435,10 @@
     if (isSettingsOpen) {
       return;
     }
+
+    requestAnimationFrame(() => {
+      resetBrowseLayoutToList(activeSection);
+    });
 
     // Load heavy section modules on demand, then hydrate content.
     void activateSectionContent(activeSection, ensure, referenceData, magickDataset);
