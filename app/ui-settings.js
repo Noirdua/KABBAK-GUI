@@ -1046,6 +1046,7 @@
       lngEl,
       nowTimeFormatEl,
       timeFormatEl,
+      birthDateEl,
       nowTarotDeckEl,
       stellariumBackgroundEl
     } = getElements();

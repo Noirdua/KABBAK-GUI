@@ -33,7 +33,6 @@
       hubEl: document.getElementById("profile-hub"),
       notesPanelEl: document.getElementById("profile-notes-panel"),
       notesCountEl: document.getElementById("profile-notes-count"),
-      typePickerEl: document.getElementById("profile-note-type-picker"),
       filtersEl: document.getElementById("profile-note-filters"),
       clientLabelEl: document.getElementById("profile-client-label"),
       storageUsedEl: document.getElementById("profile-storage-used"),
@@ -321,24 +320,20 @@
   }
 
   function syncNotesMode() {
-    const { typePickerEl, filtersEl, noteListEl, noteEditorEl, noteNewBtn } = getElements();
-    const picking = state.notesMode === "pick-type";
+    const { filtersEl, noteListEl, noteEditorEl, noteNewBtn } = getElements();
     const editing = state.notesMode === "editor";
 
-    if (typePickerEl) {
-      typePickerEl.hidden = !picking;
-    }
     if (filtersEl) {
-      filtersEl.hidden = picking || editing;
+      filtersEl.hidden = editing;
     }
     if (noteListEl) {
-      noteListEl.hidden = picking || editing;
+      noteListEl.hidden = editing;
     }
     if (noteEditorEl) {
       noteEditorEl.hidden = !editing;
     }
     if (noteNewBtn) {
-      noteNewBtn.hidden = picking || editing;
+      noteNewBtn.hidden = editing;
     }
     const deleteBtn = document.getElementById("profile-note-delete");
     if (deleteBtn) {
@@ -2083,6 +2078,80 @@
     return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   }
 
+  function quickNoteSkyText(note) {
+    if (!note?.sky) return "";
+    return [note.sky.hourPlanet, note.sky.hourTarot, note.sky.summary].filter(Boolean).join(" · ");
+  }
+
+  function openQuickNoteDetail(note) {
+    const overlayApi = window.TaroOverlay;
+    if (!overlayApi?.open) return;
+
+    const body = document.createElement("div");
+    body.className = "journal-quicknote-detail";
+
+    const timeLabel = document.createElement("label");
+    timeLabel.className = "journal-field";
+    timeLabel.textContent = "When";
+    const timeInput = document.createElement("input");
+    timeInput.type = "datetime-local";
+    timeInput.value = toDatetimeLocalValue(note.createdAt);
+    timeLabel.appendChild(timeInput);
+
+    const textLabel = document.createElement("label");
+    textLabel.className = "journal-field";
+    textLabel.textContent = "Note";
+    const textArea = document.createElement("textarea");
+    textArea.rows = 4;
+    textArea.maxLength = 1000;
+    textArea.value = note.text || "";
+    textLabel.appendChild(textArea);
+
+    body.append(timeLabel, textLabel);
+
+    const skyText = quickNoteSkyText(note);
+    if (skyText) {
+      const skyEl = document.createElement("p");
+      skyEl.className = "journal-quicknote-sky";
+      skyEl.textContent = skyText;
+      body.appendChild(skyEl);
+    }
+
+    let controller = null;
+    controller = overlayApi.open({
+      title: "Quick note",
+      body,
+      size: "small",
+      actions: [
+        {
+          label: "Delete",
+          danger: true,
+          closeOnClick: false,
+          onClick: async () => {
+            await deleteQuickNote(note.id);
+            controller?.close();
+          }
+        },
+        {
+          label: "Save",
+          primary: true,
+          closeOnClick: false,
+          onClick: async () => {
+            const nextIso = fromDatetimeLocalValue(timeInput.value);
+            const changes = { text: textArea.value };
+            if (nextIso && nextIso !== note.createdAt) {
+              changes.createdAt = nextIso;
+              changes.recalcSky = true;
+            }
+            await updateQuickNote(note.id, changes);
+            controller?.close();
+          }
+        },
+        { label: "Close" }
+      ]
+    });
+  }
+
   function renderQuickNotes() {
     const { quickNotesListEl } = getElements();
     if (!quickNotesListEl) return;
@@ -2098,118 +2167,66 @@
       return;
     }
 
+    const table = document.createElement("div");
+    table.className = "journal-quicknotes-table";
+    table.setAttribute("role", "table");
+
     let currentDayKey = "";
     notes.forEach((note) => {
       const dayKey = quickNoteDayKey(note.createdAt);
       if (dayKey !== currentDayKey) {
         currentDayKey = dayKey;
         const header = document.createElement("div");
-        header.className = "profile-quicknote-day";
+        header.className = "journal-quicknotes-day";
+        header.setAttribute("role", "row");
         header.textContent = quickNoteDayLabel(note.createdAt);
-        quickNotesListEl.appendChild(header);
+        table.appendChild(header);
       }
 
-      const item = document.createElement("div");
-      item.className = "profile-quicknote-item";
       const time = new Date(note.createdAt);
       const timeText = Number.isNaN(time.getTime())
         ? ""
         : time.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-      const skyText = note.sky && (note.sky.hourPlanet || note.sky.hourTarot || note.sky.summary)
-        ? [
-            note.sky.hourPlanet,
-            note.sky.hourTarot,
-            note.sky.summary
-          ].filter(Boolean).join(" · ")
-        : "";
-      const timeInput = document.createElement("input");
-      timeInput.type = "datetime-local";
-      timeInput.className = "profile-quicknote-time";
-      timeInput.value = toDatetimeLocalValue(note.createdAt);
-      timeInput.title = "Edit the time — planet degrees recalculate";
-      timeInput.setAttribute("aria-label", "Quick note time");
-      const textInput = document.createElement("input");
-      textInput.type = "text";
-      textInput.className = "profile-quicknote-text";
-      textInput.maxLength = 1000;
-      textInput.value = note.text || "";
-      textInput.title = "Edit the note, then save";
-      textInput.setAttribute("aria-label", "Quick note text");
-      const saveBtn = document.createElement("button");
-      saveBtn.type = "button";
-      saveBtn.className = "profile-btn";
-      saveBtn.textContent = "Save";
-      saveBtn.title = "Save text changes";
-      const skyEl = document.createElement("span");
-      skyEl.className = "profile-quicknote-sky";
-      if (skyText) {
-        skyEl.textContent = skyText;
-        skyEl.title = skyText;
-      }
-      const removeBtn = document.createElement("button");
-      removeBtn.type = "button";
-      removeBtn.className = "profile-scene-remove profile-quicknote-remove";
-      removeBtn.title = "Delete quick note";
-      removeBtn.textContent = "×";
-      item.appendChild(timeInput);
-      item.appendChild(textInput);
-      item.appendChild(saveBtn);
-      if (skyText) {
-        item.appendChild(skyEl);
-      }
-      item.appendChild(removeBtn);
-      removeBtn.addEventListener("click", () => {
-        void deleteQuickNote(note.id);
-      });
-      saveBtn.addEventListener("click", () => {
-        void updateQuickNote(note.id, { text: textInput.value });
-      });
-      textInput.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          void updateQuickNote(note.id, { text: textInput.value });
-        }
-      });
-      timeInput.addEventListener("change", () => {
-        const nextIso = fromDatetimeLocalValue(timeInput.value);
-        if (!nextIso) {
-          setStatus("Enter a valid time.");
-          return;
-        }
-        void updateQuickNote(note.id, { createdAt: nextIso, recalcSky: true });
-      });
+      const skyText = quickNoteSkyText(note);
+      const noteText = String(note.text || "");
 
-      // Draggable into scene Thoughts/Notes editors.
-      item.draggable = true;
-      [timeInput, textInput, saveBtn, removeBtn].forEach((control) => {
-        control.addEventListener("mousedown", (event) => event.stopPropagation());
-        control.addEventListener("focus", () => {
-          item.draggable = false;
-        });
-        control.addEventListener("blur", () => {
-          item.draggable = true;
-        });
-      });
-      item.addEventListener("dragstart", (event) => {
-        if (event.target !== item) {
-          event.preventDefault();
-          return;
-        }
+      const row = document.createElement("div");
+      row.className = "journal-quicknotes-row";
+      row.setAttribute("role", "row");
+
+      const timeEl = document.createElement("span");
+      timeEl.className = "journal-quicknotes-time";
+      timeEl.textContent = timeText;
+
+      const iconBtn = document.createElement("button");
+      iconBtn.type = "button";
+      iconBtn.className = "journal-quicknotes-icon";
+      iconBtn.title = "Open quick note";
+      iconBtn.setAttribute("aria-label", `Open quick note${timeText ? ` from ${timeText}` : ""}`);
+      iconBtn.textContent = "🗒";
+      iconBtn.addEventListener("click", () => openQuickNoteDetail(note));
+
+      const textEl = document.createElement("span");
+      textEl.className = "journal-quicknotes-text";
+      textEl.textContent = noteText;
+      textEl.title = skyText ? `${noteText}\n${skyText}` : noteText;
+
+      row.append(timeEl, iconBtn, textEl);
+
+      // Drag a note into any scene's Thoughts or Notes editor.
+      row.draggable = true;
+      row.addEventListener("dragstart", (event) => {
         event.dataTransfer.effectAllowed = "copy";
-        event.dataTransfer.setData("application/x-quicknote", JSON.stringify({
-          text: textInput.value,
-          timeText,
-          skyText
-        }));
-        event.dataTransfer.setData("text/plain", `${timeText ? `[${timeText}] ` : ""}${textInput.value}`);
-        item.classList.add("is-dragging");
+        event.dataTransfer.setData("application/x-quicknote", JSON.stringify({ text: noteText, timeText, skyText }));
+        event.dataTransfer.setData("text/plain", `${timeText ? `[${timeText}] ` : ""}${noteText}`);
+        row.classList.add("is-dragging");
       });
-      item.addEventListener("dragend", () => {
-        item.classList.remove("is-dragging");
-      });
+      row.addEventListener("dragend", () => row.classList.remove("is-dragging"));
 
-      quickNotesListEl.appendChild(item);
+      table.appendChild(row);
     });
+
+    quickNotesListEl.appendChild(table);
   }
 
   async function saveQuickNote() {
@@ -2509,9 +2526,43 @@
   function startNewEntry() {
     state.activeNoteId = "";
     state.editing = false;
-    state.notesMode = "pick-type";
-    syncNotesMode();
     setStatus("");
+
+    const overlayApi = window.TaroOverlay;
+    if (!overlayApi?.open) {
+      // Fallback if the overlay module failed to load.
+      void beginNewEntry("waking");
+      return;
+    }
+
+    const body = document.createElement("div");
+    body.className = "journal-kind-choices";
+    let controller = null;
+    [
+      { kind: "dream", label: "Dream", hint: "What happened while you slept" },
+      { kind: "waking", label: "Waking", hint: "What happened while you were awake" }
+    ].forEach((choice) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "journal-kind-card";
+      const strong = document.createElement("span");
+      strong.textContent = choice.label;
+      const small = document.createElement("small");
+      small.textContent = choice.hint;
+      button.append(strong, small);
+      button.addEventListener("click", () => {
+        controller?.close();
+        void beginNewEntry(choice.kind);
+      });
+      body.appendChild(button);
+    });
+
+    controller = overlayApi.open({
+      title: "New journal entry",
+      body,
+      size: "small",
+      actions: [{ label: "Cancel" }]
+    });
   }
 
   async function beginNewEntry(kind) {
@@ -3001,9 +3052,6 @@
     document.getElementById("profile-open-notes")?.addEventListener("click", openJournalOrNotes);
     document.getElementById("profile-notes-back")?.addEventListener("click", handleNotesBack);
     document.getElementById("profile-note-new")?.addEventListener("click", startNewEntry);
-    document.getElementById("profile-note-type-dream")?.addEventListener("click", () => beginNewEntry("dream"));
-    document.getElementById("profile-note-type-waking")?.addEventListener("click", () => beginNewEntry("waking"));
-    document.getElementById("profile-note-type-cancel")?.addEventListener("click", closeEditor);
     document.getElementById("profile-note-save")?.addEventListener("click", () => {
       void saveNote();
     });

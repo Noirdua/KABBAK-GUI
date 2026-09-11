@@ -377,6 +377,9 @@
         }
         return Promise.reject(new Error("File download is not available."));
       },
+      // Generic overlay shared by every plugin (and the app).
+      overlay: () => window.TaroOverlay,
+      openOverlay: (options) => window.TaroOverlay?.open?.(options) || null,
       ui: {
         hideDefaultChrome: () => hideDefaultChrome(pluginName),
         showDefaultChrome: () => showDefaultChrome(pluginName),

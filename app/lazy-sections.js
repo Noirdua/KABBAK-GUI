@@ -138,7 +138,7 @@
       "app/ui-admin.js?v=20260911-reset-key-modal"
     ],
     profile: [
-      "app/ui-profile.js?v=20260911-journal"
+      "app/ui-profile.js?v=20260911-journal-overlay"
     ]
   };
 

@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260911-key-once-modal">
+  <link rel="stylesheet" href="app/styles.css?v=20260911-journal-overlay">
   <link rel="stylesheet" href="app/ui-look.css?v=20260902-theme-surfaces">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -340,20 +340,6 @@
           <button id="profile-notes-back" class="profile-btn" type="button">Back</button>
           <h2>Journal</h2>
           <button id="profile-note-new" class="profile-btn profile-btn-primary" type="button">New Entry</button>
-        </div>
-        <div id="profile-note-type-picker" class="profile-note-type-picker" hidden>
-          <p class="profile-note-type-copy">What kind of entry is this?</p>
-          <div class="profile-note-type-choices">
-            <button id="profile-note-type-dream" class="profile-type-card" type="button" data-kind="dream">
-              <span>Dream</span>
-              <small>What happened while you slept</small>
-            </button>
-            <button id="profile-note-type-waking" class="profile-type-card" type="button" data-kind="waking">
-              <span>Waking</span>
-              <small>What happened while you were awake</small>
-            </button>
-          </div>
-          <button id="profile-note-type-cancel" class="profile-btn" type="button">Cancel</button>
         </div>
          <div id="profile-note-filters" class="profile-note-filters">
            <button type="button" class="profile-filter-btn is-active" data-filter="all">All</button>
@@ -2432,8 +2418,9 @@
   <script src="app/astro-calcs.js"></script>
   <script src="app/app-config.js?v=20260911-tarot-admin"></script>
   <script src="app/data-service.js?v=20260907-network-lost"></script>
+  <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-library-marks.js?v=20260830-library"></script>
-  <script src="app/plugins-host.js?v=20260911-menu-nav"></script>
+  <script src="app/plugins-host.js?v=20260911-overlay-helper"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
   <script src="app/card-images.js?v=20260911-content-updated"></script>
@@ -2442,7 +2429,7 @@
   <script src="app/lazy-sections.js?v=20260910-export-folder"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
-  <script src="app/ui-settings.js?v=20260911-profile-timing"></script>
+  <script src="app/ui-settings.js?v=20260911-profile-timing-fix"></script>
   <script src="app/ui-dlc-shop.js?v=20260911-audio-ext"></script>
   <script src="app/ui-chrome.js?v=20260911-set-shine"></script>
   <script src="app/ui-navigation.js?v=20260902-syn"></script>
