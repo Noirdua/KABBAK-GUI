@@ -83,7 +83,6 @@
       overflow: visible;
       position: relative;
       z-index: 40;
-      contain: layout;
     }
     .plugin-topbar-host {
       display: flex;
@@ -290,7 +289,6 @@
       gap: 10px;
       max-height: calc(100svh - 88px);
       overflow-y: auto;
-      contain: layout paint;
     }
     .topbar.is-menu-open .topbar-actions {
       display: grid;
