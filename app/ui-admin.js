@@ -1152,14 +1152,15 @@
 
   // --- Plugins & DLC ---------------------------------------------------------
 
-  const KIND_ORDER = ["api", "plugin", "pack", "deck", "text", "reference"];
+  const KIND_ORDER = ["gui", "api", "plugin", "pack", "deck", "text", "reference"];
   const KIND_LABELS = {
     pack: "Packs",
     deck: "Decks",
     text: "Texts",
     reference: "References",
     plugin: "Plugins",
-    api: "API"
+    api: "API",
+    gui: "GUI"
   };
 
   function mergeCatalogItems(items) {
@@ -1322,7 +1323,7 @@
       dlcCatalogEl.appendChild(createKindHeading(kind, items.length));
       items.forEach((item) => {
         const isInstalled = item?.status === "installed" || item?.status === "staged";
-        const isPlugin = kind === "plugin" || kind === "api";
+        const isPlugin = kind === "plugin" || kind === "api" || kind === "gui";
         const hasUpdate = isPlugin && item?.updateAvailable === true;
         const badge = item?.status === "staged"
           ? (isPlugin ? "plugin · staged" : "staged")

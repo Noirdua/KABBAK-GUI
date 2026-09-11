@@ -2394,14 +2394,15 @@
     if (nameInput) nameInput.focus();
   }
 
-  const KIND_ORDER = ["api", "plugin", "pack", "deck", "text", "reference"];
+  const KIND_ORDER = ["gui", "api", "plugin", "pack", "deck", "text", "reference"];
   const KIND_LABELS = {
     pack: "Packs",
     deck: "Decks",
     text: "Texts",
     reference: "References",
     plugin: "Plugins",
-    api: "API"
+    api: "API",
+    gui: "GUI"
   };
 
   function mergeCatalogItems(items) {

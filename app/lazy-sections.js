@@ -135,7 +135,7 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260911-dlc-refresh"
+      "app/ui-admin.js?v=20260911-gui-kind"
     ],
     profile: [
       "app/ui-profile.js?v=20260910-export-folder"
