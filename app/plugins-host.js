@@ -185,6 +185,10 @@
   }
 
   function listNav() {
+    const fromMenu = window.TaroTimeMenuPlugin?.getNavItems?.();
+    if (Array.isArray(fromMenu) && fromMenu.length) {
+      return fromMenu;
+    }
     const actions = document.getElementById("topbar-actions");
     if (!actions) return [];
     const itemFromButton = (button) => {
