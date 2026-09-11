@@ -562,6 +562,8 @@
     try {
       const request = new XMLHttpRequest();
       request.open("GET", encodeURI(path), false);
+      request.setRequestHeader("Cache-Control", "no-cache");
+      request.setRequestHeader("Pragma", "no-cache");
       Object.entries(buildManifestRequestHeaders(path)).forEach(([headerName, headerValue]) => {
         request.setRequestHeader(headerName, headerValue);
       });
