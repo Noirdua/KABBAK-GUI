@@ -635,7 +635,8 @@
           publicAssetBaseUrl = publicBase;
           const response = await fetch(`${publicBase}/plugins`, { cache: "no-store" });
           const payload = response.ok ? await response.json().catch(() => null) : null;
-          plugins = Array.isArray(payload?.data?.plugins) ? payload.data.plugins : [];
+          plugins = (Array.isArray(payload?.data?.plugins) ? payload.data.plugins : [])
+            .filter((plugin) => normalizePluginRole(plugin) === "widget");
         }
         const desiredNames = plugins.map((plugin) => String(plugin?.name || "").trim()).filter(Boolean);
 
