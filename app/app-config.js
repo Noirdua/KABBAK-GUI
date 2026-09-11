@@ -84,12 +84,13 @@
       || source?.accessLevel
       || (connected && !apiKeyRequired ? "premium" : "")
     );
-    const tarotCapability = source?.capabilities?.tarot === true
-      || (connected && !apiKeyRequired)
-      || accessLevel === "premium";
     const adminApiManagementCapability = source?.capabilities?.adminApiManagement === true
       || roles.includes("admin")
       || scopes.includes("api:admin");
+    const tarotCapability = source?.capabilities?.tarot === true
+      || (connected && !apiKeyRequired)
+      || accessLevel === "premium"
+      || adminApiManagementCapability;
 
     return {
       connected,
