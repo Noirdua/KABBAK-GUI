@@ -1215,6 +1215,10 @@
       button.className = "dlc-shop-btn";
       button.textContent = "Install All";
       button.title = `Install every available ${KIND_LABELS[kind] || kind} item`;
+      if (options.disabled) {
+        button.disabled = true;
+        button.title = `No ${KIND_LABELS[kind] || kind} items available to install`;
+      }
       button.addEventListener("click", (event) => {
         event.preventDefault();
         void options.installAll(button);
@@ -1397,8 +1401,8 @@
     groupCatalogItems(visibleItems).forEach(([kind, items]) => {
       const availableCount = items.filter((item) => item?.status === "available").length;
       const installableKind = kind === "plugin" || kind === "api" || kind === "gui" || kind === "deck" || kind === "text" || kind === "reference";
-      dlcCatalogEl.appendChild(createKindHeading(kind, items.length, installableKind && availableCount > 0
-        ? { installAll: (button) => installAvailableItems(items, { button, kindLabel: KIND_LABELS[kind] || kind }) }
+      dlcCatalogEl.appendChild(createKindHeading(kind, items.length, installableKind
+        ? { installAll: (button) => installAvailableItems(items, { button, kindLabel: KIND_LABELS[kind] || kind }), disabled: availableCount === 0 }
         : {}));
       items.forEach((item) => {
         const isInstalled = item?.status === "installed" || item?.status === "staged";
