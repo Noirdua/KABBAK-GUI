@@ -1227,24 +1227,63 @@
   async function installAvailableItems(items, { button, kindLabel }) {
     const targets = items.filter((item) => item?.status === "available");
     if (!targets.length) return;
+    const kind = String(targets[0]?.kind || "").trim();
+
+    const overlay = document.createElement("div");
+    overlay.className = "dlc-settings-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.innerHTML = `
+      <div class="dlc-settings-overlay-panel">
+        <div class="dlc-settings-overlay-head"><strong>Installing ${escapeHtml(kindLabel)}</strong></div>
+        <div class="dlc-install-overlay-body">
+          <p class="settings-field-hint">Installing ${targets.length} item(s). This runs on the server and keeps going if you close this window.</p>
+          <p id="dlc-install-progress" class="settings-field-hint">Starting…</p>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
     if (button) button.disabled = true;
-    let installed = 0;
-    const failures = [];
-    for (const item of targets) {
-      setStatus(`Installing ${item.name} (${installed + 1}/${targets.length})…`);
-      try {
-        await requestJson("POST", "/api/v1/dlc/install", { kind: item.kind, name: item.name, sourceId: item.sourceId || "" });
-        installed += 1;
-      } catch (error) {
-        failures.push(`${item.name}: ${error?.message || "failed"}`);
-      }
+    try {
+      await requestJson("POST", "/api/v1/admin/dlc/install-all", { kind });
+    } catch (error) {
+      // The job may still be running; fall through to status polling.
     }
+
+    const progressEl = overlay.querySelector("#dlc-install-progress");
+    let lastState = "idle";
+    for (let attempt = 0; attempt < 1200; attempt += 1) {
+      let status = null;
+      try {
+        status = await requestJson("GET", "/api/v1/admin/dlc/install-status");
+      } catch (_error) {
+        break;
+      }
+      if (!status) break;
+      lastState = status.state;
+      if (status.state === "running") {
+        progressEl.textContent = status.total
+          ? `Installing ${status.current || "…"} (${status.done}/${status.total})`
+          : "Preparing…";
+      } else if (status.state === "done") {
+        progressEl.textContent = status.message || "Done.";
+        break;
+      } else if (status.state === "error") {
+        progressEl.textContent = status.message || "Install failed.";
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+
     await window.TaroTimePluginHost?.refresh?.();
     await loadPlugins();
     if (button) button.disabled = false;
-    setStatus(failures.length
-      ? `Installed ${installed}/${targets.length} ${kindLabel}. ${failures.length} failed: ${failures.join("; ")}`
-      : `Installed ${installed} ${kindLabel} item(s).`);
+
+    if (lastState === "running") {
+      progressEl.textContent = "Still installing in the background — it will finish on the server.";
+    }
+    setStatus(`Install All (${kindLabel}) finished on the server.`);
+    setTimeout(() => overlay.remove(), 2200);
   }
 
   function createPluginCard({ title, description, version, badge, actionLabel, onAction }) {    const card = document.createElement("div");

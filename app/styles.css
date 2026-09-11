@@ -1142,6 +1142,15 @@
       min-height: 0;
       overflow: auto;
     }
+    .dlc-install-overlay-body {
+      display: grid;
+      gap: 8px;
+      padding: 6px 0;
+      min-width: 320px;
+    }
+    .dlc-kind-head .dlc-shop-btn {
+      margin-left: auto;
+    }
     .dlc-menu-overlay .dlc-menu-editor {
       margin-top: 0;
       flex: 1;
