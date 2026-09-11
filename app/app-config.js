@@ -452,44 +452,18 @@
   }
 
   async function loadConfigDefaults() {
-    // Query apiBaseUrl still wins for connection, but branding/defaults always load.
     try {
-      const configResponse = await fetch(`config.json?_=${Date.now()}`, { cache: "no-cache" });
-      if (!configResponse.ok) {
-        brandingConfig = Object.freeze({
-          title: "KABBAK",
-          homeLabel: "KABBAK",
-          logoUrl: ""
-        });
-        applyBranding(brandingConfig, "");
-        return false;
-      }
-
-      const config = await configResponse.json().catch(() => null);
-      if (!config || typeof config !== "object") {
-        return false;
-      }
-
-      window.TarotAppConfig?.updateFeatures?.(config.features);
-
-      const nextDefaults = normalizeServerDefaults(config.defaults);
-      serverDefaults = Object.freeze({ ...nextDefaults });
-      window.TarotAppConfig.serverDefaults = { ...serverDefaults };
-
-      const nextBranding = normalizeBranding(config.branding);
-      const logoUrl = await resolveLogoUrl(nextBranding.logo);
       brandingConfig = Object.freeze({
-        title: nextBranding.title,
-        homeLabel: nextBranding.homeLabel,
-        logoUrl
+        title: "KABBAK",
+        homeLabel: "KABBAK",
+        logoUrl: ""
       });
+      applyBranding(brandingConfig, "");
       window.TarotAppConfig.branding = { ...brandingConfig };
-      applyBranding(brandingConfig, logoUrl);
 
-      // The browser tab title can be overridden from the Admin panel (served
-      // by a public API endpoint). Apply it when the shell config knows the
-      // API URL; otherwise the static branding title stays in place.
-      const remoteBrandingApiBaseUrl = normalizeBaseUrl(config.apiBaseUrl);
+      const remoteBrandingApiBaseUrl = normalizeBaseUrl(
+        window.TarotAppConfig?.getApiBaseUrl?.() || readConfiguredConnectionSettings().apiBaseUrl
+      );
       if (remoteBrandingApiBaseUrl) {
         try {
           const brandingResponse = await fetch(`${remoteBrandingApiBaseUrl}/api/v1/branding`, { cache: "no-cache" });
@@ -510,20 +484,6 @@
       window.TarotUiTheme?.applyServerThemeDefaults?.(serverDefaults, {
         onlyIfUnset: true
       });
-
-      if (!hasQueryApiBaseUrl()) {
-        const configApiBaseUrl = normalizeBaseUrl(config.apiBaseUrl);
-        const configApiKey = normalizeApiKey(config.apiKey);
-        if (configApiBaseUrl || configApiKey) {
-          // Server/config defaults must never wipe a user-saved connection:
-          // the stored values win and the config only fills missing fields.
-          const storedConnectionSettings = readConfiguredConnectionSettings();
-          window.TarotAppConfig?.updateConnectionSettings?.({
-            apiBaseUrl: storedConnectionSettings.apiBaseUrl || configApiBaseUrl,
-            apiKey: storedConnectionSettings.apiKey || configApiKey
-          });
-        }
-      }
 
       document.dispatchEvent(new CustomEvent("config:defaults-loaded", {
         detail: {

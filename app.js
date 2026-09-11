@@ -677,12 +677,6 @@ function getDemoCandidateBaseUrls() {
 
   addCandidate(connectionGateBaseUrlEl?.value || "");
   addCandidate(getConnectionSettings()?.apiBaseUrl || "");
-  // Last resort: the page's own origin (deployments where the app is served
-  // from the same host as the API).
-  const pageOrigin = String(window.location.origin || "").trim();
-  if (/^https?:\/\//i.test(pageOrigin) && !candidates.includes(pageOrigin)) {
-    candidates.push(pageOrigin);
-  }
   return candidates;
 }
 
@@ -724,13 +718,11 @@ async function refreshConnectionGateDemo() {
       const response = await fetch(`${baseUrl}/api/v1/demo-access`, { cache: "no-store" });
       if (!response.ok) {
         demoAccessCache = { baseUrl, value: null };
-        continue; // 404 from a wrong origin — try the next candidate.
+        continue;
       }
       const payload = await response.json().catch(() => null);
       demoAccessCache = { baseUrl, value: payload && payload.enabled === true ? payload : null };
-      if (demoAccessCache.value) {
-        break;
-      }
+      break;
     } catch (_error) {
       // Network/CORS failure: the first candidate is the authoritative base
       // URL, so stop here instead of falling back to other origins.
