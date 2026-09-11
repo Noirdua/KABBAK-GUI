@@ -296,7 +296,7 @@
             <span class="profile-hub-card-kicker">Offline</span>
             <h2>App Cache</h2>
           </div>
-          <p class="profile-location-copy">Preloads app scripts, styles, fonts, reference data, and tarot deck images into a local cache — so browsers that disable HTTP caching don't redownload everything each visit.</p>
+          <p class="profile-location-copy">Cache App Now downloads missing files into the browser's site data (same store as other websites). Later visits reuse that disk cache — it does not redownload until a file changes or you clear site data. On HTTPS/localhost a dedicated offline cache is also used.</p>
           <div id="profile-cache-status" class="profile-location-status" aria-live="polite">Loading cache status…</div>
           <div class="profile-location-actions">
             <button id="profile-cache-now" class="profile-btn profile-btn-primary" type="button">Cache App Now</button>
@@ -2426,7 +2426,7 @@
   <script src="app/data-service.js?v=20260907-network-lost"></script>
   <script src="app/ui-library-marks.js?v=20260830-library"></script>
   <script src="app/plugins-host.js?v=20260911-menu-nav"></script>
-  <script src="app/cache-manager.js?v=20260902-plugin-nocache"></script>
+  <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
   <script src="app/card-images.js?v=20260821-deck-cache"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>

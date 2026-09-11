@@ -682,7 +682,8 @@
         return;
       }
       const parts = [status.sizeText];
-      if (status.controlled) parts.push("active in this session");
+      if (status.mode === "http") parts.push("browser site data");
+      else if (status.controlled) parts.push("active in this session");
       else if (status.registered) parts.push("ready (takes effect after reload)");
       cacheStatusEl.textContent = `Local cache: ${parts.join(" · ")}`;
     } catch (error) {

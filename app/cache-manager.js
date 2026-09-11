@@ -6,9 +6,14 @@
 
   const CACHE_NAME = "kabbak-static-v3";
   let registration = null;
+  let lastHttpWarm = { count: 0 };
+
+  function hasCacheApi() {
+    return Boolean(window.isSecureContext && "serviceWorker" in navigator && window.caches && window.fetch);
+  }
 
   function isSupported() {
-    return Boolean("serviceWorker" in navigator && window.caches && window.fetch);
+    return Boolean(window.fetch);
   }
 
   function collectStaticAssetUrls() {
@@ -138,7 +143,7 @@
   }
 
   async function registerWorker() {
-    if (!isSupported()) return null;
+    if (!hasCacheApi()) return null;
     try {
       registration = await navigator.serviceWorker.register("sw.js");
       // Ask the browser to check for a fresh sw.js so fixes deploy promptly.
@@ -154,13 +159,25 @@
   }
 
   async function getStatus() {
-    if (!isSupported()) {
-      return { supported: false, controlled: false, registered: false, count: 0, bytes: 0, sizeText: "unsupported" };
+    if (!hasCacheApi()) {
+      const count = Number(lastHttpWarm.count) || 0;
+      return {
+        supported: true,
+        mode: "http",
+        registered: false,
+        controlled: false,
+        count,
+        bytes: 0,
+        sizeText: count
+          ? `${count} files in the browser site cache`
+          : "browser site cache (preload with Cache App Now)"
+      };
     }
     const registered = Boolean(registration || await registerWorker());
     const { count, bytes } = await estimateCacheSize();
     return {
       supported: true,
+      mode: "cache-api",
       registered,
       controlled: Boolean(navigator.serviceWorker.controller),
       count,
@@ -169,17 +186,27 @@
     };
   }
 
-  async function precache({ onProgress } = {}) {
-    if (!isSupported()) {
-      throw new Error("Cache storage is not supported in this browser.");
-    }
-    if (!registration) {
-      await registerWorker();
-    }
-    if (!registration) {
-      throw new Error("Could not register the cache worker.");
-    }
+  async function warmHttpCache(urls, { onProgress, apiKey, apiOrigin } = {}) {
+    let done = 0;
+    let cached = 0;
+    await Promise.allSettled(urls.map(async (url) => {
+      try {
+        const parsed = new URL(url, window.location.origin);
+        const headers = {};
+        if (apiOrigin && parsed.origin === apiOrigin && apiKey) {
+          headers["x-api-key"] = apiKey;
+        }
+        const response = await fetch(url, { cache: "default", headers, credentials: "omit" });
+        if (response.ok) cached += 1;
+      } catch (_error) {}
+      done += 1;
+      if (typeof onProgress === "function") onProgress(done, urls.length);
+    }));
+    lastHttpWarm = { count: cached };
+    return { cached, total: urls.length, mode: "http" };
+  }
 
+  async function precache({ onProgress } = {}) {
     const urls = await collectPrecacheUrls();
     const service = window.TarotDataService;
     const apiKey = service?.getApiKey?.();
@@ -189,6 +216,16 @@
       apiOrigin = base ? new URL(base, window.location.origin).origin : "";
     } catch (_error) {
       apiOrigin = "";
+    }
+
+    if (!hasCacheApi()) {
+      return warmHttpCache(urls, { onProgress, apiKey, apiOrigin });
+    }
+    if (!registration) {
+      await registerWorker();
+    }
+    if (!registration) {
+      return warmHttpCache(urls, { onProgress, apiKey, apiOrigin });
     }
 
     async function storeUrl(cache, url) {
@@ -248,6 +285,7 @@
   }
 
   async function clearCache() {
+    lastHttpWarm = { count: 0 };
     if (!window.caches) return;
     await caches.delete(CACHE_NAME);
     // Remove any stale worker so the next registration fetches the current
