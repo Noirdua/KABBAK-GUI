@@ -20,7 +20,9 @@
     location: null,
     clientId: "",
     authName: "",
-    displayName: ""
+    displayName: "",
+    journalPageMode: false,
+    journalHelpers: null
   };
 
   let draggedSceneCard = null;
@@ -258,6 +260,28 @@
       attachments: [],
       createdAt: ""
     };
+  }
+
+  // The notebook is published as the standalone "Journal" section plugin. Open
+  // that page when it is available; otherwise fall back to the in-profile view.
+  function openJournalOrNotes() {
+    if (document.getElementById("journal-section")) {
+      window.TarotSectionStateUi?.setActiveSection?.("journal");
+      return;
+    }
+    setView("notes");
+  }
+
+  function handleNotesBack() {
+    if (state.journalPageMode) {
+      if (typeof window.TarotSectionStateUi?.goBack === "function") {
+        window.TarotSectionStateUi.goBack();
+      } else {
+        window.TarotSectionStateUi?.setActiveSection?.("home");
+      }
+      return;
+    }
+    setView("hub");
   }
 
   function setView(view) {
@@ -2974,12 +2998,8 @@
     state.initialized = true;
     const elements = getElements();
 
-    document.getElementById("profile-open-notes")?.addEventListener("click", () => {
-      setView("notes");
-    });
-    document.getElementById("profile-notes-back")?.addEventListener("click", () => {
-      setView("hub");
-    });
+    document.getElementById("profile-open-notes")?.addEventListener("click", openJournalOrNotes);
+    document.getElementById("profile-notes-back")?.addEventListener("click", handleNotesBack);
     document.getElementById("profile-note-new")?.addEventListener("click", startNewEntry);
     document.getElementById("profile-note-type-dream")?.addEventListener("click", () => beginNewEntry("dream"));
     document.getElementById("profile-note-type-waking")?.addEventListener("click", () => beginNewEntry("waking"));
@@ -3461,9 +3481,47 @@
     }
   }
 
+  // Mount the notebook into the Journal plugin page. The existing panel is
+  // relocated (listeners and state intact) so the whole feature is reused.
+  function mountJournal(root, helpers) {
+    if (!(root instanceof HTMLElement)) {
+      return () => {};
+    }
+    ensureProfileSection();
+    const { notesPanelEl } = getElements();
+    if (!notesPanelEl) {
+      return () => {};
+    }
+
+    const originalParent = notesPanelEl.parentNode;
+    const originalNextSibling = notesPanelEl.nextSibling;
+
+    state.journalPageMode = true;
+    state.journalHelpers = helpers || null;
+    notesPanelEl.hidden = false;
+    notesPanelEl.classList.add("profile-notes-panel--page");
+    root.appendChild(notesPanelEl);
+
+    fillQuickNoteComposerTime();
+    renderNoteList();
+    renderQuickNotes();
+    syncNotesMode();
+
+    return () => {
+      notesPanelEl.classList.remove("profile-notes-panel--page");
+      if (originalParent) {
+        originalParent.insertBefore(notesPanelEl, originalNextSibling);
+      }
+      notesPanelEl.hidden = true;
+      state.journalPageMode = false;
+      state.journalHelpers = null;
+    };
+  }
+
   window.ProfileUi = {
     ...(window.ProfileUi || {}),
     ensureProfileSection,
+    mountJournal,
     recordQuizAttempt,
     refreshProfile
   };

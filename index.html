@@ -223,8 +223,8 @@
       </header>
       <div id="profile-hub" class="profile-hub">
         <button id="profile-open-notes" class="profile-hub-card" type="button">
-          <span class="profile-hub-card-kicker">Journal</span>
-          <span class="profile-hub-card-title">Notes</span>
+          <span class="profile-hub-card-kicker">Personal</span>
+          <span class="profile-hub-card-title">Journal</span>
           <span class="profile-hub-card-copy">Dreams and waking entries, kept simple.</span>
           <span class="profile-hub-card-meta" id="profile-notes-count">--</span>
         </button>
@@ -282,6 +282,24 @@
         </div>
         <div class="profile-deck-card">
           <div class="profile-location-head">
+            <span class="profile-hub-card-kicker">Time</span>
+            <h2>Time And Birth Date</h2>
+          </div>
+          <p class="profile-location-copy">Controls calendar rendering, the Now panel, and optional sky background.</p>
+          <label class="profile-field" for="time-format">Time Format
+            <select id="time-format">
+              <option value="minutes" selected>Minutes (default)</option>
+              <option value="hours">Hours</option>
+              <option value="seconds">Seconds</option>
+            </select>
+          </label>
+          <label class="profile-field" for="birth-date">Birth Date
+            <input id="birth-date" type="date">
+          </label>
+          <div id="profile-timing-status" class="profile-location-status" aria-live="polite"></div>
+        </div>
+        <div class="profile-deck-card">
+          <div class="profile-location-head">
             <span class="profile-hub-card-kicker">Tarot</span>
             <h2>Preferred Deck</h2>
           </div>
@@ -320,7 +338,7 @@
       <div id="profile-notes-panel" class="profile-notes-panel" hidden>
         <div class="profile-notebook-head">
           <button id="profile-notes-back" class="profile-btn" type="button">Back</button>
-          <h2>Notes</h2>
+          <h2>Journal</h2>
           <button id="profile-note-new" class="profile-btn profile-btn-primary" type="button">New Entry</button>
         </div>
         <div id="profile-note-type-picker" class="profile-note-type-picker" hidden>
@@ -402,25 +420,7 @@
         <button id="close-settings" class="settings-page-back" type="button">Back</button>
       </div>
       <div class="settings-page-layout">
-        <section id="settings-tarot-panel" class="settings-panel">
-          <div class="settings-panel-head">
-            <strong>Time And Birth Date</strong>
-            <span>Controls calendar rendering, the Now panel, and optional sky background.</span>
-          </div>
-          <div class="settings-grid">
-            <label class="settings-field settings-field-full">Time Format
-              <select id="time-format">
-                <option value="minutes" selected>Minutes (default)</option>
-                <option value="hours">Hours</option>
-                <option value="seconds">Seconds</option>
-              </select>
-            </label>
-            <label class="settings-field settings-field-full">Birth Date
-              <input id="birth-date" type="date">
-            </label>
-          </div>
-         </section>
-         <section class="settings-panel settings-panel-wide">
+        <section class="settings-panel settings-panel-wide">
           <div class="settings-panel-head">
             <strong>Navigation Menu</strong>
             <span>Choose how the top navigation menu opens.</span>
@@ -2442,7 +2442,7 @@
   <script src="app/lazy-sections.js?v=20260910-export-folder"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
-  <script src="app/ui-settings.js?v=20260907-layout-default"></script>
+  <script src="app/ui-settings.js?v=20260911-profile-timing"></script>
   <script src="app/ui-dlc-shop.js?v=20260911-audio-ext"></script>
   <script src="app/ui-chrome.js?v=20260911-set-shine"></script>
   <script src="app/ui-navigation.js?v=20260902-syn"></script>

@@ -586,6 +586,29 @@
     }
   }
 
+  // Time format and birth date now live on the Profile page. Persist them the
+  // moment they change instead of waiting for the Settings Save button.
+  function persistProfileTimingFields() {
+    const { timeFormatEl, birthDateEl, nowTimeFormatEl } = getElements();
+    const saved = loadSavedSettings();
+    const next = normalizeSettings({
+      ...saved,
+      timeFormat: normalizeTimeFormat(nowTimeFormatEl?.value || timeFormatEl?.value || saved.timeFormat),
+      birthDate: normalizeBirthDate(birthDateEl?.value || saved.birthDate)
+    });
+    saveSettings(next);
+    emitSettingsUpdated(next);
+
+    const statusEl = document.getElementById("profile-timing-status");
+    if (statusEl) {
+      statusEl.textContent = "Saved.";
+      window.clearTimeout(persistProfileTimingFields._timer);
+      persistProfileTimingFields._timer = window.setTimeout(() => {
+        statusEl.textContent = "";
+      }, 2000);
+    }
+  }
+
   function fillDeckSelect(selectEl, deckOptions, selectedDeckId, unavailableLabel) {
     if (!selectEl) {
       return;
@@ -1064,6 +1087,12 @@
       timeFormatEl.addEventListener("change", () => {
         nowTimeFormatEl.value = normalizeTimeFormat(timeFormatEl.value);
       });
+    }
+    if (timeFormatEl) {
+      timeFormatEl.addEventListener("change", persistProfileTimingFields);
+    }
+    if (birthDateEl) {
+      birthDateEl.addEventListener("change", persistProfileTimingFields);
     }
 
     if (detailTextScaleEl) {
