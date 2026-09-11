@@ -281,6 +281,7 @@
   let pendingGridViewportRestoreFrameId = 0;
   let pendingLiveZoomFrameId = 0;
   let pendingLiveZoomJob = null;
+  let pendingDragFrameId = 0;
   let activeTouchGestureCapture = false;
   let cachedFrameElements = null;
 
@@ -3338,9 +3339,19 @@
     }
 
     const deckOptions = resolveDeckOptions(card, slotId) || undefined;
-    const primarySrc = tarotCardImages.resolveTarotCardImage?.(card.name, deckOptions);
-    const fallbackSrc = tarotCardImages.resolveTarotCardThumbnail?.(card.name, deckOptions);
-    return String(primarySrc || fallbackSrc || "").trim();
+    const thumbnailSrc = tarotCardImages.resolveTarotCardThumbnail?.(card.name, deckOptions);
+    const fullSrc = tarotCardImages.resolveTarotCardImage?.(card.name, deckOptions);
+    return String(thumbnailSrc || fullSrc || "").trim();
+  }
+
+  function resolveCardFullImage(card, slotId = "") {
+    if (!card || isCustomFrameCard(card)) {
+      return "";
+    }
+    const deckOptions = resolveDeckOptions(card, slotId) || undefined;
+    const fullSrc = tarotCardImages.resolveTarotCardImage?.(card.name, deckOptions);
+    const thumbnailSrc = tarotCardImages.resolveTarotCardThumbnail?.(card.name, deckOptions);
+    return String(fullSrc || thumbnailSrc || "").trim();
   }
 
   function getDisplayCardName(card, slotId = "") {
@@ -4502,6 +4513,7 @@
       image.alt = getDisplayCardName(card, slotId);
       image.loading = imageCached ? "eager" : "lazy";
       image.decoding = "async";
+      image.sizes = "120px";
       image.draggable = false;
       button.appendChild(image);
     } else if (showImage) {
@@ -5022,6 +5034,8 @@
       const image = document.createElement("img");
       image.src = imageSrc;
       image.alt = "";
+      image.decoding = "async";
+      image.draggable = false;
       ghost.appendChild(image);
     } else {
       ghost.appendChild(createCardTextFaceElement(buildCardTextFaceModel(card, sourceSlotId)));
@@ -5231,6 +5245,10 @@
   }
 
   function cleanupDrag() {
+    if (pendingDragFrameId) {
+      window.cancelAnimationFrame(pendingDragFrameId);
+      pendingDragFrameId = 0;
+    }
     if (!state.drag) {
       removeOrphanedDragGhosts();
       return;
@@ -5488,13 +5506,22 @@
       : 0;
     state.drag.lastMove = { x: event.clientX, y: event.clientY, t: now, speed };
 
-    moveGhost(state.drag.ghostEl, event.clientX, event.clientY);
-    if (speed <= FRAME_DRAG_SNAP_MAX_SPEED) {
-      updateHoverSlotFromPoint(event.clientX, event.clientY, state.drag.sourceSlotId);
-    } else if (state.drag.hoverSlotIds?.length || state.drag.dropPlan) {
-      state.drag.dropPlan = null;
-      state.drag.invalidDropMessage = "";
-      setHoverSlots([]);
+    if (!pendingDragFrameId) {
+      pendingDragFrameId = window.requestAnimationFrame(() => {
+        pendingDragFrameId = 0;
+        const drag = state.drag;
+        if (!drag?.started || !drag.lastMove) {
+          return;
+        }
+        moveGhost(drag.ghostEl, drag.lastMove.x, drag.lastMove.y);
+        if (drag.lastMove.speed <= FRAME_DRAG_SNAP_MAX_SPEED) {
+          updateHoverSlotFromPoint(drag.lastMove.x, drag.lastMove.y, drag.sourceSlotId);
+        } else if (drag.hoverSlotIds?.length || drag.dropPlan) {
+          drag.dropPlan = null;
+          drag.invalidDropMessage = "";
+          setHoverSlots([]);
+        }
+      });
     }
     event.preventDefault();
   }
@@ -6184,7 +6211,7 @@
     const imageCache = new Map();
     cards.forEach((card) => {
       const slotId = findAssignedSlotIdByCardId(getCardId(card));
-      const src = resolveCardThumbnail(card, slotId);
+      const src = resolveCardFullImage(card, slotId);
       if (src && !imageCache.has(src)) {
         imageCache.set(src, loadCardImage(src));
       }
@@ -6193,7 +6220,7 @@
     const resolvedImages = new Map();
     await Promise.all(cards.map(async (card) => {
       const slotId = findAssignedSlotIdByCardId(getCardId(card));
-      const src = resolveCardThumbnail(card, slotId);
+      const src = resolveCardFullImage(card, slotId);
       const image = src ? await imageCache.get(src) : null;
       resolvedImages.set(getCardId(card), image || null);
     }));
