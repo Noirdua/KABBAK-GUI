@@ -245,19 +245,19 @@
           <span class="admin-user-last-seen">${escapeHtml(lastSeen)}</span>
           <div class="admin-client-actions">
             <button type="button" class="dlc-shop-btn" data-action="edit">Edit</button>
-            <button type="button" class="dlc-shop-btn" data-action="rotate">Rotate Key</button>
+            <button type="button" class="dlc-shop-btn" data-action="reset">Reset Key</button>
             <button type="button" class="dlc-shop-btn" data-action="delete">Delete</button>
           </div>
         `;
-        row.querySelector('[data-action="rotate"]').addEventListener("click", async () => {
-          if (!window.confirm(`Rotate the API key for ${client.id}? The old key stops working immediately.`)) return;
+        row.querySelector('[data-action="reset"]').addEventListener("click", async () => {
+          if (!window.confirm(`Reset the API key for ${client.id}? The old key stops working immediately and the new key is shown only once.`)) return;
           try {
             const result = await requestJson("POST", `/api/v1/admin/api-clients/${encodeURIComponent(client.id)}/rotate-key`);
-            setStatus(`Key rotated for ${client.id}.`);
+            setStatus(`Key reset for ${client.id}.`);
             showKeyOnce(result?.apiKey, `New ${client.id}`);
             await loadClients();
           } catch (error) {
-            setStatus(`Could not rotate key. ${error?.message || ""}`, true);
+            setStatus(`Could not reset key. ${error?.message || ""}`, true);
           }
         });
         row.querySelector('[data-action="delete"]').addEventListener("click", async () => {
@@ -330,15 +330,15 @@
             setStatus(`Could not load the demo key. ${error?.message || ""}`, true);
           }
         });
-        createDemoButton("Rotate Demo Key", async (button) => {
-          if (!window.confirm("Rotate the demo key? Everyone using the current demo key will be disconnected.")) return;
+        createDemoButton("Reset Demo Key", async (button) => {
+          if (!window.confirm("Reset the demo key? Everyone using the current demo key will be disconnected and the new key is shown only once.")) return;
           button.disabled = true;
           try {
             const result = await requestJson("POST", "/api/v1/admin/demo-user/rotate-key");
-            setStatus("Demo key rotated.");
+            setStatus("Demo key reset.");
             showKeyOnce(result?.apiKey, "New demo");
           } catch (error) {
-            setStatus(`Could not rotate the demo key. ${error?.message || ""}`, true);
+            setStatus(`Could not reset the demo key. ${error?.message || ""}`, true);
           } finally {
             button.disabled = false;
           }

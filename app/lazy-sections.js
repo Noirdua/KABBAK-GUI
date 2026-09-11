@@ -135,7 +135,7 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260911-install-all-headers"
+      "app/ui-admin.js?v=20260911-reset-key"
     ],
     profile: [
       "app/ui-profile.js?v=20260911-http-cache"
