@@ -2447,6 +2447,7 @@
       }
       if (!status) break;
       if (status.state === "done") {
+        document.dispatchEvent(new CustomEvent("content:updated"));
         onUpdate?.("Storage refreshed — changes are live. No server restart needed.");
         return;
       }

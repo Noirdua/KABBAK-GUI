@@ -1268,6 +1268,7 @@
       }
       if (!status) break;
       if (status.state === "done") {
+        document.dispatchEvent(new CustomEvent("content:updated"));
         onUpdate?.("Storage refreshed — changes are live. No server restart needed.");
         return;
       }
@@ -1670,6 +1671,37 @@
         } else {
           setStatus("Plugin creation is available in Settings > DLC Shop & Plugins.", true);
         }
+      });
+    }
+    const installAllBtn = document.getElementById("admin-dlc-install-all");
+    if (installAllBtn) {
+      installAllBtn.addEventListener("click", async () => {
+        const targets = allDlcItems.filter((item) =>
+          (item?.kind === "plugin" || item?.kind === "api" || item?.kind === "gui")
+          && item?.status === "available"
+        );
+        if (!targets.length) {
+          setStatus("No plugins to install — everything is already installed.");
+          return;
+        }
+        installAllBtn.disabled = true;
+        let installed = 0;
+        const failures = [];
+        for (const item of targets) {
+          setStatus(`Installing ${item.name} (${installed + 1}/${targets.length})…`);
+          try {
+            await requestJson("POST", "/api/v1/dlc/install", { kind: item.kind, name: item.name, sourceId: item.sourceId || "" });
+            installed += 1;
+          } catch (error) {
+            failures.push(`${item.name}: ${error?.message || "failed"}`);
+          }
+        }
+        await window.TaroTimePluginHost?.refresh?.();
+        await loadPlugins();
+        installAllBtn.disabled = false;
+        setStatus(failures.length
+          ? `Installed ${installed}/${targets.length} plugins. ${failures.length} failed: ${failures.join("; ")}`
+          : `Installed ${installed} plugins.`);
       });
     }
     document.querySelectorAll("#admin-dlc-filter [data-dlc-filter]").forEach((button) => {

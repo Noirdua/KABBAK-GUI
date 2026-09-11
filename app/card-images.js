@@ -1526,6 +1526,10 @@
 
   document.addEventListener("connection:updated", resetConnectionCaches);
   document.addEventListener("connection:access-updated", resetConnectionCaches);
+  document.addEventListener("content:updated", () => {
+    resetConnectionCaches();
+    void window.TarotDataService?.loadDeckOptions?.(true);
+  });
 
   window.TarotCardImages = {
     resolveTarotCardImage,
@@ -1539,6 +1543,7 @@
     scheduleAllDeckImagePreload,
     ensureImageLoaded,
     isImageLoaded,
+    resetConnectionCaches,
     getDeckPreloadStatus: () => emitDeckPreloadStatus(),
     getTarotCardDisplayName,
     getTarotCardSearchAliases,
