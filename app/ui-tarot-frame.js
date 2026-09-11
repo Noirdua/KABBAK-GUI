@@ -6096,14 +6096,19 @@
       }
 
       image.onload = () => {
-        if (revokeOnLoad) {
-          try {
-            URL.revokeObjectURL(src);
-          } catch (_error) {
-            // Ignore object URL cleanup failures.
+        const finish = () => {
+          if (revokeOnLoad) {
+            try {
+              URL.revokeObjectURL(src);
+            } catch (_error) {}
           }
+          resolve(image);
+        };
+        if (typeof image.decode === "function") {
+          image.decode().then(finish).catch(finish);
+          return;
         }
-        resolve(image);
+        finish();
       };
       image.onerror = () => {
         if (revokeOnLoad) {
@@ -6131,7 +6136,7 @@
         method: "GET",
         mode: "cors",
         credentials: "omit",
-        cache: "force-cache"
+        cache: "default"
       });
       if (response.ok) {
         const blob = await response.blob();
@@ -6283,6 +6288,7 @@
     syncControls();
 
     try {
+      setStatus("Loading HD images for export…");
       await exportImage(format);
       setStatus(`Downloaded a ${String(format || "webp").toUpperCase()} export of the current frame grid.`);
     } catch (error) {
