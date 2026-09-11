@@ -1205,11 +1205,46 @@
     });
   }
 
-  function createKindHeading(kind, count) {
+  function createKindHeading(kind, count, options = {}) {
     const head = document.createElement("div");
     head.className = "dlc-kind-head";
     head.innerHTML = `<strong>${escapeHtml(KIND_LABELS[kind] || kind)}</strong><span>${Number(count) || 0}</span>`;
+    if (typeof options.installAll === "function") {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "dlc-shop-btn";
+      button.textContent = "Install All";
+      button.title = `Install every available ${KIND_LABELS[kind] || kind} item`;
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        void options.installAll(button);
+      });
+      head.appendChild(button);
+    }
     return head;
+  }
+
+  async function installAvailableItems(items, { button, kindLabel }) {
+    const targets = items.filter((item) => item?.status === "available");
+    if (!targets.length) return;
+    if (button) button.disabled = true;
+    let installed = 0;
+    const failures = [];
+    for (const item of targets) {
+      setStatus(`Installing ${item.name} (${installed + 1}/${targets.length})…`);
+      try {
+        await requestJson("POST", "/api/v1/dlc/install", { kind: item.kind, name: item.name, sourceId: item.sourceId || "" });
+        installed += 1;
+      } catch (error) {
+        failures.push(`${item.name}: ${error?.message || "failed"}`);
+      }
+    }
+    await window.TaroTimePluginHost?.refresh?.();
+    await loadPlugins();
+    if (button) button.disabled = false;
+    setStatus(failures.length
+      ? `Installed ${installed}/${targets.length} ${kindLabel}. ${failures.length} failed: ${failures.join("; ")}`
+      : `Installed ${installed} ${kindLabel} item(s).`);
   }
 
   function createPluginCard({ title, description, version, badge, actionLabel, onAction }) {    const card = document.createElement("div");
@@ -1321,7 +1356,11 @@
     }
 
     groupCatalogItems(visibleItems).forEach(([kind, items]) => {
-      dlcCatalogEl.appendChild(createKindHeading(kind, items.length));
+      const availableCount = items.filter((item) => item?.status === "available").length;
+      const installableKind = kind === "plugin" || kind === "api" || kind === "gui" || kind === "deck" || kind === "text" || kind === "reference";
+      dlcCatalogEl.appendChild(createKindHeading(kind, items.length, installableKind && availableCount > 0
+        ? { installAll: (button) => installAvailableItems(items, { button, kindLabel: KIND_LABELS[kind] || kind }) }
+        : {}));
       items.forEach((item) => {
         const isInstalled = item?.status === "installed" || item?.status === "staged";
         const isPlugin = kind === "plugin" || kind === "api" || kind === "gui";
@@ -1671,37 +1710,6 @@
         } else {
           setStatus("Plugin creation is available in Settings > DLC Shop & Plugins.", true);
         }
-      });
-    }
-    const installAllBtn = document.getElementById("admin-dlc-install-all");
-    if (installAllBtn) {
-      installAllBtn.addEventListener("click", async () => {
-        const targets = allDlcItems.filter((item) =>
-          (item?.kind === "plugin" || item?.kind === "api" || item?.kind === "gui")
-          && item?.status === "available"
-        );
-        if (!targets.length) {
-          setStatus("No plugins to install — everything is already installed.");
-          return;
-        }
-        installAllBtn.disabled = true;
-        let installed = 0;
-        const failures = [];
-        for (const item of targets) {
-          setStatus(`Installing ${item.name} (${installed + 1}/${targets.length})…`);
-          try {
-            await requestJson("POST", "/api/v1/dlc/install", { kind: item.kind, name: item.name, sourceId: item.sourceId || "" });
-            installed += 1;
-          } catch (error) {
-            failures.push(`${item.name}: ${error?.message || "failed"}`);
-          }
-        }
-        await window.TaroTimePluginHost?.refresh?.();
-        await loadPlugins();
-        installAllBtn.disabled = false;
-        setStatus(failures.length
-          ? `Installed ${installed}/${targets.length} plugins. ${failures.length} failed: ${failures.join("; ")}`
-          : `Installed ${installed} plugins.`);
       });
     }
     document.querySelectorAll("#admin-dlc-filter [data-dlc-filter]").forEach((button) => {
