@@ -17,6 +17,27 @@
   const DEFAULT_SKIN_ID = "layout-default";
   let refreshPromise = null;
   let activeSkinId = null;
+  // Set while loading opted-in "public" plugins before the app is authenticated,
+  // so their assets load straight from the API (no key/blob).
+  let publicAssetBaseUrl = "";
+
+  function normalizeApiBase(raw) {
+    let value = String(raw || "").trim().replace(/\/+$/, "");
+    if (!value || !/^https?:\/\//i.test(value)) {
+      return "";
+    }
+    if (!/\/api\/v1$/i.test(value)) {
+      value += "/api/v1";
+    }
+    return value;
+  }
+
+  function publicPluginBaseUrl() {
+    const service = window.TarotDataService;
+    const fromGate = normalizeApiBase(document.getElementById("connection-gate-base-url")?.value || "");
+    if (fromGate) return fromGate;
+    return normalizeApiBase(service?.getApiBaseUrl?.() || "");
+  }
 
   function getHostEl() {
     return document.getElementById("plugin-topbar-host") || null;
@@ -226,6 +247,10 @@
   }
 
   async function fetchPluginAssetObjectUrl(pluginName, fileName) {
+    // Public (pre-auth) load: fetch the asset directly, no API key needed.
+    if (publicAssetBaseUrl) {
+      return `${publicAssetBaseUrl}/plugins/${encodeURIComponent(pluginName)}/${encodeURIComponent(fileName)}`;
+    }
     const service = window.TarotDataService;
     if (!service?.requestBlob || !service?.buildApiUrl) {
       return "";
@@ -592,15 +617,26 @@
     if (!service || typeof service.requestJson !== "function" || typeof service.buildApiUrl !== "function") {
       return [];
     }
-    // The plugins endpoint requires an authenticated client. Skip silently
-    // while the app shell is still disconnected so the console stays clean.
-    if (!(access?.authenticated === true)) {
+    const authenticated = access?.authenticated === true;
+    const publicBase = authenticated ? "" : publicPluginBaseUrl();
+    // Before login, only opted-in "public" plugins can load (from the gate URL).
+    if (!authenticated && !publicBase) {
       return [];
     }
     refreshPromise = (async () => {
       try {
-        const payload = await service.requestJson("GET", service.buildApiUrl("/api/v1/plugins"));
-        const plugins = Array.isArray(payload?.plugins) ? payload.plugins : [];
+        let plugins = [];
+        if (authenticated) {
+          publicAssetBaseUrl = "";
+          const payload = await service.requestJson("GET", service.buildApiUrl("/api/v1/plugins"));
+          plugins = Array.isArray(payload?.plugins) ? payload.plugins : [];
+        } else {
+          // Public (pre-auth): fetch the public list and load assets directly.
+          publicAssetBaseUrl = publicBase;
+          const response = await fetch(`${publicBase}/plugins`, { cache: "no-store" });
+          const payload = response.ok ? await response.json().catch(() => null) : null;
+          plugins = Array.isArray(payload?.data?.plugins) ? payload.data.plugins : [];
+        }
         const desiredNames = plugins.map((plugin) => String(plugin?.name || "").trim()).filter(Boolean);
 
         for (const name of [...mounted]) {

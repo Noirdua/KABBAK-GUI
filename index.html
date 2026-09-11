@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260911-frames-manager">
+  <link rel="stylesheet" href="app/styles.css?v=20260911-lb-rows">
   <link rel="stylesheet" href="app/ui-look.css?v=20260902-theme-surfaces">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -193,13 +193,6 @@
         <label class="settings-field settings-field-full" for="connection-gate-api-key">API Key
           <input id="connection-gate-api-key" type="password" autocomplete="off" placeholder="Leave blank only if your API does not require a key">
         </label>
-      </div>
-      <div id="connection-gate-demo" class="connection-gate-demo" hidden>
-        <div class="connection-gate-demo-row">
-          <strong>Try the shared demo user</strong>
-          <button id="connection-gate-demo-use" class="connection-gate-demo-btn" type="button">Use Demo Access</button>
-        </div>
-        <div id="connection-gate-demo-details" class="connection-gate-demo-details" aria-live="polite"></div>
       </div>
       <div id="connection-gate-status" class="connection-gate-status" aria-live="polite">Enter your API details to continue.</div>
       <div class="connection-gate-actions">
@@ -1041,6 +1034,14 @@
               <label class="tarot-frame-field" for="tarot-frame-deck-select">
                 <span>Frame Deck</span>
                 <select id="tarot-frame-deck-select"></select>
+              </label>
+              <label class="tarot-frame-field" for="tarot-frame-export-scope">
+                <span>Export Area</span>
+                <select id="tarot-frame-export-scope">
+                  <option value="used" selected>Used cards (trimmed)</option>
+                  <option value="selection">Selected cards</option>
+                  <option value="full">Full grid</option>
+                </select>
               </label>
               <label class="tarot-frame-toggle" for="tarot-frame-show-info">
                 <input id="tarot-frame-show-info" type="checkbox">
@@ -2422,7 +2423,7 @@
   <script src="app/data-service.js?v=20260907-network-lost"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-library-marks.js?v=20260830-library"></script>
-  <script src="app/plugins-host.js?v=20260911-overlay-helper"></script>
+  <script src="app/plugins-host.js?v=20260911-public-plugins"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
   <script src="app/card-images.js?v=20260911-content-updated"></script>
@@ -2441,7 +2442,7 @@
   <script src="app/ui-section-state.js?v=20260911-back-detail"></script>
   <script src="app/app-runtime.js?v=20260807-fast-boot"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20260911-demo-probe"></script>
+  <script src="app.js?v=20260911-public-plugins"></script>
 
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">

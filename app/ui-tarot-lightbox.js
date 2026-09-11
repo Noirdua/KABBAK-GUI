@@ -307,6 +307,57 @@
   }
 
   let lastPersistedZoomScale = null;
+  let lightboxProfileSaveTimer = 0;
+
+  const LIGHTBOX_PROFILE_PLUGIN_ID = "tarot-lightbox";
+  const LIGHTBOX_OVERLAY_OPACITY_STORAGE_KEY = "tarot-lightbox-overlay-opacity-v1";
+
+  function canUseLightboxProfileStore() {
+    return window.TarotAppConfig?.isProfileAuthorized?.() === true
+      && typeof window.TarotDataService?.requestJson === "function";
+  }
+
+  function persistLightboxProfileState() {
+    if (!canUseLightboxProfileStore()) {
+      return;
+    }
+    window.clearTimeout(lightboxProfileSaveTimer);
+    lightboxProfileSaveTimer = window.setTimeout(() => {
+      void window.TarotDataService.requestJson(
+        "PUT",
+        window.TarotDataService.buildApiUrl(`/api/v1/profile/plugin-state/${LIGHTBOX_PROFILE_PLUGIN_ID}`),
+        { state: { zoomScale: lightboxState.zoomScale, overlayOpacity: lightboxState.overlayOpacity } }
+      ).catch(() => {});
+    }, 700);
+  }
+
+  // Zoom + overlay opacity are saved to the profile so they follow the user
+  // across devices (localStorage remains as the per-browser fallback).
+  async function hydrateLightboxProfileState() {
+    if (!canUseLightboxProfileStore()) {
+      return;
+    }
+    try {
+      const payload = await window.TarotDataService.requestJson(
+        "GET",
+        window.TarotDataService.buildApiUrl(`/api/v1/profile/plugin-state/${LIGHTBOX_PROFILE_PLUGIN_ID}`)
+      );
+      const remote = payload?.state && typeof payload.state === "object" ? payload.state : null;
+      if (!remote) {
+        return;
+      }
+      if (Number.isFinite(Number(remote.zoomScale))) {
+        lightboxState.zoomScale = clampZoomScale(Number(remote.zoomScale));
+        applyZoomTransform();
+      }
+      if (Number.isFinite(Number(remote.overlayOpacity))) {
+        setOverlayOpacity(Number(remote.overlayOpacity));
+      }
+      persistZoomScale();
+    } catch (_error) {
+      // Optional enhancement; localStorage defaults remain.
+    }
+  }
 
   function persistZoomScale() {
     const zoomScale = lightboxState.zoomScale;
@@ -315,6 +366,7 @@
     }
     lastPersistedZoomScale = zoomScale;
     writeStorageValue(LIGHTBOX_ZOOM_SCALE_STORAGE_KEY, String(zoomScale));
+    persistLightboxProfileState();
   }
 
   function setInfoPanelOpen(nextOpen, options = {}) {
@@ -1222,7 +1274,7 @@
       nextSelection.splice(existingIndex, 1);
       updateDeckCompareMode(nextSelection);
       suppressDeckCompareToggle();
-      closeDeckComparePanel();
+      // Keep the picker open so several decks can be toggled in one go.
       applyComparePresentation();
       return;
     }
@@ -1236,7 +1288,7 @@
     nextSelection.push(normalizedDeckId);
     updateDeckCompareMode(nextSelection);
     suppressDeckCompareToggle();
-    closeDeckComparePanel();
+    // Keep the picker open for multi-select.
     applyComparePresentation();
   }
 
@@ -1277,6 +1329,17 @@
     if (opacityValueEl) {
       opacityValueEl.textContent = `${Math.round(opacity * 100)}%`;
     }
+
+    writeStorageValue(LIGHTBOX_OVERLAY_OPACITY_STORAGE_KEY, String(opacity));
+    persistLightboxProfileState();
+  }
+
+  function getPersistedOverlayOpacity() {
+    const numericValue = Number.parseFloat(String(readStorageValue(LIGHTBOX_OVERLAY_OPACITY_STORAGE_KEY) || ""));
+    if (!Number.isFinite(numericValue)) {
+      return LIGHTBOX_COMPARE_DEFAULT_OVERLAY_OPACITY;
+    }
+    return clampOverlayOpacity(numericValue);
   }
 
   function updateImageCursor() {
@@ -2030,6 +2093,7 @@
     deckCompareButtonEl.textContent = lightboxState.selectedCompareDeckIds.length
       ? `Compare (${lightboxState.selectedCompareDeckIds.length})`
       : "Compare";
+    deckCompareButtonEl.classList.toggle("is-active", lightboxState.deckCompareMode);
     deckCompareButtonEl.setAttribute("aria-pressed", lightboxState.deckComparePickerOpen ? "true" : "false");
 
     if (!lightboxState.deckComparePickerOpen || zoomed || lightboxState.compareMode) {
@@ -2417,10 +2481,19 @@
       deckComparePanelEl.style.overflowY = "visible";
     }
 
-    compareButtonEl.hidden = zoomed
+    // Overlay and Compare are mutually exclusive: hide Overlay while the deck
+    // compare grid is active. Use style.display because an inline display would
+    // otherwise override the [hidden] attribute.
+    const showOverlayButton = !(
+      zoomed
       || !lightboxState.allowOverlayCompare
-      || (!isCompact && lightboxState.compareMode && !hasSecondaryCard());
+      || lightboxState.deckCompareMode
+      || (!isCompact && lightboxState.compareMode && !hasSecondaryCard())
+    );
+    compareButtonEl.hidden = !showOverlayButton;
+    compareButtonEl.style.display = showOverlayButton ? "inline-flex" : "none";
     compareButtonEl.textContent = lightboxState.compareMode ? "Done Overlay" : "Overlay";
+    compareButtonEl.classList.toggle("is-active", lightboxState.compareMode);
     syncSettingsUi();
     syncNotesButton();
     syncHelpUi();
@@ -2920,57 +2993,37 @@
     settingsButtonEl = document.createElement("button");
     settingsButtonEl.type = "button";
     settingsButtonEl.textContent = "Settings";
+    settingsButtonEl.className = "tt-lb-btn";
     settingsButtonEl.style.display = "none";
-    settingsButtonEl.style.alignItems = "center";
-    settingsButtonEl.style.justifyContent = "center";
-    settingsButtonEl.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-    settingsButtonEl.style.background = "rgba(15, 23, 42, 0.84)";
-    settingsButtonEl.style.color = "#f8fafc";
-    settingsButtonEl.style.borderRadius = "999px";
-    settingsButtonEl.style.padding = "10px 14px";
-    settingsButtonEl.style.font = "600 13px/1.1 sans-serif";
-    settingsButtonEl.style.cursor = "pointer";
-    settingsButtonEl.style.backdropFilter = "blur(12px)";
 
     helpButtonEl = document.createElement("button");
     helpButtonEl.type = "button";
     helpButtonEl.textContent = "Help";
+    helpButtonEl.className = "tt-lb-btn";
     helpButtonEl.style.display = "none";
-    helpButtonEl.style.alignItems = "center";
-    helpButtonEl.style.justifyContent = "center";
-    helpButtonEl.style.width = "100%";
-    helpButtonEl.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-    helpButtonEl.style.background = "rgba(15, 23, 42, 0.84)";
-    helpButtonEl.style.color = "#f8fafc";
-    helpButtonEl.style.borderRadius = "999px";
-    helpButtonEl.style.padding = "10px 14px";
-    helpButtonEl.style.font = "600 13px/1.1 sans-serif";
-    helpButtonEl.style.cursor = "pointer";
-    helpButtonEl.style.backdropFilter = "blur(12px)";
 
     settingsPanelEl = document.createElement("div");
+    settingsPanelEl.className = "tt-lb-panel";
     settingsPanelEl.style.position = "fixed";
     settingsPanelEl.style.top = "72px";
     settingsPanelEl.style.right = "24px";
     settingsPanelEl.style.display = "none";
     settingsPanelEl.style.flexDirection = "column";
-    settingsPanelEl.style.gap = "10px";
+    settingsPanelEl.style.gap = "8px";
     settingsPanelEl.style.width = "min(320px, calc(100vw - 48px))";
-    settingsPanelEl.style.padding = "14px 16px";
-    settingsPanelEl.style.borderRadius = "18px";
-    settingsPanelEl.style.background = "rgba(2, 6, 23, 0.88)";
-    settingsPanelEl.style.border = "1px solid rgba(148, 163, 184, 0.16)";
-    settingsPanelEl.style.color = "#f8fafc";
-    settingsPanelEl.style.boxShadow = "0 16px 42px rgba(0, 0, 0, 0.34)";
-    settingsPanelEl.style.backdropFilter = "blur(12px)";
+    settingsPanelEl.style.padding = "10px";
     settingsPanelEl.style.pointerEvents = "auto";
     settingsPanelEl.style.zIndex = "3";
 
     const settingsTitleEl = document.createElement("div");
     settingsTitleEl.textContent = "Lightbox Settings";
-    settingsTitleEl.style.font = "700 13px/1.3 sans-serif";
+    settingsTitleEl.style.font = "700 12px/1.3 sans-serif";
+    settingsTitleEl.style.color = "var(--tt-text-muted)";
+    settingsTitleEl.style.textTransform = "uppercase";
+    settingsTitleEl.style.letterSpacing = "0.06em";
 
     helpPanelEl = document.createElement("div");
+    helpPanelEl.className = "tt-lb-panel";
     helpPanelEl.style.position = "fixed";
     helpPanelEl.style.top = "72px";
     helpPanelEl.style.left = "24px";
@@ -2979,12 +3032,6 @@
     helpPanelEl.style.gap = "8px";
     helpPanelEl.style.width = "min(320px, calc(100vw - 48px))";
     helpPanelEl.style.padding = "14px 16px";
-    helpPanelEl.style.borderRadius = "18px";
-    helpPanelEl.style.background = "rgba(2, 6, 23, 0.88)";
-    helpPanelEl.style.border = "1px solid rgba(148, 163, 184, 0.16)";
-    helpPanelEl.style.color = "#f8fafc";
-    helpPanelEl.style.boxShadow = "0 16px 42px rgba(0, 0, 0, 0.34)";
-    helpPanelEl.style.backdropFilter = "blur(12px)";
     helpPanelEl.style.pointerEvents = "auto";
     helpPanelEl.style.zIndex = "2";
 
@@ -3028,47 +3075,15 @@
     compareButtonEl = document.createElement("button");
     compareButtonEl.type = "button";
     compareButtonEl.textContent = "Overlay";
-    compareButtonEl.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-    compareButtonEl.style.background = "rgba(15, 23, 42, 0.84)";
-    compareButtonEl.style.color = "#f8fafc";
-    compareButtonEl.style.borderRadius = "999px";
-    compareButtonEl.style.padding = "10px 14px";
-    compareButtonEl.style.font = "600 13px/1.1 sans-serif";
-    compareButtonEl.style.cursor = "pointer";
-    compareButtonEl.style.backdropFilter = "blur(12px)";
-    compareButtonEl.style.display = "inline-flex";
-    compareButtonEl.style.alignItems = "center";
-    compareButtonEl.style.justifyContent = "center";
-    compareButtonEl.style.width = "100%";
+    compareButtonEl.className = "tt-lb-btn";
 
     deckCompareButtonEl = document.createElement("button");
     deckCompareButtonEl.type = "button";
     deckCompareButtonEl.textContent = "Compare";
-    deckCompareButtonEl.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-    deckCompareButtonEl.style.background = "rgba(15, 23, 42, 0.84)";
-    deckCompareButtonEl.style.color = "#f8fafc";
-    deckCompareButtonEl.style.borderRadius = "999px";
-    deckCompareButtonEl.style.padding = "10px 14px";
-    deckCompareButtonEl.style.font = "600 13px/1.1 sans-serif";
-    deckCompareButtonEl.style.cursor = "pointer";
-    deckCompareButtonEl.style.backdropFilter = "blur(12px)";
-    deckCompareButtonEl.style.alignItems = "center";
-    deckCompareButtonEl.style.justifyContent = "center";
-    deckCompareButtonEl.style.width = "100%";
+    deckCompareButtonEl.className = "tt-lb-btn";
 
     zoomControlEl = document.createElement("label");
-    zoomControlEl.style.display = "flex";
-    zoomControlEl.style.alignItems = "center";
-    zoomControlEl.style.justifyContent = "space-between";
-    zoomControlEl.style.width = "100%";
-    zoomControlEl.style.gap = "8px";
-    zoomControlEl.style.padding = "10px 14px";
-    zoomControlEl.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-    zoomControlEl.style.borderRadius = "999px";
-    zoomControlEl.style.background = "rgba(15, 23, 42, 0.84)";
-    zoomControlEl.style.color = "#f8fafc";
-    zoomControlEl.style.font = "600 12px/1.1 sans-serif";
-    zoomControlEl.style.backdropFilter = "blur(12px)";
+    zoomControlEl.className = "tt-lb-control";
 
     const zoomTextEl = document.createElement("span");
     zoomTextEl.textContent = "Zoom";
@@ -3079,32 +3094,19 @@
     zoomSliderEl.max = String(Math.round(LIGHTBOX_ZOOM_SCALE * 100));
     zoomSliderEl.step = "10";
     zoomSliderEl.value = String(Math.round(LIGHTBOX_ZOOM_SCALE * 100));
-    zoomSliderEl.style.width = "110px";
-    zoomSliderEl.style.cursor = "pointer";
 
     zoomValueEl = document.createElement("span");
+    zoomValueEl.className = "tt-lb-value";
     zoomValueEl.textContent = `${Math.round(LIGHTBOX_ZOOM_SCALE * 100)}%`;
-    zoomValueEl.style.minWidth = "42px";
-    zoomValueEl.style.textAlign = "right";
 
     zoomControlEl.append(zoomTextEl, zoomSliderEl, zoomValueEl);
 
     opacityControlEl = document.createElement("label");
+    opacityControlEl.className = "tt-lb-control";
     opacityControlEl.style.display = "none";
-    opacityControlEl.style.alignItems = "center";
-    opacityControlEl.style.justifyContent = "space-between";
-    opacityControlEl.style.width = "100%";
-    opacityControlEl.style.gap = "8px";
-    opacityControlEl.style.padding = "10px 14px";
-    opacityControlEl.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-    opacityControlEl.style.borderRadius = "999px";
-    opacityControlEl.style.background = "rgba(15, 23, 42, 0.84)";
-    opacityControlEl.style.color = "#f8fafc";
-    opacityControlEl.style.font = "600 12px/1.1 sans-serif";
-    opacityControlEl.style.backdropFilter = "blur(12px)";
 
     const opacityTextEl = document.createElement("span");
-    opacityTextEl.textContent = "Overlay";
+    opacityTextEl.textContent = "Opacity";
 
     opacitySliderEl = document.createElement("input");
     opacitySliderEl.type = "range";
@@ -3112,49 +3114,26 @@
     opacitySliderEl.max = "100";
     opacitySliderEl.step = "5";
     opacitySliderEl.value = String(Math.round(LIGHTBOX_COMPARE_DEFAULT_OVERLAY_OPACITY * 100));
-    opacitySliderEl.style.width = "110px";
-    opacitySliderEl.style.cursor = "pointer";
 
     opacityValueEl = document.createElement("span");
+    opacityValueEl.className = "tt-lb-value";
     opacityValueEl.textContent = `${Math.round(LIGHTBOX_COMPARE_DEFAULT_OVERLAY_OPACITY * 100)}%`;
-    opacityValueEl.style.minWidth = "34px";
-    opacityValueEl.style.textAlign = "right";
 
     opacityControlEl.append(opacityTextEl, opacitySliderEl, opacityValueEl);
 
     exportButtonEl = document.createElement("button");
     exportButtonEl.type = "button";
     exportButtonEl.textContent = "Export WebP";
+    exportButtonEl.className = "tt-lb-btn";
     exportButtonEl.style.display = "none";
-    exportButtonEl.style.alignItems = "center";
-    exportButtonEl.style.justifyContent = "center";
-    exportButtonEl.style.width = "100%";
-    exportButtonEl.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-    exportButtonEl.style.background = "rgba(15, 23, 42, 0.84)";
-    exportButtonEl.style.color = "#f8fafc";
-    exportButtonEl.style.borderRadius = "999px";
-    exportButtonEl.style.padding = "10px 14px";
-    exportButtonEl.style.font = "600 13px/1.1 sans-serif";
-    exportButtonEl.style.cursor = "pointer";
-    exportButtonEl.style.backdropFilter = "blur(12px)";
 
     const closeLightboxButtonEl = document.createElement("button");
     closeLightboxButtonEl.type = "button";
-    closeLightboxButtonEl.textContent = "Close Lightbox";
-    closeLightboxButtonEl.style.display = "inline-flex";
-    closeLightboxButtonEl.style.alignItems = "center";
-    closeLightboxButtonEl.style.justifyContent = "center";
-    closeLightboxButtonEl.style.width = "100%";
-    closeLightboxButtonEl.style.border = "1px solid rgba(248, 250, 252, 0.18)";
-    closeLightboxButtonEl.style.background = "rgba(127, 29, 29, 0.72)";
-    closeLightboxButtonEl.style.color = "#f8fafc";
-    closeLightboxButtonEl.style.borderRadius = "999px";
-    closeLightboxButtonEl.style.padding = "10px 14px";
-    closeLightboxButtonEl.style.font = "600 13px/1.1 sans-serif";
-    closeLightboxButtonEl.style.cursor = "pointer";
-    closeLightboxButtonEl.style.backdropFilter = "blur(12px)";
+    closeLightboxButtonEl.textContent = "Close";
+    closeLightboxButtonEl.className = "tt-lb-btn is-danger";
 
     deckComparePanelEl = document.createElement("div");
+    deckComparePanelEl.className = "tt-lb-panel";
     deckComparePanelEl.style.position = "fixed";
     deckComparePanelEl.style.top = "24px";
     deckComparePanelEl.style.right = "176px";
@@ -3163,12 +3142,6 @@
     deckComparePanelEl.style.gap = "10px";
     deckComparePanelEl.style.width = "min(280px, calc(100vw - 48px))";
     deckComparePanelEl.style.padding = "14px 16px";
-    deckComparePanelEl.style.borderRadius = "18px";
-    deckComparePanelEl.style.background = "rgba(2, 6, 23, 0.88)";
-    deckComparePanelEl.style.border = "1px solid rgba(148, 163, 184, 0.16)";
-    deckComparePanelEl.style.color = "#f8fafc";
-    deckComparePanelEl.style.boxShadow = "0 16px 42px rgba(0, 0, 0, 0.34)";
-    deckComparePanelEl.style.backdropFilter = "blur(12px)";
     deckComparePanelEl.style.pointerEvents = "auto";
     deckComparePanelEl.style.touchAction = "manipulation";
     deckComparePanelEl.style.zIndex = "2";
@@ -3186,13 +3159,7 @@
     const deckCompareCloseButtonEl = document.createElement("button");
     deckCompareCloseButtonEl.type = "button";
     deckCompareCloseButtonEl.textContent = "Close";
-    deckCompareCloseButtonEl.style.padding = "6px 10px";
-    deckCompareCloseButtonEl.style.borderRadius = "999px";
-    deckCompareCloseButtonEl.style.border = "1px solid rgba(248, 250, 252, 0.16)";
-    deckCompareCloseButtonEl.style.background = "rgba(15, 23, 42, 0.44)";
-    deckCompareCloseButtonEl.style.color = "rgba(248, 250, 252, 0.92)";
-    deckCompareCloseButtonEl.style.cursor = "pointer";
-    deckCompareCloseButtonEl.style.font = "600 11px/1.2 sans-serif";
+    deckCompareCloseButtonEl.className = "tt-lb-btn";
 
     deckCompareHeaderEl.append(deckCompareTitleEl, deckCompareCloseButtonEl);
 
@@ -3210,68 +3177,48 @@
     mobileInfoButtonEl = document.createElement("button");
     mobileInfoButtonEl.type = "button";
     mobileInfoButtonEl.textContent = "Info";
+    mobileInfoButtonEl.className = "tt-lb-btn";
     mobileInfoButtonEl.style.display = "none";
-    mobileInfoButtonEl.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-    mobileInfoButtonEl.style.background = "rgba(15, 23, 42, 0.84)";
-    mobileInfoButtonEl.style.color = "#f8fafc";
-    mobileInfoButtonEl.style.borderRadius = "999px";
-    mobileInfoButtonEl.style.padding = "10px 14px";
-    mobileInfoButtonEl.style.font = "600 13px/1.1 sans-serif";
-    mobileInfoButtonEl.style.cursor = "pointer";
-    mobileInfoButtonEl.style.backdropFilter = "blur(12px)";
-    mobileInfoButtonEl.style.alignItems = "center";
-    mobileInfoButtonEl.style.justifyContent = "center";
-    mobileInfoButtonEl.style.width = "100%";
 
     mobileInfoPrimaryTabEl = document.createElement("button");
     mobileInfoPrimaryTabEl.type = "button";
     mobileInfoPrimaryTabEl.textContent = "Base";
+    mobileInfoPrimaryTabEl.className = "tt-lb-btn";
     mobileInfoPrimaryTabEl.style.display = "none";
-    mobileInfoPrimaryTabEl.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-    mobileInfoPrimaryTabEl.style.background = "rgba(15, 23, 42, 0.84)";
-    mobileInfoPrimaryTabEl.style.color = "#f8fafc";
-    mobileInfoPrimaryTabEl.style.borderRadius = "999px";
-    mobileInfoPrimaryTabEl.style.padding = "10px 14px";
-    mobileInfoPrimaryTabEl.style.font = "600 13px/1.1 sans-serif";
-    mobileInfoPrimaryTabEl.style.cursor = "pointer";
-    mobileInfoPrimaryTabEl.style.backdropFilter = "blur(12px)";
-    mobileInfoPrimaryTabEl.style.alignItems = "center";
-    mobileInfoPrimaryTabEl.style.justifyContent = "center";
-    mobileInfoPrimaryTabEl.style.width = "100%";
 
     mobileInfoSecondaryTabEl = document.createElement("button");
     mobileInfoSecondaryTabEl.type = "button";
     mobileInfoSecondaryTabEl.textContent = "Overlay";
+    mobileInfoSecondaryTabEl.className = "tt-lb-btn";
     mobileInfoSecondaryTabEl.style.display = "none";
-    mobileInfoSecondaryTabEl.style.border = "1px solid rgba(255, 255, 255, 0.2)";
-    mobileInfoSecondaryTabEl.style.background = "rgba(15, 23, 42, 0.84)";
-    mobileInfoSecondaryTabEl.style.color = "#f8fafc";
-    mobileInfoSecondaryTabEl.style.borderRadius = "999px";
-    mobileInfoSecondaryTabEl.style.padding = "10px 14px";
-    mobileInfoSecondaryTabEl.style.font = "600 13px/1.1 sans-serif";
-    mobileInfoSecondaryTabEl.style.cursor = "pointer";
-    mobileInfoSecondaryTabEl.style.backdropFilter = "blur(12px)";
-    mobileInfoSecondaryTabEl.style.alignItems = "center";
-    mobileInfoSecondaryTabEl.style.justifyContent = "center";
-    mobileInfoSecondaryTabEl.style.width = "100%";
 
     notesControlEl = document.createElement("div");
     notesControlEl.style.display = "none";
     notesControlEl.style.width = "100%";
 
+    const infoRowEl = document.createElement("div");
+    infoRowEl.className = "tt-lb-row";
+    infoRowEl.append(mobileInfoButtonEl, helpButtonEl, exportButtonEl, closeLightboxButtonEl);
+
+    const mobileInfoTabsRowEl = document.createElement("div");
+    mobileInfoTabsRowEl.className = "tt-lb-row";
+    mobileInfoTabsRowEl.append(mobileInfoPrimaryTabEl, mobileInfoSecondaryTabEl);
+
+    const compareRowEl = document.createElement("div");
+    compareRowEl.className = "tt-lb-row";
+    compareRowEl.append(deckCompareButtonEl, compareButtonEl);
+
+    const viewRowEl = document.createElement("div");
+    viewRowEl.className = "tt-lb-row";
+    viewRowEl.append(zoomControlEl, opacityControlEl);
+
     settingsPanelEl.append(
       settingsTitleEl,
-      compareButtonEl,
-      deckCompareButtonEl,
-      notesControlEl,
-      mobileInfoButtonEl,
-      mobileInfoPrimaryTabEl,
-      mobileInfoSecondaryTabEl,
-      exportButtonEl,
-      helpButtonEl,
-      zoomControlEl,
-      opacityControlEl,
-      closeLightboxButtonEl
+      infoRowEl,
+      mobileInfoTabsRowEl,
+      compareRowEl,
+      viewRowEl,
+      notesControlEl
     );
     toolbarEl.append(settingsButtonEl);
 
@@ -3506,7 +3453,7 @@
     overlayImageEl.style.width = "100%";
     overlayImageEl.style.height = "100%";
     overlayImageEl.style.objectFit = "contain";
-    overlayImageEl.style.opacity = String(LIGHTBOX_COMPARE_DEFAULT_OVERLAY_OPACITY);
+      overlayImageEl.style.opacity = String(lightboxState.overlayOpacity);
     overlayImageEl.style.pointerEvents = "none";
     overlayImageEl.style.display = "none";
     overlayImageEl.style.transform = "rotate(0deg)";
@@ -3729,7 +3676,7 @@
       lightboxState.primaryVariants = [];
       lightboxState.primaryVariantIndex = 0;
       lightboxState.onSelectCardId = null;
-      lightboxState.overlayOpacity = LIGHTBOX_COMPARE_DEFAULT_OVERLAY_OPACITY;
+      lightboxState.overlayOpacity = getPersistedOverlayOpacity();
       lightboxState.zoomScale = LIGHTBOX_ZOOM_SCALE;
       lightboxState.settingsMenuOpen = false;
       lightboxState.helpOpen = false;
@@ -3794,10 +3741,37 @@
         if (lightboxState.deckCompareMode) {
           updateDeckCompareMode([], false);
         }
+        // Overlay a card immediately so the transparent card is visible right
+        // away; arrow keys then step it.
+        if (!hasSecondaryCard()) {
+          pickInitialSecondaryCard();
+        }
       } else {
         clearSecondaryCard();
       }
       applyComparePresentation();
+    }
+
+    // Pick the next card in the sequence as the overlay the moment Overlay is
+    // turned on (without changing the base card selection).
+    function pickInitialSecondaryCard() {
+      const sequence = Array.isArray(lightboxState.sequenceIds) ? lightboxState.sequenceIds : [];
+      const primarySequenceId = lightboxState.primaryCard?.sequenceId || lightboxState.primaryCard?.cardId;
+      const primaryIndex = sequence.indexOf(primarySequenceId);
+      if (sequence.length < 2 || primaryIndex < 0) {
+        return false;
+      }
+      for (let offset = 1; offset <= sequence.length; offset += 1) {
+        const nextSequenceId = sequence[(primaryIndex + offset) % sequence.length];
+        if (!nextSequenceId || nextSequenceId === primarySequenceId) {
+          continue;
+        }
+        const nextCard = resolveCardRequestById(nextSequenceId);
+        if (nextCard && setSecondaryCard(nextCard, false)) {
+          return true;
+        }
+      }
+      return false;
     }
 
     function setSecondaryCard(cardRequest, syncSelection = false) {
@@ -4603,8 +4577,9 @@
     lightboxState.onSelectCardId = canCompare && typeof request.onSelectCardId === "function"
       ? request.onSelectCardId
       : null;
-    lightboxState.overlayOpacity = LIGHTBOX_COMPARE_DEFAULT_OVERLAY_OPACITY;
+    lightboxState.overlayOpacity = getPersistedOverlayOpacity();
     lightboxState.zoomScale = getPersistedZoomScale();
+    void hydrateLightboxProfileState();
     lightboxState.settingsMenuOpen = false;
     lightboxState.helpOpen = false;
     lightboxState.primaryRotated = Boolean(request.rotated);

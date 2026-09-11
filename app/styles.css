@@ -481,6 +481,90 @@
       background-position: center;
       background-repeat: no-repeat;
     }
+
+    /* Themeable lightbox controls: panels, buttons, and sliders follow the theme. */
+    .tt-lb-panel {
+      background: color-mix(in srgb, var(--tt-bg) 90%, transparent);
+      border: 1px solid var(--tt-border);
+      color: var(--tt-text);
+      border-radius: 14px;
+      box-shadow: 0 16px 42px color-mix(in srgb, black 34%, transparent);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+    }
+    .tt-lb-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: stretch;
+    }
+    .tt-lb-row > * {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .tt-lb-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--tt-bg-deep) 88%, transparent);
+      color: var(--tt-text);
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      line-height: 1.1;
+      cursor: pointer;
+      white-space: nowrap;
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+    }
+    .tt-lb-btn:hover {
+      border-color: var(--tt-accent);
+      color: var(--tt-text-bright);
+    }
+    .tt-lb-btn.is-active {
+      border-color: var(--tt-accent);
+      background: color-mix(in srgb, var(--tt-accent) 22%, transparent);
+      color: var(--tt-text-bright);
+    }
+    .tt-lb-btn.is-danger {
+      border-color: color-mix(in srgb, #ef4444 55%, var(--tt-border));
+      background: color-mix(in srgb, #7f1d1d 48%, transparent);
+      color: #fecaca;
+    }
+    .tt-lb-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .tt-lb-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--tt-bg-deep) 88%, transparent);
+      color: var(--tt-text);
+      font-size: 11px;
+      font-weight: 600;
+      font-family: inherit;
+      white-space: nowrap;
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+    }
+    .tt-lb-control input[type="range"] {
+      width: 90px;
+      cursor: pointer;
+      accent-color: var(--tt-accent);
+    }
+    .tt-lb-control .tt-lb-value {
+      min-width: 34px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
     body[data-menu-layout="drawer"] .topbar.is-menu-open {
       border-bottom-color: var(--tt-surface);
       /* The brand button is the trigger, so keep it top-left over the drawer. */
@@ -3052,14 +3136,15 @@
 
     .tarot-frame-layout-option {
       display: grid;
-      gap: 4px;
-      padding: 10px 12px;
+      gap: 3px;
+      padding: 8px 10px;
       border: 1px solid rgba(99, 102, 241, 0.28);
-      border-radius: 12px;
+      border-radius: 10px;
       background: rgba(15, 23, 42, 0.5);
       color: var(--tt-text-cool);
       text-align: left;
       cursor: pointer;
+      min-width: 0;
     }
 
     .tarot-frame-layout-option:hover,
@@ -3070,14 +3155,46 @@
     }
 
     .tarot-frame-layout-option strong {
-      font-size: 13px;
-      letter-spacing: 0.03em;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tarot-frame-layout-option > span:not(.tarot-frame-layout-option-head) {
+      font-size: 11px;
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tarot-frame-layout-option-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .tarot-frame-layout-option-active {
+      flex: 0 0 auto;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: var(--tt-accent);
+      color: var(--tt-bg-deepest);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
     }
 
-    .tarot-frame-layout-option span {
-      font-size: 12px;
-      line-height: 1.35;
+    .tarot-frame-layout-option.is-active {
+      border-color: var(--tt-accent);
+      background: color-mix(in srgb, var(--tt-accent) 16%, rgba(15, 23, 42, 0.5));
+      box-shadow: inset 3px 0 0 var(--tt-accent);
     }
 
     .tarot-frame-layout-section-title {
@@ -3090,17 +3207,17 @@
     }
 
     .tarot-frame-layout-save-btn {
-      width: 100%;
-      padding: 10px 12px;
+      padding: 7px 12px;
       border: 1px solid rgba(129, 140, 248, 0.5);
-      border-radius: 12px;
+      border-radius: 10px;
       background: linear-gradient(180deg, rgba(67, 56, 202, 0.92), rgba(49, 46, 129, 0.96));
       color: #eef2ff;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
+      white-space: nowrap;
     }
 
     .tarot-frame-layout-save-btn:hover {
@@ -3117,31 +3234,87 @@
 
     .tarot-frame-frames-panel {
       display: grid;
-      gap: 8px;
+      gap: 6px;
     }
 
     .tarot-frame-frames-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tarot-frame-frames-actions .tarot-frame-layout-save-btn {
+      flex: 1 1 auto;
+    }
+
+    .tarot-frame-frame-form {
       display: grid;
       gap: 8px;
+    }
+
+    .tarot-frame-frame-name-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: rgba(10, 10, 18, 0.6);
+      color: var(--tt-text);
+      font: inherit;
+    }
+
+    .tarot-frame-frame-form-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tarot-frame-frame-form-actions .tarot-frame-layout-save-btn,
+    .tarot-frame-frame-form-actions .tarot-frame-frame-action-btn {
+      flex: 1 1 auto;
+    }
+
+    /* The Frame settings open in the shared overlay, so reset the dropdown
+       positioning/width it uses when shown inline. */
+    .taro-overlay .tarot-frame-settings-panel {
+      position: static;
+      top: auto;
+      right: auto;
+      z-index: auto;
+      min-width: 0;
+      max-width: none;
+      max-height: none;
+      overflow: visible;
+      width: 100%;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
     }
 
     .tarot-frame-frame-entry {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto auto;
-      gap: 8px;
+      display: flex;
       align-items: stretch;
+      gap: 6px;
+    }
+
+    .tarot-frame-frame-entry .tarot-frame-layout-option {
+      flex: 1 1 auto;
+      min-width: 0;
     }
 
     .tarot-frame-frame-action-btn {
+      flex: 0 0 auto;
       align-self: stretch;
-      padding: 10px 12px;
+      padding: 7px 10px;
       border: 1px solid rgba(148, 163, 184, 0.35);
-      border-radius: 12px;
+      border-radius: 10px;
       background: rgba(30, 41, 59, 0.5);
       color: var(--tt-text-cool);
       cursor: pointer;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
+      white-space: nowrap;
     }
 
     .tarot-frame-frame-action-btn:hover {
@@ -3157,15 +3330,17 @@
     }
 
     .tarot-frame-layout-delete-btn {
+      flex: 0 0 auto;
       align-self: stretch;
-      padding: 10px 12px;
+      padding: 7px 10px;
       border: 1px solid rgba(248, 113, 113, 0.28);
-      border-radius: 12px;
+      border-radius: 10px;
       background: rgba(69, 10, 10, 0.36);
       color: #fecaca;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
+      white-space: nowrap;
     }
 
     .tarot-frame-layout-delete-btn:hover {
@@ -3863,6 +4038,7 @@
       width: var(--frame-cell-width);
       height: var(--frame-cell-height);
       border-radius: 8px;
+      contain: layout style;
       transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
     }
 

@@ -156,9 +156,6 @@ const connectionGateBaseUrlEl = document.getElementById("connection-gate-base-ur
 const connectionGateApiKeyEl = document.getElementById("connection-gate-api-key");
 const connectionGateStatusEl = document.getElementById("connection-gate-status");
 const connectionGateConnectEl = document.getElementById("connection-gate-connect");
-const connectionGateDemoEl = document.getElementById("connection-gate-demo");
-const connectionGateDemoUseEl = document.getElementById("connection-gate-demo-use");
-const connectionGateDemoDetailsEl = document.getElementById("connection-gate-demo-details");
 const appLoadingScreenEl = document.getElementById("app-loading-screen");
 
 function hideLoadingScreen() {
@@ -649,88 +646,6 @@ function showConnectionGate(message, tone = "default", connectionSettings = null
     finalMessage = `${message} The API key is saved for this session only — your browser blocks persistent storage, so it resets when the browser fully closes.`;
   }
   setConnectionGateStatus(finalMessage, tone);
-  void refreshConnectionGateDemo();
-}
-
-// --- Demo access on the gate -------------------------------------------------
-
-let demoAccessCache = {
-  baseUrl: "",
-  value: undefined
-};
-
-function getDemoCandidateBaseUrls() {
-  const candidates = [];
-  const addCandidate = (rawValue) => {
-    const normalized = normalizeConnectionSettingsInput({
-      apiBaseUrl: String(rawValue || "").trim()
-    }).apiBaseUrl;
-    // Only accept real http(s) URLs. Autofill/typing can feed partial values
-    // ("h", "ht", "https://api…" mid-edit) — those must never trigger fetches.
-    if (!normalized || !/^https?:\/\//i.test(normalized)) {
-      return;
-    }
-    if (!candidates.includes(normalized)) {
-      candidates.push(normalized);
-    }
-  };
-
-  addCandidate(connectionGateBaseUrlEl?.value || "");
-  addCandidate(getConnectionSettings()?.apiBaseUrl || "");
-  return candidates;
-}
-
-function applyDemoAccessBox() {
-  const demo = demoAccessCache.value;
-  if (!connectionGateDemoEl) {
-    return;
-  }
-  if (!demo || demo.enabled !== true) {
-    connectionGateDemoEl.hidden = true;
-    return;
-  }
-  connectionGateDemoEl.hidden = false;
-  if (connectionGateDemoDetailsEl) {
-    const keyPreview = demo.apiKey
-      ? `${String(demo.apiKey).slice(0, 10)}…`
-      : "(no key needed)";
-    connectionGateDemoDetailsEl.textContent = `${demo.name || "Demo User"} (${demo.id}) · ${demo.apiBaseUrl} · ${keyPreview}`;
-  }
-}
-
-async function refreshConnectionGateDemo() {
-  if (!connectionGateDemoEl) {
-    return;
-  }
-  const candidates = getDemoCandidateBaseUrls();
-  if (!candidates.length) {
-    demoAccessCache = { baseUrl: "", value: undefined };
-    applyDemoAccessBox();
-    return;
-  }
-
-  for (const baseUrl of candidates) {
-    if (demoAccessCache.baseUrl === baseUrl && demoAccessCache.value !== undefined) {
-      applyDemoAccessBox();
-      return;
-    }
-    try {
-      const response = await fetch(`${baseUrl}/api/v1/demo-access`, { cache: "no-store" });
-      if (!response.ok) {
-        demoAccessCache = { baseUrl, value: null };
-        continue;
-      }
-      const payload = await response.json().catch(() => null);
-      demoAccessCache = { baseUrl, value: payload && payload.enabled === true ? payload : null };
-      break;
-    } catch (_error) {
-      // Network/CORS failure: the first candidate is the authoritative base
-      // URL, so stop here instead of falling back to other origins.
-      demoAccessCache = { baseUrl, value: null };
-      break;
-    }
-  }
-  applyDemoAccessBox();
 }
 
 function hideConnectionGate() {
@@ -918,41 +833,24 @@ function bindConnectionGate() {
     });
   }
 
-  if (connectionGateDemoUseEl) {
-    connectionGateDemoUseEl.addEventListener("click", () => {
-      const demo = demoAccessCache.value;
-      if (!demo || demo.enabled !== true) {
-        return;
-      }
-      if (connectionGateBaseUrlEl) {
-        connectionGateBaseUrlEl.value = String(demo.apiBaseUrl || "");
-      }
-      if (connectionGateApiKeyEl) {
-        connectionGateApiKeyEl.value = String(demo.apiKey || "");
-      }
-      stopBackgroundReconnect();
-      void ensureConnectedApp(getConnectionSettingsFromGate());
-    });
-  }
-
+  let pluginRefreshTimer = null;
   [connectionGateBaseUrlEl, connectionGateApiKeyEl].forEach((element) => {
     if (!element) {
       return;
     }
 
-    let demoRefreshTimer = null;
     element.addEventListener("input", () => {
       stopBackgroundReconnect();
       if (element === connectionGateBaseUrlEl) {
-        // Debounce: autofill/password managers type character-by-character and
-        // each keystroke would otherwise fire a demo-access request.
-        if (demoRefreshTimer) {
-          window.clearTimeout(demoRefreshTimer);
+        // Re-discover opted-in "public" plugins for the entered API URL so
+        // things like the demo gate button can appear before login.
+        if (pluginRefreshTimer) {
+          window.clearTimeout(pluginRefreshTimer);
         }
-        demoRefreshTimer = window.setTimeout(() => {
-          demoRefreshTimer = null;
-          void refreshConnectionGateDemo();
-        }, 400);
+        pluginRefreshTimer = window.setTimeout(() => {
+          pluginRefreshTimer = null;
+          void window.TaroTimePluginHost?.refresh?.();
+        }, 450);
       }
     });
 
@@ -966,7 +864,6 @@ function bindConnectionGate() {
 
   document.addEventListener("connection:updated", () => {
     syncConnectionGateInputs();
-    void refreshConnectionGateDemo();
   });
 }
 

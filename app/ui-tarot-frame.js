@@ -258,6 +258,10 @@
     showInfo: false,
     layoutGuideVisible: false,
     settingsOpen: false,
+    settingsOverlayOpen: false,
+    settingsPanelRestore: null,
+    framesPanelMode: "list",
+    framesPanelRenameId: "",
     layoutMenuOpen: false,
     gridFocusMode: true,
     currentLayoutId: "frames",
@@ -268,6 +272,7 @@
     layoutNotesById: {},
     exportInProgress: false,
     exportFormat: "webp",
+    exportScope: "used",
     gridZoomStepIndex: 0,
     gridZoomScale: FRAME_GRID_ZOOM_STEPS[0]
   };
@@ -354,6 +359,7 @@
       tarotFrameFramesPanelEl: document.getElementById("tarot-frame-frames-panel"),
       tarotFrameGridZoomEl: document.getElementById("tarot-frame-grid-zoom"),
       tarotFrameDeckSelectEl: document.getElementById("tarot-frame-deck-select"),
+      tarotFrameExportScopeEl: document.getElementById("tarot-frame-export-scope"),
       tarotFrameShowInfoEl: document.getElementById("tarot-frame-show-info"),
       tarotFrameHouseSettingsEl: document.getElementById("tarot-frame-house-settings"),
       tarotFrameHouseTopCardsVisibleEl: document.getElementById("tarot-frame-house-top-cards-visible"),
@@ -1147,8 +1153,10 @@
 
     document.body.classList.toggle("is-tarot-frame-focus-lock", Boolean(state.gridFocusMode));
 
-    // Move settings panel to view for proper absolute positioning in immersive mode
-    if (tarotFrameViewEl && tarotFrameSettingsPanelEl && state.gridFocusMode) {
+    // Move settings panel to view for proper absolute positioning in immersive
+    // mode — but never when the shared overlay owns it, or it gets yanked out
+    // of the overlay (leaving an empty "Tarot Frame" header).
+    if (!state.settingsOverlayOpen && tarotFrameViewEl && tarotFrameSettingsPanelEl && state.gridFocusMode) {
       if (tarotFrameSettingsPanelEl.parentElement !== tarotFrameViewEl) {
         tarotFrameViewEl.appendChild(tarotFrameSettingsPanelEl);
       }
@@ -4171,14 +4179,35 @@
 
     const titleEl = document.createElement("strong");
     titleEl.textContent = layout.label;
+    const headEl = document.createElement("span");
+    headEl.className = "tarot-frame-layout-option-head";
+    headEl.appendChild(titleEl);
+    if (isActive) {
+      const activeBadgeEl = document.createElement("span");
+      activeBadgeEl.className = "tarot-frame-layout-option-active";
+      activeBadgeEl.textContent = "Active";
+      headEl.appendChild(activeBadgeEl);
+    }
     const descriptionEl = document.createElement("span");
     descriptionEl.textContent = layout.isCustom
       ? buildSavedLayoutMenuDescription(layout)
       : (layout.id === "house"
         ? "The legacy house composition rebuilt inside the 24x24 snap grid."
         : "The current master frame with top-row extras and nested chronological rings.");
-    button.append(titleEl, descriptionEl);
+    button.append(headEl, descriptionEl);
     return button;
+  }
+
+  function syncBuiltInLayoutOptions() {
+    const { tarotFrameLayoutOptionsEl } = getElements();
+    if (!(tarotFrameLayoutOptionsEl instanceof HTMLElement)) {
+      return;
+    }
+    tarotFrameLayoutOptionsEl.querySelectorAll("[data-layout-preset-id]").forEach((optionEl) => {
+      const isActive = optionEl.dataset.layoutPresetId === state.currentLayoutId;
+      optionEl.classList.toggle("is-active", isActive);
+      optionEl.setAttribute("aria-checked", isActive ? "true" : "false");
+    });
   }
 
   function renderFramesPanel() {
@@ -4189,14 +4218,80 @@
 
     tarotFrameFramesPanelEl.replaceChildren();
 
+    const naming = state.framesPanelMode === "new" || state.framesPanelMode === "rename";
+    if (naming) {
+      const editing = state.framesPanelMode === "rename";
+      const current = editing ? getSavedLayout(state.framesPanelRenameId) : null;
+      if (editing && !current) {
+        state.framesPanelMode = "list";
+        state.framesPanelRenameId = "";
+      } else {
+        const titleEl = document.createElement("div");
+        titleEl.className = "tarot-frame-layout-section-title";
+        titleEl.textContent = editing ? "Rename Frame" : "New Frame";
+        tarotFrameFramesPanelEl.appendChild(titleEl);
+
+        const formEl = document.createElement("div");
+        formEl.className = "tarot-frame-frame-form";
+        const inputEl = document.createElement("input");
+        inputEl.type = "text";
+        inputEl.className = "tarot-frame-frame-name-input";
+        inputEl.maxLength = 80;
+        inputEl.placeholder = "Frame name";
+        inputEl.value = editing ? (current?.label || "") : "";
+        formEl.appendChild(inputEl);
+
+        const formActionsEl = document.createElement("div");
+        formActionsEl.className = "tarot-frame-frame-form-actions";
+        const commitEl = document.createElement("button");
+        commitEl.type = "button";
+        commitEl.className = "tarot-frame-layout-save-btn";
+        commitEl.dataset.frameAction = "commit-name";
+        commitEl.textContent = editing ? "Save Name" : "Create Frame";
+        const cancelEl = document.createElement("button");
+        cancelEl.type = "button";
+        cancelEl.className = "tarot-frame-frame-action-btn";
+        cancelEl.dataset.frameAction = "cancel-name";
+        cancelEl.textContent = "Cancel";
+        formActionsEl.append(commitEl, cancelEl);
+        formEl.appendChild(formActionsEl);
+        tarotFrameFramesPanelEl.appendChild(formEl);
+
+        inputEl.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            commitFrameName(inputEl.value);
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            cancelFrameName();
+          }
+        });
+        window.setTimeout(() => inputEl.focus(), 30);
+        return;
+      }
+    }
+
     const actionsEl = document.createElement("div");
     actionsEl.className = "tarot-frame-frames-actions";
+
+    const activeFrame = getSavedLayout(state.currentLayoutId);
+    if (activeFrame) {
+      const saveActiveEl = document.createElement("button");
+      saveActiveEl.type = "button";
+      saveActiveEl.className = "tarot-frame-layout-save-btn";
+      saveActiveEl.dataset.frameAction = "save-active";
+      saveActiveEl.textContent = "Save Frame";
+      saveActiveEl.title = `Update "${activeFrame.label}" with the current arrangement`;
+      saveActiveEl.disabled = Boolean(state.exportInProgress);
+      actionsEl.appendChild(saveActiveEl);
+    }
+
     const newButtonEl = document.createElement("button");
     newButtonEl.type = "button";
     newButtonEl.className = "tarot-frame-layout-save-btn";
     newButtonEl.dataset.frameAction = "new";
     newButtonEl.textContent = "New Frame";
-    newButtonEl.title = "Name and save the current arrangement as a frame";
+    newButtonEl.title = "Name and save the current arrangement as a new frame";
     newButtonEl.disabled = Boolean(state.exportInProgress);
     actionsEl.appendChild(newButtonEl);
     tarotFrameFramesPanelEl.appendChild(actionsEl);
@@ -4238,31 +4333,135 @@
     });
   }
 
-  function saveCurrentLayout() {
+  function beginNewFrame() {
+    state.framesPanelMode = "new";
+    state.framesPanelRenameId = "";
+    renderFramesPanel();
+  }
+
+  function saveActiveFrame() {
+    const activeFrame = getSavedLayout(state.currentLayoutId);
+    if (!activeFrame) {
+      beginNewFrame();
+      return;
+    }
+    saveCurrentLayout(activeFrame.label);
+  }
+
+  function beginRenameFrame(frameId) {
+    const frame = getSavedLayout(frameId);
+    if (!frame) {
+      return;
+    }
+    state.framesPanelMode = "rename";
+    state.framesPanelRenameId = frame.id;
+    renderFramesPanel();
+  }
+
+  function cancelFrameName() {
+    state.framesPanelMode = "list";
+    state.framesPanelRenameId = "";
+    renderFramesPanel();
+  }
+
+  function commitFrameName(rawName) {
+    const label = normalizeLayoutLabel(rawName);
+    if (!label) {
+      setStatus("Enter a name for this frame.");
+      return;
+    }
+    const ok = state.framesPanelMode === "rename"
+      ? renameSavedLayout(state.framesPanelRenameId, label)
+      : saveCurrentLayout(label);
+    if (ok) {
+      state.framesPanelMode = "list";
+      state.framesPanelRenameId = "";
+    }
+    renderFramesPanel();
+  }
+
+  function openFrameSettings() {
+    const { tarotFrameSettingsPanelEl } = getElements();
+    if (!(tarotFrameSettingsPanelEl instanceof HTMLElement) || state.settingsOverlayOpen) {
+      return;
+    }
+
+    const overlayApi = window.TaroOverlay;
+    if (!overlayApi?.open) {
+      // Fallback to the inline dropdown when the shared overlay is unavailable.
+      state.settingsOpen = true;
+      syncControls();
+      return;
+    }
+
+    state.settingsPanelRestore = {
+      parent: tarotFrameSettingsPanelEl.parentNode,
+      nextSibling: tarotFrameSettingsPanelEl.nextSibling
+    };
+
+    overlayApi.open({
+      title: "Tarot Frame",
+      body: tarotFrameSettingsPanelEl,
+      size: "large",
+      className: "tarot-frame-settings-overlay",
+      onClose: () => {
+        state.settingsOverlayOpen = false;
+        state.settingsOpen = false;
+        const restore = state.settingsPanelRestore;
+        state.settingsPanelRestore = null;
+        if (restore?.parent) {
+          restore.parent.insertBefore(tarotFrameSettingsPanelEl, restore.nextSibling || null);
+        }
+        tarotFrameSettingsPanelEl.hidden = true;
+        syncControls();
+      }
+    });
+
+    // Set state after open() so any overlay it dismisses cannot hide our panel.
+    state.settingsOverlayOpen = true;
+    state.settingsOpen = true;
+    tarotFrameSettingsPanelEl.hidden = false;
+    renderFramesPanel();
+  }
+
+  function closeFrameSettings() {
+    if (state.settingsOverlayOpen) {
+      window.TaroOverlay?.close?.();
+      return;
+    }
+    if (state.settingsOpen) {
+      state.settingsOpen = false;
+      syncControls();
+    }
+  }
+
+  function saveCurrentLayout(providedLabel = "") {
     const cards = getCards();
     if (!cards.length) {
       setStatus("Tarot cards are still loading...");
-      return;
+      return false;
     }
 
     const activeSavedLayout = getSavedLayout(state.currentLayoutId);
-    const suggestedName = activeSavedLayout?.label || "";
-    const inputName = window.prompt("Save current frame as:", suggestedName);
-    if (inputName === null) {
-      return;
+    let label = normalizeLayoutLabel(providedLabel);
+    if (!label) {
+      const suggestedName = activeSavedLayout?.label || "";
+      const inputName = window.prompt("Save current frame as:", suggestedName);
+      if (inputName === null) {
+        return false;
+      }
+      label = normalizeLayoutLabel(inputName);
     }
-
-    const label = normalizeLayoutLabel(inputName);
     if (!label) {
       setStatus("Frame save cancelled. Enter a name to save this arrangement.");
-      return;
+      return false;
     }
 
     const existingLayout = state.customLayouts.find((layout) => normalizeKey(layout.label) === normalizeKey(label)) || null;
     if (existingLayout && existingLayout.id !== activeSavedLayout?.id) {
       const shouldOverwrite = window.confirm(`Replace the frame \"${existingLayout.label}\"?`);
       if (!shouldOverwrite) {
-        return;
+        return false;
       }
     }
 
@@ -4277,7 +4476,7 @@
     });
     if (!savedLayout) {
       setStatus("Unable to save this frame.");
-      return;
+      return false;
     }
 
     state.customLayouts = [...state.customLayouts.filter((layout) => layout.id !== savedLayout.id), savedLayout]
@@ -4291,23 +4490,26 @@
     setStatus(canUseProfileLayoutStore()
       ? `Saved frame \"${savedLayout.label}\" to your profile.`
       : `Saved frame \"${savedLayout.label}\" in this browser.`);
+    return true;
   }
 
-  function renameSavedLayout(layoutId) {
+  function renameSavedLayout(layoutId, providedLabel = "") {
     const savedLayout = getSavedLayout(layoutId);
     if (!savedLayout) {
-      return;
+      return false;
     }
 
-    const inputName = window.prompt("Rename frame:", savedLayout.label);
-    if (inputName === null) {
-      return;
+    let label = normalizeLayoutLabel(providedLabel);
+    if (!label) {
+      const inputName = window.prompt("Rename frame:", savedLayout.label);
+      if (inputName === null) {
+        return false;
+      }
+      label = normalizeLayoutLabel(inputName);
     }
-
-    const label = normalizeLayoutLabel(inputName);
     if (!label) {
       setStatus("Rename cancelled. Enter a name for this frame.");
-      return;
+      return false;
     }
 
     const duplicate = state.customLayouts.find((layout) => (
@@ -4315,13 +4517,13 @@
     ));
     if (duplicate) {
       setStatus(`A frame named "${label}" already exists.`);
-      return;
+      return false;
     }
 
     const renamed = normalizeSavedLayoutRecord({ ...savedLayout, label });
     if (!renamed) {
       setStatus("Could not rename this frame.");
-      return;
+      return false;
     }
 
     state.customLayouts = state.customLayouts
@@ -4331,6 +4533,7 @@
     renderFramesPanel();
     syncControls();
     setStatus(`Renamed frame to "${label}".`);
+    return true;
   }
 
   function deleteSavedLayout(layoutId) {
@@ -4366,11 +4569,7 @@
     return cardMap.get(cardId) || null;
   }
 
-  function getCardOverlayLabel(card, slotId = "") {
-    if (!state.showInfo) {
-      return "";
-    }
-
+  function computeCardOverlayLabel(card, slotId = "") {
     if (isCustomFrameCard(card)) {
       return "";
     }
@@ -4382,6 +4581,13 @@
     }
 
     return getCardOverlayDate(card) || formatMonthDay(getRelation(card, "decan")?.data?.dateStart) || getDisplayCardName(card, slotId);
+  }
+
+  function getCardOverlayLabel(card, slotId = "") {
+    if (!state.showInfo) {
+      return "";
+    }
+    return computeCardOverlayLabel(card, slotId);
   }
 
   function getOccupiedGridBounds(gridTrackEl) {
@@ -4690,10 +4896,12 @@
       button.appendChild(createCardTextFaceElement(buildCardTextFaceModel(card, slotId)));
     }
 
-    if (showImage && state.showInfo) {
+    if (showImage) {
+      // Always render the badge; `is-info-hidden` on the grid hides it, so the
+      // info toggle is a class flip instead of rebuilding all 576 slots.
       const overlay = document.createElement("span");
       overlay.className = "tarot-frame-card-badge";
-      overlay.textContent = getCardOverlayLabel(card, slotId);
+      overlay.textContent = computeCardOverlayLabel(card, slotId);
       button.appendChild(overlay);
     }
 
@@ -4798,6 +5006,14 @@
     notesEl.append(notesHeadEl, noteFieldEl, notesFooterEl);
     overviewEl.append(summaryEl, notesEl);
     return overviewEl;
+  }
+
+  function applyShowInfoToGrid() {
+    const { tarotFrameBoardEl } = getElements();
+    const grids = tarotFrameBoardEl?.querySelectorAll?.(".tarot-frame-grid") || [];
+    grids.forEach((gridEl) => {
+      gridEl.classList.toggle("is-info-hidden", !state.showInfo);
+    });
   }
 
   function render(options = {}) {
@@ -4956,6 +5172,7 @@
       tarotFrameSettingsPanelEl,
       tarotFrameGridZoomEl,
       tarotFrameDeckSelectEl,
+      tarotFrameExportScopeEl,
       tarotFrameShowInfoEl,
       tarotFrameHouseSettingsEl,
       tarotFrameHouseTopCardsVisibleEl,
@@ -4985,7 +5202,9 @@
     }
 
     if (tarotFrameSettingsPanelEl) {
-      tarotFrameSettingsPanelEl.hidden = !state.settingsOpen;
+      // While the shared overlay owns the panel, never hide it (an empty overlay
+      // body would otherwise show only the header).
+      tarotFrameSettingsPanelEl.hidden = state.settingsOverlayOpen ? false : !state.settingsOpen;
     }
 
     if (tarotFrameGridZoomEl) {
@@ -4996,6 +5215,11 @@
     if (tarotFrameDeckSelectEl) {
       buildDeckSelectOptions(tarotFrameDeckSelectEl, normalizeFrameDeckId(state.frameDeckId) || getFrameDeckId(), false);
       tarotFrameDeckSelectEl.disabled = Boolean(state.exportInProgress);
+    }
+
+    if (tarotFrameExportScopeEl) {
+      tarotFrameExportScopeEl.value = state.exportScope || "used";
+      tarotFrameExportScopeEl.disabled = Boolean(state.exportInProgress);
     }
 
     if (tarotFrameShowInfoEl) {
@@ -5052,6 +5276,7 @@
     }
 
     updateLayoutNotesUi();
+    syncBuiltInLayoutOptions();
     renderFramesPanel();
   }
 
@@ -5924,7 +6149,7 @@
     }
 
     let changed = false;
-    if (state.settingsOpen && !tarotFrameSettingsPanelEl?.contains(target) && !tarotFrameFocusExitEl?.contains(target)) {
+    if (!state.settingsOverlayOpen && state.settingsOpen && !tarotFrameSettingsPanelEl?.contains(target) && !tarotFrameFocusExitEl?.contains(target)) {
       state.settingsOpen = false;
       changed = true;
     }
@@ -5975,7 +6200,7 @@
 
     // gridFocusMode is locked for immersive full-grid experience; Escape only closes overlays
     let changed = false;
-    if (state.settingsOpen) {
+    if (state.settingsOpen && !state.settingsOverlayOpen) {
       state.settingsOpen = false;
       changed = true;
     }
@@ -6353,12 +6578,47 @@
     });
   }
 
+  function getExportBounds(scope = "used") {
+    const full = { minRow: 1, maxRow: MASTER_GRID_SIZE, minColumn: 1, maxColumn: MASTER_GRID_SIZE };
+    const fromSlotIds = (slotIds) => {
+      let minRow = Infinity;
+      let maxRow = -Infinity;
+      let minColumn = Infinity;
+      let maxColumn = -Infinity;
+      let found = false;
+      (slotIds || []).forEach((slotId) => {
+        const pos = parseSlotId(slotId);
+        if (!pos) return;
+        found = true;
+        minRow = Math.min(minRow, pos.row);
+        maxRow = Math.max(maxRow, pos.row);
+        minColumn = Math.min(minColumn, pos.column);
+        maxColumn = Math.max(maxColumn, pos.column);
+      });
+      return found ? { minRow, maxRow, minColumn, maxColumn } : null;
+    };
+    if (scope === "full") {
+      return full;
+    }
+    if (scope === "selection") {
+      const selectionBounds = fromSlotIds(getSelectedSlotIds());
+      if (selectionBounds) {
+        return selectionBounds;
+      }
+    }
+    return fromSlotIds([...state.slotAssignments.keys()]) || full;
+  }
+
   async function exportImage(format = "webp") {
     const cards = getCards();
     const cardMap = getCardMap(cards);
     const exportFormat = EXPORT_FORMATS[format] || EXPORT_FORMATS.webp;
-    const contentWidth = (MASTER_GRID_SIZE * EXPORT_SLOT_WIDTH) + ((MASTER_GRID_SIZE - 1) * EXPORT_GRID_GAP);
-    const contentHeight = (MASTER_GRID_SIZE * EXPORT_SLOT_HEIGHT) + ((MASTER_GRID_SIZE - 1) * EXPORT_GRID_GAP);
+    const scope = state.exportScope || "used";
+    const bounds = getExportBounds(scope);
+    const columns = Math.max(1, bounds.maxColumn - bounds.minColumn + 1);
+    const rows = Math.max(1, bounds.maxRow - bounds.minRow + 1);
+    const contentWidth = (columns * EXPORT_SLOT_WIDTH) + ((columns - 1) * EXPORT_GRID_GAP);
+    const contentHeight = (rows * EXPORT_SLOT_HEIGHT) + ((rows - 1) * EXPORT_GRID_GAP);
     const canvasWidth = contentWidth + (EXPORT_PADDING * 2);
     const canvasHeight = contentHeight + (EXPORT_PADDING * 2);
     const scale = Math.max(2, Math.min(2.5, Number(window.devicePixelRatio) || 1));
@@ -6376,8 +6636,14 @@
     context.scale(scale, scale);
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
-    context.fillStyle = EXPORT_BACKGROUND;
-    context.fillRect(0, 0, canvasWidth, canvasHeight);
+    // Full-grid exports keep the board background; trimmed/selection exports stay
+    // transparent outside the cards so the file stays tight (WebP supports alpha).
+    if (scope === "full") {
+      context.fillStyle = EXPORT_BACKGROUND;
+      context.fillRect(0, 0, canvasWidth, canvasHeight);
+    } else {
+      context.clearRect(0, 0, canvasWidth, canvasHeight);
+    }
 
     const imageCache = new Map();
     cards.forEach((card) => {
@@ -6411,12 +6677,17 @@
       resolvedCustomBackgroundImages.set(getCardId(card), image || null);
     }));
 
-    for (let row = 1; row <= MASTER_GRID_SIZE; row += 1) {
-      for (let column = 1; column <= MASTER_GRID_SIZE; column += 1) {
+    const originX = EXPORT_PADDING - ((bounds.minColumn - 1) * (EXPORT_SLOT_WIDTH + EXPORT_GRID_GAP));
+    const originY = EXPORT_PADDING - ((bounds.minRow - 1) * (EXPORT_SLOT_HEIGHT + EXPORT_GRID_GAP));
+    for (let row = bounds.minRow; row <= bounds.maxRow; row += 1) {
+      for (let column = bounds.minColumn; column <= bounds.maxColumn; column += 1) {
         const slotId = getSlotId(row, column);
         const card = getAssignedCard(slotId, cardMap);
-        const x = EXPORT_PADDING + ((column - 1) * (EXPORT_SLOT_WIDTH + EXPORT_GRID_GAP));
-        const y = EXPORT_PADDING + ((row - 1) * (EXPORT_SLOT_HEIGHT + EXPORT_GRID_GAP));
+        if (!card) {
+          continue;
+        }
+        const x = originX + ((column - 1) * (EXPORT_SLOT_WIDTH + EXPORT_GRID_GAP));
+        const y = originY + ((row - 1) * (EXPORT_SLOT_HEIGHT + EXPORT_GRID_GAP));
         drawSlotToCanvas(
           context,
           x,
@@ -6477,6 +6748,7 @@
       tarotFrameSettingsPanelEl,
       tarotFrameGridZoomEl,
       tarotFrameDeckSelectEl,
+      tarotFrameExportScopeEl,
       tarotFrameShowInfoEl,
       tarotFrameHouseTopCardsVisibleEl,
       tarotFrameHouseTopInfoHebrewEl,
@@ -6559,9 +6831,12 @@
         if (state.exportInProgress) {
           return;
         }
-        state.settingsOpen = !state.settingsOpen;
         state.layoutMenuOpen = false;
-        syncControls();
+        if (state.settingsOverlayOpen || state.settingsOpen) {
+          closeFrameSettings();
+        } else {
+          openFrameSettings();
+        }
       });
     }
 
@@ -6591,11 +6866,18 @@
           const action = actionEl.dataset.frameAction;
           const frameId = actionEl.dataset.frameId || "";
           if (action === "new") {
-            saveCurrentLayout();
+            beginNewFrame();
+          } else if (action === "save-active") {
+            saveActiveFrame();
           } else if (action === "rename") {
-            renameSavedLayout(frameId);
+            beginRenameFrame(frameId);
           } else if (action === "delete") {
             deleteSavedLayout(frameId);
+          } else if (action === "commit-name") {
+            const inputEl = tarotFrameFramesPanelEl.querySelector(".tarot-frame-frame-name-input");
+            commitFrameName(inputEl ? inputEl.value : "");
+          } else if (action === "cancel-name") {
+            cancelFrameName();
           }
           return;
         }
@@ -6604,7 +6886,8 @@
         if (!optionEl) return;
         const frameId = optionEl.dataset.layoutId;
         if (!frameId || frameId === state.currentLayoutId) return;
-        applyLayoutSelection(frameId, getCards(), "");
+        const frameDef = getSavedLayout(frameId);
+        applyLayoutSelection(frameId, getCards(), frameDef ? `Loaded frame "${frameDef.label}".` : "");
         state.layoutMenuOpen = false;
         render();
         syncControls();
@@ -6620,8 +6903,9 @@
     if (tarotFrameShowInfoEl) {
       tarotFrameShowInfoEl.addEventListener("change", () => {
         state.showInfo = Boolean(tarotFrameShowInfoEl.checked);
-        // Preserve the viewfinder so toggling info does not re-center/reset zoom.
-        render({ preserveViewport: true });
+        // Pure class flip on the existing grid — no re-render, so the viewfinder
+        // and animation stay smooth.
+        applyShowInfoToGrid();
         syncControls();
       });
     }
@@ -6640,6 +6924,15 @@
         syncControls();
         const deckLabel = getDeckOptionsList().find((option) => option.id === getFrameDeckId())?.label || "selected";
         setStatus(`Frame deck set to ${deckLabel}. Use card action menu to override individual slots.`);
+      });
+    }
+
+    if (tarotFrameExportScopeEl) {
+      tarotFrameExportScopeEl.addEventListener("change", () => {
+        state.exportScope = String(tarotFrameExportScopeEl.value || "used");
+        syncControls();
+        const scopeLabels = { used: "used cards (trimmed)", selection: "selected cards", full: "full grid" };
+        setStatus(`Export area set to ${scopeLabels[state.exportScope] || state.exportScope}.`);
       });
     }
 
