@@ -1413,7 +1413,10 @@
     settingsEl.appendChild(settingsBody);
 
     const LIBRARY_DIR = "library";
-    const AUDIO_EXTENSIONS = new Set([".mp3", ".ogg", ".wav", ".webm", ".m4a"]);
+    const AUDIO_EXTENSIONS = new Set([
+      ".mp3", ".ogg", ".oga", ".wav", ".webm", ".weba", ".m4a", ".m4b", ".mp4",
+      ".flac", ".aac", ".opus", ".aiff", ".aif", ".wma", ".alac", ".amr", ".wv"
+    ]);
     const isAudio = (file) => {
       const name = String(file?.name || "").toLowerCase();
       if (!name || name.startsWith(".")) return false;
@@ -1672,7 +1675,7 @@
       const uploadInput = document.createElement("input");
       uploadInput.type = "file";
       uploadInput.multiple = true;
-      uploadInput.accept = "audio/*,.mp3,.ogg,.wav,.webm,.m4a";
+      uploadInput.accept = "audio/*,.mp3,.ogg,.oga,.wav,.webm,.weba,.m4a,.m4b,.mp4,.flac,.aac,.opus,.aiff,.aif,.wma,.alac,.amr,.wv";
       uploadInput.style.display = "none";
       uploadLabel.appendChild(uploadInput);
       uploadInput.addEventListener("change", async () => {
@@ -1680,9 +1683,11 @@
         uploadInput.value = "";
         if (!fileList.length) return;
         let uploaded = 0;
+        let lastError = "";
         for (const file of fileList) {
           if (uploadLimitBytes && file.size > uploadLimitBytes) {
-            status.set(`Skipped '${file.name}' — over the server upload limit.`, true);
+            lastError = `Skipped '${file.name}' — over the server upload limit.`;
+            status.set(lastError, true);
             continue;
           }
           const dataUrl = await new Promise((resolve) => {
@@ -1691,7 +1696,11 @@
             reader.onerror = () => resolve(null);
             reader.readAsDataURL(file);
           });
-          if (!dataUrl) continue;
+          if (!dataUrl) {
+            lastError = `Could not read '${file.name}'.`;
+            status.set(lastError, true);
+            continue;
+          }
           try {
             await service.requestJson(
               "POST",
@@ -1700,13 +1709,16 @@
             );
             uploaded += 1;
           } catch (error) {
-            status.set(`Upload failed for '${file.name}'. ${error?.message || ""}`, true);
+            lastError = `Upload failed for '${file.name}'. ${error?.message || ""}`;
+            status.set(lastError, true);
             break;
           }
         }
         await loadLibrary();
         renderLibraryList();
-        status.set(uploaded ? `Uploaded ${uploaded} song(s) to the library.` : "Nothing uploaded.");
+        status.set(uploaded
+          ? `Uploaded ${uploaded} song(s) to the library.`
+          : (lastError || "Nothing uploaded."), !uploaded);
         document.dispatchEvent(new CustomEvent("taro-plugin-content-updated", { detail: { pluginName: plugin.name } }));
       });
       actionsRow.appendChild(uploadLabel);
