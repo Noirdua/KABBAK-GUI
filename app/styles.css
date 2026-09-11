@@ -29,6 +29,38 @@
       --tt-accent-soft: #a5b4fc;
       --tt-accent-pale: #e0e7ff;
       --tt-brand: #fbbf24;
+      --tt-scroll-track: #09090b;
+      --tt-scroll-thumb: #3f3f46;
+      --tt-scroll-thumb-hover: #6366f1;
+    }
+
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: var(--tt-scroll-thumb) var(--tt-scroll-track);
+    }
+
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--tt-scroll-thumb) var(--tt-scroll-track);
+    }
+
+    *::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: var(--tt-scroll-track);
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background: var(--tt-scroll-thumb);
+      border-radius: 999px;
+      border: 2px solid var(--tt-scroll-track);
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+      background: var(--tt-scroll-thumb-hover);
     }
 
     body {
@@ -51,6 +83,7 @@
       overflow: visible;
       position: relative;
       z-index: 40;
+      contain: layout;
     }
     .plugin-topbar-host {
       display: flex;
@@ -257,6 +290,7 @@
       gap: 10px;
       max-height: calc(100svh - 88px);
       overflow-y: auto;
+      contain: layout paint;
     }
     .topbar.is-menu-open .topbar-actions {
       display: grid;
@@ -340,9 +374,7 @@
         gap: 8px;
         align-items: center;
         flex-wrap: wrap;
-        background: rgba(24, 24, 27, 0.96);
-        -webkit-backdrop-filter: blur(14px);
-        backdrop-filter: blur(14px);
+        background: var(--tt-bg);
       }
       .topbar-home-button {
         font-size: 17px;
@@ -440,8 +472,6 @@
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
-      -webkit-backdrop-filter: blur(2px);
-      backdrop-filter: blur(2px);
     }
     .tarot-lightbox-backdrop {
       background-color: #000;
@@ -537,9 +567,7 @@
       padding: 24px;
       background:
         radial-gradient(circle at top, rgba(245, 158, 11, 0.18), transparent 34%),
-        linear-gradient(180deg, rgba(9, 9, 11, 0.84), rgba(9, 9, 11, 0.96));
-      -webkit-backdrop-filter: blur(8px);
-      backdrop-filter: blur(8px);
+        linear-gradient(180deg, var(--tt-bg-deepest), var(--tt-page-bg));
     }
     .connection-gate[hidden] {
       display: none;
@@ -4104,7 +4132,6 @@
       -webkit-touch-callout: none;
       transform: translateY(var(--frame-card-hover-lift)) rotate(var(--frame-card-rotation));
       transform-origin: center center;
-      will-change: transform, opacity, filter;
     }
 
     .tarot-frame-card.is-flipped {

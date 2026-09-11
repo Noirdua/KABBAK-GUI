@@ -136,7 +136,10 @@
       "accent-strong": mixHex(base.accent, white, 22),
       "accent-soft": mixHex(base.accent, white, 40),
       "accent-pale": mixHex(base.accent, white, 78),
-      brand: base.brand
+      brand: base.brand,
+      "scroll-track": mixHex(base.bg, black, 38),
+      "scroll-thumb": base.border,
+      "scroll-thumb-hover": base.accent
     };
   }
 
