@@ -1054,14 +1054,19 @@
 
     async function readMenuPresets() {
       try {
-        const url = window.TaroTimePluginHost?.assetUrl?.("menu-plugin", "presets.json")
-          || window.TarotDataService.buildApiUrl("/api/v1/plugins/menu-plugin/presets.json");
-        const response = await fetch(url, { cache: "no-store" });
-        if (!response.ok) return {};
-        const payload = await response.json().catch(() => null);
-        return payload && typeof payload === "object" && payload.presets && typeof payload.presets === "object"
-          ? payload.presets
-          : {};
+        const listing = await window.TarotDataService.requestJson(
+          "GET",
+          window.TarotDataService.buildApiUrl("/api/v1/plugins/menu-plugin/contents")
+        );
+        const files = Array.isArray(listing?.files) ? listing.files : [];
+        const hasPresets = files.some((file) => String(file?.name || file || "").toLowerCase() === "presets.json");
+        if (!hasPresets) return {};
+        const payload = await window.TarotDataService.requestJson(
+          "GET",
+          window.TarotDataService.buildApiUrl("/api/v1/plugins/menu-plugin/presets.json")
+        );
+        const presets = payload?.presets || payload?.data?.presets;
+        return presets && typeof presets === "object" ? presets : {};
       } catch (_error) {
         return {};
       }
@@ -1140,7 +1145,7 @@
           { config: buildCurrentConfig() }
         );
         document.dispatchEvent(new CustomEvent("taro-plugin-config-updated", {
-          detail: { pluginName: "menu-plugin" }
+          detail: { pluginName: "menu-plugin", config: buildCurrentConfig() }
         }));
         setStatus(`Loaded preset '${name}' and applied it to the menu.`);
       } catch (error) {
@@ -1322,7 +1327,7 @@
           { config: nextConfig }
         );
         document.dispatchEvent(new CustomEvent("taro-plugin-config-updated", {
-          detail: { pluginName: "menu-plugin" }
+          detail: { pluginName: "menu-plugin", config: nextConfig }
         }));
         setStatus("Menu order saved.");
         closeOverlay();
