@@ -91,24 +91,37 @@
 
   function showKeyOnce(key, contextLabel) {
     if (!key) return;
-    const holder = document.createElement("div");
-    holder.className = "admin-key-once";
-    holder.innerHTML = `
-      <strong>${escapeHtml(contextLabel)} key (shown once):</strong>
-      <code>${escapeHtml(key)}</code>
-      <div class="dlc-shop-actions" style="margin-top:6px;">
-        <button type="button" class="dlc-shop-btn" data-action="copy">Copy</button>
-        <button type="button" class="dlc-shop-btn" data-action="dismiss">Dismiss</button>
-      </div>
-    `;
-    holder.querySelector('[data-action="copy"]').addEventListener("click", () => copyText(key, "API key"));
-    holder.querySelector('[data-action="dismiss"]').addEventListener("click", () => holder.remove());
-    const { clientsTable } = getElements();
-    if (clientsTable) {
-      clientsTable.prepend(holder);
-    } else {
-      document.body.appendChild(holder);
-    }
+    document.querySelector(".admin-key-once-overlay")?.remove();
+    const overlay = document.createElement("div");
+    overlay.className = "dlc-settings-overlay admin-key-once-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", `${contextLabel} key`);
+    overlay.innerHTML = `
+      <div class="dlc-settings-overlay-panel">
+        <div class="dlc-settings-overlay-head"><strong>${escapeHtml(contextLabel)} — shown once</strong></div>
+        <div class="dlc-install-overlay-body">
+          <p class="settings-field-hint">Copy this key now. It will not be shown again after you close this dialog.</p>
+          <code class="admin-key-once-code">${escapeHtml(key)}</code>
+          <div class="dlc-shop-actions">
+            <button type="button" class="dlc-shop-btn" data-action="copy">Copy</button>
+            <button type="button" class="dlc-shop-btn" data-action="dismiss">Close</button>
+          </div>
+        </div>
+      </div>`;
+    overlay.querySelector('[data-action="copy"]').addEventListener("click", () => copyText(key, "API key"));
+    const closeOverlay = () => overlay.remove();
+    overlay.querySelector('[data-action="dismiss"]').addEventListener("click", closeOverlay);
+    overlay.addEventListener("mousedown", (event) => {
+      if (event.target === overlay) closeOverlay();
+    });
+    document.addEventListener("keydown", function onKey(event) {
+      if (event.key === "Escape") {
+        document.removeEventListener("keydown", onKey);
+        closeOverlay();
+      }
+    });
+    document.body.appendChild(overlay);
   }
 
   // --- Tabs ------------------------------------------------------------------
