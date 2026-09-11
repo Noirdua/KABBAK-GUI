@@ -25,7 +25,7 @@
       roleProviderPlanEl: document.getElementById("admin-role-provider-plan"),
       levelsListEl: document.getElementById("admin-levels-list"),
       dlcCatalogEl: document.getElementById("admin-dlc-catalog"),
-      pluginsReloadBtn: document.getElementById("admin-plugins-reload"),
+      pluginsReloadBtn: document.getElementById("admin-dlc-refresh"),
       settingLogModeEl: document.getElementById("admin-setting-log-mode"),
       settingAllowNullEl: document.getElementById("admin-setting-allow-null"),
       settingOriginsEl: document.getElementById("admin-setting-origins"),
@@ -1494,6 +1494,7 @@
             url: urlInput.value,
             branch: branchInput.value
           });
+          await window.TaroTimePluginHost?.refresh?.();
           await loadDlcSources();
           await loadPlugins();
           setStatus(`Saved ${source.name}.`);
@@ -1557,7 +1558,7 @@
     const { dlcCatalogEl } = getElements();
     if (!dlcCatalogEl) return;
     try {
-      const catalog = await requestJson("GET", "/api/v1/dlc/catalog");
+      const catalog = await requestJson("GET", "/api/v1/dlc/catalog?refresh=1");
       allDlcItems = Array.isArray(catalog?.items) ? catalog.items : [];
       renderDlcCatalog();
       const baseUrl = window.TarotDataService?.getApiBaseUrl?.() || "";
@@ -1608,46 +1609,23 @@
     bindServerControls();
     const { pluginsReloadBtn } = getElements();
     if (pluginsReloadBtn) {
-      pluginsReloadBtn.addEventListener("click", () => {
-        setStatus("Reloading plugins…");
-        void window.TaroTimePluginHost?.refresh?.().then(() => {
-          // Re-fetch the catalog too — the browser host reload alone does not
-          // refresh the DLC list after a failed/slow first load.
-          void loadPlugins();
-          setStatus("Plugins reloaded.");
-        });
-      });
-    }
-    const storageReloadBtn = document.getElementById("admin-dlc-reload");
-    if (storageReloadBtn) {
-      storageReloadBtn.addEventListener("click", () => {
-        storageReloadBtn.disabled = true;
-        setStatus("Refreshing storage snapshot…");
-        void reloadStorageInBackground()
-          .then(() => pollReloadStatus((text, isError) => setStatus(text, isError)))
-          .finally(() => {
-            storageReloadBtn.disabled = false;
-          });
-      });
-    }
-    const dlcUpdateBtn = document.getElementById("admin-dlc-update");
-    if (dlcUpdateBtn) {
-      dlcUpdateBtn.addEventListener("click", async () => {
-        dlcUpdateBtn.disabled = true;
-        setStatus("Updating DLC checkout…");
+      pluginsReloadBtn.addEventListener("click", async () => {
+        pluginsReloadBtn.disabled = true;
+        setStatus("Refreshing DLC…");
         try {
           const result = await requestJson("POST", "/api/v1/admin/dlc/update", {});
-          if (result?.updated !== true) {
-            setStatus(`Could not update DLC. ${result?.error || "Update failed."}`, true);
+          if (result?.updated === false) {
+            setStatus(`Could not refresh DLC. ${result?.error || "Update failed."}`, true);
             return;
           }
           await window.TaroTimePluginHost?.refresh?.();
+          await loadDlcSources();
           await loadPlugins();
-          setStatus(`DLC updated to ${result?.head || "latest"}.`);
+          setStatus(`DLC refreshed${result?.head ? ` (${result.head})` : ""}.`);
         } catch (error) {
-          setStatus(`Could not update DLC. ${error?.message || ""}`, true);
+          setStatus(`Could not refresh DLC. ${error?.message || ""}`, true);
         } finally {
-          dlcUpdateBtn.disabled = false;
+          pluginsReloadBtn.disabled = false;
         }
       });
     }
@@ -1669,6 +1647,7 @@
           const urlEl = document.getElementById("admin-dlc-source-url");
           if (nameEl) nameEl.value = "";
           if (urlEl) urlEl.value = "";
+          await window.TaroTimePluginHost?.refresh?.();
           await loadDlcSources();
           await loadPlugins();
           setStatus("DLC repository added.");
