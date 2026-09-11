@@ -3115,6 +3115,47 @@
       align-items: stretch;
     }
 
+    .tarot-frame-frames-panel {
+      display: grid;
+      gap: 8px;
+    }
+
+    .tarot-frame-frames-actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .tarot-frame-frame-entry {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .tarot-frame-frame-action-btn {
+      align-self: stretch;
+      padding: 10px 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 12px;
+      background: rgba(30, 41, 59, 0.5);
+      color: var(--tt-text-cool);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tarot-frame-frame-action-btn:hover {
+      border-color: rgba(165, 180, 252, 0.7);
+      color: #e0e7ff;
+    }
+
+    .tarot-frame-frame-action-btn:disabled,
+    .tarot-frame-layout-save-btn:disabled,
+    .tarot-frame-layout-delete-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .tarot-frame-layout-delete-btn {
       align-self: stretch;
       padding: 10px 12px;

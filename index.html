@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260911-journal-overlay">
+  <link rel="stylesheet" href="app/styles.css?v=20260911-frames-manager">
   <link rel="stylesheet" href="app/ui-look.css?v=20260902-theme-surfaces">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -1011,11 +1011,13 @@
                   <strong>Zodiac</strong>
                   <span>Twelve zodiac trumps in order, two rows of six.</span>
                 </button>
-                <button class="tarot-frame-layout-option" type="button" data-layout-preset-id="planets" role="menuitemradio" aria-checked="false">
-                  <strong>Planets</strong>
-                  <span>Planetary majors in a compact centered band.</span>
-                </button>
-              </div>
+                 <button class="tarot-frame-layout-option" type="button" data-layout-preset-id="planets" role="menuitemradio" aria-checked="false">
+                   <strong>Planets</strong>
+                   <span>Planetary majors in a compact centered band.</span>
+                 </button>
+               </div>
+              <div class="tarot-frame-settings-heading">Frames</div>
+              <div id="tarot-frame-frames-panel" class="tarot-frame-frames-panel"></div>
               <label class="tarot-frame-field" for="tarot-frame-grid-zoom">
                 <span>Grid Zoom</span>
                 <select id="tarot-frame-grid-zoom">

@@ -351,6 +351,7 @@
       tarotFrameFocusExitEl: document.getElementById("tarot-frame-focus-exit"),
       tarotFrameSettingsPanelEl: document.getElementById("tarot-frame-settings-panel"),
       tarotFrameLayoutOptionsEl: document.getElementById("tarot-frame-layout-options"),
+      tarotFrameFramesPanelEl: document.getElementById("tarot-frame-frames-panel"),
       tarotFrameGridZoomEl: document.getElementById("tarot-frame-grid-zoom"),
       tarotFrameDeckSelectEl: document.getElementById("tarot-frame-deck-select"),
       tarotFrameShowInfoEl: document.getElementById("tarot-frame-show-info"),
@@ -4180,72 +4181,60 @@
     return button;
   }
 
-  function renderLayoutPanel() {
-    const { tarotFrameLayoutPanelEl } = getElements();
-    if (!(tarotFrameLayoutPanelEl instanceof HTMLElement)) {
+  function renderFramesPanel() {
+    const { tarotFrameFramesPanelEl } = getElements();
+    if (!(tarotFrameFramesPanelEl instanceof HTMLElement)) {
       return;
     }
 
-    tarotFrameLayoutPanelEl.replaceChildren();
+    tarotFrameFramesPanelEl.replaceChildren();
 
-    const saveButtonEl = document.createElement("button");
-    saveButtonEl.type = "button";
-    saveButtonEl.className = "tarot-frame-layout-save-btn";
-    saveButtonEl.dataset.layoutSaveAction = "true";
-    saveButtonEl.textContent = "Save Current Layout";
-    saveButtonEl.disabled = Boolean(state.exportInProgress);
-    tarotFrameLayoutPanelEl.appendChild(saveButtonEl);
-
-    const guideToggleEl = document.createElement("label");
-    guideToggleEl.className = "tarot-frame-toggle";
-    guideToggleEl.setAttribute("for", "tarot-frame-layout-guide-visible");
-    const guideToggleInputEl = document.createElement("input");
-    guideToggleInputEl.id = "tarot-frame-layout-guide-visible";
-    guideToggleInputEl.type = "checkbox";
-    guideToggleInputEl.checked = Boolean(state.layoutGuideVisible);
-    guideToggleInputEl.disabled = Boolean(state.exportInProgress);
-    guideToggleInputEl.dataset.layoutGuideVisible = "true";
-    const guideToggleLabelEl = document.createElement("span");
-    guideToggleLabelEl.textContent = "Show layout guide + notes";
-    guideToggleEl.append(guideToggleInputEl, guideToggleLabelEl);
-    tarotFrameLayoutPanelEl.appendChild(guideToggleEl);
-
-    const builtInHeadingEl = document.createElement("div");
-    builtInHeadingEl.className = "tarot-frame-layout-section-title";
-    builtInHeadingEl.textContent = "Built-in Layouts";
-    tarotFrameLayoutPanelEl.appendChild(builtInHeadingEl);
-
-    LAYOUT_PRESETS.forEach((layout) => {
-      tarotFrameLayoutPanelEl.appendChild(createLayoutOptionButton(layout, state.currentLayoutId === layout.id));
-    });
-
-    const savedHeadingEl = document.createElement("div");
-    savedHeadingEl.className = "tarot-frame-layout-section-title";
-    savedHeadingEl.textContent = "Saved Layouts";
-    tarotFrameLayoutPanelEl.appendChild(savedHeadingEl);
+    const actionsEl = document.createElement("div");
+    actionsEl.className = "tarot-frame-frames-actions";
+    const newButtonEl = document.createElement("button");
+    newButtonEl.type = "button";
+    newButtonEl.className = "tarot-frame-layout-save-btn";
+    newButtonEl.dataset.frameAction = "new";
+    newButtonEl.textContent = "New Frame";
+    newButtonEl.title = "Name and save the current arrangement as a frame";
+    newButtonEl.disabled = Boolean(state.exportInProgress);
+    actionsEl.appendChild(newButtonEl);
+    tarotFrameFramesPanelEl.appendChild(actionsEl);
 
     if (!state.customLayouts.length) {
       const emptyEl = document.createElement("div");
       emptyEl.className = "tarot-frame-layout-empty-note";
-      emptyEl.textContent = "Save a layout with a name to keep it on your profile (and in this browser).";
-      tarotFrameLayoutPanelEl.appendChild(emptyEl);
+      emptyEl.textContent = "No frames yet. Arrange cards, then choose New Frame to name and save this state.";
+      tarotFrameFramesPanelEl.appendChild(emptyEl);
       return;
     }
 
-    state.customLayouts.forEach((layout) => {
+    state.customLayouts.forEach((frame) => {
       const rowEl = document.createElement("div");
-      rowEl.className = "tarot-frame-layout-entry";
-      rowEl.appendChild(createLayoutOptionButton(layout, state.currentLayoutId === layout.id));
+      rowEl.className = "tarot-frame-frame-entry";
+      rowEl.appendChild(createLayoutOptionButton(frame, state.currentLayoutId === frame.id));
+
+      const renameButtonEl = document.createElement("button");
+      renameButtonEl.type = "button";
+      renameButtonEl.className = "tarot-frame-frame-action-btn";
+      renameButtonEl.dataset.frameAction = "rename";
+      renameButtonEl.dataset.frameId = frame.id;
+      renameButtonEl.textContent = "Rename";
+      renameButtonEl.disabled = Boolean(state.exportInProgress);
+      renameButtonEl.setAttribute("aria-label", `Rename frame ${frame.label}`);
+      rowEl.appendChild(renameButtonEl);
 
       const deleteButtonEl = document.createElement("button");
       deleteButtonEl.type = "button";
       deleteButtonEl.className = "tarot-frame-layout-delete-btn";
-      deleteButtonEl.dataset.layoutDeleteId = layout.id;
+      deleteButtonEl.dataset.frameAction = "delete";
+      deleteButtonEl.dataset.frameId = frame.id;
       deleteButtonEl.textContent = "Delete";
       deleteButtonEl.disabled = Boolean(state.exportInProgress);
-      deleteButtonEl.setAttribute("aria-label", `Delete saved layout ${layout.label}`);
+      deleteButtonEl.setAttribute("aria-label", `Delete frame ${frame.label}`);
       rowEl.appendChild(deleteButtonEl);
-      tarotFrameLayoutPanelEl.appendChild(rowEl);
+
+      tarotFrameFramesPanelEl.appendChild(rowEl);
     });
   }
 
@@ -4258,20 +4247,20 @@
 
     const activeSavedLayout = getSavedLayout(state.currentLayoutId);
     const suggestedName = activeSavedLayout?.label || "";
-    const inputName = window.prompt("Save current Tarot Frame layout as:", suggestedName);
+    const inputName = window.prompt("Save current frame as:", suggestedName);
     if (inputName === null) {
       return;
     }
 
     const label = normalizeLayoutLabel(inputName);
     if (!label) {
-      setStatus("Layout save cancelled. Enter a name to save this arrangement.");
+      setStatus("Frame save cancelled. Enter a name to save this arrangement.");
       return;
     }
 
     const existingLayout = state.customLayouts.find((layout) => normalizeKey(layout.label) === normalizeKey(label)) || null;
     if (existingLayout && existingLayout.id !== activeSavedLayout?.id) {
-      const shouldOverwrite = window.confirm(`Replace the saved layout \"${existingLayout.label}\"?`);
+      const shouldOverwrite = window.confirm(`Replace the frame \"${existingLayout.label}\"?`);
       if (!shouldOverwrite) {
         return;
       }
@@ -4287,7 +4276,7 @@
       createdAt: existingLayout?.createdAt || activeSavedLayout?.createdAt || new Date().toISOString()
     });
     if (!savedLayout) {
-      setStatus("Unable to save this layout.");
+      setStatus("Unable to save this frame.");
       return;
     }
 
@@ -4300,8 +4289,48 @@
     render();
     syncControls();
     setStatus(canUseProfileLayoutStore()
-      ? `Saved layout \"${savedLayout.label}\" to your profile.`
-      : `Saved layout \"${savedLayout.label}\" in this browser.`);
+      ? `Saved frame \"${savedLayout.label}\" to your profile.`
+      : `Saved frame \"${savedLayout.label}\" in this browser.`);
+  }
+
+  function renameSavedLayout(layoutId) {
+    const savedLayout = getSavedLayout(layoutId);
+    if (!savedLayout) {
+      return;
+    }
+
+    const inputName = window.prompt("Rename frame:", savedLayout.label);
+    if (inputName === null) {
+      return;
+    }
+
+    const label = normalizeLayoutLabel(inputName);
+    if (!label) {
+      setStatus("Rename cancelled. Enter a name for this frame.");
+      return;
+    }
+
+    const duplicate = state.customLayouts.find((layout) => (
+      layout.id !== savedLayout.id && normalizeKey(layout.label) === normalizeKey(label)
+    ));
+    if (duplicate) {
+      setStatus(`A frame named "${label}" already exists.`);
+      return;
+    }
+
+    const renamed = normalizeSavedLayoutRecord({ ...savedLayout, label });
+    if (!renamed) {
+      setStatus("Could not rename this frame.");
+      return;
+    }
+
+    state.customLayouts = state.customLayouts
+      .map((layout) => (layout.id === savedLayout.id ? renamed : layout))
+      .sort((left, right) => String(left.label || "").localeCompare(String(right.label || "")));
+    persistSavedLayouts();
+    renderFramesPanel();
+    syncControls();
+    setStatus(`Renamed frame to "${label}".`);
   }
 
   function deleteSavedLayout(layoutId) {
@@ -4310,7 +4339,7 @@
       return;
     }
 
-    const shouldDelete = window.confirm(`Delete the saved layout \"${savedLayout.label}\" from this browser?`);
+    const shouldDelete = window.confirm(`Delete the frame \"${savedLayout.label}\"?`);
     if (!shouldDelete) {
       return;
     }
@@ -4322,14 +4351,14 @@
 
     const cards = getCards();
     if (state.currentLayoutId === savedLayout.id) {
-      applyLayoutPreset("frames", cards, `Deleted saved layout \"${savedLayout.label}\". Frames layout applied to the master grid.`);
+      applyLayoutPreset("frames", cards, `Deleted frame \"${savedLayout.label}\". Frames layout applied to the master grid.`);
       render();
       syncControls();
       return;
     }
 
     syncControls();
-    setStatus(`Deleted saved layout \"${savedLayout.label}\" from this browser.`);
+    setStatus(`Deleted frame \"${savedLayout.label}\".`);
   }
 
   function getAssignedCard(slotId, cardMap) {
@@ -5023,6 +5052,7 @@
     }
 
     updateLayoutNotesUi();
+    renderFramesPanel();
   }
 
   function getSlotElement(slotId) {
@@ -6443,6 +6473,7 @@
       tarotFrameSelectionChipEl,
       tarotFrameFocusExitEl,
       tarotFrameLayoutOptionsEl,
+      tarotFrameFramesPanelEl,
       tarotFrameSettingsPanelEl,
       tarotFrameGridZoomEl,
       tarotFrameDeckSelectEl,
@@ -6550,6 +6581,36 @@
       });
     }
 
+    if (tarotFrameFramesPanelEl) {
+      tarotFrameFramesPanelEl.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (state.exportInProgress) return;
+
+        const actionEl = event.target?.closest?.("[data-frame-action]");
+        if (actionEl) {
+          const action = actionEl.dataset.frameAction;
+          const frameId = actionEl.dataset.frameId || "";
+          if (action === "new") {
+            saveCurrentLayout();
+          } else if (action === "rename") {
+            renameSavedLayout(frameId);
+          } else if (action === "delete") {
+            deleteSavedLayout(frameId);
+          }
+          return;
+        }
+
+        const optionEl = event.target?.closest?.("[data-layout-id]");
+        if (!optionEl) return;
+        const frameId = optionEl.dataset.layoutId;
+        if (!frameId || frameId === state.currentLayoutId) return;
+        applyLayoutSelection(frameId, getCards(), "");
+        state.layoutMenuOpen = false;
+        render();
+        syncControls();
+      });
+    }
+
     if (tarotFrameSettingsPanelEl) {
       tarotFrameSettingsPanelEl.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -6559,7 +6620,8 @@
     if (tarotFrameShowInfoEl) {
       tarotFrameShowInfoEl.addEventListener("change", () => {
         state.showInfo = Boolean(tarotFrameShowInfoEl.checked);
-        render();
+        // Preserve the viewfinder so toggling info does not re-center/reset zoom.
+        render({ preserveViewport: true });
         syncControls();
       });
     }
