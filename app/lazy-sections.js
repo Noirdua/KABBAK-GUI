@@ -31,7 +31,7 @@
     ],
     tarotFrame: [
       "node_modules/html2canvas/dist/html2canvas.min.js",
-      "app/ui-tarot-frame.js?v=20260911-export-hd"
+      "app/ui-tarot-frame.js?v=20260911-zodiac-planets"
     ],
     tarotHouse: [
       "app/ui-tarot-house.js?v=20260401-house-top-date-01"

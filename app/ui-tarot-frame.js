@@ -185,6 +185,41 @@
       buildPlacements(cards) {
         return buildHousePlacements(cards);
       }
+    },
+    {
+      id: "zodiac",
+      label: "Zodiac",
+      title: "Zodiac Trumps",
+      subtitle: "The twelve zodiac majors in seasonal order, two rows of six.",
+      statusMessage: "Zodiac layout applied to the master grid.",
+      legendItems: [
+        {
+          title: "Zodiac Trumps",
+          description: "Aries through Pisces in calendar order, six across and two down."
+        }
+      ],
+      buildPlacements(cards) {
+        return buildCenteredBandPlacements(getOrderedZodiacTrumps(cards), 2, 6);
+      }
+    },
+    {
+      id: "planets",
+      label: "Planets",
+      title: "Planet Trumps",
+      subtitle: "Major arcana with planetary correspondences, arranged in a compact centered band.",
+      statusMessage: "Planets layout applied to the master grid.",
+      legendItems: [
+        {
+          title: "Planet Trumps",
+          description: "Classical planets first (Saturn through Moon), then any extra planetary majors."
+        }
+      ],
+      buildPlacements(cards) {
+        const ordered = getOrderedPlanetTrumps(cards);
+        const columns = Math.min(7, Math.max(1, ordered.length));
+        const rows = Math.max(1, Math.ceil(ordered.length / columns));
+        return buildCenteredBandPlacements(ordered, rows, columns);
+      }
     }
   ];
 
@@ -381,6 +416,57 @@
   function isZodiacTrump(card) {
     return card?.arcana === "Major"
       && Boolean(getRelation(card, "zodiacCorrespondence"));
+  }
+
+  function isPlanetTrump(card) {
+    return card?.arcana === "Major"
+      && Boolean(getRelation(card, "planetCorrespondence"))
+      && !isZodiacTrump(card);
+  }
+
+  const PLANET_ORDER_IDS = ["saturn", "jupiter", "mars", "sun", "venus", "mercury", "moon", "uranus", "neptune", "pluto", "earth"];
+
+  function getOrderedZodiacTrumps(cards) {
+    return cards
+      .filter((card) => isZodiacTrump(card))
+      .sort((left, right) => {
+        const leftSignId = normalizeKey(getRelation(left, "zodiacCorrespondence")?.data?.signId);
+        const rightSignId = normalizeKey(getRelation(right, "zodiacCorrespondence")?.data?.signId);
+        return compareDateTokens(ZODIAC_START_TOKEN_BY_SIGN_ID[leftSignId], ZODIAC_START_TOKEN_BY_SIGN_ID[rightSignId], "03-21");
+      });
+  }
+
+  function getPlanetOrderIndex(card) {
+    const data = getRelation(card, "planetCorrespondence")?.data || {};
+    const key = normalizeKey(data.planetId || data.name || data.id);
+    const index = PLANET_ORDER_IDS.indexOf(key);
+    return index === -1 ? PLANET_ORDER_IDS.length : index;
+  }
+
+  function getOrderedPlanetTrumps(cards) {
+    return cards
+      .filter((card) => isPlanetTrump(card))
+      .sort((left, right) => {
+        const orderDiff = getPlanetOrderIndex(left) - getPlanetOrderIndex(right);
+        if (orderDiff) return orderDiff;
+        return String(left?.name || "").localeCompare(String(right?.name || ""));
+      });
+  }
+
+  function buildCenteredBandPlacements(orderedCards, rows, columns) {
+    const placements = [];
+    const safeColumns = Math.max(1, Number(columns) || 1);
+    const safeRows = Math.max(1, Number(rows) || 1);
+    const startColumn = Math.max(1, Math.floor((MASTER_GRID_SIZE - safeColumns) / 2) + 1);
+    const startRow = Math.max(1, Math.floor((MASTER_GRID_SIZE - safeRows) / 2) + 1);
+    const positions = [];
+    for (let row = 0; row < safeRows; row += 1) {
+      for (let column = 0; column < safeColumns; column += 1) {
+        positions.push({ row: startRow + row, column: startColumn + column });
+      }
+    }
+    assignCardsToPositions(placements, positions, orderedCards);
+    return placements;
   }
 
   function getExtraTopRowCategory(card) {
@@ -859,8 +945,8 @@
     }
   }
 
-  function persistSavedLayouts() {
-    return writeStorageValue(FRAME_CUSTOM_LAYOUTS_STORAGE_KEY, JSON.stringify(state.customLayouts.map((layout) => ({
+  function serializeSavedLayouts() {
+    return state.customLayouts.map((layout) => ({
       id: layout.id,
       label: layout.label,
       slotAssignments: layout.slotAssignments,
@@ -868,7 +954,55 @@
       settings: layout.settings,
       note: normalizeLayoutNote(layout.note),
       createdAt: layout.createdAt || new Date().toISOString()
-    }))));
+    }));
+  }
+
+  function persistSavedLayouts() {
+    writeStorageValue(FRAME_CUSTOM_LAYOUTS_STORAGE_KEY, JSON.stringify(serializeSavedLayouts()));
+    void persistSavedLayoutsToProfile();
+  }
+
+  function canUseProfileLayoutStore() {
+    return window.TarotAppConfig?.isProfileAuthorized?.() === true
+      && typeof window.TarotDataService?.requestJson === "function";
+  }
+
+  async function persistSavedLayoutsToProfile() {
+    if (!canUseProfileLayoutStore()) {
+      return;
+    }
+    try {
+      await window.TarotDataService.requestJson(
+        "PUT",
+        window.TarotDataService.buildApiUrl("/api/v1/profile/plugin-state/tarot-frame"),
+        { state: { layouts: serializeSavedLayouts(), savedAt: new Date().toISOString() } }
+      );
+    } catch (_error) {}
+  }
+
+  async function hydrateSavedLayoutsFromProfile() {
+    if (!canUseProfileLayoutStore()) {
+      return;
+    }
+    try {
+      const payload = await window.TarotDataService.requestJson(
+        "GET",
+        window.TarotDataService.buildApiUrl("/api/v1/profile/plugin-state/tarot-frame")
+      );
+      const remote = payload?.state && typeof payload.state === "object" ? payload.state : payload;
+      const layouts = Array.isArray(remote?.layouts)
+        ? remote.layouts.map((entry) => normalizeSavedLayoutRecord(entry)).filter(Boolean)
+        : [];
+      if (!layouts.length) {
+        return;
+      }
+      state.customLayouts = layouts.sort((left, right) => String(left.label || "").localeCompare(String(right.label || "")));
+      writeStorageValue(FRAME_CUSTOM_LAYOUTS_STORAGE_KEY, JSON.stringify(serializeSavedLayouts()));
+      if (state.initialized) {
+        syncControls();
+        render();
+      }
+    } catch (_error) {}
   }
 
   function persistLayoutNotes() {
@@ -4093,7 +4227,7 @@
     if (!state.customLayouts.length) {
       const emptyEl = document.createElement("div");
       emptyEl.className = "tarot-frame-layout-empty-note";
-      emptyEl.textContent = "Save a layout to keep custom card positions and frame settings in this browser.";
+      emptyEl.textContent = "Save a layout with a name to keep it on your profile (and in this browser).";
       tarotFrameLayoutPanelEl.appendChild(emptyEl);
       return;
     }
@@ -4165,7 +4299,9 @@
     persistActiveLayoutId(savedLayout.id);
     render();
     syncControls();
-    setStatus(`Saved layout \"${savedLayout.label}\" to this browser.`);
+    setStatus(canUseProfileLayoutStore()
+      ? `Saved layout \"${savedLayout.label}\" to your profile.`
+      : `Saved layout \"${savedLayout.label}\" in this browser.`);
   }
 
   function deleteSavedLayout(layoutId) {
@@ -6523,6 +6659,7 @@
     }
 
     loadSavedLayoutsFromStorage();
+    void hydrateSavedLayoutsFromProfile();
     loadLayoutNotesFromStorage();
     restoreActiveLayoutId();
     restoreCardPickerQuery();
