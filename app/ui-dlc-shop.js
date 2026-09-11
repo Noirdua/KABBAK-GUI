@@ -222,63 +222,16 @@
       .filter((unit) => unit.id);
   }
 
-  async function openMenuEditor(cardEl) {
-    const existingOverlay = document.querySelector(".dlc-menu-overlay");
-    if (existingOverlay) {
-      existingOverlay.remove();
-    }
-
-    // Full-screen overlay so the editor has room to breathe with 30+ entries.
-    const overlay = document.createElement("div");
-    overlay.className = "dlc-menu-overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
-    overlay.setAttribute("aria-label", "Menu editor");
-
-    const panel = document.createElement("div");
-    panel.className = "dlc-menu-overlay-panel";
-    overlay.appendChild(panel);
-
-    const overlayHead = document.createElement("div");
-    overlayHead.className = "dlc-menu-overlay-head";
-    const overlayTitle = document.createElement("strong");
-    overlayTitle.textContent = "Menu Order";
-    const closeBtn = document.createElement("button");
-    closeBtn.type = "button";
-    closeBtn.className = "dlc-shop-btn";
-    closeBtn.textContent = "Close ✕";
-    closeBtn.title = "Close the menu editor (Esc)";
-    overlayHead.appendChild(overlayTitle);
-    overlayHead.appendChild(closeBtn);
-    panel.appendChild(overlayHead);
-
+  async function openMenuEditor() {
+    const settingsEl = openSettingsOverlay("Menu Order");
     const editor = document.createElement("div");
     editor.className = "dlc-menu-editor";
-    panel.appendChild(editor);
+    settingsEl.appendChild(editor);
 
     const loadingEl = document.createElement("span");
     loadingEl.className = "settings-field-hint";
     loadingEl.textContent = "Loading menu configuration…";
     editor.appendChild(loadingEl);
-
-    const onOverlayKeydown = (event) => {
-      if (event.key === "Escape") {
-        closeOverlay();
-      }
-    };
-    function closeOverlay() {
-      document.removeEventListener("keydown", onOverlayKeydown);
-      overlay.remove();
-    }
-    document.addEventListener("keydown", onOverlayKeydown);
-    overlay.addEventListener("mousedown", (event) => {
-      if (event.target === overlay) {
-        closeOverlay();
-      }
-    });
-    closeBtn.addEventListener("click", closeOverlay);
-
-    document.body.appendChild(overlay);
 
     let config = { showUnlisted: false, items: [] };
     try {
@@ -1385,28 +1338,52 @@
     });
   }
 
-  function createPluginSettingsShell(cardEl, title) {
-    const existing = cardEl.querySelector(".dlc-plugin-settings");
-    if (existing) {
-      existing.remove();
-      return null;
-    }
-    const settings = document.createElement("div");
-    settings.className = "dlc-plugin-settings";
+  function closeSettingsOverlay() {
+    document.querySelector(".dlc-settings-overlay")?.remove();
+    document.querySelector(".dlc-menu-overlay")?.remove();
+  }
+
+  function openSettingsOverlay(title) {
+    closeSettingsOverlay();
+    const overlay = document.createElement("div");
+    overlay.className = "dlc-settings-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", title || "Plugin Settings");
+    const panel = document.createElement("div");
+    panel.className = "dlc-settings-overlay-panel";
     const head = document.createElement("div");
-    head.className = "dlc-plugin-settings-head";
+    head.className = "dlc-settings-overlay-head";
     const headTitle = document.createElement("strong");
     headTitle.textContent = title || "Plugin Settings";
-    head.appendChild(headTitle);
     const closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.className = "dlc-shop-btn";
-    closeBtn.textContent = "Close";
-    closeBtn.addEventListener("click", () => settings.remove());
-    head.appendChild(closeBtn);
-    settings.appendChild(head);
-    cardEl.appendChild(settings);
-    return settings;
+    closeBtn.textContent = "Close ✕";
+    closeBtn.title = "Close settings (Esc)";
+    head.append(headTitle, closeBtn);
+    const body = document.createElement("div");
+    body.className = "dlc-plugin-settings dlc-settings-overlay-body";
+    panel.append(head, body);
+    overlay.appendChild(panel);
+    const onKeydown = (event) => {
+      if (event.key === "Escape") closeOverlay();
+    };
+    function closeOverlay() {
+      document.removeEventListener("keydown", onKeydown);
+      overlay.remove();
+    }
+    document.addEventListener("keydown", onKeydown);
+    overlay.addEventListener("mousedown", (event) => {
+      if (event.target === overlay) closeOverlay();
+    });
+    closeBtn.addEventListener("click", closeOverlay);
+    document.body.appendChild(overlay);
+    return body;
+  }
+
+  function createPluginSettingsShell(_cardEl, title) {
+    return openSettingsOverlay(title);
   }
 
   function createSettingsStatus(settingsEl) {
