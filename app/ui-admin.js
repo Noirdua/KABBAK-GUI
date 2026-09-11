@@ -42,6 +42,10 @@
       settingsSaveBtn: document.getElementById("admin-settings-save"),
       envReadonlyEl: document.getElementById("admin-env-readonly"),
       logLevelEl: document.getElementById("admin-log-level"),
+      logGroupEl: document.getElementById("admin-log-group"),
+      logEventEl: document.getElementById("admin-log-event"),
+      logSinceEl: document.getElementById("admin-log-since"),
+      logSearchEl: document.getElementById("admin-log-search"),
       logAutoRefreshEl: document.getElementById("admin-log-autorefresh"),
       logRefreshBtn: document.getElementById("admin-log-refresh"),
       logClearBtn: document.getElementById("admin-log-clear"),
@@ -169,6 +173,39 @@
     return card;
   }
 
+  function renderJobs(jobs) {
+    const hosts = [
+      document.getElementById("admin-jobs-overview"),
+      document.getElementById("admin-jobs-server")
+    ].filter(Boolean);
+    const activeJobs = (Array.isArray(jobs) ? jobs : []).filter((job) => {
+      const state = String(job?.state || "idle");
+      if (state === "running" || state === "error") return true;
+      return state === "done" && String(job.id || "") === "thumbs";
+    });
+    hosts.forEach((host) => {
+      host.hidden = activeJobs.length === 0;
+      host.replaceChildren();
+      activeJobs.forEach((job) => {
+        const card = document.createElement("div");
+        card.className = "admin-job-card";
+        const total = Number(job.total) || 0;
+        const done = Number(job.done) || 0;
+        const percent = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : (job.state === "done" ? 100 : 0);
+        const detail = [job.current, job.message].filter(Boolean).join(" · ");
+        card.innerHTML = `
+          <div class="admin-job-head">
+            <strong>${escapeHtml(job.label || job.id || "Job")}</strong>
+            <span class="admin-job-state is-${escapeHtml(job.state || "idle")}">${escapeHtml(job.state || "idle")}${total ? ` ${done}/${total}` : ""}</span>
+          </div>
+          <div class="admin-job-bar"><span style="width:${percent}%"></span></div>
+          ${detail ? `<span class="admin-job-message">${escapeHtml(detail)}</span>` : ""}
+        `;
+        host.appendChild(card);
+      });
+    });
+  }
+
   async function loadOverview() {
     const { overviewGrid } = getElements();
     if (!overviewGrid) return;
@@ -201,6 +238,7 @@
       overviewGrid.appendChild(createStatCard("Catalog Breakdown", Object.keys(counts).length ? Object.entries(counts).map(([kind, count]) => `${kind}: ${count}`).join(" · ") : "--", ""));
       overviewGrid.appendChild(createStatCard("DLC Repo", overview?.dlcRepo?.present ? "checked out" : "missing", overview?.dlcRepo?.present ? `${overview.dlcRepo.branch || "?"} · ${overview.dlcRepo.url || ""}` : "run dlc init"));
       overviewGrid.appendChild(createStatCard("Server Time", String(overview?.serverTime || "").replace("T", " ").slice(0, 19), ""));
+      renderJobs(overview?.jobs);
       setStatus("Admin overview loaded.");
     } catch (error) {
       setStatus(`Could not load overview. ${error?.message || ""}`, true);
@@ -945,18 +983,55 @@
 
   let logPollTimer = null;
 
+  function syncLogSelect(selectEl, items, allLabel) {
+    if (!selectEl) return;
+    const current = String(selectEl.value || "");
+    const nextItems = Array.isArray(items) ? items : [];
+    const options = [`<option value="">${escapeHtml(allLabel)}</option>`].concat(
+      nextItems.map((item) => {
+        const id = String(item?.id || "").trim();
+        if (!id) return "";
+        const count = Number(item.count) || 0;
+        return `<option value="${escapeHtml(id)}">${escapeHtml(id)}${count ? ` (${count})` : ""}</option>`;
+      }).filter(Boolean)
+    );
+    selectEl.innerHTML = options.join("");
+    if (current && [...selectEl.options].some((option) => option.value === current)) {
+      selectEl.value = current;
+    }
+  }
+
   async function loadLogs() {
-    const { logLevelEl, logListEl } = getElements();
+    const { logLevelEl, logGroupEl, logEventEl, logSinceEl, logSearchEl, logListEl } = getElements();
     if (!logListEl) return;
     try {
-      const level = String(logLevelEl?.value || "all");
-      const payload = await requestJson("GET", `/api/v1/admin/logs?level=${encodeURIComponent(level)}&limit=200`);
+      const params = new URLSearchParams();
+      params.set("level", String(logLevelEl?.value || "all"));
+      params.set("limit", "300");
+      const group = String(logGroupEl?.value || "").trim();
+      const event = String(logEventEl?.value || "").trim();
+      const query = String(logSearchEl?.value || "").trim();
+      const sinceMinutes = String(logSinceEl?.value || "").trim();
+      if (group) params.set("pathGroup", group);
+      if (event) params.set("event", event);
+      if (query) params.set("q", query);
+      if (sinceMinutes) params.set("sinceMinutes", sinceMinutes);
+      const [payload, jobsPayload] = await Promise.all([
+        requestJson("GET", `/api/v1/admin/logs?${params.toString()}`),
+        requestJson("GET", "/api/v1/admin/jobs").catch(() => null)
+      ]);
+      if (jobsPayload?.jobs) {
+        renderJobs(jobsPayload.jobs);
+      }
       const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+      const facets = payload?.facets && typeof payload.facets === "object" ? payload.facets : {};
+      syncLogSelect(logGroupEl, facets.pathGroups, "All paths");
+      syncLogSelect(logEventEl, facets.events, "All events");
       logListEl.innerHTML = "";
       if (!entries.length) {
         const empty = document.createElement("span");
         empty.className = "settings-field-hint";
-        empty.textContent = "No log entries in the buffer yet.";
+        empty.textContent = "No log entries match these filters.";
         logListEl.appendChild(empty);
         return;
       }
@@ -965,10 +1040,13 @@
         row.className = "admin-log-row";
         const levelClass = `is-${String(entry.level || "info")}`;
         const time = String(entry.timestamp || "").replace("T", " ").slice(5, 19);
+        const meta = [entry.method, entry.statusCode || "", entry.path || ""].filter(Boolean).join(" ");
         row.innerHTML = `
           <span class="admin-log-level ${levelClass}">${escapeHtml(String(entry.level || "info").toUpperCase())}</span>
-          <span class="admin-log-event">${escapeHtml(entry.event || "")}</span>
           <span class="admin-log-time">${escapeHtml(time)}</span>
+          <span class="admin-log-group">${escapeHtml(entry.pathGroup || "")}</span>
+          <span class="admin-log-event">${escapeHtml(entry.event || "")}</span>
+          ${meta ? `<span class="admin-log-meta">${escapeHtml(meta)}</span>` : ""}
           <span class="admin-log-message">${escapeHtml(String(entry.message || "").slice(0, 400))}</span>
         `;
         logListEl.appendChild(row);
@@ -995,7 +1073,7 @@
   }
 
   function bindServerControls() {
-    const { logLevelEl, logAutoRefreshEl, logRefreshBtn, logClearBtn, settingsSaveBtn } = getElements();
+    const { logLevelEl, logGroupEl, logEventEl, logSinceEl, logSearchEl, logAutoRefreshEl, logRefreshBtn, logClearBtn, settingsSaveBtn } = getElements();
     if (settingsSaveBtn) {
       settingsSaveBtn.addEventListener("click", () => {
         void saveServerSettings();
@@ -1038,9 +1116,20 @@
         }
       });
     }
-    if (logLevelEl) {
-      logLevelEl.addEventListener("change", () => {
+    [logLevelEl, logGroupEl, logEventEl, logSinceEl].forEach((el) => {
+      if (!el) return;
+      el.addEventListener("change", () => {
         void loadLogs();
+      });
+    });
+    if (logSearchEl) {
+      let searchTimer = null;
+      logSearchEl.addEventListener("input", () => {
+        if (searchTimer) window.clearTimeout(searchTimer);
+        searchTimer = window.setTimeout(() => {
+          searchTimer = null;
+          void loadLogs();
+        }, 300);
       });
     }
     if (logAutoRefreshEl) {
@@ -1180,11 +1269,14 @@
       if (!status) break;
       lastState = status.state;
       if (status.state === "running") {
-        progressEl.textContent = status.total
-          ? `Installing ${status.current || "…"} (${status.done}/${status.total})`
-          : "Preparing…";
+        progressEl.textContent = status.current === "storage snapshot"
+          ? (status.message || "Refreshing storage snapshot…")
+          : (status.total
+            ? `Installing ${status.current || "…"} (${status.done}/${status.total})`
+            : "Preparing…");
       } else if (status.state === "done") {
         progressEl.textContent = status.message || "Done.";
+        document.dispatchEvent(new CustomEvent("content:updated"));
         break;
       } else if (status.state === "error") {
         progressEl.textContent = status.message || "Install failed.";

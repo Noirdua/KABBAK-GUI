@@ -1987,6 +1987,65 @@
       font-size: 11px;
       font-family: monospace;
     }
+    .admin-jobs {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .admin-job-card {
+      padding: 10px 12px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: var(--tt-bg-deep);
+    }
+    .admin-job-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: baseline;
+    }
+    .admin-job-state {
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+    .admin-job-state.is-running { color: #7dd3fc; }
+    .admin-job-state.is-done { color: #86efac; }
+    .admin-job-state.is-error { color: #fca5a5; }
+    .admin-job-bar {
+      margin-top: 8px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.2);
+      overflow: hidden;
+    }
+    .admin-job-bar > span {
+      display: block;
+      height: 100%;
+      background: #67e8f9;
+    }
+    .admin-job-message {
+      display: block;
+      margin-top: 6px;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+    .admin-log-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .admin-log-filters .dlc-menu-preset-select {
+      max-width: 180px;
+    }
+    .admin-log-filters #admin-log-search {
+      min-width: 180px;
+      flex: 1;
+      max-width: 280px;
+    }
     .admin-log-list {
       display: grid;
       gap: 4px;
@@ -2019,6 +2078,14 @@
     .admin-log-level.is-info { color: #7dd3fc; }
     .admin-log-level.is-warn { color: #fde68a; }
     .admin-log-level.is-error { color: #fca5a5; }
+    .admin-log-group {
+      color: #67e8f9;
+      white-space: nowrap;
+    }
+    .admin-log-meta {
+      color: #a78bfa;
+      white-space: nowrap;
+    }
     .admin-log-event {
       color: #c4b5fd;
       white-space: nowrap;

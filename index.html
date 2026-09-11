@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260911-lb-rows">
+  <link rel="stylesheet" href="app/styles.css?v=20260911-admin-jobs">
   <link rel="stylesheet" href="app/ui-look.css?v=20260902-theme-surfaces">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -555,6 +555,7 @@
         <span id="admin-status-text" class="settings-page-status-text">Loading admin data…</span>
       </div>
       <section id="admin-panel-overview" class="admin-panel">
+        <div id="admin-jobs-overview" class="admin-jobs" hidden></div>
         <div id="admin-overview-grid" class="admin-overview-grid"></div>
       </section>
       <section id="admin-panel-clients" class="admin-panel" hidden>
@@ -767,18 +768,33 @@
             <button id="admin-settings-save" class="settings-button-primary" type="button">Save Settings</button>
           </div>
         </div>
+        <div id="admin-jobs-server" class="admin-jobs" hidden></div>
         <div class="settings-panel settings-panel-wide">
           <div class="settings-panel-head">
             <strong>Server Logs</strong>
             <span>Live view of the in-memory log buffer (requests, bandwidth summaries, errors).</span>
           </div>
-          <div class="dlc-shop-actions" style="margin-bottom:10px;">
-            <select id="admin-log-level" class="dlc-menu-preset-select" style="max-width:150px;">
+          <div class="admin-log-filters">
+            <select id="admin-log-level" class="dlc-menu-preset-select" title="Level">
               <option value="all">All levels</option>
               <option value="info">Info</option>
               <option value="warn">Warn</option>
               <option value="error">Error</option>
             </select>
+            <select id="admin-log-group" class="dlc-menu-preset-select" title="Path group">
+              <option value="">All paths</option>
+            </select>
+            <select id="admin-log-event" class="dlc-menu-preset-select" title="Event">
+              <option value="">All events</option>
+            </select>
+            <select id="admin-log-since" class="dlc-menu-preset-select" title="Time range">
+              <option value="">All time</option>
+              <option value="5">Last 5 min</option>
+              <option value="15">Last 15 min</option>
+              <option value="60">Last hour</option>
+              <option value="360">Last 6 hours</option>
+            </select>
+            <input id="admin-log-search" type="search" placeholder="Search path, event, message" maxlength="120">
             <label class="dlc-menu-hide-label">
               <input id="admin-log-autorefresh" type="checkbox" checked>
               Auto-refresh (3s)
