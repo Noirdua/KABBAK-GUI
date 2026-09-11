@@ -208,8 +208,8 @@
     panelToggleEl.id = "topbar-panel-toggle";
     panelToggleEl.type = "button";
     panelToggleEl.className = "topbar-panel-toggle sidebar-popout-open";
-    panelToggleEl.textContent = "Show Detail";
-    panelToggleEl.setAttribute("aria-label", "Show detail view");
+    panelToggleEl.textContent = "Shine";
+    panelToggleEl.setAttribute("aria-label", "Show shine (detail) view");
     panelToggleEl.hidden = true;
     panelToggleEl.addEventListener("click", () => {
       const controller = getActiveVisibleSidebarController();
@@ -257,8 +257,8 @@
     panelToggleEl.hidden = false;
     panelToggleEl.setAttribute("aria-controls", controller.panel.id);
     panelToggleEl.setAttribute("aria-expanded", sidebarCollapsed ? "false" : "true");
-    panelToggleEl.textContent = sidebarCollapsed ? "Show Panel" : "Show Detail";
-    panelToggleEl.setAttribute("aria-label", sidebarCollapsed ? "Show entry panel" : "Show detail view");
+    panelToggleEl.textContent = sidebarCollapsed ? "Set" : "Shine";
+    panelToggleEl.setAttribute("aria-label", sidebarCollapsed ? "Show set (list) view" : "Show shine (detail) view");
   }
 
   function initializeTopbarPanelToggle() {

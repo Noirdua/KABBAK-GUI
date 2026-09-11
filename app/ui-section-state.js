@@ -437,7 +437,12 @@
     }
 
     requestAnimationFrame(() => {
-      resetBrowseLayoutToList(activeSection);
+      // Only reset to the list ("Set") when a section is opened fresh from the
+      // menu. Back/history navigation and relational deep-links restore the
+      // section's own detail state instead of forcing the list.
+      if (!restoringHistory) {
+        resetBrowseLayoutToList(activeSection);
+      }
     });
 
     // Load heavy section modules on demand, then hydrate content.
