@@ -135,7 +135,7 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260911-admin-jobs"
+      "app/ui-admin.js?v=20260911-create-dlc"
     ],
     profile: [
       "app/ui-profile.js?v=20260911-journal-overlay"

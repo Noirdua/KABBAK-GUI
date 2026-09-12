@@ -160,10 +160,11 @@ const appLoadingScreenEl = document.getElementById("app-loading-screen");
 
 function hideLoadingScreen() {
   // Remember this boot so the splash never flashes again on refreshes within
-  // this tab session.
+  // this tab session — unless a custom skin still needs to mount.
   try {
     window.sessionStorage.setItem("kabbak-booted", "1");
     document.documentElement.setAttribute("data-kabbak-booted", "1");
+    document.documentElement.removeAttribute("data-pending-skin");
   } catch (_error) {}
   if (!appLoadingScreenEl || appLoadingScreenEl.dataset.hidden === "1") {
     return;
@@ -791,6 +792,9 @@ async function ensureConnectedApp(nextConnectionSettings = null) {
   window.TarotSettingsUi?.syncTarotDeckInputOptions?.();
 
   hideConnectionGate();
+  try {
+    await window.TaroTimePluginHost?.refresh?.();
+  } catch (_error) {}
   hideLoadingScreen();
   if (!hasRenderedConnectedShell) {
     sectionStateUi.setActiveSection?.("home");

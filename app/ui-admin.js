@@ -1752,12 +1752,16 @@
     if (createPluginBtn) {
       createPluginBtn.addEventListener("click", () => {
         const { dlcCatalogEl } = getElements();
-        if (window.TaroTimeDlcShop?.openCreatePlugin) {
+        if (window.TaroTimeDlcShop?.openCreateDlc) {
+          window.TaroTimeDlcShop.openCreateDlc(dlcCatalogEl, {
+            onCreated: () => loadPlugins()
+          });
+        } else if (window.TaroTimeDlcShop?.openCreatePlugin) {
           window.TaroTimeDlcShop.openCreatePlugin(dlcCatalogEl, {
             onCreated: () => loadPlugins()
           });
         } else {
-          setStatus("Plugin creation is available in Settings > DLC Shop & Plugins.", true);
+          setStatus("DLC creation is available in Settings > DLC Shop & Plugins.", true);
         }
       });
     }

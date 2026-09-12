@@ -2309,19 +2309,12 @@
     void renderGenericConfigSettings(settingsEl, plugin);
   }
 
-  // --- Create a third-party plugin -------------------------------------------
+  // --- Create DLC (text first; plugin keeps the old scaffold) -----------------
 
-  function openCreatePlugin(hostEl, { onCreated } = {}) {
+  function openCreatePluginForm(hostEl, { onCreated } = {}) {
     if (!hostEl) return;
-    if (!isAdmin()) {
-      setStatus("Admin key required to create plugins.", true);
-      return;
-    }
     const existing = hostEl.querySelector(".dlc-create-plugin");
-    if (existing) {
-      existing.remove();
-      return;
-    }
+    if (existing) existing.remove();
 
     const form = document.createElement("div");
     form.className = "dlc-plugin-settings dlc-create-plugin";
@@ -2386,6 +2379,1531 @@
     hostEl.prepend(form);
     const nameInput = form.querySelector(".dlc-create-name");
     if (nameInput) nameInput.focus();
+  }
+
+  function collectEditedDocument(_form, preview) {
+    const works = (preview?.document?.works || []).map((work) => ({
+      id: work.id,
+      title: work.title,
+      sections: (work.sections || []).map((section, sectionIndex) => ({
+        id: section.id || `section-${sectionIndex + 1}`,
+        number: section.number || sectionIndex + 1,
+        title: section.title,
+        verses: (section.verses || []).map((verse, verseIndex) => ({
+          number: verse.number || verseIndex + 1,
+          text: verse.text
+        }))
+      })).filter((section) => section.verses.length)
+    })).filter((work) => work.sections.length);
+    return { works };
+  }
+
+  function renderTextPreview(form, preview, { syncFields = true } = {}) {
+    const statsEl = form.querySelector("[data-role='text-stats']");
+    const fieldsEl = form.querySelector("[data-role='text-fields']");
+    const outlineEl = form.querySelector("[data-role='text-outline']");
+    const sampleEl = form.querySelector("[data-role='text-sample']");
+    const sampleHeadEl = form.querySelector("[data-role='sample-heading']");
+    const sampleMetaEl = form.querySelector("[data-role='sample-meta']");
+    const editorEl = form.querySelector("[data-role='text-editor']");
+    const workLabel = preview.workLabel || "Work";
+    const sectionLabel = preview.sectionLabel || "Section";
+    const verseLabel = preview.verseLabel || "Passage";
+    if (statsEl) {
+      statsEl.innerHTML = "";
+      [
+        preview.format,
+        `${preview.stats?.works || 0} ${String(workLabel).toLowerCase()}(s)`,
+        `${preview.stats?.sections || 0} ${String(sectionLabel).toLowerCase()}(s)`,
+        `${preview.stats?.verses || 0} ${String(verseLabel).toLowerCase()}(s)`,
+        `${Array.isArray(preview.looseText) ? preview.looseText.length : 0} loose`
+      ].forEach((label) => {
+        const chip = document.createElement("span");
+        chip.className = "dlc-text-chip";
+        chip.textContent = label;
+        statsEl.appendChild(chip);
+      });
+    }
+    if (syncFields) {
+      if (form.querySelector(".dlc-create-text-id")) form.querySelector(".dlc-create-text-id").value = preview.id || "";
+      if (form.querySelector(".dlc-create-text-title")) form.querySelector(".dlc-create-text-title").value = preview.title || "";
+      if (form.querySelector(".dlc-create-text-format") && preview.format) {
+        form.querySelector(".dlc-create-text-format").value = preview.format;
+      }
+    }
+    if (fieldsEl) fieldsEl.hidden = false;
+    const sourceEl = form.querySelector("[data-role='text-source']");
+    if (sourceEl) sourceEl.hidden = true;
+    const introEl = form.querySelector("[data-role='create-intro']");
+    if (introEl) introEl.hidden = true;
+    if (!Array.isArray(preview.looseText)) {
+      preview.looseText = [];
+    }
+    if (!outlineEl || !sampleEl || !editorEl) return;
+
+    if (!preview._selected) {
+      preview._selected = { workIndex: 0, sectionIndex: 0 };
+    }
+    const selected = preview._selected;
+
+    const getSection = () => preview.document?.works?.[selected.workIndex]?.sections?.[selected.sectionIndex] || null;
+
+    const renderSample = () => {
+      const work = preview.document?.works?.[selected.workIndex];
+      const section = getSection();
+      if (sampleHeadEl) {
+        sampleHeadEl.textContent = section?.title || `${sectionLabel} ${selected.sectionIndex + 1}`;
+      }
+      if (sampleMetaEl) {
+        sampleMetaEl.textContent = [
+          preview.title || work?.title || "",
+          preview.format,
+          `${sectionLabel} ${section?.number || selected.sectionIndex + 1}`,
+          `${section?.verses?.length || 0} ${String(verseLabel).toLowerCase()}(s)`
+        ].filter(Boolean).join(" · ");
+      }
+      sampleEl.replaceChildren();
+      (section?.verses || []).forEach((verse, verseIndex) => {
+        const row = document.createElement("article");
+        row.className = "alpha-text-verse";
+        const head = document.createElement("div");
+        head.className = "alpha-text-verse-head";
+        const ref = document.createElement("span");
+        ref.className = "alpha-text-verse-reference";
+        ref.textContent = `${sectionLabel} ${section?.number || selected.sectionIndex + 1}:${verse.number || verseIndex + 1}`;
+        head.appendChild(ref);
+        const text = document.createElement("p");
+        text.className = "alpha-text-verse-text";
+        text.textContent = verse.text || "";
+        row.append(head, text);
+        sampleEl.appendChild(row);
+      });
+    };
+
+    const renderEditor = () => {
+      const section = getSection();
+      editorEl.replaceChildren();
+      if (!section) return;
+      const titleField = document.createElement("label");
+      titleField.className = "settings-field";
+      titleField.append("Section title");
+      const title = document.createElement("input");
+      title.type = "text";
+      title.className = "dlc-text-section-title";
+      title.value = section.title || "";
+      titleField.appendChild(title);
+      const bodyField = document.createElement("label");
+      bodyField.className = "settings-field";
+      bodyField.append(`Passages (blank line = new ${String(verseLabel).toLowerCase()})`);
+      const body = document.createElement("textarea");
+      body.value = (section.verses || []).map((verse) => verse.text || "").join("\n\n");
+      bodyField.appendChild(body);
+      title.addEventListener("input", () => {
+        section.title = String(title.value || "").trim();
+        renderOutline();
+        renderSample();
+      });
+      body.addEventListener("input", () => {
+        section.verses = String(body.value || "").split(/\n\s*\n/)
+          .map((chunk) => String(chunk || "").trim())
+          .filter(Boolean)
+          .map((text, verseIndex) => ({ number: verseIndex + 1, text }));
+        renderOutline();
+        renderSample();
+      });
+      editorEl.append(titleField, bodyField);
+    };
+
+    const renderOutline = () => {
+      outlineEl.replaceChildren();
+      (preview.document?.works || []).forEach((work, workIndex) => {
+        const workHead = document.createElement("div");
+        workHead.className = "dlc-text-outline-work";
+        workHead.textContent = preview.title || work.title || `${workLabel} ${workIndex + 1}`;
+        outlineEl.appendChild(workHead);
+        (work.sections || []).forEach((section, sectionIndex) => {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "dlc-text-outline-item";
+          if (workIndex === selected.workIndex && sectionIndex === selected.sectionIndex) {
+            item.classList.add("is-active");
+          }
+          const name = document.createElement("strong");
+          name.textContent = section.title || `${sectionLabel} ${sectionIndex + 1}`;
+          const meta = document.createElement("span");
+          meta.textContent = `${section.verses?.length || 0} ${String(verseLabel).toLowerCase()}(s)`;
+          item.append(name, meta);
+          item.addEventListener("click", () => {
+            selected.workIndex = workIndex;
+            selected.sectionIndex = sectionIndex;
+            renderOutline();
+            renderSample();
+            renderEditor();
+          });
+          outlineEl.appendChild(item);
+        });
+      });
+    };
+
+    const ensureWork = () => {
+      if (!preview.document) {
+        preview.document = { title: preview.title || "", works: [] };
+      }
+      if (!Array.isArray(preview.document.works) || !preview.document.works.length) {
+        preview.document.works = [{ id: "work-1", title: preview.title || "Text", sections: [] }];
+      }
+      return preview.document.works[selected.workIndex] || preview.document.works[0];
+    };
+
+    const renderLoose = () => {
+      const looseHost = form.querySelector("[data-role='loose-text']");
+      const looseList = form.querySelector("[data-role='loose-list']");
+      if (!looseHost || !looseList) return;
+      const blocks = Array.isArray(preview.looseText) ? preview.looseText : [];
+      looseHost.hidden = blocks.length === 0;
+      looseList.replaceChildren();
+      blocks.forEach((block, blockIndex) => {
+        const item = document.createElement("div");
+        item.className = "dlc-text-loose-item";
+        const text = document.createElement("p");
+        text.textContent = block;
+        const actions = document.createElement("div");
+        actions.className = "dlc-text-loose-actions";
+        const insertBtn = document.createElement("button");
+        insertBtn.type = "button";
+        insertBtn.className = "dlc-shop-btn";
+        insertBtn.textContent = "Insert into section";
+        const sectionBtn = document.createElement("button");
+        sectionBtn.type = "button";
+        sectionBtn.className = "dlc-shop-btn";
+        sectionBtn.textContent = "New section";
+        const discardBtn = document.createElement("button");
+        discardBtn.type = "button";
+        discardBtn.className = "dlc-shop-btn";
+        discardBtn.textContent = "Discard";
+        insertBtn.addEventListener("click", () => {
+          const section = getSection() || ensureWork().sections[0];
+          if (!section) {
+            ensureWork().sections.push({
+              id: "section-1",
+              number: 1,
+              title: "Section 1",
+              verses: [{ number: 1, text: block }]
+            });
+            selected.sectionIndex = 0;
+          } else {
+            section.verses = Array.isArray(section.verses) ? section.verses : [];
+            section.verses.push({ number: section.verses.length + 1, text: block });
+          }
+          preview.looseText.splice(blockIndex, 1);
+          renderLoose();
+          renderOutline();
+          renderSample();
+          renderEditor();
+        });
+        sectionBtn.addEventListener("click", () => {
+          const work = ensureWork();
+          work.sections = Array.isArray(work.sections) ? work.sections : [];
+          const at = Math.min(work.sections.length, selected.sectionIndex + 1);
+          work.sections.splice(at, 0, {
+            id: `loose-${Date.now()}`,
+            number: at + 1,
+            title: String(block).split(/\n/)[0].slice(0, 80) || `Section ${at + 1}`,
+            verses: [{ number: 1, text: block }]
+          });
+          selected.sectionIndex = at;
+          preview.looseText.splice(blockIndex, 1);
+          renderLoose();
+          renderOutline();
+          renderSample();
+          renderEditor();
+        });
+        discardBtn.addEventListener("click", () => {
+          preview.looseText.splice(blockIndex, 1);
+          renderLoose();
+        });
+        actions.append(insertBtn, sectionBtn, discardBtn);
+        item.append(text, actions);
+        looseList.appendChild(item);
+      });
+    };
+
+    renderOutline();
+    renderSample();
+    renderEditor();
+    renderLoose();
+  }
+
+  const DECK_IMAGE_EXT = /\.(png|jpe?g|webp|gif)$/i;
+  const DECK_MAJORS = [
+    "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
+    "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit",
+    "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance",
+    "The Devil", "The Tower", "The Star", "The Moon", "The Sun", "Judgement", "The World"
+  ];
+  const DECK_SUITS = [
+    { id: "wands", label: "Wands", aliases: ["wand", "wands", "rod", "staff", "baton"] },
+    { id: "cups", label: "Cups", aliases: ["cup", "cups", "chalice", "grail"] },
+    { id: "swords", label: "Swords", aliases: ["sword", "swords", "blade"] },
+    { id: "pentacles", label: "Disks", aliases: ["pentacle", "pentacles", "disk", "disks", "coin", "coins", "pentacle"] }
+  ];
+  const DECK_RANKS = [
+    { id: "ace", label: "Ace", aliases: ["ace", "1"] },
+    { id: "two", label: "Two", aliases: ["two", "2"] },
+    { id: "three", label: "Three", aliases: ["three", "3"] },
+    { id: "four", label: "Four", aliases: ["four", "4"] },
+    { id: "five", label: "Five", aliases: ["five", "5"] },
+    { id: "six", label: "Six", aliases: ["six", "6"] },
+    { id: "seven", label: "Seven", aliases: ["seven", "7"] },
+    { id: "eight", label: "Eight", aliases: ["eight", "8"] },
+    { id: "nine", label: "Nine", aliases: ["nine", "9"] },
+    { id: "ten", label: "Ten", aliases: ["ten", "10"] },
+    { id: "page", label: "Page", aliases: ["page", "princess", "knave"] },
+    { id: "knight", label: "Knight", aliases: ["knight", "prince"] },
+    { id: "queen", label: "Queen", aliases: ["queen"] },
+    { id: "king", label: "King", aliases: ["king", "knight-king"] }
+  ];
+
+  function deckSlotList() {
+    const slots = DECK_MAJORS.map((name, trump) => ({
+      key: `major-${trump}`,
+      group: "Majors",
+      label: `${String(trump).padStart(2, "0")} · ${name}`,
+      file: `${String(trump).padStart(2, "0")}.png`
+    }));
+    DECK_SUITS.forEach((suit, suitIndex) => {
+      DECK_RANKS.forEach((rank, rankIndex) => {
+        const number = 22 + (suitIndex * 14) + rankIndex;
+        slots.push({
+          key: `minor-${suit.id}-${rank.id}`,
+          group: suit.label,
+          label: `${rank.label} of ${suit.label}`,
+          file: `${String(number).padStart(2, "0")}.png`
+        });
+      });
+    });
+    return slots;
+  }
+
+  function deckFileBase(relativePath) {
+    return String(relativePath || "").replace(/\\/g, "/").split("/").pop().replace(/\.[^.]+$/, "");
+  }
+
+  function matchDeckPattern(baseName, pattern) {
+    const raw = String(pattern || "").trim();
+    if (!raw) {
+      return null;
+    }
+    const escaped = raw.replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+      .replace(/\\\{n\\\}/gi, "(\\d+)")
+      .replace(/#+/g, "(\\d+)");
+    const match = String(baseName || "").match(new RegExp(`^${escaped}$`, "i"));
+    if (!match || match[1] == null) {
+      return null;
+    }
+    const number = Number(match[1]);
+    return Number.isInteger(number) ? number : null;
+  }
+
+  function detectDeckPatterns(files) {
+    const groups = new Map();
+    (Array.isArray(files) ? files : []).forEach((entry) => {
+      const base = deckFileBase(entry.path);
+      const match = base.match(/^([^0-9]*?)(\d+)$/);
+      if (!match || !match[1]) {
+        return;
+      }
+      const key = match[1].toLowerCase();
+      const group = groups.get(key) || { prefix: match[1], pad: match[2].length, numbers: [] };
+      group.pad = Math.max(group.pad, match[2].length);
+      group.numbers.push(Number(match[2]));
+      groups.set(key, group);
+    });
+    const ranked = [...groups.values()].map((group) => {
+      const unique = [...new Set(group.numbers)].sort((left, right) => left - right);
+      return {
+        prefix: group.prefix,
+        pad: Math.max(2, group.pad),
+        count: unique.length,
+        min: unique[0],
+        max: unique[unique.length - 1]
+      };
+    }).sort((left, right) => right.count - left.count || left.prefix.localeCompare(right.prefix));
+
+    const patterns = {
+      majors: { pattern: "", start: 0 },
+      back: "",
+      suits: {}
+    };
+    const used = new Set();
+    const majorGroup = ranked.find((group) => group.count >= 20 && group.count <= 24);
+    if (majorGroup) {
+      patterns.majors.pattern = `${majorGroup.prefix}${"#".repeat(majorGroup.pad)}`;
+      patterns.majors.start = majorGroup.min;
+      used.add(majorGroup.prefix.toLowerCase());
+    }
+    ranked.filter((group) => !used.has(group.prefix.toLowerCase()) && group.count >= 12 && group.count <= 16)
+      .sort((left, right) => left.prefix.localeCompare(right.prefix, undefined, { sensitivity: "base" }))
+      .forEach((group, index) => {
+        const suit = DECK_SUITS[index];
+        if (!suit) {
+          return;
+        }
+        patterns.suits[suit.id] = {
+          pattern: `${group.prefix}${"#".repeat(group.pad)}`,
+          start: group.min
+        };
+      });
+    return patterns;
+  }
+
+  function guessDeckSlot(relativePath) {
+    const rel = String(relativePath || "").replace(/\\/g, "/").toLowerCase();
+    const base = rel.split("/").pop().replace(/\.[^.]+$/, "");
+    if (/(^|\/)(back|card-back|cardback|verso)(\.|$)/.test(rel) || /^back$/i.test(base)) {
+      return "back";
+    }
+    const numMatch = base.match(/^(?:page[_-]?)?(\d{1,3})$/);
+    const number = numMatch ? Number(numMatch[1]) : NaN;
+    const inMajor = /major|trump|arcana/.test(rel);
+    const inMinor = /minor|pip|small/.test(rel);
+    if (Number.isInteger(number) && number >= 0 && number <= 21 && (inMajor || !inMinor)) {
+      return `major-${number}`;
+    }
+    if (Number.isInteger(number) && number >= 22 && number <= 77) {
+      const offset = number - 22;
+      const suit = DECK_SUITS[Math.floor(offset / 14)];
+      const rank = DECK_RANKS[offset % 14];
+      if (suit && rank) {
+        return `minor-${suit.id}-${rank.id}`;
+      }
+    }
+    const suit = DECK_SUITS.find((entry) => entry.aliases.some((alias) => rel.includes(alias)));
+    const rank = DECK_RANKS.find((entry) => entry.aliases.some((alias) => new RegExp(`(?:^|[^a-z])${alias}(?:$|[^a-z])`).test(base) || rel.includes(`/${alias}`)));
+    if (suit && rank) {
+      return `minor-${suit.id}-${rank.id}`;
+    }
+    if (Number.isInteger(number) && number >= 0 && number <= 21) {
+      return `major-${number}`;
+    }
+    return "";
+  }
+
+  const ZIP_CRC_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let index = 0; index < 256; index += 1) {
+      let crc = index;
+      for (let bit = 0; bit < 8; bit += 1) {
+        crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1);
+      }
+      table[index] = crc >>> 0;
+    }
+    return table;
+  })();
+
+  function zipCrc32(bytes) {
+    let crc = 0xffffffff;
+    for (let index = 0; index < bytes.length; index += 1) {
+      crc = ZIP_CRC_TABLE[(crc ^ bytes[index]) & 0xff] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+
+  function concatBytes(parts) {
+    const total = parts.reduce((sum, part) => sum + part.length, 0);
+    const out = new Uint8Array(total);
+    let offset = 0;
+    parts.forEach((part) => {
+      out.set(part, offset);
+      offset += part.length;
+    });
+    return out;
+  }
+
+  function u16(value) {
+    const buf = new Uint8Array(2);
+    new DataView(buf.buffer).setUint16(0, value, true);
+    return buf;
+  }
+
+  function u32(value) {
+    const buf = new Uint8Array(4);
+    new DataView(buf.buffer).setUint32(0, value, true);
+    return buf;
+  }
+
+  function buildStoreZip(files) {
+    const locals = [];
+    const centrals = [];
+    let offset = 0;
+    files.forEach((file) => {
+      const nameBytes = new TextEncoder().encode(file.name);
+      const data = file.bytes;
+      const crc = zipCrc32(data);
+      const local = concatBytes([
+        new Uint8Array([0x50, 0x4b, 0x03, 0x04]),
+        u16(20), u16(0), u16(0), u16(0), u16(0),
+        u32(crc), u32(data.length), u32(data.length),
+        u16(nameBytes.length), u16(0),
+        nameBytes,
+        data
+      ]);
+      locals.push(local);
+      const central = concatBytes([
+        new Uint8Array([0x50, 0x4b, 0x01, 0x02]),
+        u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+        u32(crc), u32(data.length), u32(data.length),
+        u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset),
+        nameBytes
+      ]);
+      centrals.push(central);
+      offset += local.length;
+    });
+    const centralSize = centrals.reduce((sum, part) => sum + part.length, 0);
+    const eocd = concatBytes([
+      new Uint8Array([0x50, 0x4b, 0x05, 0x06]),
+      u16(0), u16(0), u16(files.length), u16(files.length),
+      u32(centralSize), u32(offset), u16(0)
+    ]);
+    return concatBytes([...locals, ...centrals, eocd]);
+  }
+
+  function openCreateDlc(hostEl, { onCreated } = {}) {
+    if (!isAdmin()) {
+      setStatus("Admin key required to create DLC.", true);
+      return;
+    }
+    document.querySelector(".dlc-create-overlay")?.remove();
+    const overlay = document.createElement("div");
+    overlay.className = "dlc-settings-overlay dlc-create-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.innerHTML = `
+      <div class="dlc-settings-overlay-panel">
+        <div class="dlc-settings-overlay-head">
+          <strong>Create DLC</strong>
+          <button type="button" class="dlc-shop-btn" data-action="close">Close</button>
+        </div>
+        <div class="dlc-settings-overlay-body">
+          <div data-role="create-intro">
+            <p class="settings-field-hint">Pick a category. Text and decks are assembled in the browser, then saved into the DLC checkout.</p>
+            <div class="dlc-create-kinds">
+              <button type="button" class="dlc-shop-btn dlc-create-kind is-active" data-kind="text">Text</button>
+              <button type="button" class="dlc-shop-btn dlc-create-kind" data-kind="deck">Deck</button>
+              <button type="button" class="dlc-shop-btn dlc-create-kind" data-kind="plugin">Plugin</button>
+              <button type="button" class="dlc-shop-btn dlc-create-kind" data-kind="reference" disabled>Reference (soon)</button>
+            </div>
+          </div>
+          <div data-role="kind-text">
+            <div data-role="text-source">
+              <div class="dlc-create-meta-grid">
+                <label class="settings-field">Upload a file
+                  <input type="file" class="dlc-create-text-file" accept=".txt,.text,.md,.json,.html">
+                </label>
+              </div>
+              <label class="settings-field">Or paste text
+                <textarea class="dlc-create-text-body" rows="7" placeholder="Paste a book, ritual, or article…"></textarea>
+              </label>
+              <div class="dlc-shop-actions">
+                <button type="button" class="settings-button-primary" data-action="preview">Auto-section</button>
+              </div>
+            </div>
+            <div data-role="text-fields" hidden>
+              <div class="dlc-create-meta-grid">
+                <label class="settings-field">Id
+                  <input type="text" class="dlc-create-text-id" maxlength="40" placeholder="gospel-of-philip">
+                </label>
+                <label class="settings-field">Title
+                  <input type="text" class="dlc-create-text-title" maxlength="120" placeholder="Title">
+                </label>
+                <label class="settings-field">Language
+                  <input type="text" class="dlc-create-text-language" maxlength="40" value="English">
+                </label>
+                <label class="settings-field">Tradition
+                  <input type="text" class="dlc-create-text-tradition" maxlength="80" placeholder="optional">
+                </label>
+                <label class="settings-field">Format
+                  <select class="dlc-create-text-format"></select>
+                </label>
+                <label class="settings-field">Description
+                  <input type="text" class="dlc-create-text-description" maxlength="400" placeholder="Short description">
+                </label>
+              </div>
+              <div class="dlc-shop-actions">
+                <button type="button" class="dlc-shop-btn" data-action="change-source">Change source</button>
+              </div>
+              <div class="dlc-text-preview-stats" data-role="text-stats"></div>
+              <div class="dlc-text-loose" data-role="loose-text" hidden>
+                <div class="dlc-text-loose-head">
+                  <strong>Loose text</strong>
+                  <span class="settings-field-hint">Not placed in a section (preamble or leftovers). Insert, make a section, or discard.</span>
+                </div>
+                <div data-role="loose-list"></div>
+              </div>
+              <div class="dlc-text-workspace">
+                <aside class="dlc-text-outline" data-role="text-outline"></aside>
+                <div class="dlc-text-sample">
+                  <div class="dlc-text-sample-head">
+                    <strong data-role="sample-heading">Reader sample</strong>
+                    <span class="settings-field-hint" data-role="sample-meta"></span>
+                  </div>
+                  <div class="dlc-text-sample-reader" data-role="text-sample"></div>
+                  <div class="dlc-text-section" data-role="text-editor"></div>
+                </div>
+              </div>
+              <div class="dlc-shop-actions">
+                <button type="button" class="settings-button-primary" data-action="save-text">Save DLC text</button>
+              </div>
+            </div>
+          </div>
+          <div data-role="kind-deck" hidden>
+            <div data-role="deck-source">
+              <label class="settings-field">Deck folder
+                <input type="file" class="dlc-create-deck-folder" webkitdirectory multiple accept="image/*">
+              </label>
+            </div>
+            <div data-role="deck-fields" hidden>
+              <div class="dlc-deck-meta">
+                <label class="settings-field">Title
+                  <input type="text" class="dlc-create-deck-title" maxlength="120" placeholder="My Deck">
+                </label>
+                <label class="settings-field">Id
+                  <input type="text" class="dlc-create-deck-id" maxlength="40" placeholder="thoth">
+                </label>
+                <div class="dlc-shop-actions dlc-deck-meta-actions">
+                  <button type="button" class="dlc-shop-btn" data-action="deck-help">Help</button>
+                  <button type="button" class="dlc-shop-btn" data-action="detect-deck-patterns">Detect</button>
+                  <button type="button" class="dlc-shop-btn" data-action="apply-deck-patterns">Apply</button>
+                </div>
+              </div>
+              <div class="dlc-text-preview-stats" data-role="deck-stats"></div>
+              <div class="dlc-deck-pattern-groups">
+                <section class="dlc-deck-pattern-card">
+                  <h3>Trumps</h3>
+                  <div class="dlc-deck-pattern-row">
+                    <label class="settings-field">Pattern
+                      <input type="text" class="dlc-deck-pat-majors" placeholder="a##">
+                    </label>
+                    <label class="settings-field">Start
+                      <input type="number" class="dlc-deck-start-majors" value="0" min="0" max="22">
+                    </label>
+                  </div>
+                  <div class="dlc-deck-grid" data-role="deck-grid-majors"></div>
+                </section>
+                <section class="dlc-deck-pattern-card">
+                  <h3 data-role="suit-head-wands">Wands</h3>
+                  <div class="dlc-deck-pattern-row">
+                    <label class="settings-field">Pattern
+                      <input type="text" class="dlc-deck-pat-wands" placeholder="b##">
+                    </label>
+                    <label class="settings-field">Start
+                      <input type="number" class="dlc-deck-start-wands" value="1" min="0" max="14">
+                    </label>
+                    <label class="settings-field">Shown as
+                      <input type="text" class="dlc-deck-alias-wands" placeholder="Batons">
+                    </label>
+                  </div>
+                  <div class="dlc-deck-grid" data-role="deck-grid-wands"></div>
+                </section>
+                <section class="dlc-deck-pattern-card">
+                  <h3 data-role="suit-head-cups">Cups</h3>
+                  <div class="dlc-deck-pattern-row">
+                    <label class="settings-field">Pattern
+                      <input type="text" class="dlc-deck-pat-cups" placeholder="c##">
+                    </label>
+                    <label class="settings-field">Start
+                      <input type="number" class="dlc-deck-start-cups" value="1" min="0" max="14">
+                    </label>
+                    <label class="settings-field">Shown as
+                      <input type="text" class="dlc-deck-alias-cups" placeholder="Cups">
+                    </label>
+                  </div>
+                  <div class="dlc-deck-grid" data-role="deck-grid-cups"></div>
+                </section>
+                <section class="dlc-deck-pattern-card">
+                  <h3 data-role="suit-head-swords">Swords</h3>
+                  <div class="dlc-deck-pattern-row">
+                    <label class="settings-field">Pattern
+                      <input type="text" class="dlc-deck-pat-swords" placeholder="d##">
+                    </label>
+                    <label class="settings-field">Start
+                      <input type="number" class="dlc-deck-start-swords" value="1" min="0" max="14">
+                    </label>
+                    <label class="settings-field">Shown as
+                      <input type="text" class="dlc-deck-alias-swords" placeholder="Swords">
+                    </label>
+                  </div>
+                  <div class="dlc-deck-grid" data-role="deck-grid-swords"></div>
+                </section>
+                <section class="dlc-deck-pattern-card">
+                  <h3 data-role="suit-head-pentacles">Disks</h3>
+                  <div class="dlc-deck-pattern-row">
+                    <label class="settings-field">Pattern
+                      <input type="text" class="dlc-deck-pat-pentacles" placeholder="e##">
+                    </label>
+                    <label class="settings-field">Start
+                      <input type="number" class="dlc-deck-start-pentacles" value="1" min="0" max="14">
+                    </label>
+                    <label class="settings-field">Shown as
+                      <input type="text" class="dlc-deck-alias-pentacles" placeholder="Coins">
+                    </label>
+                  </div>
+                  <div class="dlc-deck-grid" data-role="deck-grid-pentacles"></div>
+                </section>
+                <section class="dlc-deck-pattern-card dlc-deck-pattern-card-back">
+                  <h3>Back</h3>
+                  <div class="dlc-deck-pattern-row">
+                    <label class="settings-field">Pattern
+                      <input type="text" class="dlc-deck-pat-back" placeholder="back">
+                    </label>
+                    <div class="dlc-deck-back" data-role="deck-back"></div>
+                  </div>
+                </section>
+              </div>
+              <details class="dlc-deck-loose" data-role="deck-loose" hidden>
+                <summary>Unmapped images</summary>
+                <div class="dlc-deck-loose-list" data-role="deck-loose-list"></div>
+              </details>
+              <div class="dlc-shop-actions">
+                <button type="button" class="dlc-shop-btn" data-action="change-deck-source">Change folder</button>
+                <label class="dlc-menu-hide-label">
+                  <input type="checkbox" class="dlc-create-deck-incomplete">
+                  Allow incomplete deck
+                </label>
+                <button type="button" class="settings-button-primary" data-action="save-deck">Save DLC deck</button>
+              </div>
+              <div class="dlc-ctx-menu" data-role="deck-ctx" hidden></div>
+            </div>
+          </div>
+          <div data-role="kind-plugin" hidden></div>
+          <p class="settings-field-hint" data-role="status" aria-live="polite"></p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const statusEl = overlay.querySelector("[data-role='status']");
+    const setFormStatus = (text, isError = false) => {
+      if (!statusEl) return;
+      statusEl.textContent = text;
+      statusEl.classList.toggle("is-error", Boolean(isError));
+    };
+    let previewState = null;
+    let sourceText = "";
+    let sourceName = "";
+    let idManual = false;
+
+    function slugifyId(value) {
+      return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 40);
+    }
+
+    function syncIdFromTitle(title) {
+      if (idManual) return;
+      const idEl = overlay.querySelector(".dlc-create-text-id");
+      if (idEl) {
+        idEl.value = slugifyId(title);
+      }
+    }
+
+    overlay.querySelector('[data-action="close"]').addEventListener("click", () => overlay.remove());
+    overlay.querySelectorAll(".dlc-create-kind").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (button.disabled) return;
+        overlay.querySelectorAll(".dlc-create-kind").forEach((entry) => entry.classList.toggle("is-active", entry === button));
+        const kind = button.dataset.kind;
+        overlay.querySelector("[data-role='kind-text']").hidden = kind !== "text";
+        overlay.querySelector("[data-role='kind-deck']").hidden = kind !== "deck";
+        overlay.querySelector("[data-role='kind-plugin']").hidden = kind !== "plugin";
+        if (kind === "plugin") {
+          openCreatePluginForm(overlay.querySelector("[data-role='kind-plugin']"), { onCreated });
+        }
+      });
+    });
+
+    overlay.querySelector(".dlc-create-text-file").addEventListener("change", async (event) => {
+      const file = event.currentTarget.files?.[0];
+      if (!file) return;
+      sourceName = file.name;
+      sourceText = await file.text();
+      overlay.querySelector(".dlc-create-text-body").value = sourceText;
+      setFormStatus(`Loaded ${file.name} (${Math.round(file.size / 1024)} KB). Click Auto-section.`);
+    });
+
+    const applyDocumentTitle = (title) => {
+      if (!previewState) return;
+      const nextTitle = String(title || "").trim();
+      previewState.title = nextTitle;
+      if (previewState.document) {
+        previewState.document.title = nextTitle;
+        const works = Array.isArray(previewState.document.works) ? previewState.document.works : [];
+        if (works.length === 1) {
+          works[0].title = nextTitle;
+        }
+      }
+      renderTextPreview(overlay, previewState, { syncFields: false });
+    };
+
+    const fillFormatOptions = (formats, selected) => {
+      const formatEl = overlay.querySelector(".dlc-create-text-format");
+      if (!formatEl) return;
+      if (formatEl.options.length <= 1) {
+        formatEl.replaceChildren();
+        (formats || []).forEach((value) => {
+          const opt = document.createElement("option");
+          opt.value = value;
+          opt.textContent = value;
+          formatEl.appendChild(opt);
+        });
+      }
+      if (selected) {
+        formatEl.value = selected;
+      }
+    };
+
+    const runTextPreview = async ({ syncFields = true, statusText = "Sectioning…" } = {}) => {
+      sourceText = String(overlay.querySelector(".dlc-create-text-body")?.value || sourceText || "");
+      if (!sourceText.trim()) {
+        setFormStatus("Upload or paste text first.", true);
+        return false;
+      }
+      setFormStatus(statusText);
+      const format = String(overlay.querySelector(".dlc-create-text-format")?.value || "").trim();
+      previewState = await window.TarotDataService.requestJson(
+        "POST",
+        window.TarotDataService.buildApiUrl("/api/v1/dlc/texts/preview"),
+        {
+          text: sourceText,
+          filename: sourceName,
+          format: format || undefined,
+          title: String(overlay.querySelector(".dlc-create-text-title")?.value || "").trim(),
+          id: String(overlay.querySelector(".dlc-create-text-id")?.value || "").trim()
+        }
+      );
+      fillFormatOptions(previewState.formats, previewState.format);
+      renderTextPreview(overlay, previewState, { syncFields });
+      setFormStatus(`Showing ${previewState.format}: ${previewState.stats?.sections || 0} section(s), ${previewState.stats?.verses || 0} passage(s).`);
+      return true;
+    };
+
+    overlay.querySelector('[data-action="change-source"]').addEventListener("click", () => {
+      const sourceEl = overlay.querySelector("[data-role='text-source']");
+      if (sourceEl) sourceEl.hidden = false;
+      setFormStatus("Edit the source, then Auto-section again.");
+    });
+
+    overlay.querySelector('[data-action="preview"]').addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await runTextPreview();
+      } catch (error) {
+        setFormStatus(error?.message || "Could not section that text.", true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    overlay.querySelector(".dlc-create-text-id").addEventListener("input", () => {
+      idManual = true;
+    });
+
+    overlay.querySelector(".dlc-create-text-title").addEventListener("input", (event) => {
+      const title = event.currentTarget.value;
+      syncIdFromTitle(title);
+      applyDocumentTitle(title);
+    });
+
+    overlay.querySelector(".dlc-create-text-format").addEventListener("change", async (event) => {
+      if (!sourceText.trim() && !String(overlay.querySelector(".dlc-create-text-body")?.value || "").trim()) {
+        return;
+      }
+      event.currentTarget.disabled = true;
+      try {
+        await runTextPreview({
+          syncFields: false,
+          statusText: `Resectioning as ${event.currentTarget.value}…`
+        });
+      } catch (error) {
+        setFormStatus(error?.message || "That format could not read this file.", true);
+      } finally {
+        event.currentTarget.disabled = false;
+      }
+    });
+
+    overlay.querySelector('[data-action="save-text"]').addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      if (!previewState) {
+        setFormStatus("Auto-section the text first.", true);
+        return;
+      }
+      button.disabled = true;
+      setFormStatus("Saving DLC text…");
+      try {
+        const result = await window.TarotDataService.requestJson(
+          "POST",
+          window.TarotDataService.buildApiUrl("/api/v1/dlc/texts"),
+          {
+            id: String(overlay.querySelector(".dlc-create-text-id")?.value || previewState.id || "").trim(),
+            title: String(overlay.querySelector(".dlc-create-text-title")?.value || previewState.title || "").trim(),
+            description: String(overlay.querySelector(".dlc-create-text-description")?.value || "").trim(),
+            language: String(overlay.querySelector(".dlc-create-text-language")?.value || "English").trim(),
+            tradition: String(overlay.querySelector(".dlc-create-text-tradition")?.value || "").trim(),
+            format: String(overlay.querySelector(".dlc-create-text-format")?.value || previewState.format || "").trim(),
+            text: sourceText,
+            document: collectEditedDocument(overlay, previewState)
+          }
+        );
+        setFormStatus(`Saved '${result?.text?.title || result?.text?.id}'. Storage is refreshing so it appears in the library.`);
+        setStatus(`Created text '${result?.text?.id}'.`);
+        if (typeof onCreated === "function") {
+          await onCreated(result?.text);
+        }
+        window.setTimeout(() => overlay.remove(), 1600);
+      } catch (error) {
+        setFormStatus(error?.message || "Could not save DLC text.", true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    const deckSlots = deckSlotList();
+    const deckState = {
+      files: [],
+      assigned: {},
+      back: "",
+      pendingLoose: "",
+      idManual: false,
+      cardNames: {},
+      suitNames: {}
+    };
+
+    const revokeDeckUrls = () => {
+      deckState.files.forEach((entry) => {
+        if (entry.url) URL.revokeObjectURL(entry.url);
+      });
+    };
+
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        revokeDeckUrls();
+      }
+    });
+    overlay.querySelector('[data-action="close"]').addEventListener("click", revokeDeckUrls);
+
+    const ctxMenu = overlay.querySelector("[data-role='deck-ctx']");
+    const hideDeckMenus = () => {
+      if (ctxMenu) ctxMenu.hidden = true;
+      document.querySelector(".dlc-deck-rename-overlay")?.remove();
+    };
+
+    const suitLabel = (suitId) => {
+      const custom = String(deckState.suitNames[suitId] || overlay.querySelector(`.dlc-deck-alias-${suitId}`)?.value || "").trim();
+      if (custom) return custom;
+      return DECK_SUITS.find((suit) => suit.id === suitId)?.label || suitId;
+    };
+
+    const slotDisplayLabel = (slot) => {
+      const custom = String(deckState.cardNames[slot.key] || "").trim();
+      if (custom) return custom;
+      if (String(slot.key).startsWith("minor-")) {
+        const parts = String(slot.key).split("-");
+        const suitId = parts[1];
+        const rankId = parts.slice(2).join("-");
+        const rank = DECK_RANKS.find((entry) => entry.id === rankId)?.label || rankId;
+        return `${rank} of ${suitLabel(suitId)}`;
+      }
+      return slot.label;
+    };
+
+    const openRenamePop = (title, value, onSave) => {
+      hideDeckMenus();
+      const pop = document.createElement("div");
+      pop.className = "dlc-settings-overlay dlc-deck-rename-overlay";
+      pop.setAttribute("role", "dialog");
+      pop.innerHTML = `
+        <div class="dlc-settings-overlay-panel dlc-deck-rename-panel">
+          <div class="dlc-settings-overlay-head">
+            <strong>${escapeHtml(title)}</strong>
+            <button type="button" class="dlc-shop-btn" data-action="rename-cancel">Close</button>
+          </div>
+          <div class="dlc-settings-overlay-body">
+            <label class="settings-field">Name
+              <input type="text" class="dlc-rename-input" maxlength="80">
+            </label>
+            <div class="dlc-shop-actions">
+              <button type="button" class="settings-button-primary" data-action="rename-ok">Save</button>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(pop);
+      const input = pop.querySelector(".dlc-rename-input");
+      if (input) {
+        input.value = value || "";
+        input.focus();
+        input.select();
+      }
+      const finish = (save) => {
+        const next = String(input?.value || "").trim();
+        pop.remove();
+        if (save) onSave(next);
+      };
+      pop.querySelector('[data-action="rename-ok"]').addEventListener("click", () => finish(true));
+      pop.querySelector('[data-action="rename-cancel"]').addEventListener("click", () => finish(false));
+      pop.addEventListener("click", (event) => {
+        if (event.target === pop) finish(false);
+      });
+      input?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") finish(true);
+        if (event.key === "Escape") finish(false);
+      });
+    };
+
+    const showDeckContextMenu = (event, items) => {
+      event.preventDefault();
+      if (!ctxMenu) return;
+      ctxMenu.replaceChildren();
+      items.forEach((item) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = item.label;
+        button.addEventListener("click", () => {
+          hideDeckMenus();
+          item.action();
+        });
+        ctxMenu.appendChild(button);
+      });
+      ctxMenu.hidden = false;
+      const left = Math.min(event.clientX, window.innerWidth - 180);
+      const top = Math.min(event.clientY, window.innerHeight - 8 - items.length * 36);
+      ctxMenu.style.left = `${Math.max(8, left)}px`;
+      ctxMenu.style.top = `${Math.max(8, top)}px`;
+    };
+
+    overlay.addEventListener("click", (event) => {
+      if (!event.target.closest("[data-role='deck-ctx']")) {
+        if (ctxMenu) ctxMenu.hidden = true;
+      }
+    });
+
+    const renderDeckEditor = () => {
+      const statsEl = overlay.querySelector("[data-role='deck-stats']");
+      const backEl = overlay.querySelector("[data-role='deck-back']");
+      const looseHost = overlay.querySelector("[data-role='deck-loose']");
+      const looseList = overlay.querySelector("[data-role='deck-loose-list']");
+      const grids = {
+        Majors: overlay.querySelector("[data-role='deck-grid-majors']"),
+        Wands: overlay.querySelector("[data-role='deck-grid-wands']"),
+        Cups: overlay.querySelector("[data-role='deck-grid-cups']"),
+        Swords: overlay.querySelector("[data-role='deck-grid-swords']"),
+        Disks: overlay.querySelector("[data-role='deck-grid-pentacles']")
+      };
+      DECK_SUITS.forEach((suit) => {
+        const head = overlay.querySelector(`[data-role="suit-head-${suit.id}"]`);
+        if (head) {
+          head.textContent = suitLabel(suit.id);
+        }
+      });
+      const assignedCount = Object.keys(deckState.assigned).filter((key) => key !== "back" && deckState.assigned[key]).length;
+      if (statsEl) {
+        statsEl.innerHTML = "";
+        [`${assignedCount}/78 cards`, deckState.back ? "back set" : "no back", `${deckState.files.length} files`].forEach((label) => {
+          const chip = document.createElement("span");
+          chip.className = "dlc-text-chip";
+          chip.textContent = label;
+          statsEl.appendChild(chip);
+        });
+      }
+      const fileByPath = new Map(deckState.files.map((entry) => [entry.path, entry]));
+      if (backEl) {
+        backEl.replaceChildren();
+        const img = document.createElement("img");
+        img.alt = "Card back";
+        const backFile = fileByPath.get(deckState.assigned.back || deckState.back);
+        if (backFile?.url) {
+          img.src = backFile.url;
+        }
+        img.addEventListener("click", () => {
+          if (deckState.pendingLoose) {
+            deckState.assigned.back = deckState.pendingLoose;
+            deckState.back = deckState.pendingLoose;
+            deckState.pendingLoose = "";
+            renderDeckEditor();
+          }
+        });
+        backEl.appendChild(img);
+      }
+      Object.values(grids).forEach((grid) => grid?.replaceChildren());
+      deckSlots.forEach((slot) => {
+          const gridEl = grids[slot.group];
+          if (!gridEl) return;
+          const card = document.createElement("button");
+          card.type = "button";
+          card.className = "dlc-deck-slot";
+          const path = deckState.assigned[slot.key];
+          const file = path ? fileByPath.get(path) : null;
+          const displayName = slotDisplayLabel(slot);
+          if (file?.url) {
+            const img = document.createElement("img");
+            img.src = file.url;
+            img.alt = displayName;
+            card.appendChild(img);
+          }
+          const caption = document.createElement("span");
+          caption.textContent = displayName;
+          card.appendChild(caption);
+          if (deckState.pendingLoose) {
+            card.classList.add("is-assign");
+          }
+          if (deckState.cardNames[slot.key]) {
+            card.classList.add("is-renamed");
+          }
+          card.addEventListener("click", () => {
+            if (deckState.pendingLoose) {
+              const previous = deckState.assigned[slot.key];
+              deckState.assigned[slot.key] = deckState.pendingLoose;
+              deckState.pendingLoose = previous || "";
+              renderDeckEditor();
+              return;
+            }
+            if (deckState.assigned[slot.key]) {
+              deckState.pendingLoose = deckState.assigned[slot.key];
+              delete deckState.assigned[slot.key];
+              renderDeckEditor();
+            }
+          });
+          card.addEventListener("contextmenu", (event) => {
+            showDeckContextMenu(event, [
+              {
+                label: "Rename card…",
+                action: () => openRenamePop("Card name", displayName, (value) => {
+                  if (value && value !== slot.label) {
+                    deckState.cardNames[slot.key] = value;
+                  } else {
+                    delete deckState.cardNames[slot.key];
+                  }
+                  renderDeckEditor();
+                })
+              },
+              {
+                label: "Reset name",
+                action: () => {
+                  delete deckState.cardNames[slot.key];
+                  renderDeckEditor();
+                }
+              },
+              {
+                label: "Unmap image",
+                action: () => {
+                  if (deckState.assigned[slot.key]) {
+                    delete deckState.assigned[slot.key];
+                    renderDeckEditor();
+                  }
+                }
+              }
+            ]);
+          });
+          gridEl.appendChild(card);
+      });
+      const used = new Set(Object.values(deckState.assigned).filter(Boolean));
+      const loose = deckState.files.filter((entry) => !used.has(entry.path));
+      if (looseHost && looseList) {
+        looseHost.hidden = loose.length === 0;
+        const summary = looseHost.querySelector("summary");
+        if (summary) {
+          summary.textContent = `Unmapped images (${loose.length})`;
+        }
+        looseList.replaceChildren();
+        loose.forEach((entry) => {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "dlc-deck-loose-item";
+          if (deckState.pendingLoose === entry.path) {
+            item.classList.add("is-active");
+          }
+          const img = document.createElement("img");
+          img.src = entry.url;
+          img.alt = entry.path;
+          const name = document.createElement("span");
+          name.textContent = entry.path;
+          item.append(img, name);
+          item.addEventListener("click", () => {
+            deckState.pendingLoose = deckState.pendingLoose === entry.path ? "" : entry.path;
+            renderDeckEditor();
+          });
+          looseList.appendChild(item);
+        });
+      }
+    };
+
+    const fillDeckPatternFields = (patterns) => {
+      overlay.querySelector(".dlc-deck-pat-majors").value = patterns.majors?.pattern || "";
+      overlay.querySelector(".dlc-deck-start-majors").value = String(patterns.majors?.start ?? 0);
+      DECK_SUITS.forEach((suit) => {
+        overlay.querySelector(`.dlc-deck-pat-${suit.id}`).value = patterns.suits?.[suit.id]?.pattern || "";
+        overlay.querySelector(`.dlc-deck-start-${suit.id}`).value = String(patterns.suits?.[suit.id]?.start ?? 1);
+      });
+      if (patterns.back) {
+        overlay.querySelector(".dlc-deck-pat-back").value = patterns.back;
+      }
+    };
+
+    const applyDeckPatterns = (overwrite) => {
+      const majorsPattern = String(overlay.querySelector(".dlc-deck-pat-majors")?.value || "").trim();
+      const majorsStart = Number(overlay.querySelector(".dlc-deck-start-majors")?.value);
+      const backPattern = String(overlay.querySelector(".dlc-deck-pat-back")?.value || "").trim();
+      let mapped = 0;
+      deckState.files.forEach((entry) => {
+        const base = deckFileBase(entry.path);
+        let slot = "";
+        const majorNumber = matchDeckPattern(base, majorsPattern);
+        if (majorNumber != null) {
+          const trump = majorNumber - (Number.isInteger(majorsStart) ? majorsStart : 0);
+          if (trump >= 0 && trump <= 21) {
+            slot = `major-${trump}`;
+          }
+        }
+        if (!slot) {
+          DECK_SUITS.some((suit) => {
+            const pattern = String(overlay.querySelector(`.dlc-deck-pat-${suit.id}`)?.value || "").trim();
+            const start = Number(overlay.querySelector(`.dlc-deck-start-${suit.id}`)?.value);
+            const rankNumber = matchDeckPattern(base, pattern);
+            if (rankNumber == null) {
+              return false;
+            }
+            const rankIndex = rankNumber - (Number.isInteger(start) ? start : 1);
+            const rank = DECK_RANKS[rankIndex];
+            if (!rank) {
+              return false;
+            }
+            slot = `minor-${suit.id}-${rank.id}`;
+            return true;
+          });
+        }
+        if (!slot && backPattern) {
+          const lowered = backPattern.toLowerCase();
+          if (base.toLowerCase() === lowered || base.toLowerCase().includes(lowered) || matchDeckPattern(base, backPattern) != null) {
+            slot = "back";
+          }
+        }
+        if (!slot) {
+          return;
+        }
+        if (slot === "back") {
+          if (overwrite || !deckState.assigned.back) {
+            deckState.assigned.back = entry.path;
+            deckState.back = entry.path;
+            mapped += 1;
+          }
+          return;
+        }
+        if (overwrite || !deckState.assigned[slot]) {
+          deckState.assigned[slot] = entry.path;
+          mapped += 1;
+        }
+      });
+      return mapped;
+    };
+
+    overlay.querySelector(".dlc-create-deck-folder").addEventListener("change", (event) => {
+      const files = [...(event.currentTarget.files || [])].filter((file) => DECK_IMAGE_EXT.test(file.name));
+      if (!files.length) {
+        setFormStatus("No images found in that folder.", true);
+        return;
+      }
+      revokeDeckUrls();
+      deckState.files = files.map((file) => {
+        const path = String(file.webkitRelativePath || file.name).replace(/\\/g, "/");
+        return {
+          path,
+          file,
+          url: URL.createObjectURL(file)
+        };
+      });
+      deckState.assigned = {};
+      deckState.back = "";
+      deckState.pendingLoose = "";
+      deckState.cardNames = {};
+      deckState.suitNames = {};
+      deckState.files.forEach((entry) => {
+        const slot = guessDeckSlot(entry.path);
+        if (slot === "back" && !deckState.assigned.back) {
+          deckState.assigned.back = entry.path;
+          deckState.back = entry.path;
+          return;
+        }
+        if (slot && slot !== "back" && !deckState.assigned[slot]) {
+          deckState.assigned[slot] = entry.path;
+        }
+      });
+      const detected = detectDeckPatterns(deckState.files);
+      fillDeckPatternFields(detected);
+      DECK_SUITS.forEach((suit) => {
+        const aliasEl = overlay.querySelector(`.dlc-deck-alias-${suit.id}`);
+        if (aliasEl) aliasEl.value = "";
+      });
+      applyDeckPatterns(false);
+      const folderName = String(deckState.files[0]?.path || "").split("/")[0] || "My Deck";
+      const titleEl = overlay.querySelector(".dlc-create-deck-title");
+      const idEl = overlay.querySelector(".dlc-create-deck-id");
+      if (titleEl && !titleEl.value) {
+        titleEl.value = folderName.replace(/[-_]+/g, " ");
+      }
+      if (idEl && !deckState.idManual) {
+        idEl.value = slugifyId(titleEl?.value || folderName);
+      }
+      overlay.querySelector("[data-role='create-intro']")?.setAttribute("hidden", "hidden");
+      overlay.querySelector("[data-role='deck-source']").hidden = true;
+      overlay.querySelector("[data-role='deck-fields']").hidden = false;
+      renderDeckEditor();
+      setFormStatus("Check the mapping, then save. Unmapped images stay on the device until you assign or skip them.");
+    });
+
+    overlay.querySelector('[data-action="deck-help"]').addEventListener("click", () => {
+      document.querySelector(".dlc-deck-help-overlay")?.remove();
+      const help = document.createElement("div");
+      help.className = "dlc-settings-overlay dlc-deck-help-overlay";
+      help.innerHTML = `
+        <div class="dlc-settings-overlay-panel dlc-deck-rename-panel">
+          <div class="dlc-settings-overlay-head">
+            <strong>Deck mapping</strong>
+            <button type="button" class="dlc-shop-btn" data-action="help-close">Close</button>
+          </div>
+          <div class="dlc-settings-overlay-body">
+            <p class="settings-field-hint">Pick a folder of card images. Mapping stays in the browser until you save.</p>
+            <p class="settings-field-hint">Pattern <code>a##</code> is a prefix plus number. Start is the first index in those files (0 or 1). Detect reads letter groups like a/b/c from the folder.</p>
+            <p class="settings-field-hint">Left-click assigns or unmaps an image. Right-click a card to rename it. Shown as maps a suit (Wands → Batons) onto the standard deck.</p>
+            <p class="settings-field-hint">Unmapped leftovers can be assigned or skipped. All 78 slots are required unless you allow an incomplete deck.</p>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(help);
+      help.querySelector('[data-action="help-close"]').addEventListener("click", () => help.remove());
+      help.addEventListener("click", (event) => {
+        if (event.target === help) help.remove();
+      });
+    });
+
+    overlay.querySelector('[data-action="detect-deck-patterns"]').addEventListener("click", () => {
+      if (!deckState.files.length) {
+        setFormStatus("Choose a deck folder first.", true);
+        return;
+      }
+      fillDeckPatternFields(detectDeckPatterns(deckState.files));
+      const mapped = applyDeckPatterns(true);
+      renderDeckEditor();
+      setFormStatus(`Detected patterns and mapped ${mapped} file(s). Adjust patterns if a suit is wrong, then Apply.`);
+    });
+    DECK_SUITS.forEach((suit) => {
+      overlay.querySelector(`[data-role="suit-head-${suit.id}"]`)?.addEventListener("contextmenu", (event) => {
+        showDeckContextMenu(event, [
+          {
+            label: `Rename ${suit.label}…`,
+            action: () => openRenamePop(`${suit.label} shown as`, suitLabel(suit.id), (value) => {
+              if (value && value !== suit.label) {
+                deckState.suitNames[suit.id] = value;
+              } else {
+                delete deckState.suitNames[suit.id];
+              }
+              const aliasEl = overlay.querySelector(`.dlc-deck-alias-${suit.id}`);
+              if (aliasEl) aliasEl.value = deckState.suitNames[suit.id] || "";
+              renderDeckEditor();
+            })
+          },
+          {
+            label: "Reset suit name",
+            action: () => {
+              delete deckState.suitNames[suit.id];
+              const aliasEl = overlay.querySelector(`.dlc-deck-alias-${suit.id}`);
+              if (aliasEl) aliasEl.value = "";
+              renderDeckEditor();
+            }
+          }
+        ]);
+      });
+      overlay.querySelector(`.dlc-deck-alias-${suit.id}`)?.addEventListener("input", (event) => {
+        const value = String(event.currentTarget.value || "").trim();
+        if (value && value !== suit.label) {
+          deckState.suitNames[suit.id] = value;
+        } else {
+          delete deckState.suitNames[suit.id];
+        }
+        renderDeckEditor();
+      });
+    });
+
+    overlay.querySelector('[data-action="apply-deck-patterns"]').addEventListener("click", () => {
+      if (!deckState.files.length) {
+        setFormStatus("Choose a deck folder first.", true);
+        return;
+      }
+      const mapped = applyDeckPatterns(true);
+      renderDeckEditor();
+      setFormStatus(`Applied patterns to ${mapped} file(s).`);
+    });
+
+    overlay.querySelector(".dlc-create-deck-id").addEventListener("input", () => {
+      deckState.idManual = true;
+    });
+    overlay.querySelector(".dlc-create-deck-title").addEventListener("input", (event) => {
+      if (!deckState.idManual) {
+        overlay.querySelector(".dlc-create-deck-id").value = slugifyId(event.currentTarget.value);
+      }
+    });
+    overlay.querySelector('[data-action="change-deck-source"]').addEventListener("click", () => {
+      overlay.querySelector("[data-role='deck-source']").hidden = false;
+    });
+    overlay.querySelector('[data-action="save-deck"]').addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      const title = String(overlay.querySelector(".dlc-create-deck-title")?.value || "").trim() || "Untitled deck";
+      const id = slugifyId(overlay.querySelector(".dlc-create-deck-id")?.value || title);
+      const missing = deckSlots.filter((slot) => !deckState.assigned[slot.key]);
+      const allowIncomplete = Boolean(overlay.querySelector(".dlc-create-deck-incomplete")?.checked);
+      if (missing.length && !allowIncomplete) {
+        setFormStatus(`${missing.length} card(s) still unmapped. Map them, or check “Allow incomplete deck”.`, true);
+        return;
+      }
+      const mapped = deckSlots.filter((slot) => deckState.assigned[slot.key]);
+      if (!mapped.length) {
+        setFormStatus("Map at least one card image before saving.", true);
+        return;
+      }
+      button.disabled = true;
+      setFormStatus("Packing deck…");
+      try {
+        const fileByPath = new Map(deckState.files.map((entry) => [entry.path, entry]));
+        const zipFiles = [];
+        const majorNameOverridesByTrump = {};
+        const minorNameOverrides = {};
+        const suitNameOverrides = {};
+        DECK_SUITS.forEach((suit) => {
+          const custom = String(deckState.suitNames[suit.id] || overlay.querySelector(`.dlc-deck-alias-${suit.id}`)?.value || "").trim();
+          if (custom && custom !== suit.label) {
+            suitNameOverrides[suit.id === "pentacles" ? "disks" : suit.id] = custom;
+          }
+        });
+        deckSlots.forEach((slot) => {
+          const custom = String(deckState.cardNames[slot.key] || "").trim();
+          if (!custom) return;
+          if (slot.key.startsWith("major-")) {
+            const trump = Number(slot.key.slice(6));
+            if (custom !== DECK_MAJORS[trump]) {
+              majorNameOverridesByTrump[String(trump)] = custom;
+            }
+            return;
+          }
+          const parts = slot.key.split("-");
+          const suitId = parts[1] === "pentacles" ? "disks" : parts[1];
+          const rankId = parts.slice(2).join("-");
+          minorNameOverrides[`${rankId} of ${suitId}`] = custom;
+        });
+        const imageExt = (filePath) => {
+          const match = String(filePath || "").toLowerCase().match(/\.(png|jpe?g|webp|gif)$/);
+          return match ? match[0] : ".png";
+        };
+        const majorCards = {};
+        const minorCards = {};
+        const addFile = async (slotFile, zipName) => {
+          const entry = fileByPath.get(slotFile);
+          if (!entry) return;
+          zipFiles.push({ name: zipName, bytes: new Uint8Array(await entry.file.arrayBuffer()) });
+        };
+        for (const slot of mapped) {
+          const sourcePath = deckState.assigned[slot.key];
+          const zipName = `${String(slot.file).replace(/\.[^.]+$/, "")}${imageExt(sourcePath)}`;
+          await addFile(sourcePath, zipName);
+          if (slot.key.startsWith("major-")) {
+            majorCards[String(slot.key.slice(6))] = zipName;
+          } else {
+            const parts = slot.key.split("-");
+            const suitId = parts[1] === "pentacles" ? "disks" : parts[1];
+            const rankId = parts.slice(2).join("-");
+            minorCards[`${rankId} of ${suitId}`] = zipName;
+          }
+        }
+        let cardBack = "";
+        if (deckState.assigned.back) {
+          cardBack = `back${imageExt(deckState.assigned.back)}`;
+          await addFile(deckState.assigned.back, cardBack);
+        }
+        const manifest = {
+          id,
+          name: title,
+          thumbnails: { root: "thumbs", width: 240, height: 360, fit: "inside", quality: 82 },
+          majors: { mode: "trump-map", cards: majorCards },
+          minors: { mode: "file-map", cards: minorCards }
+        };
+        if (cardBack) {
+          manifest.cardBack = cardBack;
+        }
+        if (Object.keys(majorNameOverridesByTrump).length) {
+          manifest.majorNameOverridesByTrump = majorNameOverridesByTrump;
+        }
+        if (Object.keys(minorNameOverrides).length) {
+          manifest.minorNameOverrides = minorNameOverrides;
+        }
+        if (Object.keys(suitNameOverrides).length) {
+          manifest.suitNameOverrides = suitNameOverrides;
+        }
+        zipFiles.unshift({
+          name: "deck.json",
+          bytes: new TextEncoder().encode(`${JSON.stringify(manifest, null, 2)}\n`)
+        });
+        const zipBytes = buildStoreZip(zipFiles.filter((file) => file.bytes && file.bytes.length));
+        if (!zipBytes.length) {
+          throw new Error("Nothing to upload.");
+        }
+        setFormStatus(`Uploading ${mapped.length} card(s)…`);
+        const result = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", window.TarotDataService.buildApiUrl("/api/v1/dlc/decks"));
+          xhr.setRequestHeader("Content-Type", "application/zip");
+          const apiKey = window.TarotDataService.getApiKey?.();
+          if (apiKey) xhr.setRequestHeader("x-api-key", apiKey);
+          xhr.upload.onprogress = (event) => {
+            if (!event.lengthComputable) return;
+            const percent = Math.round((event.loaded / event.total) * 100);
+            setFormStatus(`Uploading ${mapped.length} card(s)… ${percent}%`);
+          };
+          xhr.onload = () => {
+            let payload = null;
+            try {
+              payload = JSON.parse(xhr.responseText || "{}");
+            } catch (_error) {
+              payload = null;
+            }
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(payload?.data ?? payload ?? {});
+              return;
+            }
+            reject(new Error(payload?.message || payload?.error?.message || `Upload failed (HTTP ${xhr.status}).`));
+          };
+          xhr.onerror = () => reject(new Error("Network error during deck upload."));
+          xhr.send(zipBytes);
+        });
+        setFormStatus(`Saved '${result?.deck?.title || id}'. Storage is refreshing so the deck appears.`);
+        setStatus(`Created deck '${result?.deck?.id || id}'.`);
+        if (typeof onCreated === "function") {
+          await onCreated(result?.deck);
+        }
+        revokeDeckUrls();
+        window.setTimeout(() => overlay.remove(), 1600);
+      } catch (error) {
+        setFormStatus(error?.message || "Could not save DLC deck.", true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+
+  function openCreatePlugin(hostEl, options) {
+    openCreateDlc(hostEl, options);
   }
 
   const KIND_ORDER = ["gui", "api", "plugin", "pack", "deck", "text", "reference"];
@@ -2588,7 +4106,10 @@
       return openPluginSettings(cardEl, plugin);
     },
     openCreatePlugin(hostEl, options) {
-      return openCreatePlugin(hostEl, options);
+      return openCreateDlc(hostEl, options);
+    },
+    openCreateDlc(hostEl, options) {
+      return openCreateDlc(hostEl, options);
     }
   };
 })();

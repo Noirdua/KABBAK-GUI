@@ -835,6 +835,17 @@
         }
       });
     }
+    const rawSuitNameOverrides = rawManifest.suitNameOverrides;
+    const suitNameOverrides = {};
+    if (rawSuitNameOverrides && typeof rawSuitNameOverrides === "object") {
+      Object.entries(rawSuitNameOverrides).forEach(([rawKey, rawValue]) => {
+        const key = String(rawKey || "").trim().toLowerCase();
+        const value = String(rawValue || "").trim();
+        if (key && value) {
+          suitNameOverrides[key] = value;
+        }
+      });
+    }
 
     return {
       id: source.id,
@@ -846,7 +857,8 @@
       majors: rawManifest.majors || {},
       minors: rawManifest.minors || {},
       minorNameOverrides,
-      majorNameOverridesByTrump
+      majorNameOverridesByTrump,
+      suitNameOverrides
     };
   }
 
@@ -977,6 +989,14 @@
     const minorRule = manifest?.minors;
     if (!minorRule || typeof minorRule !== "object") {
       return null;
+    }
+
+    if (minorRule.mode === "file-map") {
+      const key = `${String(parsedMinor.rankKey || "").trim().toLowerCase()} of ${parsedMinor.suitId}`;
+      const mapped = minorRule.cards?.[key] || minorRule.cards?.[`${parsedMinor.suitId}:${parsedMinor.rankKey}`];
+      const files = Array.isArray(mapped) ? mapped : [mapped];
+      const first = files.map((entry) => String(entry || "").trim()).find(Boolean);
+      return first || null;
     }
 
     if (minorRule.mode === "split-number-template") {
@@ -1441,6 +1461,25 @@
     const minorOverride = manifest?.minorNameOverrides?.[minorKey];
     if (minorOverride) {
       return minorOverride;
+    }
+
+    const overrides = manifest?.suitNameOverrides;
+    if (overrides && typeof overrides === "object") {
+      let next = fallbackName;
+      [
+        ["wands", overrides.wands],
+        ["cups", overrides.cups],
+        ["swords", overrides.swords],
+        ["disks", overrides.disks || overrides.pentacles],
+        ["pentacles", overrides.pentacles || overrides.disks]
+      ].forEach(([from, to]) => {
+        const custom = String(to || "").trim();
+        if (!custom) {
+          return;
+        }
+        next = next.replace(new RegExp(`of ${from}\\b`, "ig"), `of ${custom}`);
+      });
+      return next;
     }
 
     return fallbackName;

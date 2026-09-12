@@ -17,13 +17,13 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260911-admin-jobs">
+  <link rel="stylesheet" href="app/styles.css?v=20260911-create-dlc-layout">
   <link rel="stylesheet" href="app/ui-look.css?v=20260902-theme-surfaces">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
        after the first successful boot skip it, so it never flashes over the
        interface again. */
-    html[data-kabbak-booted="1"] #app-loading-screen {
+    html[data-kabbak-booted="1"]:not([data-pending-skin]) #app-loading-screen {
       display: none;
     }
     #app-loading-screen {
@@ -72,9 +72,13 @@
     }
   </style>
   <script>
-    // Set before first paint so refreshes skip the boot splash entirely.
+    // Skip splash on refresh only when the default chrome is the real UI.
+    // A stored non-default skin must keep the overlay up until that skin mounts.
     try {
-      if (sessionStorage.getItem("kabbak-booted") === "1") {
+      const skin = String(localStorage.getItem("kabbak-active-skin") || "").trim();
+      if (skin && skin !== "layout-default") {
+        document.documentElement.setAttribute("data-pending-skin", "1");
+      } else if (sessionStorage.getItem("kabbak-booted") === "1") {
         document.documentElement.setAttribute("data-kabbak-booted", "1");
       }
     } catch (_error) {}
@@ -696,7 +700,7 @@
           <div id="admin-dlc-catalog" class="dlc-plugin-list"></div>
           <div class="dlc-shop-actions" style="margin-top:10px;">
             <button id="admin-dlc-refresh" class="dlc-shop-btn" type="button" title="Pull latest DLC repos and reload plugins">Refresh</button>
-            <button id="admin-create-plugin" class="dlc-shop-btn" type="button">Create Plugin</button>
+            <button id="admin-create-plugin" class="dlc-shop-btn" type="button">Create DLC</button>
           </div>
         </div>
       </section>
@@ -2442,14 +2446,14 @@
   <script src="app/plugins-host.js?v=20260911-preauth-widgets"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
-  <script src="app/card-images.js?v=20260911-deck-nostore"></script>
+  <script src="app/card-images.js?v=20260911-file-map"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260807-perf-01"></script>
   <script src="app/lazy-sections.js?v=20260910-export-folder"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260911-profile-timing-fix"></script>
-  <script src="app/ui-dlc-shop.js?v=20260911-audio-ext"></script>
+  <script src="app/ui-dlc-shop.js?v=20260911-create-dlc-layout"></script>
   <script src="app/ui-chrome.js?v=20260911-set-shine"></script>
   <script src="app/ui-navigation.js?v=20260902-syn"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>
@@ -2458,7 +2462,7 @@
   <script src="app/ui-section-state.js?v=20260911-back-detail"></script>
   <script src="app/app-runtime.js?v=20260807-fast-boot"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20260911-public-plugins"></script>
+  <script src="app.js?v=20260911-skin-splash"></script>
 
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
