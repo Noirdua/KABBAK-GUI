@@ -22,7 +22,9 @@
     authName: "",
     displayName: "",
     journalPageMode: false,
-    journalHelpers: null
+    journalHelpers: null,
+    journalView: "",
+    journalOnBack: null
   };
 
   let draggedSceneCard = null;
@@ -273,6 +275,14 @@
 
   function handleNotesBack() {
     if (state.journalPageMode) {
+      if (state.notesMode === "editor") {
+        closeEditor();
+        return;
+      }
+      if (typeof state.journalOnBack === "function") {
+        state.journalOnBack();
+        return;
+      }
       if (typeof window.TarotSectionStateUi?.goBack === "function") {
         window.TarotSectionStateUi.goBack();
       } else {
@@ -3531,7 +3541,7 @@
 
   // Mount the notebook into the Journal plugin page. The existing panel is
   // relocated (listeners and state intact) so the whole feature is reused.
-  function mountJournal(root, helpers) {
+  function mountJournal(root, helpers, options) {
     if (!(root instanceof HTMLElement)) {
       return () => {};
     }
@@ -3543,11 +3553,20 @@
 
     const originalParent = notesPanelEl.parentNode;
     const originalNextSibling = notesPanelEl.nextSibling;
+    const mode = String(options?.mode || "diary") === "note" ? "note" : "diary";
 
     state.journalPageMode = true;
     state.journalHelpers = helpers || null;
+    state.journalView = mode;
+    state.journalOnBack = typeof options?.onBack === "function" ? options.onBack : null;
     notesPanelEl.hidden = false;
     notesPanelEl.classList.add("profile-notes-panel--page");
+    notesPanelEl.classList.toggle("journal-view-diary", mode === "diary");
+    notesPanelEl.classList.toggle("journal-view-note", mode === "note");
+    const heading = notesPanelEl.querySelector(".profile-notebook-head h2");
+    if (heading) {
+      heading.textContent = mode === "note" ? "Note" : "Diary";
+    }
     root.appendChild(notesPanelEl);
 
     fillQuickNoteComposerTime();
@@ -3556,13 +3575,18 @@
     syncNotesMode();
 
     return () => {
-      notesPanelEl.classList.remove("profile-notes-panel--page");
+      notesPanelEl.classList.remove("profile-notes-panel--page", "journal-view-diary", "journal-view-note");
+      if (heading) {
+        heading.textContent = "Journal";
+      }
       if (originalParent) {
         originalParent.insertBefore(notesPanelEl, originalNextSibling);
       }
       notesPanelEl.hidden = true;
       state.journalPageMode = false;
       state.journalHelpers = null;
+      state.journalView = "";
+      state.journalOnBack = null;
     };
   }
 
