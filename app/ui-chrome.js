@@ -450,6 +450,38 @@
     return normalized || fallback;
   }
 
+  function sanitizeCloneStyles(clonedDocument) {
+    const unsupported = /color-mix\s*\(|(?:^|[^a-z-])color\s*\(|oklch\s*\(|oklab\s*\(|lch\s*\(|lab\s*\(/i;
+    const kept = [];
+    clonedDocument.querySelectorAll("style, link[rel='stylesheet']").forEach((node) => {
+      let sheet = null;
+      try {
+        sheet = node.sheet;
+      } catch (_error) {
+        return;
+      }
+      if (!sheet) {
+        return;
+      }
+      try {
+        [...sheet.cssRules].forEach((rule) => {
+          const text = String(rule.cssText || "");
+          if (!text || unsupported.test(text)) {
+            return;
+          }
+          kept.push(text);
+        });
+        if ("disabled" in node) {
+          node.disabled = true;
+        }
+      } catch (_error) {}
+    });
+    const style = clonedDocument.createElement("style");
+    style.setAttribute("data-export-safe", "1");
+    style.textContent = kept.join("\n");
+    (clonedDocument.head || clonedDocument.documentElement).appendChild(style);
+  }
+
   function canvasToWebpBlob(canvas, quality = 1) {
     return new Promise((resolve, reject) => {
       canvas.toBlob((blob) => {
@@ -507,7 +539,10 @@
         ".alpha-text-compare-select",
         ".alpha-text-work-select",
         ".alpha-text-section-select",
-        ".detail-summary"
+        ".detail-summary",
+        ".kabbak-mark-actions",
+        ".kabbak-mark-btn",
+        ".kabbak-mark-editor"
       ];
 
       exportStripSelectors.forEach((selector) => {
@@ -562,7 +597,7 @@
       document.body.appendChild(sandboxEl);
 
       const exportScale = 2;
-      const canvas = await html2canvas(exportClone, {
+      const html2canvasOptions = {
         backgroundColor: "#0c0c12",
         scale: exportScale,
         useCORS: true,
@@ -570,8 +605,9 @@
         logging: false,
         imageTimeout: 12000,
         onclone(clonedDocument) {
+          sanitizeCloneStyles(clonedDocument);
           clonedDocument.querySelectorAll(
-            ".detail-sequence-nav, .detail-pane-export-controls, .alpha-text-reader-nav-btn, .alpha-text-reader-panel, .alpha-text-heading-tools, .alpha-text-search-controls, .alpha-text-controls--heading, .alpha-text-reader-toggle-control, .alpha-text-compare-toggle, .detail-summary"
+            ".detail-sequence-nav, .detail-pane-export-controls, .alpha-text-reader-nav-btn, .alpha-text-reader-panel, .alpha-text-heading-tools, .alpha-text-search-controls, .alpha-text-controls--heading, .alpha-text-reader-toggle-control, .alpha-text-compare-toggle, .detail-summary, .kabbak-mark-actions, .kabbak-mark-btn, .kabbak-mark-editor"
           ).forEach((node) => node.remove());
           clonedDocument.querySelectorAll("*").forEach((node) => {
             if (node instanceof HTMLElement && node.hidden) {
@@ -587,7 +623,19 @@
             detailClone.style.minWidth = "280px";
           }
         }
-      });
+      };
+      let canvas;
+      try {
+        canvas = await html2canvas(exportClone, html2canvasOptions);
+      } catch (error) {
+        if (!/unsupported function/i.test(String(error?.message || error))) {
+          throw error;
+        }
+        canvas = await html2canvas(exportClone, {
+          ...html2canvasOptions,
+          foreignObjectRendering: true
+        });
+      }
 
       const exportBlob = await canvasToWebpBlob(canvas, 1);
       exportBlobUrl = URL.createObjectURL(exportBlob);

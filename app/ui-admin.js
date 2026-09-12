@@ -1479,6 +1479,49 @@
           });
         }
 
+        if (isInstalled && kind !== "pack") {
+          const exportBtn = document.createElement("button");
+          exportBtn.type = "button";
+          exportBtn.className = "dlc-shop-btn";
+          exportBtn.textContent = "Export";
+          exportBtn.title = `Download '${item.title || item.name}' as a shareable zip`;
+          card.querySelector(".dlc-plugin-actions")?.appendChild(exportBtn);
+          exportBtn.addEventListener("click", async () => {
+            exportBtn.disabled = true;
+            try {
+              const url = window.TarotDataService.buildApiUrl(
+                `/api/v1/dlc/export?kind=${encodeURIComponent(item.kind)}&name=${encodeURIComponent(item.name)}`
+              );
+              const headers = {};
+              const apiKey = window.TarotDataService.getApiKey?.();
+              if (apiKey) headers["x-api-key"] = apiKey;
+              const response = await fetch(url, { headers });
+              if (!response.ok) {
+                let message = `Export failed (HTTP ${response.status}).`;
+                try {
+                  const payload = await response.json();
+                  message = payload?.message || payload?.error?.message || message;
+                } catch (_error) {}
+                throw new Error(message);
+              }
+              const blob = await response.blob();
+              const link = document.createElement("a");
+              const objectUrl = URL.createObjectURL(blob);
+              link.href = objectUrl;
+              link.download = `${item.name}.kabbak.zip`;
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+              URL.revokeObjectURL(objectUrl);
+              setStatus(`Exported ${item.name}.`);
+            } catch (error) {
+              setStatus(`Could not export ${item.name}. ${error?.message || ""}`, true);
+            } finally {
+              exportBtn.disabled = false;
+            }
+          });
+        }
+
         if (isInstalled && isPlugin) {
           const skinIds = new Set((window.TaroTimePluginHost?.listSkins?.() || []).map((skin) => skin.id));
           const isSkin = item.role === "skin" || skinIds.has(item.name) || skinIds.has(item.id);
@@ -1745,6 +1788,54 @@
           setStatus(`Could not add repository. ${error?.message || ""}`, true);
         } finally {
           addSourceBtn.disabled = false;
+        }
+      });
+    }
+    const importDlcBtn = document.getElementById("admin-import-dlc");
+    const importDlcFile = document.getElementById("admin-import-dlc-file");
+    if (importDlcBtn && importDlcFile) {
+      importDlcBtn.addEventListener("click", () => importDlcFile.click());
+      importDlcFile.addEventListener("change", async (event) => {
+        const file = event.currentTarget.files?.[0];
+        event.currentTarget.value = "";
+        if (!file) return;
+        importDlcBtn.disabled = true;
+        setStatus(`Importing ${file.name}…`);
+        try {
+          const buffer = new Uint8Array(await file.arrayBuffer());
+          const result = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", window.TarotDataService.buildApiUrl("/api/v1/dlc/import"));
+            xhr.setRequestHeader("Content-Type", "application/zip");
+            const apiKey = window.TarotDataService.getApiKey?.();
+            if (apiKey) xhr.setRequestHeader("x-api-key", apiKey);
+            xhr.onload = () => {
+              let payload = null;
+              try {
+                payload = JSON.parse(xhr.responseText || "{}");
+              } catch (_error) {
+                payload = null;
+              }
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(payload?.data ?? payload ?? {});
+                return;
+              }
+              reject(new Error(payload?.message || payload?.error?.message || `Import failed (HTTP ${xhr.status}).`));
+            };
+            xhr.onerror = () => reject(new Error("Network error during DLC import."));
+            xhr.send(buffer);
+          });
+          await loadPlugins();
+          if (result?.imported?.kind && result.imported.kind !== "plugin" && result.imported.kind !== "api") {
+            void pollReloadStatus((text, isError) => setStatus(text, isError));
+          } else {
+            await window.TaroTimePluginHost?.refresh?.();
+          }
+          setStatus(`Imported '${result?.imported?.name || file.name}'.`);
+        } catch (error) {
+          setStatus(`Could not import DLC. ${error?.message || ""}`, true);
+        } finally {
+          importDlcBtn.disabled = false;
         }
       });
     }

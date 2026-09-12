@@ -72,7 +72,7 @@
   const LIGHTBOX_COMPACT_MAX_COMPARE_DECKS = 3;
   const LIGHTBOX_COMPARE_SEQUENCE_STEP_KEYS = new Set(["ArrowLeft", "ArrowRight"]);
   const LIGHTBOX_EXPORT_MIME_TYPE = "image/webp";
-  const LIGHTBOX_EXPORT_QUALITY = 0.96;
+  const LIGHTBOX_EXPORT_QUALITY = 1;
   const LIGHTBOX_INFO_VISIBLE_STORAGE_KEY = "tarot-lightbox-info-visible-v1";
   const LIGHTBOX_ZOOM_SCALE_STORAGE_KEY = "tarot-lightbox-zoom-scale-v1";
 
@@ -492,6 +492,14 @@
     return { title, hint, groups };
   }
 
+  function hdExportSrc(url) {
+    return String(url || "").trim().replace(/\/thumbs\/([^/?#]+)(\?.*)?$/i, "/$1$2");
+  }
+
+  function resolveCardExportSrc(card, fallback) {
+    return hdExportSrc(card?.src || fallback || card?.previewSrc || "");
+  }
+
   async function loadExportImageAsset(source, cache) {
     const normalizedSource = String(source || "").trim();
     if (!normalizedSource) {
@@ -503,7 +511,26 @@
     }
 
     const pending = (async () => {
-      const response = await fetch(normalizedSource);
+      const sameOrigin = normalizedSource.startsWith("blob:")
+        || normalizedSource.startsWith("data:")
+        || normalizedSource.startsWith(window.location.origin);
+      if (sameOrigin) {
+        const liveImage = [imageEl, overlayImageEl].find((node) => (
+          node instanceof HTMLImageElement
+          && (node.currentSrc === normalizedSource || node.src === normalizedSource)
+          && node.naturalWidth
+        ));
+        if (liveImage) {
+          return liveImage;
+        }
+      }
+
+      const headers = {};
+      const apiKey = window.TarotDataService?.getApiKey?.();
+      if (apiKey) {
+        headers["x-api-key"] = apiKey;
+      }
+      const response = await fetch(normalizedSource, { headers, mode: "cors" });
       if (!response.ok) {
         throw new Error(`Failed to load export image: ${normalizedSource}`);
       }
@@ -536,6 +563,36 @@
 
   function buildLightboxExportLayout() {
     const items = [];
+    const pushPrimaryFrame = () => {
+      const src = resolveCardExportSrc(
+        lightboxState.primaryCard,
+        imageEl?.currentSrc || imageEl?.src || ""
+      );
+      const rect = getVisibleElementRect(imageEl) || getVisibleElementRect(frameEl) || getVisibleElementRect(stageEl);
+      const width = Math.max(1, rect?.width || imageEl?.naturalWidth || 520);
+      const height = Math.max(1, rect?.height || imageEl?.naturalHeight || 780);
+      const usedRect = rect || {
+        left: 0,
+        top: 0,
+        right: width,
+        bottom: height,
+        width,
+        height
+      };
+      items.push({
+        type: "frame",
+        rect: usedRect,
+        backgroundColor: "transparent",
+        borderRadius: 0,
+        primarySrc: src,
+        primaryMissingReason: String(lightboxState.primaryCard?.missingReason || "Card image unavailable.").trim(),
+        overlaySrc: "",
+        overlayMissingReason: "",
+        primaryRotated: Boolean(isPrimaryRotationActive()),
+        overlayRotated: false,
+        overlayOpacity: 1
+      });
+    };
     const pushPanel = (panelEl) => {
       const rect = getVisibleElementRect(panelEl);
       if (!rect) {
@@ -567,35 +624,54 @@
         const rect = getVisibleElementRect(slot?.slotEl);
         const headerRect = getVisibleElementRect(slot?.headerEl);
         const mediaRect = getVisibleElementRect(slot?.mediaEl);
-        if (!cardRequest || !rect || !headerRect || !mediaRect) {
+        if (!cardRequest || !rect) {
           return;
         }
+        const usedHeaderRect = headerRect || rect;
+        const usedMediaRect = mediaRect || rect;
 
         items.push({
           type: "deck-card",
           rect,
-          headerRect,
-          mediaRect,
+          headerRect: usedHeaderRect,
+          mediaRect: usedMediaRect,
           badge: String(slot.badgeEl?.textContent || cardRequest.deckLabel || "Deck").trim(),
           label: String(slot.cardLabelEl?.textContent || cardRequest.label || "Tarot card").trim(),
-          src: String(cardRequest.src || "").trim(),
+          src: resolveCardExportSrc(cardRequest),
           missingReason: String(cardRequest.missingReason || slot.fallbackEl?.textContent || "Card image unavailable.").trim(),
           rotated: Boolean(lightboxState.primaryRotated)
         });
       });
     } else {
-      const rect = getVisibleElementRect(frameEl);
-      if (rect) {
-        const computedStyle = window.getComputedStyle(frameEl);
+      const rect = getVisibleElementRect(frameEl) || getVisibleElementRect(imageEl) || getVisibleElementRect(stageEl);
+      const primarySrc = resolveCardExportSrc(
+        lightboxState.primaryCard,
+        imageEl?.currentSrc || imageEl?.src || ""
+      );
+      if (rect || primarySrc) {
+        const frameStyle = frameEl instanceof HTMLElement ? window.getComputedStyle(frameEl) : null;
+        const fallbackWidth = imageEl?.naturalWidth || 520;
+        const fallbackHeight = imageEl?.naturalHeight || 780;
+        const usedRect = rect || {
+          left: 0,
+          top: 0,
+          right: fallbackWidth,
+          bottom: fallbackHeight,
+          width: fallbackWidth,
+          height: fallbackHeight
+        };
         items.push({
           type: "frame",
-          rect,
-          backgroundColor: computedStyle.backgroundColor || "transparent",
-          borderRadius: getCssPixelNumber(computedStyle.borderTopLeftRadius, 0),
-          primarySrc: String(lightboxState.primaryCard?.src || "").trim(),
+          rect: usedRect,
+          backgroundColor: frameStyle?.backgroundColor || "transparent",
+          borderRadius: getCssPixelNumber(frameStyle?.borderTopLeftRadius, 0),
+          primarySrc,
           primaryMissingReason: String(lightboxState.primaryCard?.missingReason || "Card image unavailable.").trim(),
-          overlaySrc: hasSecondaryCard() && window.getComputedStyle(overlayImageEl).display !== "none"
-            ? String(lightboxState.secondaryCard?.src || "").trim()
+          overlaySrc: hasSecondaryCard() && overlayImageEl && window.getComputedStyle(overlayImageEl).display !== "none"
+            ? resolveCardExportSrc(
+              lightboxState.secondaryCard,
+              overlayImageEl.currentSrc || overlayImageEl.src || ""
+            )
             : "",
           overlayMissingReason: String(lightboxState.secondaryCard?.missingReason || "Overlay image unavailable.").trim(),
           primaryRotated: Boolean(isPrimaryRotationActive()),
@@ -608,6 +684,10 @@
     pushPanel(primaryInfoEl);
     pushPanel(secondaryInfoEl);
     pushPanel(mobileInfoPanelEl);
+
+    if (!items.length) {
+      pushPrimaryFrame();
+    }
 
     if (!items.length) {
       return null;
@@ -856,7 +936,43 @@
         throw new Error("Lightbox scene is not ready to export.");
       }
 
-      const scale = Math.max(2, Math.min(3, Number(window.devicePixelRatio) || 1));
+      const imageCache = new Map();
+      const assetEntries = await Promise.all(layout.items
+        .filter((item) => item.type === "frame" || item.type === "deck-card")
+        .flatMap((item) => {
+          const sources = item.type === "frame"
+            ? [item.primarySrc, item.overlaySrc]
+            : [item.src];
+          return sources.filter(Boolean);
+        })
+        .map(async (source) => [source, await loadExportImageAsset(hdExportSrc(source), imageCache)]));
+      const assetsBySource = new Map(assetEntries);
+      const getAsset = (url) => assetsBySource.get(url) || assetsBySource.get(hdExportSrc(url)) || null;
+
+      let scale = Math.max(2, Number(window.devicePixelRatio) || 1);
+      layout.items.forEach((item) => {
+        const asset = item.type === "frame"
+          ? getAsset(item.primarySrc)
+          : item.type === "deck-card"
+            ? getAsset(item.src)
+            : null;
+        const nativeWidth = Number(asset?.width || asset?.naturalWidth) || 0;
+        const drawWidth = item.type === "deck-card"
+          ? (item.mediaRect?.width || item.rect?.width || 0)
+          : (item.rect?.width || 0);
+        if (nativeWidth && drawWidth) {
+          scale = Math.max(scale, nativeWidth / drawWidth);
+        }
+      });
+      const maxDim = 8192;
+      if (layout.width * scale > maxDim) {
+        scale = maxDim / layout.width;
+      }
+      if (layout.height * scale > maxDim) {
+        scale = maxDim / layout.height;
+      }
+      scale = Math.max(1, scale);
+
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(1, Math.ceil(layout.width * scale));
       canvas.height = Math.max(1, Math.ceil(layout.height * scale));
@@ -874,26 +990,14 @@
         : "rgba(0, 0, 0, 0.82)";
       context.fillRect(0, 0, layout.width, layout.height);
 
-      const imageCache = new Map();
-      const assetEntries = await Promise.all(layout.items
-        .filter((item) => item.type === "frame" || item.type === "deck-card")
-        .flatMap((item) => {
-          const sources = item.type === "frame"
-            ? [item.primarySrc, item.overlaySrc]
-            : [item.src];
-          return sources.filter(Boolean);
-        })
-        .map(async (source) => [source, await loadExportImageAsset(source, imageCache)]));
-      const assetsBySource = new Map(assetEntries);
-
       layout.items.forEach((item) => {
         if (item.type === "frame") {
           drawFrameVisual(
             context,
             item,
             layout,
-            item.primarySrc ? assetsBySource.get(item.primarySrc) || null : null,
-            item.overlaySrc ? assetsBySource.get(item.overlaySrc) || null : null
+            item.primarySrc ? getAsset(item.primarySrc) : null,
+            item.overlaySrc ? getAsset(item.overlaySrc) : null
           );
           return;
         }
@@ -903,7 +1007,7 @@
             context,
             item,
             layout,
-            item.src ? assetsBySource.get(item.src) || null : null
+            item.src ? getAsset(item.src) : null
           );
           return;
         }

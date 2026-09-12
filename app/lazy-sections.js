@@ -18,7 +18,7 @@
 
   const SCRIPT_GROUPS = {
     tarotCore: [
-      "app/ui-tarot-lightbox.js?v=20260911-lb-rows",
+      "app/ui-tarot-lightbox.js?v=20260911-lb-hd",
       "app/ui-tarot-relations.js",
       "app/ui-tarot-card-derivations.js?v=20260307b",
       "app/ui-tarot-detail.js?v=20260805-no-active-deck",
@@ -47,7 +47,7 @@
       "app/ui-elements.js?v=20260820-template"
     ],
     tattvas: [
-      "app/ui-tarot-lightbox.js?v=20260911-lb-rows",
+      "app/ui-tarot-lightbox.js?v=20260911-lb-hd",
       "app/ui-tattvas.js?v=20260827-tattvas-nest"
     ],
     modalities: [
@@ -135,7 +135,7 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260911-create-dlc"
+      "app/ui-admin.js?v=20260912-dlc-share"
     ],
     profile: [
       "app/ui-profile.js?v=20260911-journal-overlay"

@@ -2273,6 +2273,56 @@
     });
   }
 
+  async function renderPluginLogs(settingsEl, plugin) {
+    const service = window.TarotDataService;
+    const wrap = document.createElement("div");
+    wrap.className = "dlc-plugin-logs";
+    const head = document.createElement("div");
+    head.className = "dlc-plugin-settings-head";
+    const title = document.createElement("strong");
+    title.textContent = "Plugin log";
+    const refreshBtn = document.createElement("button");
+    refreshBtn.type = "button";
+    refreshBtn.className = "dlc-shop-btn";
+    refreshBtn.textContent = "Refresh";
+    const clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.className = "dlc-shop-btn";
+    clearBtn.textContent = "Clear";
+    clearBtn.hidden = !isAdmin();
+    head.append(title, refreshBtn, clearBtn);
+    const pre = document.createElement("pre");
+    pre.className = "dlc-plugin-log-view";
+    wrap.append(head, pre);
+    settingsEl.appendChild(wrap);
+
+    async function load() {
+      try {
+        const payload = await service.requestJson(
+          "GET",
+          service.buildApiUrl(`/api/v1/plugins/${encodeURIComponent(plugin.name)}/logs?limit=200`)
+        );
+        const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+        pre.textContent = entries.length
+          ? entries.map((entry) => `${entry.timestamp || ""} [${entry.level || "info"}] ${entry.message || ""}`).join("\n")
+          : "No log entries yet.";
+      } catch (_error) {
+        pre.textContent = "Could not load plugin logs.";
+      }
+    }
+
+    refreshBtn.addEventListener("click", () => {
+      void load();
+    });
+    clearBtn.addEventListener("click", async () => {
+      try {
+        await service.requestJson("DELETE", service.buildApiUrl(`/api/v1/plugins/${encodeURIComponent(plugin.name)}/logs`));
+        await load();
+      } catch (_error) {}
+    });
+    await load();
+  }
+
   function openPluginSettings(cardEl, plugin) {
     if (plugin?.name === "menu-plugin") {
       if (!isAdmin()) {
@@ -2290,23 +2340,16 @@
     }
     const settingsEl = createPluginSettingsShell(cardEl, `${plugin?.title || plugin?.name} Settings`);
     if (!settingsEl) return;
-    if (plugin?.name === "music-player") {
-      void renderMusicPlayerSettings(settingsEl, plugin);
-      return;
-    }
-    if (plugin?.name === "homepage") {
-      void renderHomepageSettings(settingsEl, plugin);
-      return;
-    }
-    if (plugin?.name === "links") {
-      void renderLinksSettings(settingsEl, plugin);
-      return;
-    }
-    if (plugin?.name === "hydrus-network") {
-      void renderHydrusNetworkSettings(settingsEl, plugin);
-      return;
-    }
-    void renderGenericConfigSettings(settingsEl, plugin);
+    const render = plugin?.name === "music-player"
+      ? renderMusicPlayerSettings
+      : plugin?.name === "homepage"
+        ? renderHomepageSettings
+        : plugin?.name === "links"
+          ? renderLinksSettings
+          : plugin?.name === "hydrus-network"
+            ? renderHydrusNetworkSettings
+            : renderGenericConfigSettings;
+    void Promise.resolve(render(settingsEl, plugin)).then(() => renderPluginLogs(settingsEl, plugin));
   }
 
   // --- Create DLC (text first; plugin keeps the old scaffold) -----------------
@@ -2439,79 +2482,275 @@
     if (!Array.isArray(preview.looseText)) {
       preview.looseText = [];
     }
-    if (!outlineEl || !sampleEl || !editorEl) return;
+    if (!Array.isArray(preview.shelf)) {
+      preview.shelf = [];
+    }
+    if (!outlineEl || !sampleEl) return;
 
     if (!preview._selected) {
       preview._selected = { workIndex: 0, sectionIndex: 0 };
     }
     const selected = preview._selected;
+    const workList = () => (preview.document?.works?.[selected.workIndex]?.sections
+      ? preview.document.works[selected.workIndex].sections
+      : []);
 
-    const getSection = () => preview.document?.works?.[selected.workIndex]?.sections?.[selected.sectionIndex] || null;
+    const getSection = () => workList()[selected.sectionIndex] || null;
+
+    const refreshStats = () => {
+      const works = Array.isArray(preview.document?.works) ? preview.document.works : [];
+      preview.stats = {
+        works: works.length,
+        sections: works.reduce((sum, work) => sum + (work.sections || []).length, 0),
+        verses: works.reduce((sum, work) => (
+          sum + (work.sections || []).reduce((inner, section) => inner + (section.verses || []).length, 0)
+        ), 0)
+      };
+      if (!statsEl) return;
+      statsEl.innerHTML = "";
+      [
+        preview.format,
+        `${preview.stats.works} ${String(workLabel).toLowerCase()}(s)`,
+        `${preview.stats.sections} ${String(sectionLabel).toLowerCase()}(s)`,
+        `${preview.stats.verses} ${String(verseLabel).toLowerCase()}(s)`,
+        `${(Number(preview.looseText?.length || 0) + Number(preview.shelf?.length || 0))} on shelf`
+      ].forEach((label) => {
+        const chip = document.createElement("span");
+        chip.className = "dlc-text-chip";
+        chip.textContent = label;
+        statsEl.appendChild(chip);
+      });
+    };
+
+    const renumber = (section) => {
+      (section.verses || []).forEach((verse, verseIndex) => {
+        verse.number = verseIndex + 1;
+      });
+    };
+
+    const readDrag = (event) => {
+      try {
+        return JSON.parse(event.dataTransfer.getData("application/json") || event.dataTransfer.getData("text/plain") || "{}");
+      } catch (_error) {
+        return null;
+      }
+    };
+
+    const takeDraggedVerse = (payload) => {
+      if (!payload) return null;
+      if (payload.source === "verse") {
+        const origin = preview.document?.works?.[payload.workIndex]?.sections?.[payload.sectionIndex];
+        if (!origin?.verses?.[payload.verseIndex]) return null;
+        const [moved] = origin.verses.splice(payload.verseIndex, 1);
+        renumber(origin);
+        return moved;
+      }
+      if (payload.source === "shelf") {
+        const item = preview.shelf[payload.index];
+        if (!item) return null;
+        preview.shelf.splice(payload.index, 1);
+        if (item.kind === "section") {
+          return item;
+        }
+        return { number: 1, text: item.text || "" };
+      }
+      if (payload.source === "loose") {
+        const text = preview.looseText[payload.index];
+        if (text == null) return null;
+        preview.looseText.splice(payload.index, 1);
+        return { number: 1, text };
+      }
+      return null;
+    };
+
+    const dropPayload = (payload, target) => {
+      const moved = takeDraggedVerse(payload);
+      if (!moved) return;
+      const sections = workList();
+      const section = sections[target.sectionIndex];
+      if (!section) return;
+      if (moved.kind === "section") {
+        const verses = Array.isArray(moved.verses) ? moved.verses : [{ number: 1, text: moved.text || "" }];
+        section.verses = (section.verses || []).concat(verses);
+        if (moved.title && !String(section.title || "").trim()) {
+          section.title = moved.title;
+        }
+      } else {
+        section.verses = section.verses || [];
+        const at = Number.isInteger(target.verseIndex) ? target.verseIndex : section.verses.length;
+        section.verses.splice(Math.max(0, Math.min(at, section.verses.length)), 0, {
+          number: 1,
+          text: moved.text || ""
+        });
+      }
+      renumber(section);
+      selected.sectionIndex = target.sectionIndex;
+      refreshStats();
+      renderOutline();
+      renderSample();
+      renderShelf();
+    };
+
+    const shelfVerse = (sectionIndex, verseIndex) => {
+      const section = workList()[sectionIndex];
+      if (!section?.verses?.[verseIndex]) return;
+      const [moved] = section.verses.splice(verseIndex, 1);
+      const text = String(moved?.text || "").trim();
+      if (text) {
+        preview.shelf.push({ kind: "passage", title: section.title || "", text });
+      }
+      renumber(section);
+      refreshStats();
+      renderOutline();
+      renderSample();
+      renderShelf();
+    };
+
+    const shelfSection = (sectionIndex) => {
+      const sections = workList();
+      if (!sections[sectionIndex]) return;
+      const [moved] = sections.splice(sectionIndex, 1);
+      const verses = (moved.verses || []).filter((verse) => String(verse.text || "").trim());
+      if (verses.length) {
+        preview.shelf.push({
+          kind: "section",
+          title: moved.title || "",
+          verses
+        });
+      }
+      if (!sections.length) {
+        sections.push({
+          id: "section-1",
+          number: 1,
+          title: `${sectionLabel} 1`,
+          verses: [{ number: 1, text: "" }]
+        });
+      }
+      selected.sectionIndex = Math.min(sectionIndex, sections.length - 1);
+      refreshStats();
+      renderOutline();
+      renderSample();
+      renderShelf();
+    };
 
     const renderSample = () => {
       const work = preview.document?.works?.[selected.workIndex];
       const section = getSection();
       if (sampleHeadEl) {
-        sampleHeadEl.textContent = section?.title || `${sectionLabel} ${selected.sectionIndex + 1}`;
+        sampleHeadEl.value = section?.title || `${sectionLabel} ${selected.sectionIndex + 1}`;
       }
       if (sampleMetaEl) {
         sampleMetaEl.textContent = [
           preview.title || work?.title || "",
           preview.format,
-          `${sectionLabel} ${section?.number || selected.sectionIndex + 1}`,
+          `${sectionLabel} ${selected.sectionIndex + 1} of ${workList().length}`,
           `${section?.verses?.length || 0} ${String(verseLabel).toLowerCase()}(s)`
         ].filter(Boolean).join(" · ");
       }
       sampleEl.replaceChildren();
       (section?.verses || []).forEach((verse, verseIndex) => {
         const row = document.createElement("article");
-        row.className = "alpha-text-verse";
+        row.className = "alpha-text-verse dlc-text-verse-edit";
         const head = document.createElement("div");
         head.className = "alpha-text-verse-head";
         const ref = document.createElement("span");
         ref.className = "alpha-text-verse-reference";
-        ref.textContent = `${sectionLabel} ${section?.number || selected.sectionIndex + 1}:${verse.number || verseIndex + 1}`;
-        head.appendChild(ref);
-        const text = document.createElement("p");
-        text.className = "alpha-text-verse-text";
-        text.textContent = verse.text || "";
-        row.append(head, text);
+        ref.textContent = `${selected.sectionIndex + 1}:${verseIndex + 1}`;
+        const tools = document.createElement("div");
+        tools.className = "dlc-text-verse-tools";
+        const up = document.createElement("button");
+        up.type = "button";
+        up.className = "dlc-shop-btn";
+        up.textContent = "Up";
+        const down = document.createElement("button");
+        down.type = "button";
+        down.className = "dlc-shop-btn";
+        down.textContent = "Down";
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "dlc-shop-btn";
+        remove.textContent = "Shelf";
+        up.addEventListener("click", () => moveVerse(verseIndex, verseIndex - 1));
+        down.addEventListener("click", () => moveVerse(verseIndex, verseIndex + 1));
+        remove.addEventListener("click", () => shelfVerse(selected.sectionIndex, verseIndex));
+        tools.append(up, down, remove);
+        head.append(ref, tools);
+        const area = document.createElement("textarea");
+        area.className = "dlc-text-verse-input";
+        area.value = verse.text || "";
+        area.addEventListener("input", () => {
+          verse.text = area.value;
+        });
+        row.draggable = true;
+        row.addEventListener("dragstart", (event) => {
+          if (event.target === area) {
+            event.preventDefault();
+            return;
+          }
+          event.dataTransfer.setData("application/json", JSON.stringify({
+            source: "verse",
+            workIndex: selected.workIndex,
+            sectionIndex: selected.sectionIndex,
+            verseIndex
+          }));
+          event.dataTransfer.effectAllowed = "move";
+        });
+        row.addEventListener("dragover", (event) => {
+          event.preventDefault();
+          row.classList.add("is-drop");
+        });
+        row.addEventListener("dragleave", () => row.classList.remove("is-drop"));
+        row.addEventListener("drop", (event) => {
+          event.preventDefault();
+          row.classList.remove("is-drop");
+          dropPayload(readDrag(event), { sectionIndex: selected.sectionIndex, verseIndex });
+        });
+        row.append(head, area);
         sampleEl.appendChild(row);
       });
     };
 
-    const renderEditor = () => {
+    const moveSection = (from, to) => {
+      const sections = workList();
+      if (from < 0 || to < 0 || from >= sections.length || to >= sections.length) return;
+      const [moved] = sections.splice(from, 1);
+      sections.splice(to, 0, moved);
+      selected.sectionIndex = to;
+      refreshStats();
+      renderOutline();
+      renderSample();
+    };
+
+    const moveVerse = (from, to) => {
       const section = getSection();
-      editorEl.replaceChildren();
       if (!section) return;
-      const titleField = document.createElement("label");
-      titleField.className = "settings-field";
-      titleField.append("Section title");
-      const title = document.createElement("input");
-      title.type = "text";
-      title.className = "dlc-text-section-title";
-      title.value = section.title || "";
-      titleField.appendChild(title);
-      const bodyField = document.createElement("label");
-      bodyField.className = "settings-field";
-      bodyField.append(`Passages (blank line = new ${String(verseLabel).toLowerCase()})`);
-      const body = document.createElement("textarea");
-      body.value = (section.verses || []).map((verse) => verse.text || "").join("\n\n");
-      bodyField.appendChild(body);
-      title.addEventListener("input", () => {
-        section.title = String(title.value || "").trim();
-        renderOutline();
-        renderSample();
-      });
-      body.addEventListener("input", () => {
-        section.verses = String(body.value || "").split(/\n\s*\n/)
-          .map((chunk) => String(chunk || "").trim())
-          .filter(Boolean)
-          .map((text, verseIndex) => ({ number: verseIndex + 1, text }));
-        renderOutline();
-        renderSample();
-      });
-      editorEl.append(titleField, bodyField);
+      const verses = section.verses || [];
+      if (to < 0) {
+        const prev = workList()[selected.sectionIndex - 1];
+        if (!prev) return;
+        const [moved] = verses.splice(from, 1);
+        prev.verses = prev.verses || [];
+        prev.verses.push(moved);
+        renumber(section);
+        renumber(prev);
+        selected.sectionIndex -= 1;
+      } else if (to >= verses.length) {
+        const next = workList()[selected.sectionIndex + 1];
+        if (!next) return;
+        const [moved] = verses.splice(from, 1);
+        next.verses = next.verses || [];
+        next.verses.unshift(moved);
+        renumber(section);
+        renumber(next);
+        selected.sectionIndex += 1;
+      } else {
+        const [moved] = verses.splice(from, 1);
+        verses.splice(to, 0, moved);
+        renumber(section);
+      }
+      refreshStats();
+      renderOutline();
+      renderSample();
     };
 
     const renderOutline = () => {
@@ -2538,12 +2777,74 @@
             selected.sectionIndex = sectionIndex;
             renderOutline();
             renderSample();
-            renderEditor();
+          });
+          item.addEventListener("dragover", (event) => {
+            event.preventDefault();
+            item.classList.add("is-drop");
+          });
+          item.addEventListener("dragleave", () => item.classList.remove("is-drop"));
+          item.addEventListener("drop", (event) => {
+            event.preventDefault();
+            item.classList.remove("is-drop");
+            selected.workIndex = workIndex;
+            dropPayload(readDrag(event), { sectionIndex, verseIndex: work.sections[sectionIndex].verses.length });
           });
           outlineEl.appendChild(item);
         });
       });
     };
+
+    if (sampleHeadEl) {
+      sampleHeadEl.oninput = () => {
+        const section = getSection();
+        if (!section) return;
+        section.title = String(sampleHeadEl.value || "").trim();
+        renderOutline();
+      };
+    }
+    form.querySelectorAll("[data-edit]").forEach((button) => {
+      const next = button.cloneNode(true);
+      button.replaceWith(next);
+      next.addEventListener("click", () => {
+        const action = next.getAttribute("data-edit");
+        const sections = workList();
+        if (action === "section-up") {
+          moveSection(selected.sectionIndex, selected.sectionIndex - 1);
+          return;
+        }
+        if (action === "section-down") {
+          moveSection(selected.sectionIndex, selected.sectionIndex + 1);
+          return;
+        }
+        if (action === "section-add") {
+          const at = Math.min(sections.length, selected.sectionIndex + 1);
+          sections.splice(at, 0, {
+            id: `section-${Date.now()}`,
+            number: at + 1,
+            title: `${sectionLabel} ${at + 1}`,
+            verses: [{ number: 1, text: "" }]
+          });
+          selected.sectionIndex = at;
+          refreshStats();
+          renderOutline();
+          renderSample();
+          return;
+        }
+        if (action === "section-delete") {
+          shelfSection(selected.sectionIndex);
+          return;
+        }
+        if (action === "verse-add") {
+          const section = getSection();
+          if (!section) return;
+          section.verses = section.verses || [];
+          section.verses.push({ number: section.verses.length + 1, text: "" });
+          refreshStats();
+          renderOutline();
+          renderSample();
+        }
+      });
+    });
 
     const ensureWork = () => {
       if (!preview.document) {
@@ -2555,83 +2856,75 @@
       return preview.document.works[selected.workIndex] || preview.document.works[0];
     };
 
-    const renderLoose = () => {
-      const looseHost = form.querySelector("[data-role='loose-text']");
-      const looseList = form.querySelector("[data-role='loose-list']");
-      if (!looseHost || !looseList) return;
-      const blocks = Array.isArray(preview.looseText) ? preview.looseText : [];
-      looseHost.hidden = blocks.length === 0;
-      looseList.replaceChildren();
-      blocks.forEach((block, blockIndex) => {
+    const renderShelf = () => {
+      const host = form.querySelector("[data-role='text-shelf']");
+      const list = form.querySelector("[data-role='shelf-list']");
+      if (!host || !list) return;
+      const loose = (Array.isArray(preview.looseText) ? preview.looseText : []).map((text, index) => ({
+        source: "loose",
+        index,
+        kind: "passage",
+        title: "",
+        text
+      }));
+      const shelved = (Array.isArray(preview.shelf) ? preview.shelf : []).map((entry, index) => ({
+        source: "shelf",
+        index,
+        kind: entry.kind || "passage",
+        title: entry.title || "",
+        text: entry.text || (entry.verses || []).map((verse) => verse.text).join("\n\n")
+      }));
+      const items = [...loose, ...shelved];
+      host.hidden = items.length === 0;
+      list.replaceChildren();
+      items.forEach((entry) => {
         const item = document.createElement("div");
         item.className = "dlc-text-loose-item";
+        item.draggable = true;
+        const label = document.createElement("strong");
+        label.textContent = entry.kind === "section" ? (entry.title || "Section") : "Passage";
         const text = document.createElement("p");
-        text.textContent = block;
-        const actions = document.createElement("div");
-        actions.className = "dlc-text-loose-actions";
-        const insertBtn = document.createElement("button");
-        insertBtn.type = "button";
-        insertBtn.className = "dlc-shop-btn";
-        insertBtn.textContent = "Insert into section";
-        const sectionBtn = document.createElement("button");
-        sectionBtn.type = "button";
-        sectionBtn.className = "dlc-shop-btn";
-        sectionBtn.textContent = "New section";
+        text.textContent = entry.text || "";
         const discardBtn = document.createElement("button");
         discardBtn.type = "button";
         discardBtn.className = "dlc-shop-btn";
         discardBtn.textContent = "Discard";
-        insertBtn.addEventListener("click", () => {
-          const section = getSection() || ensureWork().sections[0];
-          if (!section) {
-            ensureWork().sections.push({
-              id: "section-1",
-              number: 1,
-              title: "Section 1",
-              verses: [{ number: 1, text: block }]
-            });
-            selected.sectionIndex = 0;
-          } else {
-            section.verses = Array.isArray(section.verses) ? section.verses : [];
-            section.verses.push({ number: section.verses.length + 1, text: block });
-          }
-          preview.looseText.splice(blockIndex, 1);
-          renderLoose();
-          renderOutline();
-          renderSample();
-          renderEditor();
-        });
-        sectionBtn.addEventListener("click", () => {
-          const work = ensureWork();
-          work.sections = Array.isArray(work.sections) ? work.sections : [];
-          const at = Math.min(work.sections.length, selected.sectionIndex + 1);
-          work.sections.splice(at, 0, {
-            id: `loose-${Date.now()}`,
-            number: at + 1,
-            title: String(block).split(/\n/)[0].slice(0, 80) || `Section ${at + 1}`,
-            verses: [{ number: 1, text: block }]
-          });
-          selected.sectionIndex = at;
-          preview.looseText.splice(blockIndex, 1);
-          renderLoose();
-          renderOutline();
-          renderSample();
-          renderEditor();
+        item.addEventListener("dragstart", (event) => {
+          event.dataTransfer.setData("application/json", JSON.stringify({
+            source: entry.source,
+            index: entry.index
+          }));
+          event.dataTransfer.effectAllowed = "move";
         });
         discardBtn.addEventListener("click", () => {
-          preview.looseText.splice(blockIndex, 1);
-          renderLoose();
+          if (entry.source === "loose") {
+            preview.looseText.splice(entry.index, 1);
+          } else {
+            preview.shelf.splice(entry.index, 1);
+          }
+          refreshStats();
+          renderShelf();
         });
-        actions.append(insertBtn, sectionBtn, discardBtn);
-        item.append(text, actions);
-        looseList.appendChild(item);
+        item.append(label, text, discardBtn);
+        list.appendChild(item);
+      });
+    };
+
+    sampleEl.ondragover = (event) => {
+      event.preventDefault();
+    };
+    sampleEl.ondrop = (event) => {
+      event.preventDefault();
+      const section = getSection();
+      dropPayload(readDrag(event), {
+        sectionIndex: selected.sectionIndex,
+        verseIndex: section?.verses?.length || 0
       });
     };
 
     renderOutline();
     renderSample();
-    renderEditor();
-    renderLoose();
+    renderShelf();
   }
 
   const DECK_IMAGE_EXT = /\.(png|jpe?g|webp|gif)$/i;
@@ -2757,7 +3050,11 @@
     return patterns;
   }
 
-  function guessDeckSlot(relativePath) {
+  function guessDeckSlot(relativePath, suitOrder) {
+    const orderedSuits = (Array.isArray(suitOrder) ? suitOrder : [])
+      .map((id) => DECK_SUITS.find((suit) => suit.id === id))
+      .filter(Boolean);
+    const suits = orderedSuits.length === 4 ? orderedSuits : DECK_SUITS;
     const rel = String(relativePath || "").replace(/\\/g, "/").toLowerCase();
     const base = rel.split("/").pop().replace(/\.[^.]+$/, "");
     if (/(^|\/)(back|card-back|cardback|verso)(\.|$)/.test(rel) || /^back$/i.test(base)) {
@@ -2772,7 +3069,7 @@
     }
     if (Number.isInteger(number) && number >= 22 && number <= 77) {
       const offset = number - 22;
-      const suit = DECK_SUITS[Math.floor(offset / 14)];
+      const suit = suits[Math.floor(offset / 14)];
       const rank = DECK_RANKS[offset % 14];
       if (suit && rank) {
         return `minor-${suit.id}-${rank.id}`;
@@ -2888,9 +3185,9 @@
           <div data-role="create-intro">
             <p class="settings-field-hint">Pick a category. Text and decks are assembled in the browser, then saved into the DLC checkout.</p>
             <div class="dlc-create-kinds">
-              <button type="button" class="dlc-shop-btn dlc-create-kind is-active" data-kind="text">Text</button>
-              <button type="button" class="dlc-shop-btn dlc-create-kind" data-kind="deck">Deck</button>
-              <button type="button" class="dlc-shop-btn dlc-create-kind" data-kind="plugin">Plugin</button>
+              <button type="button" class="dlc-shop-btn dlc-create-kind is-active" data-kind="text" aria-pressed="true">Text</button>
+              <button type="button" class="dlc-shop-btn dlc-create-kind" data-kind="deck" aria-pressed="false">Deck</button>
+              <button type="button" class="dlc-shop-btn dlc-create-kind" data-kind="plugin" aria-pressed="false">Plugin</button>
               <button type="button" class="dlc-shop-btn dlc-create-kind" data-kind="reference" disabled>Reference (soon)</button>
             </div>
           </div>
@@ -2909,12 +3206,66 @@
               </div>
             </div>
             <div data-role="text-fields" hidden>
-              <div class="dlc-create-meta-grid">
+              <div class="dlc-text-preview-stats" data-role="text-stats"></div>
+              <div class="dlc-text-loose" data-role="text-shelf" hidden>
+                <div class="dlc-text-loose-head">
+                  <strong>Shelf</strong>
+                  <span class="settings-field-hint">Leftovers and removed passages. Drag onto a section to put them back.</span>
+                </div>
+                <div class="dlc-text-shelf-list" data-role="shelf-list"></div>
+              </div>
+              <div class="dlc-text-workspace">
+                <aside class="dlc-text-outline" data-role="text-outline"></aside>
+                <div class="dlc-text-sample">
+                  <div class="dlc-text-sample-head">
+                    <input type="text" class="dlc-create-text-title dlc-text-preview-title" maxlength="120" placeholder="Title">
+                    <input type="text" class="dlc-create-text-description" maxlength="400" placeholder="Description">
+                    <input type="text" class="dlc-text-preview-title" data-role="sample-heading" placeholder="Section title">
+                    <span class="settings-field-hint" data-role="sample-meta"></span>
+                    <div class="dlc-text-edit-actions">
+                      <button type="button" class="dlc-shop-btn" data-edit="section-up">Section up</button>
+                      <button type="button" class="dlc-shop-btn" data-edit="section-down">Section down</button>
+                      <button type="button" class="dlc-shop-btn" data-edit="section-add">Add section</button>
+                      <button type="button" class="dlc-shop-btn" data-edit="section-delete">Delete section</button>
+                      <button type="button" class="dlc-shop-btn" data-edit="verse-add">Add passage</button>
+                    </div>
+                  </div>
+                  <div class="dlc-text-sample-reader" data-role="text-sample"></div>
+                </div>
+              </div>
+              <div class="dlc-text-footer">
+                <button type="button" class="settings-button-primary" data-action="save-text">Save DLC text</button>
+                <button type="button" class="dlc-shop-btn" data-action="toggle-format">Format</button>
+                <button type="button" class="dlc-shop-btn" data-action="toggle-options">Options</button>
+              </div>
+              <div class="dlc-text-drawer" data-role="text-format-panel" hidden>
+                <label class="settings-field">Format
+                  <select class="dlc-create-text-format"></select>
+                </label>
+                <div class="dlc-text-custom-rules" data-role="custom-rules">
+                  <label class="settings-field">Heading pattern
+                    <input type="text" class="dlc-text-heading-pattern" placeholder="^CHAPTER\\s+(\\d+)">
+                  </label>
+                  <label class="settings-field">Verse pattern
+                    <input type="text" class="dlc-text-verse-pattern" placeholder="^(\\d+)[.]\\s+(.*)">
+                  </label>
+                  <label class="settings-field">Split
+                    <select class="dlc-text-split">
+                      <option value="blank-line">Blank lines</option>
+                      <option value="line">Every line</option>
+                    </select>
+                  </label>
+                  <label class="settings-field">Skip first lines
+                    <input type="number" class="dlc-text-skip" min="0" max="200" value="0">
+                  </label>
+                  <div class="dlc-shop-actions">
+                    <button type="button" class="dlc-shop-btn" data-action="apply-custom">Apply custom</button>
+                  </div>
+                </div>
+              </div>
+              <div class="dlc-text-drawer" data-role="text-options-panel" hidden>
                 <label class="settings-field">Id
                   <input type="text" class="dlc-create-text-id" maxlength="40" placeholder="gospel-of-philip">
-                </label>
-                <label class="settings-field">Title
-                  <input type="text" class="dlc-create-text-title" maxlength="120" placeholder="Title">
                 </label>
                 <label class="settings-field">Language
                   <input type="text" class="dlc-create-text-language" maxlength="40" value="English">
@@ -2922,37 +3273,9 @@
                 <label class="settings-field">Tradition
                   <input type="text" class="dlc-create-text-tradition" maxlength="80" placeholder="optional">
                 </label>
-                <label class="settings-field">Format
-                  <select class="dlc-create-text-format"></select>
-                </label>
-                <label class="settings-field">Description
-                  <input type="text" class="dlc-create-text-description" maxlength="400" placeholder="Short description">
-                </label>
-              </div>
-              <div class="dlc-shop-actions">
-                <button type="button" class="dlc-shop-btn" data-action="change-source">Change source</button>
-              </div>
-              <div class="dlc-text-preview-stats" data-role="text-stats"></div>
-              <div class="dlc-text-loose" data-role="loose-text" hidden>
-                <div class="dlc-text-loose-head">
-                  <strong>Loose text</strong>
-                  <span class="settings-field-hint">Not placed in a section (preamble or leftovers). Insert, make a section, or discard.</span>
+                <div class="dlc-shop-actions">
+                  <button type="button" class="dlc-shop-btn" data-action="change-source">Change source</button>
                 </div>
-                <div data-role="loose-list"></div>
-              </div>
-              <div class="dlc-text-workspace">
-                <aside class="dlc-text-outline" data-role="text-outline"></aside>
-                <div class="dlc-text-sample">
-                  <div class="dlc-text-sample-head">
-                    <strong data-role="sample-heading">Reader sample</strong>
-                    <span class="settings-field-hint" data-role="sample-meta"></span>
-                  </div>
-                  <div class="dlc-text-sample-reader" data-role="text-sample"></div>
-                  <div class="dlc-text-section" data-role="text-editor"></div>
-                </div>
-              </div>
-              <div class="dlc-shop-actions">
-                <button type="button" class="settings-button-primary" data-action="save-text">Save DLC text</button>
               </div>
             </div>
           </div>
@@ -2977,6 +3300,13 @@
                 </div>
               </div>
               <div class="dlc-text-preview-stats" data-role="deck-stats"></div>
+              <div class="dlc-deck-suit-order">
+                <strong>After trumps</strong>
+                <label>22–35 <select data-suit-block="0"></select></label>
+                <label>36–49 <select data-suit-block="1"></select></label>
+                <label>50–63 <select data-suit-block="2"></select></label>
+                <label>64–77 <select data-suit-block="3"></select></label>
+              </div>
               <div class="dlc-deck-pattern-groups">
                 <section class="dlc-deck-pattern-card">
                   <h3>Trumps</h3>
@@ -3053,8 +3383,8 @@
                 <section class="dlc-deck-pattern-card dlc-deck-pattern-card-back">
                   <h3>Back</h3>
                   <div class="dlc-deck-pattern-row">
-                    <label class="settings-field">Pattern
-                      <input type="text" class="dlc-deck-pat-back" placeholder="back">
+                    <label class="settings-field">One image for every card
+                      <input type="file" class="dlc-create-deck-back" accept="image/*">
                     </label>
                     <div class="dlc-deck-back" data-role="deck-back"></div>
                   </div>
@@ -3112,10 +3442,32 @@
     }
 
     overlay.querySelector('[data-action="close"]').addEventListener("click", () => overlay.remove());
+    const paintKindButtons = (activeBtn) => {
+      overlay.querySelectorAll(".dlc-create-kind").forEach((entry) => {
+        const active = entry === activeBtn;
+        entry.classList.toggle("is-active", active);
+        entry.setAttribute("aria-pressed", active ? "true" : "false");
+        if (entry.disabled) {
+          return;
+        }
+        if (active) {
+          entry.style.opacity = "0.55";
+          entry.style.boxShadow = "inset 0 3px 8px rgba(0, 0, 0, 0.55)";
+          entry.style.transform = "translateY(1px)";
+          entry.style.filter = "brightness(0.82)";
+        } else {
+          entry.style.opacity = "";
+          entry.style.boxShadow = "";
+          entry.style.transform = "";
+          entry.style.filter = "";
+        }
+      });
+    };
+    paintKindButtons(overlay.querySelector(".dlc-create-kind.is-active"));
     overlay.querySelectorAll(".dlc-create-kind").forEach((button) => {
       button.addEventListener("click", () => {
         if (button.disabled) return;
-        overlay.querySelectorAll(".dlc-create-kind").forEach((entry) => entry.classList.toggle("is-active", entry === button));
+        paintKindButtons(button);
         const kind = button.dataset.kind;
         overlay.querySelector("[data-role='kind-text']").hidden = kind !== "text";
         overlay.querySelector("[data-role='kind-deck']").hidden = kind !== "deck";
@@ -3149,48 +3501,100 @@
       renderTextPreview(overlay, previewState, { syncFields: false });
     };
 
+    let previewing = false;
+
     const fillFormatOptions = (formats, selected) => {
       const formatEl = overlay.querySelector(".dlc-create-text-format");
       if (!formatEl) return;
       if (formatEl.options.length <= 1) {
         formatEl.replaceChildren();
-        (formats || []).forEach((value) => {
+        (formats || []).forEach((entry) => {
+          const id = String(entry?.id || entry || "").trim();
+          if (!id) return;
           const opt = document.createElement("option");
-          opt.value = value;
-          opt.textContent = value;
+          opt.value = id;
+          opt.textContent = String(entry?.label || id);
           formatEl.appendChild(opt);
         });
       }
-      if (selected) {
+      if (selected && [...formatEl.options].some((option) => option.value === selected)) {
         formatEl.value = selected;
       }
     };
 
-    const runTextPreview = async ({ syncFields = true, statusText = "Sectioning…" } = {}) => {
+    const runTextPreview = async ({
+      syncFields = true,
+      statusText = "Sectioning…",
+      format: formatOverride,
+      keepFormat = false
+    } = {}) => {
+      if (previewing) {
+        return false;
+      }
       sourceText = String(overlay.querySelector(".dlc-create-text-body")?.value || sourceText || "");
       if (!sourceText.trim()) {
         setFormStatus("Upload or paste text first.", true);
         return false;
       }
+      const formatEl = overlay.querySelector(".dlc-create-text-format");
+      const requestedFormat = String(formatOverride || formatEl?.value || "").trim();
+      previewing = true;
       setFormStatus(statusText);
-      const format = String(overlay.querySelector(".dlc-create-text-format")?.value || "").trim();
-      previewState = await window.TarotDataService.requestJson(
-        "POST",
-        window.TarotDataService.buildApiUrl("/api/v1/dlc/texts/preview"),
-        {
-          text: sourceText,
-          filename: sourceName,
-          format: format || undefined,
-          title: String(overlay.querySelector(".dlc-create-text-title")?.value || "").trim(),
-          id: String(overlay.querySelector(".dlc-create-text-id")?.value || "").trim()
-        }
-      );
-      fillFormatOptions(previewState.formats, previewState.format);
-      renderTextPreview(overlay, previewState, { syncFields });
-      setFormStatus(`Showing ${previewState.format}: ${previewState.stats?.sections || 0} section(s), ${previewState.stats?.verses || 0} passage(s).`);
-      return true;
+      try {
+        previewState = await window.TarotDataService.requestJson(
+          "POST",
+          window.TarotDataService.buildApiUrl("/api/v1/dlc/texts/preview"),
+          {
+            text: sourceText,
+            filename: sourceName,
+            format: requestedFormat || undefined,
+            title: String(overlay.querySelector(".dlc-create-text-title")?.value || "").trim(),
+            id: String(overlay.querySelector(".dlc-create-text-id")?.value || "").trim(),
+            customRules: {
+              headingPattern: String(overlay.querySelector(".dlc-text-heading-pattern")?.value || "").trim(),
+              versePattern: String(overlay.querySelector(".dlc-text-verse-pattern")?.value || "").trim(),
+              split: String(overlay.querySelector(".dlc-text-split")?.value || "blank-line").trim(),
+              headerSkipCount: Number(overlay.querySelector(".dlc-text-skip")?.value) || 0
+            }
+          }
+        );
+        fillFormatOptions(previewState.formats, keepFormat ? requestedFormat : previewState.format);
+        renderTextPreview(overlay, previewState, { syncFields });
+        const used = String(previewState.format || requestedFormat || "");
+        const warn = String(previewState.warning || "").trim();
+        const note = requestedFormat && used && requestedFormat !== used
+          ? ` Requested ${requestedFormat}, using ${used}.`
+          : "";
+        setFormStatus(
+          warn
+            ? warn
+            : `Showing ${used}: ${previewState.stats?.sections || 0} section(s), ${previewState.stats?.verses || 0} passage(s).${note}`,
+          Boolean(warn)
+        );
+        return true;
+      } finally {
+        previewing = false;
+      }
     };
 
+    overlay.querySelector('[data-action="toggle-format"]').addEventListener("click", (event) => {
+      const panel = overlay.querySelector("[data-role='text-format-panel']");
+      const options = overlay.querySelector("[data-role='text-options-panel']");
+      const open = Boolean(panel?.hidden);
+      if (panel) panel.hidden = !open;
+      if (options) options.hidden = true;
+      event.currentTarget.classList.toggle("is-active", open);
+      overlay.querySelector('[data-action="toggle-options"]')?.classList.remove("is-active");
+    });
+    overlay.querySelector('[data-action="toggle-options"]').addEventListener("click", (event) => {
+      const panel = overlay.querySelector("[data-role='text-options-panel']");
+      const format = overlay.querySelector("[data-role='text-format-panel']");
+      const open = Boolean(panel?.hidden);
+      if (panel) panel.hidden = !open;
+      if (format) format.hidden = true;
+      event.currentTarget.classList.toggle("is-active", open);
+      overlay.querySelector('[data-action="toggle-format"]')?.classList.remove("is-active");
+    });
     overlay.querySelector('[data-action="change-source"]').addEventListener("click", () => {
       const sourceEl = overlay.querySelector("[data-role='text-source']");
       if (sourceEl) sourceEl.hidden = false;
@@ -3220,19 +3624,36 @@
     });
 
     overlay.querySelector(".dlc-create-text-format").addEventListener("change", async (event) => {
+      const format = String(event.currentTarget.value || "").trim();
+      if (!format) {
+        return;
+      }
       if (!sourceText.trim() && !String(overlay.querySelector(".dlc-create-text-body")?.value || "").trim()) {
         return;
       }
-      event.currentTarget.disabled = true;
       try {
         await runTextPreview({
           syncFields: false,
-          statusText: `Resectioning as ${event.currentTarget.value}…`
+          keepFormat: true,
+          format,
+          statusText: `Resectioning as ${format}…`
         });
       } catch (error) {
         setFormStatus(error?.message || "That format could not read this file.", true);
-      } finally {
-        event.currentTarget.disabled = false;
+      }
+    });
+
+    overlay.querySelector('[data-action="apply-custom"]').addEventListener("click", async () => {
+      overlay.querySelector(".dlc-create-text-format").value = "custom-text";
+      try {
+        await runTextPreview({
+          syncFields: false,
+          keepFormat: true,
+          format: "custom-text",
+          statusText: "Applying custom patterns…"
+        });
+      } catch (error) {
+        setFormStatus(error?.message || "Custom patterns failed.", true);
       }
     });
 
@@ -3280,13 +3701,31 @@
       pendingLoose: "",
       idManual: false,
       cardNames: {},
-      suitNames: {}
+      suitNames: {},
+      suitOrder: DECK_SUITS.map((suit) => suit.id),
+      backFile: null
     };
 
-    const revokeDeckUrls = () => {
+    overlay.querySelectorAll("[data-suit-block]").forEach((select) => {
+      DECK_SUITS.forEach((suit) => {
+        const option = document.createElement("option");
+        option.value = suit.id;
+        option.textContent = suit.label;
+        select.appendChild(option);
+      });
+      select.value = deckState.suitOrder[Number(select.getAttribute("data-suit-block"))] || DECK_SUITS[0].id;
+    });
+
+    const revokeFaceUrls = () => {
       deckState.files.forEach((entry) => {
         if (entry.url) URL.revokeObjectURL(entry.url);
       });
+    };
+    const revokeDeckUrls = () => {
+      revokeFaceUrls();
+      if (deckState.backFile?.url) {
+        URL.revokeObjectURL(deckState.backFile.url);
+      }
     };
 
     overlay.addEventListener("click", (event) => {
@@ -3319,6 +3758,37 @@
         return `${rank} of ${suitLabel(suitId)}`;
       }
       return slot.label;
+    };
+
+    const openDeckPreview = (url, label, filePath) => {
+      if (!url) return;
+      const relative = String(filePath || "").replace(/\\/g, "/");
+      const fileName = relative.split("/").pop() || "";
+      document.querySelector(".dlc-deck-preview-overlay")?.remove();
+      const pop = document.createElement("div");
+      pop.className = "dlc-settings-overlay dlc-deck-preview-overlay";
+      pop.setAttribute("role", "dialog");
+      pop.innerHTML = `
+        <div class="dlc-settings-overlay-panel dlc-deck-preview-panel">
+          <div class="dlc-settings-overlay-head">
+            <strong>${escapeHtml(label || "Card")}</strong>
+            <button type="button" class="dlc-shop-btn" data-action="preview-close">Close</button>
+          </div>
+          <div class="dlc-deck-preview-file">
+            <code>${escapeHtml(fileName)}</code>
+            ${relative && relative !== fileName ? `<span>${escapeHtml(relative)}</span>` : ""}
+          </div>
+          <div class="dlc-deck-preview-body">
+            <img src="${escapeHtml(url)}" alt="${escapeHtml(label || "Card")}">
+          </div>
+        </div>
+      `;
+      document.body.appendChild(pop);
+      const close = () => pop.remove();
+      pop.querySelector('[data-action="preview-close"]').addEventListener("click", close);
+      pop.addEventListener("click", (event) => {
+        if (event.target === pop) close();
+      });
     };
 
     const openRenamePop = (title, value, onSave) => {
@@ -3413,7 +3883,7 @@
       const assignedCount = Object.keys(deckState.assigned).filter((key) => key !== "back" && deckState.assigned[key]).length;
       if (statsEl) {
         statsEl.innerHTML = "";
-        [`${assignedCount}/78 cards`, deckState.back ? "back set" : "no back", `${deckState.files.length} files`].forEach((label) => {
+        [`${assignedCount}/78 cards`, deckState.backFile ? "back set" : "no back", `${deckState.files.length} files`].forEach((label) => {
           const chip = document.createElement("span");
           chip.className = "dlc-text-chip";
           chip.textContent = label;
@@ -3423,21 +3893,15 @@
       const fileByPath = new Map(deckState.files.map((entry) => [entry.path, entry]));
       if (backEl) {
         backEl.replaceChildren();
-        const img = document.createElement("img");
-        img.alt = "Card back";
-        const backFile = fileByPath.get(deckState.assigned.back || deckState.back);
-        if (backFile?.url) {
-          img.src = backFile.url;
+        if (deckState.backFile?.url) {
+          const img = document.createElement("img");
+          img.alt = "Card back";
+          img.src = deckState.backFile.url;
+          img.addEventListener("click", () => {
+            openDeckPreview(deckState.backFile.url, "Card back", deckState.backFile.name);
+          });
+          backEl.appendChild(img);
         }
-        img.addEventListener("click", () => {
-          if (deckState.pendingLoose) {
-            deckState.assigned.back = deckState.pendingLoose;
-            deckState.back = deckState.pendingLoose;
-            deckState.pendingLoose = "";
-            renderDeckEditor();
-          }
-        });
-        backEl.appendChild(img);
       }
       Object.values(grids).forEach((grid) => grid?.replaceChildren());
       deckSlots.forEach((slot) => {
@@ -3458,6 +3922,12 @@
           const caption = document.createElement("span");
           caption.textContent = displayName;
           card.appendChild(caption);
+          if (file?.path) {
+            const fileLabel = document.createElement("span");
+            fileLabel.className = "dlc-deck-slot-file";
+            fileLabel.textContent = String(file.path).replace(/\\/g, "/").split("/").pop();
+            card.appendChild(fileLabel);
+          }
           if (deckState.pendingLoose) {
             card.classList.add("is-assign");
           }
@@ -3465,21 +3935,12 @@
             card.classList.add("is-renamed");
           }
           card.addEventListener("click", () => {
-            if (deckState.pendingLoose) {
-              const previous = deckState.assigned[slot.key];
-              deckState.assigned[slot.key] = deckState.pendingLoose;
-              deckState.pendingLoose = previous || "";
-              renderDeckEditor();
-              return;
-            }
-            if (deckState.assigned[slot.key]) {
-              deckState.pendingLoose = deckState.assigned[slot.key];
-              delete deckState.assigned[slot.key];
-              renderDeckEditor();
+            if (file?.url) {
+              openDeckPreview(file.url, displayName, file.path);
             }
           });
           card.addEventListener("contextmenu", (event) => {
-            showDeckContextMenu(event, [
+            const items = [
               {
                 label: "Rename card…",
                 action: () => openRenamePop("Card name", displayName, (value) => {
@@ -3497,17 +3958,29 @@
                   delete deckState.cardNames[slot.key];
                   renderDeckEditor();
                 }
-              },
-              {
+              }
+            ];
+            if (deckState.pendingLoose) {
+              items.unshift({
+                label: "Assign selected image",
+                action: () => {
+                  const previous = deckState.assigned[slot.key];
+                  deckState.assigned[slot.key] = deckState.pendingLoose;
+                  deckState.pendingLoose = previous || "";
+                  renderDeckEditor();
+                }
+              });
+            }
+            if (deckState.assigned[slot.key]) {
+              items.push({
                 label: "Unmap image",
                 action: () => {
-                  if (deckState.assigned[slot.key]) {
-                    delete deckState.assigned[slot.key];
-                    renderDeckEditor();
-                  }
+                  delete deckState.assigned[slot.key];
+                  renderDeckEditor();
                 }
-              }
-            ]);
+              });
+            }
+            showDeckContextMenu(event, items);
           });
           gridEl.appendChild(card);
       });
@@ -3534,8 +4007,18 @@
           name.textContent = entry.path;
           item.append(img, name);
           item.addEventListener("click", () => {
-            deckState.pendingLoose = deckState.pendingLoose === entry.path ? "" : entry.path;
-            renderDeckEditor();
+            openDeckPreview(entry.url, entry.path, entry.path);
+          });
+          item.addEventListener("contextmenu", (event) => {
+            showDeckContextMenu(event, [
+              {
+                label: deckState.pendingLoose === entry.path ? "Deselect" : "Select to assign",
+                action: () => {
+                  deckState.pendingLoose = deckState.pendingLoose === entry.path ? "" : entry.path;
+                  renderDeckEditor();
+                }
+              }
+            ]);
           });
           looseList.appendChild(item);
         });
@@ -3549,15 +4032,11 @@
         overlay.querySelector(`.dlc-deck-pat-${suit.id}`).value = patterns.suits?.[suit.id]?.pattern || "";
         overlay.querySelector(`.dlc-deck-start-${suit.id}`).value = String(patterns.suits?.[suit.id]?.start ?? 1);
       });
-      if (patterns.back) {
-        overlay.querySelector(".dlc-deck-pat-back").value = patterns.back;
-      }
     };
 
     const applyDeckPatterns = (overwrite) => {
       const majorsPattern = String(overlay.querySelector(".dlc-deck-pat-majors")?.value || "").trim();
       const majorsStart = Number(overlay.querySelector(".dlc-deck-start-majors")?.value);
-      const backPattern = String(overlay.querySelector(".dlc-deck-pat-back")?.value || "").trim();
       let mapped = 0;
       deckState.files.forEach((entry) => {
         const base = deckFileBase(entry.path);
@@ -3586,21 +4065,7 @@
             return true;
           });
         }
-        if (!slot && backPattern) {
-          const lowered = backPattern.toLowerCase();
-          if (base.toLowerCase() === lowered || base.toLowerCase().includes(lowered) || matchDeckPattern(base, backPattern) != null) {
-            slot = "back";
-          }
-        }
         if (!slot) {
-          return;
-        }
-        if (slot === "back") {
-          if (overwrite || !deckState.assigned.back) {
-            deckState.assigned.back = entry.path;
-            deckState.back = entry.path;
-            mapped += 1;
-          }
           return;
         }
         if (overwrite || !deckState.assigned[slot]) {
@@ -3611,13 +4076,99 @@
       return mapped;
     };
 
+    const numberedFileIndex = (filePath) => {
+      const match = deckFileBase(filePath).match(/^(?:page[_-]?)?(\d{1,3})$/);
+      const number = match ? Number(match[1]) : NaN;
+      return Number.isInteger(number) ? number : null;
+    };
+
+    const remapNumberedMinors = () => {
+      const order = [0, 1, 2, 3].map((index) => (
+        String(overlay.querySelector(`[data-suit-block="${index}"]`)?.value || DECK_SUITS[index].id)
+      ));
+      deckState.suitOrder = order;
+      const numberedPaths = new Set();
+      deckState.files.forEach((entry) => {
+        const number = numberedFileIndex(entry.path);
+        if (number >= 22 && number <= 77) {
+          numberedPaths.add(entry.path);
+        }
+      });
+      Object.keys(deckState.assigned).forEach((key) => {
+        if (key.startsWith("minor-") && numberedPaths.has(deckState.assigned[key])) {
+          delete deckState.assigned[key];
+        }
+      });
+      deckState.files.forEach((entry) => {
+        const slot = guessDeckSlot(entry.path, order);
+        if (slot && slot.startsWith("minor-") && numberedPaths.has(entry.path)) {
+          deckState.assigned[slot] = entry.path;
+        }
+      });
+    };
+
+    const swapSuitCards = (idA, idB) => {
+      if (!idA || !idB || idA === idB) {
+        return;
+      }
+      DECK_RANKS.forEach((rank) => {
+        const keyA = `minor-${idA}-${rank.id}`;
+        const keyB = `minor-${idB}-${rank.id}`;
+        const valueA = deckState.assigned[keyA];
+        const valueB = deckState.assigned[keyB];
+        if (valueB) {
+          deckState.assigned[keyA] = valueB;
+        } else {
+          delete deckState.assigned[keyA];
+        }
+        if (valueA) {
+          deckState.assigned[keyB] = valueA;
+        } else {
+          delete deckState.assigned[keyB];
+        }
+      });
+      const indexA = deckState.suitOrder.indexOf(idA);
+      const indexB = deckState.suitOrder.indexOf(idB);
+      if (indexA >= 0 && indexB >= 0) {
+        const next = [...deckState.suitOrder];
+        next[indexA] = idB;
+        next[indexB] = idA;
+        deckState.suitOrder = next;
+        overlay.querySelectorAll("[data-suit-block]").forEach((select, index) => {
+          select.value = deckState.suitOrder[index];
+        });
+      }
+    };
+
+    overlay.querySelectorAll("[data-suit-block]").forEach((select) => {
+      select.addEventListener("change", () => {
+        const index = Number(select.getAttribute("data-suit-block"));
+        const nextId = String(select.value || "");
+        const other = deckState.suitOrder.indexOf(nextId);
+        if (other >= 0 && other !== index) {
+          const swapped = [...deckState.suitOrder];
+          swapped[other] = deckState.suitOrder[index];
+          swapped[index] = nextId;
+          deckState.suitOrder = swapped;
+        } else {
+          deckState.suitOrder[index] = nextId;
+        }
+        overlay.querySelectorAll("[data-suit-block]").forEach((entry, block) => {
+          entry.value = deckState.suitOrder[block];
+        });
+        remapNumberedMinors();
+        renderDeckEditor();
+        setFormStatus("Suit order after trumps updated for 22–77 files.");
+      });
+    });
+
     overlay.querySelector(".dlc-create-deck-folder").addEventListener("change", (event) => {
       const files = [...(event.currentTarget.files || [])].filter((file) => DECK_IMAGE_EXT.test(file.name));
       if (!files.length) {
         setFormStatus("No images found in that folder.", true);
         return;
       }
-      revokeDeckUrls();
+      revokeFaceUrls();
       deckState.files = files.map((file) => {
         const path = String(file.webkitRelativePath || file.name).replace(/\\/g, "/");
         return {
@@ -3627,17 +4178,15 @@
         };
       });
       deckState.assigned = {};
-      deckState.back = "";
       deckState.pendingLoose = "";
       deckState.cardNames = {};
       deckState.suitNames = {};
+      deckState.suitOrder = DECK_SUITS.map((suit) => suit.id);
+      overlay.querySelectorAll("[data-suit-block]").forEach((select, index) => {
+        select.value = deckState.suitOrder[index];
+      });
       deckState.files.forEach((entry) => {
-        const slot = guessDeckSlot(entry.path);
-        if (slot === "back" && !deckState.assigned.back) {
-          deckState.assigned.back = entry.path;
-          deckState.back = entry.path;
-          return;
-        }
+        const slot = guessDeckSlot(entry.path, deckState.suitOrder);
         if (slot && slot !== "back" && !deckState.assigned[slot]) {
           deckState.assigned[slot] = entry.path;
         }
@@ -3678,7 +4227,8 @@
           <div class="dlc-settings-overlay-body">
             <p class="settings-field-hint">Pick a folder of card images. Mapping stays in the browser until you save.</p>
             <p class="settings-field-hint">Pattern <code>a##</code> is a prefix plus number. Start is the first index in those files (0 or 1). Detect reads letter groups like a/b/c from the folder.</p>
-            <p class="settings-field-hint">Left-click assigns or unmaps an image. Right-click a card to rename it. Shown as maps a suit (Wands → Batons) onto the standard deck.</p>
+            <p class="settings-field-hint">Left-click a card to view it larger. Right-click to rename, unmap, or assign a selected leftover. Shown as maps a suit (Wands → Batons) onto the standard deck.</p>
+            <p class="settings-field-hint">For 00–77 files, After trumps sets which suit owns 22–35, 36–49, 50–63, and 64–77. Right-click a suit heading to swap its cards with another suit.</p>
             <p class="settings-field-hint">Unmapped leftovers can be assigned or skipped. All 78 slots are required unless you allow an incomplete deck.</p>
           </div>
         </div>
@@ -3724,7 +4274,15 @@
               if (aliasEl) aliasEl.value = "";
               renderDeckEditor();
             }
-          }
+          },
+          ...DECK_SUITS.filter((other) => other.id !== suit.id).map((other) => ({
+            label: `Swap cards with ${other.label}`,
+            action: () => {
+              swapSuitCards(suit.id, other.id);
+              renderDeckEditor();
+              setFormStatus(`Swapped ${suit.label} with ${other.label}.`);
+            }
+          }))
         ]);
       });
       overlay.querySelector(`.dlc-deck-alias-${suit.id}`)?.addEventListener("input", (event) => {
@@ -3756,6 +4314,21 @@
         overlay.querySelector(".dlc-create-deck-id").value = slugifyId(event.currentTarget.value);
       }
     });
+    overlay.querySelector(".dlc-create-deck-back").addEventListener("change", (event) => {
+      const file = event.currentTarget.files?.[0];
+      if (!file) return;
+      if (deckState.backFile?.url) {
+        URL.revokeObjectURL(deckState.backFile.url);
+      }
+      deckState.backFile = {
+        file,
+        name: file.name,
+        url: URL.createObjectURL(file)
+      };
+      renderDeckEditor();
+      setFormStatus(`Card back set from ${file.name}. Used for every card.`);
+    });
+
     overlay.querySelector('[data-action="change-deck-source"]').addEventListener("click", () => {
       overlay.querySelector("[data-role='deck-source']").hidden = false;
     });
@@ -3828,9 +4401,12 @@
           }
         }
         let cardBack = "";
-        if (deckState.assigned.back) {
-          cardBack = `back${imageExt(deckState.assigned.back)}`;
-          await addFile(deckState.assigned.back, cardBack);
+        if (deckState.backFile?.file) {
+          cardBack = `back${imageExt(deckState.backFile.name)}`;
+          zipFiles.push({
+            name: cardBack,
+            bytes: new Uint8Array(await deckState.backFile.file.arrayBuffer())
+          });
         }
         const manifest = {
           id,
