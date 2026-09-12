@@ -138,7 +138,7 @@
       "app/ui-admin.js?v=20260912-dlc-share"
     ],
     profile: [
-      "app/ui-profile.js?v=20260912-journal-home"
+      "app/ui-profile.js?v=20260912-dream-symbols"
     ]
   };
 

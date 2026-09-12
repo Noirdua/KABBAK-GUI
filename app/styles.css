@@ -2222,6 +2222,63 @@
       font-size: 12px;
       white-space: pre-wrap;
     }
+    .dlc-ref-sample {
+      display: grid;
+      gap: 8px;
+      max-height: 280px;
+      overflow: auto;
+    }
+    .dlc-ref-sample-row {
+      display: grid;
+      gap: 2px;
+      width: 100%;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid var(--tt-border);
+      border-radius: 8px;
+      background: var(--tt-bg-deep);
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+    .dlc-ref-sample-row span {
+      color: var(--tt-text-muted);
+      font-size: 12px;
+    }
+    .dlc-ref-detail-overlay {
+      z-index: 270;
+    }
+    .dlc-ref-detail-body {
+      display: grid;
+      gap: 12px;
+    }
+    .dlc-ref-detail-field {
+      display: grid;
+      gap: 4px;
+    }
+    .dlc-ref-detail-list {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--tt-text-soft);
+    }
+    .profile-dream-symbols {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 8px 0 12px;
+    }
+    .profile-dream-symbol {
+      max-width: 280px;
+      padding: 8px 10px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: var(--tt-bg-deep);
+      font-size: 12px;
+    }
+    .profile-dream-symbol strong {
+      display: block;
+    }
     .dlc-text-footer {
       display: flex;
       flex-wrap: wrap;
@@ -13421,6 +13478,52 @@
       color: var(--tt-accent-soft);
       text-transform: uppercase;
       letter-spacing: 0.08em;
+    }
+    .journal-note-picker {
+      position: fixed;
+      z-index: 80;
+      display: grid;
+      gap: 4px;
+      min-width: 220px;
+      max-width: 320px;
+      max-height: 240px;
+      overflow: auto;
+      padding: 8px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: var(--tt-bg-deepest);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    }
+    .journal-note-picker button {
+      text-align: left;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--tt-text);
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .journal-note-picker button:hover {
+      background: color-mix(in srgb, var(--tt-accent) 16%, transparent);
+    }
+    .profile-sleep-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: end;
+    }
+    .profile-sleep-hours {
+      color: var(--tt-text-muted);
+      font-size: 13px;
+      padding-bottom: 8px;
+    }
+    .profile-scene-logged {
+      margin-left: auto;
+      color: var(--tt-text-muted);
+      font-size: 11px;
+      letter-spacing: 0.02em;
     }
     .profile-scene-remove {
       border: 0;

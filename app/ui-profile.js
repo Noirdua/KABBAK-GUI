@@ -24,7 +24,9 @@
     journalPageMode: false,
     journalHelpers: null,
     journalView: "",
-    journalOnBack: null
+    journalOnBack: null,
+    sleptAt: "",
+    awokeAt: ""
   };
 
   let draggedSceneCard = null;
@@ -44,6 +46,10 @@
       noteEditorEl: document.getElementById("profile-note-editor"),
       noteTitleEl: document.getElementById("profile-note-title"),
       noteDateEl: document.getElementById("profile-note-date"),
+      sleptAtEl: document.getElementById("profile-slept-at"),
+      awokeAtEl: document.getElementById("profile-awoke-at"),
+      sleepRowEl: document.getElementById("profile-sleep-row"),
+      sleepHoursEl: document.getElementById("profile-sleep-hours"),
       profileDeckEl: document.getElementById("profile-deck-select"),
       profileDeckStatusEl: document.getElementById("profile-deck-status"),
       cacheStatusEl: document.getElementById("profile-cache-status"),
@@ -252,6 +258,7 @@
       time: withNow ? nowTimeValue() : "",
       endTime: "",
       place: "",
+      scenario: "",
       mood: "",
       emotion: "",
       atmosphere: "",
@@ -259,7 +266,7 @@
       thoughts: "",
       notes: "",
       attachments: [],
-      createdAt: ""
+      createdAt: new Date().toISOString()
     };
   }
 
@@ -275,7 +282,7 @@
 
   function handleNotesBack() {
     if (state.journalPageMode) {
-      if (state.notesMode === "editor") {
+      if (state.journalView !== "diary" && state.notesMode === "editor") {
         closeEditor();
         return;
       }
@@ -332,18 +339,19 @@
   function syncNotesMode() {
     const { filtersEl, noteListEl, noteEditorEl, noteNewBtn } = getElements();
     const editing = state.notesMode === "editor";
+    const diary = state.journalView === "diary";
 
     if (filtersEl) {
-      filtersEl.hidden = editing;
+      filtersEl.hidden = diary ? false : editing;
     }
     if (noteListEl) {
-      noteListEl.hidden = editing;
+      noteListEl.hidden = diary ? false : editing;
     }
     if (noteEditorEl) {
-      noteEditorEl.hidden = !editing;
+      noteEditorEl.hidden = diary ? false : !editing;
     }
     if (noteNewBtn) {
-      noteNewBtn.hidden = editing;
+      noteNewBtn.hidden = diary || editing;
     }
     const deleteBtn = document.getElementById("profile-note-delete");
     if (deleteBtn) {
@@ -376,10 +384,136 @@
     }
   }
 
+  function sleepDurationLabel(slept, awoke) {
+    const start = parseSceneTimeToMinutes(slept);
+    const end = parseSceneTimeToMinutes(awoke);
+    if (start == null || end == null) {
+      return "";
+    }
+    let mins = end - start;
+    if (mins <= 0) {
+      mins += 24 * 60;
+    }
+    const hours = Math.floor(mins / 60);
+    const rest = mins % 60;
+    return rest ? `${hours}h ${rest}m` : `${hours}h`;
+  }
+
+  function syncSleepRow() {
+    const { sleepRowEl, sleptAtEl, awokeAtEl, sleepHoursEl } = getElements();
+    const isDream = state.kind === "dream";
+    if (sleepRowEl) {
+      sleepRowEl.hidden = !isDream;
+    }
+    if (sleptAtEl && sleptAtEl.value !== (state.sleptAt || "")) {
+      sleptAtEl.value = state.sleptAt || "";
+    }
+    if (awokeAtEl && awokeAtEl.value !== (state.awokeAt || "")) {
+      awokeAtEl.value = state.awokeAt || "";
+    }
+    if (sleepHoursEl) {
+      const label = sleepDurationLabel(state.sleptAt, state.awokeAt);
+      sleepHoursEl.textContent = label ? `${label} asleep` : "";
+    }
+    const scenesLabel = document.querySelector(".profile-scenes-label");
+    const addBtn = document.getElementById("profile-scene-add");
+    if (scenesLabel) {
+      scenesLabel.textContent = isDream ? "Passages" : "Scenes";
+    }
+    if (addBtn) {
+      addBtn.textContent = isDream ? "+ Passage" : "+ New Scene";
+    }
+  }
+
+  let dreamSymbolTimer = null;
+  let dreamSymbolRefId = "";
+
+  async function resolveDreamSymbolReferenceId() {
+    if (dreamSymbolRefId) {
+      return dreamSymbolRefId;
+    }
+    try {
+      const payload = await window.TarotDataService.requestJson(
+        "GET",
+        window.TarotDataService.buildApiUrl("/api/v1/texts/references")
+      );
+      const refs = Array.isArray(payload?.references) ? payload.references : [];
+      const match = refs.find((entry) => entry.id === "dream-symbols")
+        || refs.find((entry) => /dream/i.test(`${entry.id || ""} ${entry.title || ""}`));
+      dreamSymbolRefId = match?.id || "";
+    } catch (_error) {
+      dreamSymbolRefId = "";
+    }
+    return dreamSymbolRefId;
+  }
+
+  async function refreshDreamSymbols() {
+    const host = document.getElementById("profile-dream-symbols");
+    if (!host || state.kind !== "dream") {
+      if (host) host.hidden = true;
+      return;
+    }
+    syncScenesFromDom();
+    const haystack = (state.scenes || []).map((scene) => [
+      scene.thoughts,
+      scene.steps,
+      scene.notes,
+      scene.atmosphere,
+      scene.scenario,
+      scene.place
+    ].join(" ")).join(" ");
+    const refId = await resolveDreamSymbolReferenceId();
+    if (!refId || !String(haystack || "").trim()) {
+      host.hidden = true;
+      host.replaceChildren();
+      return;
+    }
+    try {
+      const payload = await window.TarotDataService.requestJson(
+        "POST",
+        window.TarotDataService.buildApiUrl(`/api/v1/texts/references/${encodeURIComponent(refId)}/match`),
+        { text: haystack, limit: 12 }
+      );
+      const matches = Array.isArray(payload?.matches) ? payload.matches : [];
+      host.replaceChildren();
+      host.hidden = matches.length === 0;
+      matches.forEach((match) => {
+        const card = document.createElement("div");
+        card.className = "profile-dream-symbol";
+        const title = document.createElement("strong");
+        title.textContent = `${match.entry?.icon ? `${match.entry.icon} ` : ""}${match.title || match.entryId}`;
+        const body = document.createElement("span");
+        body.textContent = String(match.entry?.body || "").slice(0, 180);
+        card.append(title, body);
+        host.appendChild(card);
+      });
+    } catch (_error) {
+      host.hidden = true;
+    }
+  }
+
+  function scheduleDreamSymbolLookup() {
+    if (state.kind !== "dream") {
+      return;
+    }
+    window.clearTimeout(dreamSymbolTimer);
+    dreamSymbolTimer = window.setTimeout(() => {
+      void refreshDreamSymbols();
+    }, 450);
+  }
+
   function syncDreamPrompts() {
     const el = document.getElementById("profile-dream-prompts");
     if (el) {
       el.hidden = state.kind !== "dream";
+    }
+    const symbols = document.getElementById("profile-dream-symbols");
+    if (symbols && state.kind !== "dream") {
+      symbols.hidden = true;
+    }
+    syncSleepRow();
+    if (state.kind === "dream") {
+      scheduleDreamSymbolLookup();
     }
   }
 
@@ -409,6 +543,7 @@
       sceneListEl.addEventListener("dragover", handleSceneDragOver);
       sceneListEl.addEventListener("drop", handleSceneDrop);
       sceneListEl.addEventListener("dragenter", (e) => e.preventDefault());
+      sceneListEl.addEventListener("input", () => scheduleDreamSymbolLookup());
     }
     state.scenes.forEach((scene, index) => {
       const isDream = state.kind === "dream";
@@ -426,35 +561,54 @@
       grip.addEventListener("dragend", handleSceneDragEnd);
       const label = document.createElement("span");
       label.className = "profile-scene-index";
-      label.textContent = isDream ? `Step ${index + 1}` : `Scene ${index + 1}`;
+      label.textContent = isDream ? `Passage ${index + 1}` : `Scene ${index + 1}`;
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
       removeBtn.className = "profile-scene-remove";
       removeBtn.textContent = "Remove";
       removeBtn.addEventListener("click", () => removeScene(scene.id));
+      const logged = document.createElement("span");
+      logged.className = "profile-scene-logged";
+      const loggedLabel = formatDate(scene.createdAt);
+      logged.textContent = loggedLabel ? `Logged ${loggedLabel}` : "";
+      logged.title = "When this scene was written, not the scene start time";
       head.appendChild(grip);
       head.appendChild(label);
+      head.appendChild(logged);
       head.appendChild(removeBtn);
 
       const grid = document.createElement("div");
       grid.className = "profile-scene-grid";
       if (isDream) {
-        grid.appendChild(buildSceneField("Atmosphere", "scene-atmosphere", scene.atmosphere, "murky, cloudy, dark, alone…"));
+        grid.appendChild(buildSceneField("Atmosphere", "scene-atmosphere", scene.atmosphere, "fog, night, empty street, gold light…"));
         grid.appendChild(buildSceneMoodField(scene.mood));
         grid.appendChild(buildSceneEmotionField(scene.emotion));
       } else {
         grid.appendChild(buildSceneTimeField(scene.time, "scene-time", "Start"));
         grid.appendChild(buildSceneTimeField(scene.endTime, "scene-end-time", "End"));
-        grid.appendChild(buildSceneField("Place", "scene-place", scene.place, "Where were you?"));
+        grid.appendChild(buildSceneField("Scenario", "scene-scenario", scene.scenario, "She goes to buy shoes. An unexpected visitor walks in."));
+        grid.appendChild(buildSceneField("Scenery", "scene-place", scene.place, "sun out, dogs on the sidewalk, flowers in buckets"));
         grid.appendChild(buildSceneMoodField(scene.mood));
         grid.appendChild(buildSceneEmotionField(scene.emotion));
       }
 
       const steps = isDream
-        ? buildSceneArea("Steps", "scene-steps", scene.steps, "What steps do you remember? e.g. I went from the cafe to a taxi car parked behind back…")
+        ? buildSceneArea("The thread", "scene-steps", scene.steps, "cafe → taxi → the alley behind…")
         : null;
-      const thoughts = buildSceneArea("Thoughts", "scene-thoughts", scene.thoughts, isDream ? "What did it feel like? Vague is fine…" : "What were you thinking?");
-      const notes = buildSceneArea("Notes", "scene-notes", scene.notes, isDream ? "Anything else about this step…" : "Anything else about this scene…");
+      const thoughts = buildSceneArea(
+        isDream ? "The dream" : "Act",
+        "scene-thoughts",
+        scene.thoughts,
+        isDream ? "What do you remember…" : "Tell the story",
+        { notesPicker: true }
+      );
+      const notes = buildSceneArea(
+        isDream ? "Aftertaste" : "Direction",
+        "scene-notes",
+        scene.notes,
+        isDream ? "What lingered when you woke…" : "Stage direction, asides, extra beats…",
+        { notesPicker: true }
+      );
       const attachments = buildSceneAttachments(scene);
 
       card.appendChild(head);
@@ -1455,7 +1609,59 @@
     return label;
   }
 
-  function buildSceneArea(labelText, fieldClass, value, placeholder) {
+  function insertTextIntoEditor(editor, text) {
+    if (!editor || !String(text || "").trim()) {
+      return;
+    }
+    editor.focus();
+    const selection = window.getSelection();
+    const range = selection && selection.rangeCount
+      ? selection.getRangeAt(0)
+      : document.createRange();
+    if (!editor.contains(range.commonAncestorContainer)) {
+      range.selectNodeContents(editor);
+      range.collapse(false);
+    }
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.execCommand("insertText", false, text);
+  }
+
+  function openQuickNotePicker(anchor, editor) {
+    document.querySelector(".journal-note-picker")?.remove();
+    const notes = Array.isArray(state.quickNotes) ? state.quickNotes : [];
+    const pop = document.createElement("div");
+    pop.className = "journal-note-picker";
+    if (!notes.length) {
+      const empty = document.createElement("span");
+      empty.textContent = "No notes yet.";
+      pop.appendChild(empty);
+    } else {
+      notes.slice(0, 40).forEach((note) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = String(note.text || "").trim() || "(empty)";
+        btn.addEventListener("click", () => {
+          insertTextIntoEditor(editor, String(note.text || "").trim());
+          pop.remove();
+        });
+        pop.appendChild(btn);
+      });
+    }
+    document.body.appendChild(pop);
+    const rect = anchor.getBoundingClientRect();
+    pop.style.left = `${Math.min(rect.left, window.innerWidth - 280)}px`;
+    pop.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - 220)}px`;
+    const close = (event) => {
+      if (!pop.contains(event.target) && event.target !== anchor) {
+        pop.remove();
+        document.removeEventListener("mousedown", close);
+      }
+    };
+    window.setTimeout(() => document.addEventListener("mousedown", close), 0);
+  }
+
+  function buildSceneArea(labelText, fieldClass, value, placeholder, options = {}) {
     const label = document.createElement("label");
     label.className = "profile-field";
     const span = document.createElement("span");
@@ -1582,6 +1788,21 @@
       }
     });
     toolbar.appendChild(clearBtn);
+
+    if (options.notesPicker) {
+      const noteBtn = document.createElement("button");
+      noteBtn.type = "button";
+      noteBtn.textContent = "Note";
+      noteBtn.title = "Insert a saved note";
+      noteBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        const ed = label.querySelector("." + fieldClass);
+        if (ed) {
+          openQuickNotePicker(noteBtn, ed);
+        }
+      });
+      toolbar.appendChild(noteBtn);
+    }
 
     const editor = document.createElement("div");
     editor.className = fieldClass;
@@ -1981,6 +2202,9 @@
             : toTimeInputValue(endTimeEl?.value || ""))
           : (existing.endTime || ""),
         place: placeEl ? String(placeEl.value || "").trim() : (existing.place || ""),
+        scenario: card.querySelector(".scene-scenario")
+          ? String(card.querySelector(".scene-scenario").value || "").trim()
+          : (existing.scenario || ""),
         mood: canonicalCardName(String(card.querySelector(".scene-mood")?.value || "").trim()),
         emotion: String(card.querySelector(".scene-emotion")?.value || "").trim(),
         atmosphere: atmosphereEl ? String(atmosphereEl.value || "").trim() : (existing.atmosphere || ""),
@@ -2504,6 +2728,8 @@
 
     state.kind = note?.kind === "dream" ? "dream" : "waking";
     state.occurredOn = String(note?.occurredOn || "").trim() || todayDateValue();
+    state.sleptAt = String(note?.sleptAt || "").trim();
+    state.awokeAt = String(note?.awokeAt || "").trim();
     state.scenes = Array.isArray(note?.scenes) && note.scenes.length
       ? note.scenes.map((scene) => ({ 
           ...scene, 
@@ -2512,6 +2738,8 @@
           atmosphere: String(scene?.atmosphere || ""),
           steps: String(scene?.steps || ""),
           endTime: String(scene?.endTime || ""),
+          scenario: String(scene?.scenario || ""),
+          createdAt: String(scene?.createdAt || ""),
           attachments: Array.isArray(scene?.attachments) ? scene.attachments : []
         }))
       : [createEmptyScene(true)];
@@ -2533,10 +2761,48 @@
     }
   }
 
+  function wrapDiaryHistory(panel) {
+    if (!(panel instanceof HTMLElement) || panel.querySelector(".journal-diary-history")) {
+      return;
+    }
+    const filters = document.getElementById("profile-note-filters");
+    const list = document.getElementById("profile-note-list");
+    const details = document.createElement("details");
+    details.className = "journal-diary-history";
+    const summary = document.createElement("summary");
+    summary.textContent = "History";
+    const body = document.createElement("div");
+    body.className = "journal-diary-history-body";
+    if (filters) body.appendChild(filters);
+    if (list) body.appendChild(list);
+    details.append(summary, body);
+    panel.appendChild(details);
+  }
+
+  function unwrapDiaryHistory(panel) {
+    const details = panel?.querySelector?.(".journal-diary-history");
+    if (!details) return;
+    const filters = document.getElementById("profile-note-filters");
+    const list = document.getElementById("profile-note-list");
+    const heading = panel.querySelector(".profile-notebook-head");
+    if (filters) {
+      heading ? heading.after(filters) : details.before(filters);
+    }
+    if (list) {
+      filters ? filters.after(list) : (heading ? heading.after(list) : details.before(list));
+    }
+    details.remove();
+  }
+
   function startNewEntry() {
     state.activeNoteId = "";
     state.editing = false;
     setStatus("");
+
+    if (state.journalView === "diary") {
+      void beginNewEntry(state.kind || "waking");
+      return;
+    }
 
     const overlayApi = window.TaroOverlay;
     if (!overlayApi?.open) {
@@ -2578,6 +2844,8 @@
   async function beginNewEntry(kind) {
     state.kind = kind === "dream" ? "dream" : "waking";
     state.occurredOn = todayDateValue();
+    state.sleptAt = "";
+    state.awokeAt = "";
     state.scenes = [createEmptyScene(kind !== "dream")];
     state.autoTitle = buildAutoTitle(state.kind, state.occurredOn);
     const { noteTitleEl } = getElements();
@@ -2589,6 +2857,10 @@
   }
 
   function closeEditor() {
+    if (state.journalView === "diary") {
+      void beginNewEntry(state.kind || "waking");
+      return;
+    }
     state.activeNoteId = "";
     state.editing = false;
     state.notesMode = "list";
@@ -2980,6 +3252,8 @@
         title,
         kind: state.kind,
         occurredOn,
+        sleptAt: state.kind === "dream" ? String(getElements().sleptAtEl?.value || state.sleptAt || "").trim() : "",
+        awokeAt: state.kind === "dream" ? String(getElements().awokeAtEl?.value || state.awokeAt || "").trim() : "",
         scenes
       };
       let savedNote;
@@ -3001,6 +3275,8 @@
       state.editing = true;
       state.occurredOn = savedNote?.occurredOn || occurredOn;
       state.kind = savedNote?.kind === "dream" ? "dream" : state.kind;
+      state.sleptAt = String(savedNote?.sleptAt || payload.sleptAt || "").trim();
+      state.awokeAt = String(savedNote?.awokeAt || payload.awokeAt || "").trim();
       await refreshProfile();
       setStatus("Entry saved.");
     } catch (error) {
@@ -3075,6 +3351,15 @@
     document.getElementById("profile-scene-add")?.addEventListener("click", addScene);
     elements.kindDreamBtn?.addEventListener("click", () => setKind("dream"));
     elements.kindWakingBtn?.addEventListener("click", () => setKind("waking"));
+    const onSleepChange = () => {
+      state.sleptAt = String(elements.sleptAtEl?.value || "").trim();
+      state.awokeAt = String(elements.awokeAtEl?.value || "").trim();
+      syncSleepRow();
+    };
+    elements.sleptAtEl?.addEventListener("change", onSleepChange);
+    elements.awokeAtEl?.addEventListener("change", onSleepChange);
+    elements.sleptAtEl?.addEventListener("input", onSleepChange);
+    elements.awokeAtEl?.addEventListener("input", onSleepChange);
     elements.locationSaveBtn?.addEventListener("click", () => {
       void saveLocation();
     });
@@ -3241,7 +3526,8 @@
         <div style="font-size:22px; font-weight:700; margin:1mm 0; background:linear-gradient(90deg,#c4b5fd,#f9a8d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Magical Notebook</div>
         <div style="display:inline-block; padding:1px 8px; border-radius:999px; font-size:9px; font-weight:700; letter-spacing:0.5px; background:${kindColor}; color:#120d22;">${kindLabel}</div>
         <div style="margin-top:2mm; font-size:11px; opacity:0.8;">${escapeHtml(formatEntryDate(occurredOn) || occurredOn)}</div>
-        <div style="margin-top:1mm; font-size:14px; font-weight:600;">${escapeHtml(title)}</div>
+         <div style="margin-top:1mm; font-size:14px; font-weight:600;">${escapeHtml(title)}</div>
+         ${kind === "dream" && (state.sleptAt || state.awokeAt) ? `<div style="margin-top:1.5mm; font-size:10px; opacity:0.75;">Slept ${escapeHtml(state.sleptAt || "—")} · Awoke ${escapeHtml(state.awokeAt || "—")}${sleepDurationLabel(state.sleptAt, state.awokeAt) ? ` · ${escapeHtml(sleepDurationLabel(state.sleptAt, state.awokeAt))}` : ""}</div>` : ""}
       `;
     } else {
       header.style.cssText = "margin-bottom:4mm; border-bottom:1px solid #ddd; padding-bottom:3mm;";
@@ -3399,8 +3685,8 @@
       }
 
       const leftMetaHtml = kind === "dream"
-        ? `${stackedField("ATMOSPHERE", s.atmosphere)}${stackedField("EMOTION", s.emotion)}${s.steps ? `<div style="margin-top:1.6mm;"><div style="font-size:7px; opacity:0.6;">STEPS</div><div style="font-size:9px; white-space:pre-wrap;">${s.steps}</div></div>` : ""}`
-        : `${stackedField("TIME", `${s.time || "—"}${s.endTime ? ` – ${s.endTime}` : ""}`)}${stackedField("PLACE", s.place)}${stackedField("EMOTION", s.emotion)}`;
+        ? `${stackedField("ATMOSPHERE", s.atmosphere)}${stackedField("EMOTION", s.emotion)}${s.steps ? `<div style="margin-top:1.6mm;"><div style="font-size:7px; opacity:0.6;">THE THREAD</div><div style="font-size:9px; white-space:pre-wrap;">${s.steps}</div></div>` : ""}`
+        : `${stackedField("TIME", `${s.time || "—"}${s.endTime ? ` – ${s.endTime}` : ""}`)}${stackedField("SCENARIO", s.scenario)}${stackedField("SCENERY", s.place)}${stackedField("EMOTION", s.emotion)}`;
 
       const leftColumn = `
         <div style="flex:0 0 48mm; margin-right:4mm;">
@@ -3412,13 +3698,13 @@
 
       const rightContent = `
         <div style="flex:1; min-width:0;">
-          ${s.thoughts ? `<div style="margin-bottom:2.5mm;"><div style="font-size:7px; opacity:0.6;">THOUGHTS</div><div style="font-size:9px; white-space:pre-wrap;">${s.thoughts}</div></div>` : ""}
-          ${s.notes ? `<div style="margin-bottom:2.5mm;"><div style="font-size:7px; opacity:0.6;">NOTES</div><div style="font-size:9px; white-space:pre-wrap;">${s.notes}</div></div>` : ""}
+          ${s.thoughts ? `<div style="margin-bottom:2.5mm;"><div style="font-size:7px; opacity:0.6;">${kind === "dream" ? "THE DREAM" : "ACT"}</div><div style="font-size:9px; white-space:pre-wrap;">${s.thoughts}</div></div>` : ""}
+          ${s.notes ? `<div style="margin-bottom:2.5mm;"><div style="font-size:7px; opacity:0.6;">${kind === "dream" ? "AFTERTASTE" : "DIRECTION"}</div><div style="font-size:9px; white-space:pre-wrap;">${s.notes}</div></div>` : ""}
           ${attachmentsHtml}
         </div>`;
 
       block.innerHTML = `
-        <div style="font-size:8px; opacity:0.6; margin-bottom:1.5mm;">${kind === "dream" ? "STEP" : "SCENE"} ${i + 1}</div>
+         <div style="font-size:8px; opacity:0.6; margin-bottom:1.5mm;">${kind === "dream" ? "PASSAGE" : "SCENE"} ${i + 1}</div>
         <div style="display:flex; align-items:flex-start;">
           ${leftColumn}
           ${rightContent}
@@ -3568,13 +3854,20 @@
       heading.textContent = mode === "note" ? "Note" : "Diary";
     }
     root.appendChild(notesPanelEl);
+    if (mode === "diary") {
+      wrapDiaryHistory(notesPanelEl);
+    }
 
     fillQuickNoteComposerTime();
     renderNoteList();
     renderQuickNotes();
     syncNotesMode();
+    if (mode === "diary") {
+      void beginNewEntry("waking");
+    }
 
     return () => {
+      unwrapDiaryHistory(notesPanelEl);
       notesPanelEl.classList.remove("profile-notes-panel--page", "journal-view-diary", "journal-view-note");
       if (heading) {
         heading.textContent = "Journal";

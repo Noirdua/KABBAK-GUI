@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260912-plugin-logs">
+  <link rel="stylesheet" href="app/styles.css?v=20260912-ref-preview">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -365,6 +365,15 @@
             <label class="profile-field" for="profile-note-date">Date
               <input id="profile-note-date" type="date" required>
             </label>
+            <div id="profile-sleep-row" class="profile-sleep-row" hidden>
+              <label class="profile-field" for="profile-slept-at">Slept
+                <input id="profile-slept-at" type="time">
+              </label>
+              <label class="profile-field" for="profile-awoke-at">Awoke
+                <input id="profile-awoke-at" type="time">
+              </label>
+              <span id="profile-sleep-hours" class="profile-sleep-hours"></span>
+            </div>
             <div id="profile-day-cards" class="profile-day-cards" title="Date tarot cards for occurredOn (court + active decan). Click to use as mood."></div>
           </div>
           <label class="profile-field" for="profile-note-title">Title
@@ -374,9 +383,10 @@
             <span class="profile-dream-prompts-label">Dream journaling prompts</span>
             <span>Where did you go? · How did it feel? · Who was there? · What happened next?</span>
           </div>
+          <div id="profile-dream-symbols" class="profile-dream-symbols" hidden></div>
           <div class="profile-scenes">
             <div class="profile-scenes-head">
-              <span class="profile-scenes-label">Scenes (drag to reorder)</span>
+              <span class="profile-scenes-label">Scenes</span>
               <button id="profile-scene-add" class="profile-btn" type="button">+ New Scene</button>
             </div>
             <div id="profile-scene-list"></div>
@@ -2455,7 +2465,7 @@
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260911-profile-timing-fix"></script>
-  <script src="app/ui-dlc-shop.js?v=20260912-plugin-layout"></script>
+  <script src="app/ui-dlc-shop.js?v=20260912-ref-preview"></script>
   <script src="app/ui-chrome.js?v=20260911-export-marks"></script>
   <script src="app/ui-navigation.js?v=20260902-syn"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>

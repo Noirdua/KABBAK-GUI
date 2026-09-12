@@ -3188,7 +3188,7 @@
               <button type="button" class="dlc-shop-btn dlc-create-kind is-active" data-kind="text" aria-pressed="true">Text</button>
               <button type="button" class="dlc-shop-btn dlc-create-kind" data-kind="deck" aria-pressed="false">Deck</button>
               <button type="button" class="dlc-shop-btn dlc-create-kind" data-kind="plugin" aria-pressed="false">Plugin</button>
-              <button type="button" class="dlc-shop-btn dlc-create-kind" data-kind="reference" disabled>Reference (soon)</button>
+              <button type="button" class="dlc-shop-btn dlc-create-kind" data-kind="reference" aria-pressed="false">Reference</button>
             </div>
           </div>
           <div data-role="kind-text">
@@ -3406,6 +3406,46 @@
             </div>
           </div>
           <div data-role="kind-plugin" hidden></div>
+          <div data-role="kind-reference" hidden>
+            <div data-role="ref-source">
+              <label class="settings-field">Upload JSON
+                <input type="file" class="dlc-create-ref-file" accept=".json,application/json">
+              </label>
+            </div>
+            <div data-role="ref-fields" hidden>
+              <div class="dlc-text-preview-stats" data-role="ref-stats"></div>
+              <div class="dlc-ref-sample" data-role="ref-sample"></div>
+              <div class="dlc-text-footer">
+                <button type="button" class="settings-button-primary" data-action="save-reference">Save DLC reference</button>
+                <button type="button" class="dlc-shop-btn" data-action="toggle-ref-options">Options</button>
+              </div>
+              <div class="dlc-text-drawer" data-role="ref-options-panel" hidden>
+                <label class="settings-field">Title
+                  <input type="text" class="dlc-create-ref-title" maxlength="120" placeholder="Dream Symbols">
+                </label>
+                <label class="settings-field">Id
+                  <input type="text" class="dlc-create-ref-id" maxlength="40" placeholder="dream-symbols">
+                </label>
+                <label class="settings-field">Kind
+                  <select class="dlc-create-ref-kind">
+                    <option value="dictionary" selected>Dictionary</option>
+                    <option value="lexicon">Lexicon</option>
+                    <option value="encyclopedia">Encyclopedia</option>
+                  </select>
+                </label>
+                <label class="settings-field">Key scheme
+                  <select class="dlc-create-ref-scheme">
+                    <option value="word" selected>Word</option>
+                    <option value="term">Term</option>
+                    <option value="strongs">Strong's</option>
+                  </select>
+                </label>
+                <label class="settings-field">Description
+                  <input type="text" class="dlc-create-ref-description" maxlength="400" placeholder="Short description">
+                </label>
+              </div>
+            </div>
+          </div>
           <p class="settings-field-hint" data-role="status" aria-live="polite"></p>
         </div>
       </div>
@@ -3472,10 +3512,223 @@
         overlay.querySelector("[data-role='kind-text']").hidden = kind !== "text";
         overlay.querySelector("[data-role='kind-deck']").hidden = kind !== "deck";
         overlay.querySelector("[data-role='kind-plugin']").hidden = kind !== "plugin";
+        overlay.querySelector("[data-role='kind-reference']").hidden = kind !== "reference";
         if (kind === "plugin") {
           openCreatePluginForm(overlay.querySelector("[data-role='kind-plugin']"), { onCreated });
         }
       });
+    });
+
+    let referenceSource = "";
+    let referenceFileName = "";
+    let referenceParsed = null;
+
+    const renderRefValue = (value) => {
+      if (value == null || value === "") {
+        return document.createTextNode("—");
+      }
+      if (Array.isArray(value)) {
+        const wrap = document.createElement("div");
+        wrap.className = "dlc-ref-detail-list";
+        value.forEach((item) => {
+          const row = document.createElement("div");
+          if (item && typeof item === "object") {
+            row.textContent = Object.values(item).filter(Boolean).join(" · ");
+          } else {
+            row.textContent = String(item);
+          }
+          wrap.appendChild(row);
+        });
+        return wrap;
+      }
+      if (typeof value === "object") {
+        return renderRefValue(Object.entries(value).map(([key, val]) => `${key}: ${val}`));
+      }
+      const span = document.createElement("span");
+      span.textContent = String(value);
+      return span;
+    };
+
+    const findRawReference = (id, title) => {
+      if (Array.isArray(referenceParsed)) {
+        const lowerId = String(id || "").toLowerCase();
+        const lowerTitle = String(title || "").toLowerCase();
+        return referenceParsed.find((item) => {
+          if (!item || typeof item !== "object") return false;
+          return String(item.slug || "").toLowerCase() === lowerId
+            || String(item.id || "").toLowerCase() === lowerId
+            || String(item.keyword || "").toLowerCase() === lowerTitle
+            || String(item.title || "").toLowerCase() === lowerTitle
+            || String(item.keyword || "").toLowerCase() === lowerId;
+        }) || null;
+      }
+      if (referenceParsed && typeof referenceParsed === "object") {
+        const source = referenceParsed.entries && typeof referenceParsed.entries === "object"
+          ? referenceParsed.entries
+          : referenceParsed;
+        return source[id] || source[title] || null;
+      }
+      return null;
+    };
+
+    const openRefDetail = (entry) => {
+      document.querySelector(".dlc-ref-detail-overlay")?.remove();
+      const raw = findRawReference(entry.id, entry.title) || entry;
+      const pop = document.createElement("div");
+      pop.className = "dlc-settings-overlay dlc-ref-detail-overlay";
+      pop.innerHTML = `
+        <div class="dlc-settings-overlay-panel">
+          <div class="dlc-settings-overlay-head">
+            <strong>${escapeHtml(entry.title || entry.id || "Entry")}</strong>
+            <button type="button" class="dlc-shop-btn" data-action="ref-detail-close">Close</button>
+          </div>
+          <div class="dlc-settings-overlay-body dlc-ref-detail-body"></div>
+        </div>
+      `;
+      const body = pop.querySelector(".dlc-ref-detail-body");
+      const skip = new Set(["slug"]);
+      const data = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : { value: raw };
+      Object.keys(data).forEach((key) => {
+        if (skip.has(key) || data[key] == null || data[key] === "") return;
+        const block = document.createElement("div");
+        block.className = "dlc-ref-detail-field";
+        const label = document.createElement("strong");
+        label.textContent = key;
+        block.append(label, renderRefValue(data[key]));
+        body.appendChild(block);
+      });
+      document.body.appendChild(pop);
+      const close = () => pop.remove();
+      pop.querySelector("[data-action='ref-detail-close']").addEventListener("click", close);
+      pop.addEventListener("click", (event) => {
+        if (event.target === pop) close();
+      });
+    };
+
+    const applyReferencePreview = (preview, { fillMeta = true } = {}) => {
+      overlay.querySelector("[data-role='create-intro']")?.setAttribute("hidden", "hidden");
+      overlay.querySelector("[data-role='ref-source']").hidden = true;
+      overlay.querySelector("[data-role='ref-fields']").hidden = false;
+      if (fillMeta) {
+        overlay.querySelector(".dlc-create-ref-title").value = preview.title || "";
+        overlay.querySelector(".dlc-create-ref-id").value = preview.id || "";
+        overlay.querySelector(".dlc-create-ref-kind").value = preview.kind || "dictionary";
+        overlay.querySelector(".dlc-create-ref-scheme").value = preview.keyScheme || "word";
+        overlay.querySelector(".dlc-create-ref-description").value = preview.description || "";
+      }
+      const stats = overlay.querySelector("[data-role='ref-stats']");
+      if (stats) {
+        stats.innerHTML = "";
+        [`${preview.count || 0} entries`, preview.kind, preview.keyScheme].forEach((label) => {
+          const chip = document.createElement("span");
+          chip.className = "dlc-text-chip";
+          chip.textContent = label;
+          stats.appendChild(chip);
+        });
+      }
+      const sampleEl = overlay.querySelector("[data-role='ref-sample']");
+      if (sampleEl) {
+        sampleEl.replaceChildren();
+        (preview.list || preview.sample || []).forEach((entry) => {
+          const row = document.createElement("button");
+          row.type = "button";
+          row.className = "dlc-ref-sample-row";
+          const title = document.createElement("strong");
+          title.textContent = `${entry.icon ? `${entry.icon} ` : ""}${entry.title || entry.id}`;
+          const meta = document.createElement("span");
+          meta.textContent = [entry.id, entry.category].filter(Boolean).join(" · ");
+          const body = document.createElement("span");
+          body.textContent = entry.body || "";
+          row.append(title, meta, body);
+          row.addEventListener("click", () => openRefDetail(entry));
+          sampleEl.appendChild(row);
+        });
+      }
+      setFormStatus(`Ready to save ${preview.count} entries. Click a row for full fields.`);
+    };
+
+    const runReferencePreview = async ({ fillMeta = true } = {}) => {
+      const preview = await window.TarotDataService.requestJson(
+        "POST",
+        window.TarotDataService.buildApiUrl("/api/v1/dlc/references/preview"),
+        {
+          text: referenceSource,
+          filename: referenceFileName,
+          id: String(overlay.querySelector(".dlc-create-ref-id")?.value || "").trim(),
+          title: String(overlay.querySelector(".dlc-create-ref-title")?.value || "").trim(),
+          description: String(overlay.querySelector(".dlc-create-ref-description")?.value || "").trim(),
+          kind: String(overlay.querySelector(".dlc-create-ref-kind")?.value || "").trim(),
+          keyScheme: String(overlay.querySelector(".dlc-create-ref-scheme")?.value || "").trim()
+        }
+      );
+      applyReferencePreview(preview, { fillMeta });
+      return preview;
+    };
+
+    overlay.querySelector(".dlc-create-ref-file")?.addEventListener("change", async (event) => {
+      const file = event.currentTarget.files?.[0];
+      if (!file) return;
+      referenceFileName = file.name;
+      referenceSource = await file.text();
+      try {
+        referenceParsed = JSON.parse(referenceSource);
+      } catch (_error) {
+        referenceParsed = null;
+      }
+      setFormStatus(`Loaded ${file.name}. Previewing…`);
+      try {
+        await runReferencePreview({ fillMeta: true });
+      } catch (error) {
+        setFormStatus(error?.message || "Could not preview that JSON.", true);
+      }
+    });
+    overlay.querySelector('[data-action="toggle-ref-options"]')?.addEventListener("click", (event) => {
+      const panel = overlay.querySelector("[data-role='ref-options-panel']");
+      const open = Boolean(panel?.hidden);
+      if (panel) panel.hidden = !open;
+      event.currentTarget.classList.toggle("is-active", open);
+    });
+    overlay.querySelector(".dlc-create-ref-scheme")?.addEventListener("change", async () => {
+      if (!referenceSource.trim()) return;
+      setFormStatus("Rebuilding keys…");
+      try {
+        await runReferencePreview({ fillMeta: false });
+      } catch (error) {
+        setFormStatus(error?.message || "Could not rebuild keys.", true);
+      }
+    });
+    overlay.querySelector('[data-action="save-reference"]')?.addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      if (!referenceSource.trim()) {
+        setFormStatus("Upload a JSON file first.", true);
+        return;
+      }
+      button.disabled = true;
+      setFormStatus("Saving DLC reference…");
+      try {
+        const result = await window.TarotDataService.requestJson(
+          "POST",
+          window.TarotDataService.buildApiUrl("/api/v1/dlc/references"),
+          {
+            text: referenceSource,
+            filename: referenceFileName,
+            id: String(overlay.querySelector(".dlc-create-ref-id")?.value || "").trim(),
+            title: String(overlay.querySelector(".dlc-create-ref-title")?.value || "").trim(),
+            description: String(overlay.querySelector(".dlc-create-ref-description")?.value || "").trim(),
+            kind: String(overlay.querySelector(".dlc-create-ref-kind")?.value || "dictionary").trim(),
+            keyScheme: String(overlay.querySelector(".dlc-create-ref-scheme")?.value || "word").trim()
+          }
+        );
+        setFormStatus(`Saved '${result?.reference?.title || result?.reference?.id}'. Storage is refreshing.`);
+        if (typeof onCreated === "function") {
+          await onCreated(result?.reference);
+        }
+        window.setTimeout(() => overlay.remove(), 1600);
+      } catch (error) {
+        setFormStatus(error?.message || "Could not save DLC reference.", true);
+      } finally {
+        button.disabled = false;
+      }
     });
 
     overlay.querySelector(".dlc-create-text-file").addEventListener("change", async (event) => {
