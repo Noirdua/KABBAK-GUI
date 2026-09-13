@@ -172,6 +172,23 @@
     return String(value).trim();
   }
 
+  function formatRefCell(value) {
+    if (value == null || value === "") return "";
+    if (Array.isArray(value)) {
+      return value.map((item) => {
+        if (item && typeof item === "object") {
+          return String(item.word || item.title || item.gloss || "").trim()
+            || Object.values(item).filter((part) => part != null && typeof part !== "object").join(" ");
+        }
+        return String(item);
+      }).filter(Boolean).join(", ");
+    }
+    if (typeof value === "object") {
+      return String(value.word || value.title || value.gloss || "").trim();
+    }
+    return String(value);
+  }
+
   function renderFieldValue(value, fieldKey, reference) {
     if (value == null || value === "") {
       return document.createTextNode("—");
@@ -195,7 +212,7 @@
         const tr = document.createElement("tr");
         columns.forEach((column) => {
           const td = document.createElement("td");
-          td.textContent = String(row[column] == null ? "" : row[column]);
+            td.textContent = formatRefCell(row[column]);
           tr.appendChild(td);
         });
         body.appendChild(tr);
@@ -211,9 +228,7 @@
       wrap.className = "alpha-reference-entry-list-block";
       value.forEach((item) => {
         const row = document.createElement("div");
-        row.textContent = item && typeof item === "object"
-          ? Object.values(item).filter(Boolean).join(" · ")
-          : String(item);
+        row.textContent = formatRefCell(item);
         wrap.appendChild(row);
       });
       return wrap;

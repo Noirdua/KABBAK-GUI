@@ -523,6 +523,23 @@
       && value.every((item) => item && typeof item === "object" && !Array.isArray(item));
   }
 
+  function formatInterpretCell(value) {
+    if (value == null || value === "") return "";
+    if (Array.isArray(value)) {
+      return value.map((item) => {
+        if (item && typeof item === "object") {
+          return String(item.word || item.title || item.gloss || "").trim()
+            || Object.values(item).filter((part) => part != null && typeof part !== "object").join(" ");
+        }
+        return String(item);
+      }).filter(Boolean).join(", ");
+    }
+    if (typeof value === "object") {
+      return String(value.word || value.title || value.gloss || "").trim();
+    }
+    return String(value);
+  }
+
   function interpretFieldValue(entry, key) {
     if (!entry || typeof entry !== "object") return null;
     if (entry[key] != null && entry[key] !== "") return entry[key];
@@ -554,7 +571,7 @@
         const tr = document.createElement("tr");
         columns.forEach((column) => {
           const td = document.createElement("td");
-          td.textContent = String(row[column] == null ? "" : row[column]);
+          td.textContent = formatInterpretCell(row[column]);
           tr.appendChild(td);
         });
         body.appendChild(tr);
@@ -570,9 +587,7 @@
       wrap.className = "profile-interpret-list";
       value.forEach((item) => {
         const row = document.createElement("div");
-        row.textContent = item && typeof item === "object"
-          ? Object.values(item).filter(Boolean).join(" · ")
-          : String(item);
+        row.textContent = formatInterpretCell(item);
         wrap.appendChild(row);
       });
       return wrap;
@@ -694,9 +709,17 @@
         card.className = "profile-dream-symbol";
         const title = document.createElement("strong");
         title.textContent = `${match.entry?.icon ? `${match.entry.icon} ` : ""}${match.title || match.entryId}`;
+        const via = (Array.isArray(match.matchedTerms) ? match.matchedTerms : [])
+          .find((term) => String(term).toLowerCase() !== String(match.title || "").toLowerCase());
         const body = document.createElement("span");
         body.textContent = String(match.entry?.summary || match.entry?.body || "").slice(0, 180);
-        card.append(title, body);
+        card.appendChild(title);
+        if (via) {
+          const hint = document.createElement("em");
+          hint.textContent = `via ${via}`;
+          card.appendChild(hint);
+        }
+        card.appendChild(body);
         card.addEventListener("click", () => {
           void openDreamInterpretation({ focusId: match.entryId, requireSaved: false });
         });

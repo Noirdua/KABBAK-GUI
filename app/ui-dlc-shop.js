@@ -3414,9 +3414,9 @@
           <div data-role="kind-plugin" hidden></div>
           <div data-role="kind-reference" hidden>
             <div data-role="ref-source">
-              <div class="settings-field">Upload JSON
-                <label class="dlc-shop-btn dlc-file-btn">Choose JSON
-                  <input type="file" class="dlc-create-ref-file" accept=".json,application/json" hidden>
+              <div class="settings-field">Upload JSON or JSONL
+                <label class="dlc-shop-btn dlc-file-btn">Choose file
+                  <input type="file" class="dlc-create-ref-file" accept=".json,.jsonl,application/json,application/jsonl" hidden>
                 </label>
               </div>
             </div>
@@ -3549,7 +3549,12 @@
 
     const REF_FIELD_LABELS = {
       keyword: "Keyword",
+      word: "Word",
+      term: "Term",
       summary: "Summary",
+      gloss: "Gloss",
+      senses: "Senses",
+      examples: "Examples",
       icon: "Icon",
       category: "Category",
       url: "Source",
@@ -3568,7 +3573,7 @@
       .replace(/[_-]+/g, " ")
       .replace(/^\w/, (char) => char.toUpperCase());
 
-    const REF_LIST_DEFAULT = new Set(["keyword", "title", "summary", "body", "icon", "category"]);
+    const REF_LIST_DEFAULT = new Set(["keyword", "word", "term", "title", "summary", "body", "icon", "category"]);
 
     const ensureRefColumns = (key, sample) => {
       if (!isRefTable(sample)) return;
@@ -3598,6 +3603,23 @@
       && value.length
       && value.every((item) => item && typeof item === "object" && !Array.isArray(item));
 
+    const formatRefCell = (value) => {
+      if (value == null || value === "") return "";
+      if (Array.isArray(value)) {
+        return value.map((item) => {
+          if (item && typeof item === "object") {
+            return String(item.word || item.title || item.gloss || "").trim()
+              || Object.values(item).filter((part) => part != null && typeof part !== "object").join(" ");
+          }
+          return String(item);
+        }).filter(Boolean).join(", ");
+      }
+      if (typeof value === "object") {
+        return String(value.word || value.title || value.gloss || "").trim();
+      }
+      return String(value);
+    };
+
     const renderRefValue = (value, fieldKey) => {
       if (value == null || value === "") {
         return document.createTextNode("—");
@@ -3622,7 +3644,7 @@
           const tr = document.createElement("tr");
           columns.forEach((column) => {
             const td = document.createElement("td");
-            td.textContent = String(row[column] == null ? "" : row[column]);
+            td.textContent = formatRefCell(row[column]);
             tr.appendChild(td);
           });
           body.appendChild(tr);
@@ -3638,9 +3660,7 @@
         wrap.className = "dlc-ref-detail-list";
         value.forEach((item) => {
           const row = document.createElement("div");
-          row.textContent = item && typeof item === "object"
-            ? Object.values(item).filter(Boolean).join(" · ")
-            : String(item);
+          row.textContent = formatRefCell(item);
           wrap.appendChild(row);
         });
         return wrap;
@@ -3654,23 +3674,31 @@
     };
 
     const findRawReference = (id, title) => {
+      const lowerId = String(id || "").toLowerCase();
+      const lowerTitle = String(title || "").toLowerCase();
+      const slugOf = (value) => String(value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      const matches = (item) => {
+        if (!item || typeof item !== "object") return false;
+        const labels = [item.slug, item.id, item.keyword, item.word, item.term, item.title]
+          .map((value) => String(value || "").toLowerCase())
+          .filter(Boolean);
+        if (lowerId && labels.includes(lowerId)) return true;
+        if (lowerTitle && labels.includes(lowerTitle)) return true;
+        const slugged = slugOf(item.word || item.keyword || item.term || item.title || item.slug);
+        return Boolean(lowerId && slugged && slugged === lowerId);
+      };
       if (Array.isArray(referenceParsed)) {
-        const lowerId = String(id || "").toLowerCase();
-        const lowerTitle = String(title || "").toLowerCase();
-        return referenceParsed.find((item) => {
-          if (!item || typeof item !== "object") return false;
-          return String(item.slug || "").toLowerCase() === lowerId
-            || String(item.id || "").toLowerCase() === lowerId
-            || String(item.keyword || "").toLowerCase() === lowerTitle
-            || String(item.title || "").toLowerCase() === lowerTitle
-            || String(item.keyword || "").toLowerCase() === lowerId;
-        }) || null;
+        return referenceParsed.find(matches) || null;
       }
       if (referenceParsed && typeof referenceParsed === "object") {
         const source = referenceParsed.entries && typeof referenceParsed.entries === "object"
           ? referenceParsed.entries
           : referenceParsed;
-        return source[id] || source[title] || null;
+        if (source[id] || source[title]) return source[id] || source[title];
+        return Object.values(source).find(matches) || null;
       }
       return null;
     };
@@ -3894,7 +3922,11 @@
       if (seed && typeof seed === "object") {
         Object.keys(seed).forEach((key) => ensureRefField(key, seed[key]));
       }
-      (preview.list || []).slice(0, 1).forEach((entry) => {
+      (preview.list || []).forEach((entry) => {
+        const raw = findRawReference(entry.id, entry.title);
+        if (raw && typeof raw === "object") {
+          Object.keys(raw).forEach((key) => ensureRefField(key, raw[key]));
+        }
         Object.keys(entry).forEach((key) => ensureRefField(key));
       });
       renderRefFieldConfig();
@@ -3951,7 +3983,15 @@
       try {
         referenceParsed = JSON.parse(referenceSource);
       } catch (_error) {
-        referenceParsed = null;
+        const rows = [];
+        String(referenceSource || "").split(/\r?\n/).forEach((line) => {
+          const trimmed = line.trim();
+          if (!trimmed) return;
+          try {
+            rows.push(JSON.parse(trimmed));
+          } catch (_lineError) {}
+        });
+        referenceParsed = rows.length ? rows : null;
       }
       setFormStatus(`Loaded ${file.name}. Previewing…`);
       try {
