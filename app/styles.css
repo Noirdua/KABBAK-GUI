@@ -1994,6 +1994,9 @@
       display: grid;
       gap: 12px;
     }
+    .dlc-settings-overlay input:not([type="file"]):not([type="checkbox"]):not([type="radio"]),
+    .dlc-settings-overlay textarea,
+    .dlc-settings-overlay select,
     .dlc-create-overlay input:not([type="file"]):not([type="checkbox"]):not([type="radio"]),
     .dlc-create-overlay textarea,
     .dlc-create-overlay select {
@@ -2018,6 +2021,16 @@
     }
     .dlc-create-overlay input[type="file"] {
       color: var(--tt-text-muted);
+    }
+    .dlc-file-btn {
+      display: inline-flex;
+      align-items: center;
+      align-self: flex-start;
+      cursor: pointer;
+      user-select: none;
+    }
+    .dlc-file-btn input[type="file"] {
+      display: none;
     }
     .dlc-create-kinds {
       display: flex;
@@ -2245,6 +2258,11 @@
       color: var(--tt-text-muted);
       font-size: 12px;
     }
+    .dlc-ref-entry-key {
+      color: var(--tt-accent-soft) !important;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px !important;
+    }
     .dlc-ref-detail-overlay {
       z-index: 270;
     }
@@ -2262,6 +2280,75 @@
       font-size: 13px;
       color: var(--tt-text-soft);
     }
+    .dlc-ref-field-config {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 6px;
+    }
+    .dlc-ref-field-row,
+    .dlc-ref-detail-fold summary {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .dlc-ref-field-row.is-column {
+      margin-left: 28px;
+    }
+    .dlc-ref-field-row.is-list-title input {
+      font-weight: 700;
+      color: var(--tt-accent-pale);
+    }
+    .dlc-ref-eye {
+      flex: 0 0 auto;
+      width: 28px;
+      border: 0;
+      background: transparent;
+      color: var(--tt-accent-soft);
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .dlc-ref-field-row input,
+    .dlc-ref-detail-fold summary input {
+      flex: 1;
+      min-width: 0;
+    }
+    .dlc-ref-field-row span,
+    .dlc-ref-detail-fold summary span {
+      color: var(--tt-text-dim);
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .dlc-ref-detail-fold {
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      padding: 6px 10px 10px;
+      background: var(--tt-bg-deep);
+    }
+    .dlc-ref-detail-fold.is-hidden-field {
+      opacity: 0.45;
+    }
+    .dlc-ref-detail-content {
+      margin-top: 8px;
+    }
+    .dlc-ref-matrix-wrap {
+      overflow-x: auto;
+    }
+    .dlc-ref-matrix {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .dlc-ref-matrix th,
+    .dlc-ref-matrix td {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--tt-border);
+      text-align: left;
+      vertical-align: top;
+    }
+    .dlc-ref-matrix th {
+      color: var(--tt-accent-soft);
+      font-weight: 600;
+    }
     .profile-dream-symbols {
       display: flex;
       flex-wrap: wrap;
@@ -2275,9 +2362,43 @@
       border-radius: 10px;
       background: var(--tt-bg-deep);
       font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      color: inherit;
+      font: inherit;
     }
     .profile-dream-symbol strong {
       display: block;
+    }
+    .profile-dream-symbol:hover {
+      border-color: var(--tt-accent);
+    }
+    .profile-interpret-overlay .dlc-settings-overlay-panel {
+      width: min(820px, 100%);
+      max-height: min(88vh, 900px);
+    }
+    .profile-interpret-body {
+      display: grid;
+      gap: 10px;
+    }
+    .profile-interpret-entry {
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: var(--tt-bg);
+      padding: 4px 10px 10px;
+    }
+    .profile-interpret-entry summary {
+      cursor: pointer;
+      font-weight: 700;
+      padding: 8px 0;
+    }
+    .profile-interpret-entry-body {
+      display: grid;
+      gap: 10px;
+    }
+    .profile-interpret-list {
+      display: grid;
+      gap: 4px;
     }
     .dlc-text-footer {
       display: flex;
@@ -8816,6 +8937,27 @@
       color: var(--tt-text);
       cursor: pointer;
     }
+    .alpha-reference-entry-row.is-stacked {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 4px;
+    }
+    .alpha-reference-entry-row-meta {
+      color: var(--tt-text-muted);
+      font-size: calc(12px * var(--detail-text-scale));
+    }
+    .alpha-reference-entry-field {
+      display: grid;
+      gap: 6px;
+      margin: 0 0 12px;
+    }
+    .alpha-reference-entry-field > strong {
+      font-size: 12px;
+      color: var(--tt-text-soft);
+    }
+    .alpha-reference-entry-list-block {
+      display: grid;
+      gap: 4px;
+    }
 
     .alpha-reference-entry-row:hover {
       background: var(--tt-surface);
@@ -11592,7 +11734,7 @@
     .settings-field-full {
       grid-column: 1 / -1;
     }
-    .settings-field input:not([type="range"]),
+    .settings-field input:not([type="range"]):not([type="file"]),
     .settings-field select {
       width: 100%;
       padding: 7px 8px;

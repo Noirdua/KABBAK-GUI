@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260912-ref-preview">
+  <link rel="stylesheet" href="app/styles.css?v=20260913-interpret">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -391,12 +391,13 @@
             </div>
             <div id="profile-scene-list"></div>
           </div>
-           <div class="profile-editor-actions">
-             <button id="profile-note-save" class="profile-btn profile-btn-primary" type="button">Save</button>
-             <button id="profile-note-cancel" class="profile-btn" type="button">Cancel</button>
-             <button id="profile-note-export-pdf" class="profile-btn" type="button">Export PDF</button>
-             <button id="profile-note-delete" class="profile-btn profile-btn-danger" type="button">Delete</button>
-           </div>
+             <div class="profile-editor-actions">
+              <button id="profile-note-save" class="profile-btn profile-btn-primary" type="button">Save</button>
+              <button id="profile-note-interpret" class="profile-btn" type="button" hidden>Interpret</button>
+              <button id="profile-note-cancel" class="profile-btn" type="button">Cancel</button>
+              <button id="profile-note-export-pdf" class="profile-btn" type="button">Export PDF</button>
+              <button id="profile-note-delete" class="profile-btn profile-btn-danger" type="button">Delete</button>
+            </div>
           <div id="profile-note-status" class="profile-note-status" aria-live="polite"></div>
         </div>
       </div>
@@ -2465,7 +2466,7 @@
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260911-profile-timing-fix"></script>
-  <script src="app/ui-dlc-shop.js?v=20260912-ref-preview"></script>
+  <script src="app/ui-dlc-shop.js?v=20260913-ref-display"></script>
   <script src="app/ui-chrome.js?v=20260911-export-marks"></script>
   <script src="app/ui-navigation.js?v=20260902-syn"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>

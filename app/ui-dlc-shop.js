@@ -3194,9 +3194,11 @@
           <div data-role="kind-text">
             <div data-role="text-source">
               <div class="dlc-create-meta-grid">
-                <label class="settings-field">Upload a file
-                  <input type="file" class="dlc-create-text-file" accept=".txt,.text,.md,.json,.html">
+              <div class="settings-field">Upload a file
+                <label class="dlc-shop-btn dlc-file-btn">Choose file
+                  <input type="file" class="dlc-create-text-file" accept=".txt,.text,.md,.json,.html" hidden>
                 </label>
+              </div>
               </div>
               <label class="settings-field">Or paste text
                 <textarea class="dlc-create-text-body" rows="7" placeholder="Paste a book, ritual, or article…"></textarea>
@@ -3281,9 +3283,11 @@
           </div>
           <div data-role="kind-deck" hidden>
             <div data-role="deck-source">
-              <label class="settings-field">Deck folder
-                <input type="file" class="dlc-create-deck-folder" webkitdirectory multiple accept="image/*">
-              </label>
+              <div class="settings-field">Deck folder
+                <label class="dlc-shop-btn dlc-file-btn">Choose folder
+                  <input type="file" class="dlc-create-deck-folder" webkitdirectory multiple accept="image/*" hidden>
+                </label>
+              </div>
             </div>
             <div data-role="deck-fields" hidden>
               <div class="dlc-deck-meta">
@@ -3383,9 +3387,11 @@
                 <section class="dlc-deck-pattern-card dlc-deck-pattern-card-back">
                   <h3>Back</h3>
                   <div class="dlc-deck-pattern-row">
-                    <label class="settings-field">One image for every card
-                      <input type="file" class="dlc-create-deck-back" accept="image/*">
-                    </label>
+                    <div class="settings-field">One image for every card
+                      <label class="dlc-shop-btn dlc-file-btn">Choose image
+                        <input type="file" class="dlc-create-deck-back" accept="image/*" hidden>
+                      </label>
+                    </div>
                     <div class="dlc-deck-back" data-role="deck-back"></div>
                   </div>
                 </section>
@@ -3408,9 +3414,11 @@
           <div data-role="kind-plugin" hidden></div>
           <div data-role="kind-reference" hidden>
             <div data-role="ref-source">
-              <label class="settings-field">Upload JSON
-                <input type="file" class="dlc-create-ref-file" accept=".json,application/json">
-              </label>
+              <div class="settings-field">Upload JSON
+                <label class="dlc-shop-btn dlc-file-btn">Choose JSON
+                  <input type="file" class="dlc-create-ref-file" accept=".json,application/json" hidden>
+                </label>
+              </div>
             </div>
             <div data-role="ref-fields" hidden>
               <div class="dlc-text-preview-stats" data-role="ref-stats"></div>
@@ -3428,21 +3436,25 @@
                 </label>
                 <label class="settings-field">Kind
                   <select class="dlc-create-ref-kind">
-                    <option value="dictionary" selected>Dictionary</option>
-                    <option value="lexicon">Lexicon</option>
-                    <option value="encyclopedia">Encyclopedia</option>
+                    <option value="dictionary" selected>Dictionary — common words</option>
+                    <option value="encyclopedia">Encyclopedia — topics</option>
+                    <option value="lexicon">Lexicon — specialist index</option>
                   </select>
                 </label>
-                <label class="settings-field">Key scheme
+                <p class="settings-field-hint" data-role="ref-kind-hint"></p>
+                <label class="settings-field" data-role="ref-scheme-field" hidden>
+                  Lexicon index
                   <select class="dlc-create-ref-scheme">
-                    <option value="word" selected>Word</option>
-                    <option value="term">Term</option>
-                    <option value="strongs">Strong's</option>
+                    <option value="word" selected>Word (slug: being-chased)</option>
+                    <option value="term">Term (as written: being chased)</option>
+                    <option value="strongs">Strong's (H1 / G12)</option>
                   </select>
                 </label>
+                <p class="settings-field-hint" data-role="ref-scheme-hint" hidden></p>
                 <label class="settings-field">Description
                   <input type="text" class="dlc-create-ref-description" maxlength="400" placeholder="Short description">
                 </label>
+                <div class="dlc-ref-field-config" data-role="ref-field-config"></div>
               </div>
             </div>
           </div>
@@ -3522,21 +3534,113 @@
     let referenceSource = "";
     let referenceFileName = "";
     let referenceParsed = null;
+    let referenceFieldConfig = {};
+    let referenceListOrder = [];
 
-    const renderRefValue = (value) => {
+    const getRefListKeys = () => {
+      const listed = Object.keys(referenceFieldConfig).filter((key) => referenceFieldConfig[key].list);
+      const ordered = referenceListOrder.filter((key) => listed.includes(key));
+      listed.forEach((key) => {
+        if (!ordered.includes(key)) ordered.push(key);
+      });
+      referenceListOrder = ordered;
+      return ordered;
+    };
+
+    const REF_FIELD_LABELS = {
+      keyword: "Keyword",
+      summary: "Summary",
+      icon: "Icon",
+      category: "Category",
+      url: "Source",
+      date: "Date",
+      whatYourDream: "What your dream is telling you",
+      theScience: "The science",
+      psychology: "Psychology",
+      shadowQuestion: "Shadow question",
+      scenarioMatrix: "Scenario matrix",
+      spiritualRemedies: "Spiritual remedies"
+    };
+    const REF_FIELD_HIDDEN = new Set(["slug", "date", "url"]);
+
+    const humanizeRefKey = (key) => REF_FIELD_LABELS[key] || String(key || "")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/[_-]+/g, " ")
+      .replace(/^\w/, (char) => char.toUpperCase());
+
+    const REF_LIST_DEFAULT = new Set(["keyword", "title", "summary", "body", "icon", "category"]);
+
+    const ensureRefColumns = (key, sample) => {
+      if (!isRefTable(sample)) return;
+      const field = referenceFieldConfig[key];
+      if (!field.columns) field.columns = {};
+      sample.forEach((row) => {
+        Object.keys(row || {}).forEach((column) => {
+          if (field.columns[column]) return;
+          field.columns[column] = { label: humanizeRefKey(column), visible: true };
+        });
+      });
+    };
+
+    const ensureRefField = (key, sample) => {
+      if (!key) return;
+      if (!referenceFieldConfig[key]) {
+        referenceFieldConfig[key] = {
+          label: humanizeRefKey(key),
+          visible: !REF_FIELD_HIDDEN.has(key),
+          list: REF_LIST_DEFAULT.has(key)
+        };
+      }
+      ensureRefColumns(key, sample);
+    };
+
+    const isRefTable = (value) => Array.isArray(value)
+      && value.length
+      && value.every((item) => item && typeof item === "object" && !Array.isArray(item));
+
+    const renderRefValue = (value, fieldKey) => {
       if (value == null || value === "") {
         return document.createTextNode("—");
+      }
+      if (isRefTable(value)) {
+        ensureRefColumns(fieldKey, value);
+        const columnConfig = referenceFieldConfig[fieldKey]?.columns || {};
+        const columns = [...new Set(value.flatMap((row) => Object.keys(row || {})))]
+          .filter((column) => columnConfig[column]?.visible !== false);
+        const table = document.createElement("table");
+        table.className = "dlc-ref-matrix";
+        const head = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        columns.forEach((column) => {
+          const th = document.createElement("th");
+          th.textContent = columnConfig[column]?.label || humanizeRefKey(column);
+          headRow.appendChild(th);
+        });
+        head.appendChild(headRow);
+        const body = document.createElement("tbody");
+        value.forEach((row) => {
+          const tr = document.createElement("tr");
+          columns.forEach((column) => {
+            const td = document.createElement("td");
+            td.textContent = String(row[column] == null ? "" : row[column]);
+            tr.appendChild(td);
+          });
+          body.appendChild(tr);
+        });
+        table.append(head, body);
+        const wrap = document.createElement("div");
+        wrap.className = "dlc-ref-matrix-wrap";
+        wrap.appendChild(table);
+        return wrap;
       }
       if (Array.isArray(value)) {
         const wrap = document.createElement("div");
         wrap.className = "dlc-ref-detail-list";
         value.forEach((item) => {
           const row = document.createElement("div");
-          if (item && typeof item === "object") {
-            row.textContent = Object.values(item).filter(Boolean).join(" · ");
-          } else {
-            row.textContent = String(item);
-          }
+          row.textContent = item && typeof item === "object"
+            ? Object.values(item).filter(Boolean).join(" · ")
+            : String(item);
           wrap.appendChild(row);
         });
         return wrap;
@@ -3571,6 +3675,118 @@
       return null;
     };
 
+    const renderRefFieldConfig = () => {
+      const host = overlay.querySelector("[data-role='ref-field-config']");
+      if (!host) return;
+      host.replaceChildren();
+      const listKeys = getRefListKeys();
+      const restKeys = Object.keys(referenceFieldConfig).filter((key) => !listKeys.includes(key));
+      [...listKeys, ...restKeys].forEach((key) => {
+        const config = referenceFieldConfig[key];
+        const row = document.createElement("div");
+        row.className = "dlc-ref-field-row";
+        const eye = document.createElement("button");
+        eye.type = "button";
+        eye.className = "dlc-ref-eye";
+        eye.textContent = config.visible === false ? "○" : "◉";
+        eye.title = config.visible === false ? "Hide in entry" : "Show in entry";
+        eye.addEventListener("click", () => {
+          config.visible = config.visible === false;
+          renderRefFieldConfig();
+        });
+        const listBtn = document.createElement("button");
+        listBtn.type = "button";
+        listBtn.className = "dlc-ref-eye";
+        listBtn.textContent = config.list ? "☰" : "–";
+        listBtn.title = config.list ? "Shown in set list" : "Not in set list";
+        listBtn.addEventListener("click", () => {
+          config.list = !config.list;
+          if (config.list && !referenceListOrder.includes(key)) {
+            referenceListOrder.push(key);
+          }
+          if (!config.list) {
+            referenceListOrder = referenceListOrder.filter((item) => item !== key);
+          }
+          renderRefFieldConfig();
+          paintRefList(referencePreviewLast);
+        });
+        const upBtn = document.createElement("button");
+        upBtn.type = "button";
+        upBtn.className = "dlc-ref-eye";
+        upBtn.textContent = "↑";
+        upBtn.title = "Move up in set list (first is title)";
+        upBtn.hidden = !config.list;
+        upBtn.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const keys = getRefListKeys().slice();
+          const index = keys.indexOf(key);
+          if (index < 1) return;
+          keys.splice(index, 1);
+          keys.splice(index - 1, 0, key);
+          referenceListOrder = keys;
+          renderRefFieldConfig();
+          paintRefList(referencePreviewLast);
+        });
+        const downBtn = document.createElement("button");
+        downBtn.type = "button";
+        downBtn.className = "dlc-ref-eye";
+        downBtn.textContent = "↓";
+        downBtn.title = "Move down in set list";
+        downBtn.hidden = !config.list;
+        downBtn.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const keys = getRefListKeys().slice();
+          const index = keys.indexOf(key);
+          if (index < 0 || index >= keys.length - 1) return;
+          keys.splice(index, 1);
+          keys.splice(index + 1, 0, key);
+          referenceListOrder = keys;
+          renderRefFieldConfig();
+          paintRefList(referencePreviewLast);
+        });
+        const label = document.createElement("input");
+        label.type = "text";
+        label.value = config.label || humanizeRefKey(key);
+        label.addEventListener("input", () => {
+          config.label = label.value;
+        });
+        const keyName = document.createElement("span");
+        keyName.textContent = key;
+        if (config.list && getRefListKeys()[0] === key) {
+          row.classList.add("is-list-title");
+        }
+        row.append(eye, listBtn, upBtn, downBtn, label, keyName);
+        host.appendChild(row);
+        if (config.columns && typeof config.columns === "object") {
+          Object.keys(config.columns).forEach((column) => {
+            const nested = document.createElement("div");
+            nested.className = "dlc-ref-field-row is-column";
+            const colEye = document.createElement("button");
+            colEye.type = "button";
+            colEye.className = "dlc-ref-eye";
+            colEye.textContent = config.columns[column].visible === false ? "○" : "◉";
+            colEye.title = "Column visibility";
+            colEye.addEventListener("click", () => {
+              config.columns[column].visible = config.columns[column].visible === false;
+              renderRefFieldConfig();
+            });
+            const colLabel = document.createElement("input");
+            colLabel.type = "text";
+            colLabel.value = config.columns[column].label || humanizeRefKey(column);
+            colLabel.addEventListener("input", () => {
+              config.columns[column].label = colLabel.value;
+            });
+            const colKey = document.createElement("span");
+            colKey.textContent = `${key}.${column}`;
+            nested.append(colEye, colLabel, colKey);
+            host.appendChild(nested);
+          });
+        }
+      });
+    };
+
     const openRefDetail = (entry) => {
       document.querySelector(".dlc-ref-detail-overlay")?.remove();
       const raw = findRawReference(entry.id, entry.title) || entry;
@@ -3586,16 +3802,46 @@
         </div>
       `;
       const body = pop.querySelector(".dlc-ref-detail-body");
-      const skip = new Set(["slug"]);
       const data = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : { value: raw };
       Object.keys(data).forEach((key) => {
-        if (skip.has(key) || data[key] == null || data[key] === "") return;
-        const block = document.createElement("div");
-        block.className = "dlc-ref-detail-field";
-        const label = document.createElement("strong");
-        label.textContent = key;
-        block.append(label, renderRefValue(data[key]));
-        body.appendChild(block);
+        if (data[key] == null || data[key] === "") return;
+        ensureRefField(key);
+        const config = referenceFieldConfig[key];
+        const details = document.createElement("details");
+        details.className = "dlc-ref-detail-fold";
+        details.open = config.visible !== false;
+        const summary = document.createElement("summary");
+        const eye = document.createElement("button");
+        eye.type = "button";
+        eye.className = "dlc-ref-eye";
+        eye.textContent = config.visible === false ? "○" : "◉";
+        eye.title = config.visible === false ? "Hidden" : "Visible";
+        eye.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          config.visible = config.visible === false;
+          eye.textContent = config.visible === false ? "○" : "◉";
+          eye.title = config.visible === false ? "Hidden" : "Visible";
+          details.classList.toggle("is-hidden-field", config.visible === false);
+          renderRefFieldConfig();
+        });
+        const label = document.createElement("input");
+        label.type = "text";
+        label.value = config.label || humanizeRefKey(key);
+        label.addEventListener("click", (event) => event.stopPropagation());
+        label.addEventListener("input", () => {
+          config.label = label.value;
+          renderRefFieldConfig();
+        });
+        const keyName = document.createElement("span");
+        keyName.textContent = key;
+        summary.append(eye, label, keyName);
+        const content = document.createElement("div");
+        content.className = "dlc-ref-detail-content";
+        content.appendChild(renderRefValue(data[key], key));
+        details.append(summary, content);
+        details.classList.toggle("is-hidden-field", config.visible === false);
+        body.appendChild(details);
       });
       document.body.appendChild(pop);
       const close = () => pop.remove();
@@ -3605,45 +3851,77 @@
       });
     };
 
+    let referencePreviewLast = null;
+
+    const paintRefList = (preview) => {
+      const sampleEl = overlay.querySelector("[data-role='ref-sample']");
+      if (!sampleEl || !preview) return;
+      sampleEl.replaceChildren();
+      (preview.list || preview.sample || []).slice(0, 9).forEach((entry) => {
+        const raw = findRawReference(entry.id, entry.title) || entry;
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "dlc-ref-sample-row";
+        const listKeys = getRefListKeys();
+        const values = (listKeys.length ? listKeys : ["title", "body"]).map((key) => {
+          const source = raw && raw[key] != null ? raw[key] : entry[key];
+          if (source == null || source === "" || typeof source === "object") return "";
+          return String(source);
+        }).filter(Boolean);
+        const title = document.createElement("strong");
+        title.textContent = values[0] || entry.title || entry.id;
+        row.appendChild(title);
+        const keyLine = document.createElement("span");
+        keyLine.className = "dlc-ref-entry-key";
+        keyLine.textContent = `key: ${entry.id}`;
+        row.appendChild(keyLine);
+        values.slice(1).forEach((text) => {
+          const line = document.createElement("span");
+          line.textContent = text;
+          row.appendChild(line);
+        });
+        row.addEventListener("click", () => openRefDetail(entry));
+        sampleEl.appendChild(row);
+      });
+    };
+
     const applyReferencePreview = (preview, { fillMeta = true } = {}) => {
       overlay.querySelector("[data-role='create-intro']")?.setAttribute("hidden", "hidden");
       overlay.querySelector("[data-role='ref-source']").hidden = true;
       overlay.querySelector("[data-role='ref-fields']").hidden = false;
+      const seed = findRawReference(preview.list?.[0]?.id, preview.list?.[0]?.title)
+        || (Array.isArray(referenceParsed) ? referenceParsed[0] : null);
+      if (seed && typeof seed === "object") {
+        Object.keys(seed).forEach((key) => ensureRefField(key, seed[key]));
+      }
+      (preview.list || []).slice(0, 1).forEach((entry) => {
+        Object.keys(entry).forEach((key) => ensureRefField(key));
+      });
+      renderRefFieldConfig();
       if (fillMeta) {
         overlay.querySelector(".dlc-create-ref-title").value = preview.title || "";
-        overlay.querySelector(".dlc-create-ref-id").value = preview.id || "";
+        if (!referenceIdManual) {
+          overlay.querySelector(".dlc-create-ref-id").value = slugifyId(preview.title || preview.id || "");
+        } else {
+          overlay.querySelector(".dlc-create-ref-id").value = preview.id || "";
+        }
         overlay.querySelector(".dlc-create-ref-kind").value = preview.kind || "dictionary";
         overlay.querySelector(".dlc-create-ref-scheme").value = preview.keyScheme || "word";
         overlay.querySelector(".dlc-create-ref-description").value = preview.description || "";
+        syncRefKindUi();
       }
       const stats = overlay.querySelector("[data-role='ref-stats']");
       if (stats) {
         stats.innerHTML = "";
-        [`${preview.count || 0} entries`, preview.kind, preview.keyScheme].forEach((label) => {
+          [`${preview.count || 0} entries`, `preview ${preview.list?.length || 0}`, preview.kind, preview.keyScheme].forEach((label) => {
           const chip = document.createElement("span");
           chip.className = "dlc-text-chip";
           chip.textContent = label;
           stats.appendChild(chip);
         });
       }
-      const sampleEl = overlay.querySelector("[data-role='ref-sample']");
-      if (sampleEl) {
-        sampleEl.replaceChildren();
-        (preview.list || preview.sample || []).forEach((entry) => {
-          const row = document.createElement("button");
-          row.type = "button";
-          row.className = "dlc-ref-sample-row";
-          const title = document.createElement("strong");
-          title.textContent = `${entry.icon ? `${entry.icon} ` : ""}${entry.title || entry.id}`;
-          const meta = document.createElement("span");
-          meta.textContent = [entry.id, entry.category].filter(Boolean).join(" · ");
-          const body = document.createElement("span");
-          body.textContent = entry.body || "";
-          row.append(title, meta, body);
-          row.addEventListener("click", () => openRefDetail(entry));
-          sampleEl.appendChild(row);
-        });
-      }
+      referencePreviewLast = preview;
+      paintRefList(preview);
       setFormStatus(`Ready to save ${preview.count} entries. Click a row for full fields.`);
     };
 
@@ -3682,6 +3960,52 @@
         setFormStatus(error?.message || "Could not preview that JSON.", true);
       }
     });
+    let referenceIdManual = false;
+    const REF_KIND_HINTS = {
+      dictionary: "Everyday lookup by common words. Keys are slugs (being-chased).",
+      encyclopedia: "Longer topics. Keys stay close to the term (being chased).",
+      lexicon: "Specialist index. Choose Word, Term, or Strong's (Hebrew/Greek numbers) under Lexicon."
+    };
+    const REF_SCHEME_HINTS = {
+      word: "Slug keys: lowercase, hyphens. Example: being-chased",
+      term: "Natural-language keys. Example: being chased",
+      strongs: "Strong's numbers only (H1, G12). Other entries fall back to slugs."
+    };
+    const syncRefKindUi = () => {
+      const kind = String(overlay.querySelector(".dlc-create-ref-kind")?.value || "dictionary");
+      const schemeField = overlay.querySelector("[data-role='ref-scheme-field']");
+      const schemeHint = overlay.querySelector("[data-role='ref-scheme-hint']");
+      const kindHint = overlay.querySelector("[data-role='ref-kind-hint']");
+      const schemeEl = overlay.querySelector(".dlc-create-ref-scheme");
+      if (kindHint) kindHint.textContent = REF_KIND_HINTS[kind] || "";
+      const lexicon = kind === "lexicon";
+      if (schemeField) schemeField.hidden = !lexicon;
+      if (schemeHint) schemeHint.hidden = !lexicon;
+      if (!lexicon && schemeEl) {
+        schemeEl.value = kind === "encyclopedia" ? "term" : "word";
+      }
+      if (schemeHint && lexicon) {
+        schemeHint.textContent = REF_SCHEME_HINTS[schemeEl?.value] || "";
+      }
+    };
+    overlay.querySelector(".dlc-create-ref-title")?.addEventListener("input", (event) => {
+      if (referenceIdManual) return;
+      const idEl = overlay.querySelector(".dlc-create-ref-id");
+      if (idEl) idEl.value = slugifyId(event.currentTarget.value);
+    });
+    overlay.querySelector(".dlc-create-ref-id")?.addEventListener("input", () => {
+      referenceIdManual = true;
+    });
+    overlay.querySelector(".dlc-create-ref-kind")?.addEventListener("change", async () => {
+      syncRefKindUi();
+      if (!referenceSource.trim()) return;
+      setFormStatus("Updating kind…");
+      try {
+        await runReferencePreview({ fillMeta: false });
+      } catch (error) {
+        setFormStatus(error?.message || "Could not update kind.", true);
+      }
+    });
     overlay.querySelector('[data-action="toggle-ref-options"]')?.addEventListener("click", (event) => {
       const panel = overlay.querySelector("[data-role='ref-options-panel']");
       const open = Boolean(panel?.hidden);
@@ -3689,6 +4013,7 @@
       event.currentTarget.classList.toggle("is-active", open);
     });
     overlay.querySelector(".dlc-create-ref-scheme")?.addEventListener("change", async () => {
+      syncRefKindUi();
       if (!referenceSource.trim()) return;
       setFormStatus("Rebuilding keys…");
       try {
@@ -3716,14 +4041,16 @@
             title: String(overlay.querySelector(".dlc-create-ref-title")?.value || "").trim(),
             description: String(overlay.querySelector(".dlc-create-ref-description")?.value || "").trim(),
             kind: String(overlay.querySelector(".dlc-create-ref-kind")?.value || "dictionary").trim(),
-            keyScheme: String(overlay.querySelector(".dlc-create-ref-scheme")?.value || "word").trim()
+            keyScheme: String(overlay.querySelector(".dlc-create-ref-scheme")?.value || "word").trim(),
+            fieldConfig: referenceFieldConfig,
+            listOrder: getRefListKeys()
           }
         );
-        setFormStatus(`Saved '${result?.reference?.title || result?.reference?.id}'. Storage is refreshing.`);
+        setFormStatus(`Saved '${result?.reference?.title || result?.reference?.id}'.`);
+        overlay.remove();
         if (typeof onCreated === "function") {
-          await onCreated(result?.reference);
+          void Promise.resolve(onCreated(result?.reference)).catch(() => {});
         }
-        window.setTimeout(() => overlay.remove(), 1600);
       } catch (error) {
         setFormStatus(error?.message || "Could not save DLC reference.", true);
       } finally {

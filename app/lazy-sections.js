@@ -85,7 +85,7 @@
       "app/ui-alphabet-kabbalah.js",
       "app/ui-alphabet.js?v=20260822-rashi",
       "app/ui-alphabet-text.js?v=20260830-library",
-      "app/ui-alphabet-reference.js?v=20260830-strongs"
+      "app/ui-alphabet-reference.js?v=20260913-ref-display"
     ],
     scriber: [
       "app/ui-scriber.js?v=20260902-scriber-17"
@@ -138,7 +138,7 @@
       "app/ui-admin.js?v=20260912-dlc-share"
     ],
     profile: [
-      "app/ui-profile.js?v=20260912-dream-symbols"
+      "app/ui-profile.js?v=20260913-interpret"
     ]
   };
 

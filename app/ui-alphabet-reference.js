@@ -105,12 +105,134 @@
 
   function humanizeField(field) {
     return String(field || "")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
       .replace(/[_-]+/g, " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase())
       .trim();
   }
 
-  function entryTitle(entry, entryId) {
+  function fieldConfigFor(reference) {
+    return reference?.fieldConfig && typeof reference.fieldConfig === "object"
+      ? reference.fieldConfig
+      : {};
+  }
+
+  function listKeysFor(reference) {
+    const config = fieldConfigFor(reference);
+    const listed = Object.keys(config).filter((key) => config[key]?.list);
+    const ordered = (Array.isArray(reference?.listOrder) ? reference.listOrder : [])
+      .map((key) => String(key || "").trim())
+      .filter((key) => listed.includes(key));
+    listed.forEach((key) => {
+      if (!ordered.includes(key)) ordered.push(key);
+    });
+    return ordered;
+  }
+
+  function fieldLabel(reference, key) {
+    const label = fieldConfigFor(reference)[key]?.label;
+    return String(label || humanizeField(key)).trim() || humanizeField(key);
+  }
+
+  function fieldVisible(reference, key) {
+    const config = fieldConfigFor(reference)[key];
+    if (!config) return true;
+    return config.visible !== false;
+  }
+
+  function isRefTable(value) {
+    return Array.isArray(value)
+      && value.length
+      && value.every((item) => item && typeof item === "object" && !Array.isArray(item));
+  }
+
+  const ALIAS_FIELDS = {
+    keyword: "title",
+    term: "title",
+    lemma: "title",
+    headword: "title",
+    word: "title",
+    summary: "body",
+    definition: "body",
+    meaning: "body"
+  };
+
+  function fieldValue(entry, key, listedKeys) {
+    if (!entry || typeof entry !== "object") return null;
+    if (entry[key] != null && entry[key] !== "") return entry[key];
+    const alias = ALIAS_FIELDS[key];
+    if (alias && Array.isArray(listedKeys) && listedKeys.includes(alias)) return null;
+    if (alias && entry[alias] != null && entry[alias] !== "") return entry[alias];
+    return null;
+  }
+
+  function scalarText(value) {
+    if (value == null || value === "") return "";
+    if (typeof value === "object") return "";
+    return String(value).trim();
+  }
+
+  function renderFieldValue(value, fieldKey, reference) {
+    if (value == null || value === "") {
+      return document.createTextNode("—");
+    }
+    if (isRefTable(value)) {
+      const columnConfig = fieldConfigFor(reference)[fieldKey]?.columns || {};
+      const columns = [...new Set(value.flatMap((row) => Object.keys(row || {})))]
+        .filter((column) => columnConfig[column]?.visible !== false);
+      const table = document.createElement("table");
+      table.className = "dlc-ref-matrix";
+      const head = document.createElement("thead");
+      const headRow = document.createElement("tr");
+      columns.forEach((column) => {
+        const th = document.createElement("th");
+        th.textContent = columnConfig[column]?.label || humanizeField(column);
+        headRow.appendChild(th);
+      });
+      head.appendChild(headRow);
+      const body = document.createElement("tbody");
+      value.forEach((row) => {
+        const tr = document.createElement("tr");
+        columns.forEach((column) => {
+          const td = document.createElement("td");
+          td.textContent = String(row[column] == null ? "" : row[column]);
+          tr.appendChild(td);
+        });
+        body.appendChild(tr);
+      });
+      table.append(head, body);
+      const wrap = document.createElement("div");
+      wrap.className = "dlc-ref-matrix-wrap";
+      wrap.appendChild(table);
+      return wrap;
+    }
+    if (Array.isArray(value)) {
+      const wrap = document.createElement("div");
+      wrap.className = "alpha-reference-entry-list-block";
+      value.forEach((item) => {
+        const row = document.createElement("div");
+        row.textContent = item && typeof item === "object"
+          ? Object.values(item).filter(Boolean).join(" · ")
+          : String(item);
+        wrap.appendChild(row);
+      });
+      return wrap;
+    }
+    if (typeof value === "object") {
+      return renderFieldValue(Object.entries(value).map(([key, val]) => `${key}: ${val}`), fieldKey, reference);
+    }
+    const text = document.createElement("p");
+    text.className = "alpha-reference-entry-body";
+    text.textContent = String(value);
+    return text;
+  }
+
+  function entryTitle(entry, entryId, reference) {
+    const keys = listKeysFor(reference);
+    if (keys.length) {
+      const first = scalarText(fieldValue(entry, keys[0], keys));
+      if (first) return first;
+    }
     for (const field of TITLE_FIELDS) {
       const value = String(entry?.[field] || "").trim();
       if (value) {
@@ -138,6 +260,9 @@
 
     for (const [field, value] of Object.entries(entry)) {
       if (TITLE_FIELDS.includes(field) || BODY_FIELDS.includes(field)) {
+        continue;
+      }
+      if (typeof value === "object") {
         continue;
       }
       const text = String(value == null ? "" : value).trim();
@@ -428,15 +553,34 @@
     row.className = "alpha-reference-entry-row";
     row.setAttribute("aria-expanded", "false");
 
-    const idEl = document.createElement("span");
-    idEl.className = "alpha-reference-entry-key";
-    idEl.textContent = String(entryId || "");
+    const reference = referenceById(state.selectedReferenceId);
+    const listKeys = listKeysFor(reference);
+    const titleText = entryTitle(entry, entryId, reference);
+    const values = listKeys
+      .map((key) => scalarText(fieldValue(entry, key, listKeys)))
+      .filter((text) => text && text !== titleText);
+    if (listKeys.length) {
+      row.classList.add("is-stacked");
+      const titleEl = document.createElement("strong");
+      titleEl.className = "alpha-reference-entry-row-title";
+      titleEl.textContent = titleText;
+      row.appendChild(titleEl);
+      values.forEach((text) => {
+        const line = document.createElement("span");
+        line.className = "alpha-reference-entry-row-meta";
+        line.textContent = text;
+        row.appendChild(line);
+      });
+    } else {
+      const idEl = document.createElement("span");
+      idEl.className = "alpha-reference-entry-key";
+      idEl.textContent = String(entryId || "");
 
-    const titleEl = document.createElement("span");
-    titleEl.className = "alpha-reference-entry-row-title";
-    titleEl.textContent = entryTitle(entry, entryId);
-
-    row.append(idEl, titleEl);
+      const titleEl = document.createElement("span");
+      titleEl.className = "alpha-reference-entry-row-title";
+      titleEl.textContent = entryTitle(entry, entryId, reference);
+      row.append(idEl, titleEl);
+    }
     wrapper.appendChild(row);
 
     row.addEventListener("click", () => {
@@ -463,30 +607,47 @@
   function buildEntryDetail(entryId, entry) {
     const detail = document.createElement("div");
     detail.className = "alpha-reference-entry-detail";
-
-    const mainBody = entryBody(entry);
-    if (mainBody) {
-      const body = document.createElement("p");
-      body.className = "alpha-reference-entry-body";
-      body.textContent = mainBody;
-      detail.appendChild(body);
-    }
-
-    const rows = entryExtraRows(entry);
-    if (rows.length) {
-      const dl = document.createElement("dl");
-      dl.className = "alpha-dl";
-      rows.forEach(([label, value]) => {
-        const dt = document.createElement("dt");
-        dt.textContent = label;
-        const dd = document.createElement("dd");
-        dd.textContent = value;
-        dl.append(dt, dd);
-      });
-      detail.appendChild(dl);
-    }
-
     const reference = referenceById(state.selectedReferenceId);
+    const config = fieldConfigFor(reference);
+    const configuredKeys = Object.keys(config);
+    if (configuredKeys.length && entry && typeof entry === "object") {
+      const listKeys = listKeysFor(reference);
+      const restKeys = Object.keys(entry).filter((key) => !listKeys.includes(key));
+      [...listKeys, ...restKeys].forEach((key) => {
+        if (!fieldVisible(reference, key)) return;
+        const value = fieldValue(entry, key, listKeys);
+        if (value == null || value === "") return;
+        const block = document.createElement("section");
+        block.className = "alpha-reference-entry-field";
+        const heading = document.createElement("strong");
+        heading.textContent = fieldLabel(reference, key);
+        block.append(heading, renderFieldValue(value, key, reference));
+        detail.appendChild(block);
+      });
+    } else {
+      const mainBody = entryBody(entry);
+      if (mainBody) {
+        const body = document.createElement("p");
+        body.className = "alpha-reference-entry-body";
+        body.textContent = mainBody;
+        detail.appendChild(body);
+      }
+
+      const rows = entryExtraRows(entry);
+      if (rows.length) {
+        const dl = document.createElement("dl");
+        dl.className = "alpha-dl";
+        rows.forEach(([label, value]) => {
+          const dt = document.createElement("dt");
+          dt.textContent = label;
+          const dd = document.createElement("dd");
+          dd.textContent = value;
+          dl.append(dt, dd);
+        });
+        detail.appendChild(dl);
+      }
+    }
+
     const hasLinkedSources = Array.isArray(reference?.sourceIds) && reference.sourceIds.length;
     if (hasLinkedSources) {
       detail.appendChild(buildOccurrencesSection(entryId));
@@ -700,10 +861,18 @@
       const { detailBodyEl } = getElements();
       applyReferenceFontSize(detailBodyEl);
     });
+
+    document.addEventListener("content:updated", () => {
+      state.catalog = null;
+      const section = document.getElementById("alphabet-reference-section");
+      if (section && !section.hidden) {
+        void ensureAlphabetReferenceSection();
+      }
+    });
   }
 
-  async function loadCatalog() {
-    if (state.catalog && typeof state.catalog === "object") {
+  async function loadCatalog(forceRefresh = false) {
+    if (!forceRefresh && state.catalog && typeof state.catalog === "object") {
       return state.catalog;
     }
 
