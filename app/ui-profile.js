@@ -438,11 +438,16 @@
       .trim();
   }
 
-  function dreamHaystack() {
-    syncScenesFromDom();
-    const title = String(document.getElementById("profile-note-title")?.value || "").trim();
+  function dreamHaystack(source = null) {
+    const title = source?.title != null
+      ? String(source.title || "").trim()
+      : String(document.getElementById("profile-note-title")?.value || "").trim();
+    if (!source) {
+      syncScenesFromDom();
+    }
+    const scenes = Array.isArray(source?.scenes) ? source.scenes : (state.scenes || []);
     const parts = [title];
-    (state.scenes || []).forEach((scene) => {
+    scenes.forEach((scene) => {
       parts.push(
         stripHtmlText(scene.thoughts),
         stripHtmlText(scene.steps),
@@ -486,8 +491,8 @@
     return dreamSymbolCatalog;
   }
 
-  async function matchDreamSymbols(limit = 12) {
-    const haystack = dreamHaystack();
+  async function matchDreamSymbols(limit = 12, source = null) {
+    const haystack = dreamHaystack(source);
     const reference = await resolveDreamSymbolReference();
     const refId = reference?.id || "";
     if (!refId || !haystack) {
@@ -605,7 +610,9 @@
     details.className = "profile-interpret-entry";
     details.dataset.entryId = match.entryId || "";
     const summary = document.createElement("summary");
-    summary.textContent = `${match.entry?.icon ? `${match.entry.icon} ` : ""}${match.title || match.entryId}`;
+    const confidence = Number(match.confidence);
+    const confidenceLabel = Number.isFinite(confidence) ? ` · ${Math.round(confidence * 100)}%` : "";
+    summary.textContent = `${match.entry?.icon ? `${match.entry.icon} ` : ""}${match.title || match.entryId}${confidenceLabel}`;
     details.appendChild(summary);
     const body = document.createElement("div");
     body.className = "profile-interpret-entry-body";
@@ -632,9 +639,10 @@
     document.querySelector(".profile-interpret-overlay")?.remove();
   }
 
-  async function openDreamInterpretation({ focusId = "", requireSaved = true } = {}) {
-    if (state.kind !== "dream") return;
-    if (requireSaved && (!state.editing || !state.activeNoteId)) {
+  async function openDreamInterpretation({ focusId = "", requireSaved = true, source = null } = {}) {
+    const isDream = source?.kind ? source.kind === "dream" : state.kind === "dream";
+    if (!isDream) return;
+    if (requireSaved && !source && (!state.editing || !state.activeNoteId)) {
       setError("Save the dream first, then Interpret.");
       return;
     }
@@ -658,7 +666,7 @@
     });
     const body = pop.querySelector(".profile-interpret-body");
     try {
-      const { reference, matches } = await matchDreamSymbols(24);
+      const { reference, matches } = await matchDreamSymbols(24, source);
       body.replaceChildren();
       if (!reference?.id) {
         body.textContent = "Install the Dream Symbols reference DLC to interpret this entry.";
@@ -708,7 +716,9 @@
         card.type = "button";
         card.className = "profile-dream-symbol";
         const title = document.createElement("strong");
-        title.textContent = `${match.entry?.icon ? `${match.entry.icon} ` : ""}${match.title || match.entryId}`;
+        const confidence = Number(match.confidence);
+        const confidenceLabel = Number.isFinite(confidence) ? ` · ${Math.round(confidence * 100)}%` : "";
+        title.textContent = `${match.entry?.icon ? `${match.entry.icon} ` : ""}${match.title || match.entryId}${confidenceLabel}`;
         const via = (Array.isArray(match.matchedTerms) ? match.matchedTerms : [])
           .find((term) => String(term).toLowerCase() !== String(match.title || "").toLowerCase());
         const body = document.createElement("span");
@@ -2853,7 +2863,13 @@
       button.appendChild(top);
       button.appendChild(title);
       button.appendChild(meta);
-      button.addEventListener("click", () => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (state.journalView === "diary") {
+          void openHistoryNote(note.id);
+          return;
+        }
         state.activeNoteId = note.id;
         state.editing = true;
         void loadNoteIntoEditor(note.id);
@@ -2944,6 +2960,106 @@
       expBtn._pdfExportBound = true;
       expBtn.addEventListener("click", () => void exportCurrentNoteAsPdf());
     }
+  }
+
+  function historyPassageText(scene, kind) {
+    if (kind === "dream") {
+      return [
+        scene.atmosphere && `Atmosphere: ${stripHtmlText(scene.atmosphere)}`,
+        scene.steps && `Thread: ${stripHtmlText(scene.steps)}`,
+        scene.thoughts && stripHtmlText(scene.thoughts),
+        scene.notes && `Aftertaste: ${stripHtmlText(scene.notes)}`
+      ].filter(Boolean).join("\n\n");
+    }
+    return [
+      scene.scenario && stripHtmlText(scene.scenario),
+      scene.place && `Scenery: ${stripHtmlText(scene.place)}`,
+      scene.thoughts && stripHtmlText(scene.thoughts),
+      scene.notes && stripHtmlText(scene.notes)
+    ].filter(Boolean).join("\n\n");
+  }
+
+  function buildHistoryNoteBody(note) {
+    const wrap = document.createElement("div");
+    wrap.className = "journal-history-detail";
+    const meta = document.createElement("p");
+    meta.className = "settings-field-hint";
+    const when = formatEntryDate(note.occurredOn) || formatDate(note.updatedAt) || "";
+    meta.textContent = [kindLabel(note.kind), when].filter(Boolean).join(" · ");
+    wrap.appendChild(meta);
+    const scenes = Array.isArray(note.scenes) ? note.scenes : [];
+    if (!scenes.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "This entry has no passages yet.";
+      wrap.appendChild(empty);
+      return wrap;
+    }
+    scenes.forEach((scene, index) => {
+      const section = document.createElement("section");
+      section.className = "journal-history-passage";
+      const heading = document.createElement("strong");
+      heading.textContent = note.kind === "dream" ? `Passage ${index + 1}` : `Scene ${index + 1}`;
+      const text = document.createElement("p");
+      text.textContent = historyPassageText(scene, note.kind) || "—";
+      section.append(heading, text);
+      wrap.appendChild(section);
+    });
+    return wrap;
+  }
+
+  async function openHistoryNote(noteId) {
+    let note = null;
+    try {
+      const service = window.TarotDataService;
+      note = await service.requestJson(
+        "GET",
+        service.buildApiUrl(`/api/v1/profile/notes/${encodeURIComponent(noteId)}`)
+      );
+    } catch (error) {
+      setError(`Could not load the entry. ${error?.message || "Please try again."}`);
+      return;
+    }
+    if (!note?.id) {
+      setError("Could not load the entry.");
+      return;
+    }
+    const overlayApi = window.TaroOverlay;
+    if (!overlayApi?.open) {
+      state.activeNoteId = note.id;
+      state.editing = true;
+      void loadNoteIntoEditor(note.id);
+      return;
+    }
+    const actions = [];
+    if (note.kind === "dream") {
+      actions.push({
+        label: "Interpret",
+        primary: true,
+        closeOnClick: false,
+        onClick: (controller) => {
+          controller?.close();
+          state.activeNoteId = note.id;
+          state.editing = true;
+          state.kind = "dream";
+          void openDreamInterpretation({ requireSaved: true, source: note });
+        }
+      });
+    }
+    actions.push({
+      label: "Edit",
+      onClick: () => {
+        state.activeNoteId = note.id;
+        state.editing = true;
+        void loadNoteIntoEditor(note.id);
+      }
+    });
+    overlayApi.open({
+      title: note.title || "Journal entry",
+      body: buildHistoryNoteBody(note),
+      size: "medium",
+      className: "journal-history-overlay",
+      actions
+    });
   }
 
   async function loadNoteIntoEditor(noteId) {
