@@ -1137,6 +1137,19 @@
       gap: 8px;
       flex-wrap: wrap;
     }
+    .dlc-publish-cred-row {
+      margin-top: 6px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--tt-border);
+    }
+    .dlc-publish-cred-row input {
+      padding: 5px 8px;
+      border: 1px solid var(--tt-border);
+      border-radius: 8px;
+      background: var(--tt-bg);
+      color: var(--tt-text);
+      font-size: 12px;
+    }
     .dlc-plugin-badge {
       color: #a7f3d0;
       font-size: 11px;
@@ -14232,6 +14245,7 @@
     .profile-day-cards {
       align-self: end;
       display: flex;
+      flex-wrap: wrap;
       gap: 6px;
       font-size: 11px;
     }
@@ -14257,6 +14271,14 @@
     }
     .profile-day-card .dc-name {
       font-weight: 600;
+    }
+    .profile-day-card.is-holiday {
+      background: color-mix(in srgb, var(--tt-brand) 18%, transparent);
+      color: var(--tt-brand);
+      cursor: default;
+    }
+    .profile-day-card.is-holiday:hover {
+      background: color-mix(in srgb, var(--tt-brand) 18%, transparent);
     }
     .profile-notebook-deck {
       margin: 4px 0 8px;

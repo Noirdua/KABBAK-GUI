@@ -1479,6 +1479,38 @@
           });
         }
 
+        if (kind !== "pack" && item?.downloaded === true) {
+          const publishBtn = document.createElement("button");
+          publishBtn.type = "button";
+          publishBtn.className = "dlc-shop-btn";
+          publishBtn.textContent = "Publish";
+          publishBtn.title = "Commit and push this item to its DLC repository";
+          card.querySelector(".dlc-plugin-actions")?.appendChild(publishBtn);
+          publishBtn.addEventListener("click", async () => {
+            const message = window.prompt(
+              `Commit message for publishing '${item.title || item.name}'?`,
+              `Update ${item.kind}: ${item.name}`
+            );
+            if (message === null) return;
+            publishBtn.disabled = true;
+            setStatus(`Publishing ${item.name}…`);
+            try {
+              const result = await requestJson("POST", "/api/v1/admin/dlc/publish", {
+                kind: item.kind,
+                name: item.name,
+                sourceId: item.sourceId || "",
+                message
+              });
+              setStatus(result?.note || `Published ${item.name} to ${result?.sourceName || "repo"} (${result?.branch || ""}).`);
+              await loadPlugins();
+            } catch (error) {
+              setStatus(`Could not publish ${item.name}. ${error?.message || ""}`, true);
+            } finally {
+              publishBtn.disabled = false;
+            }
+          });
+        }
+
         if (isInstalled && kind !== "pack") {
           const exportBtn = document.createElement("button");
           exportBtn.type = "button";
@@ -1573,7 +1605,7 @@
     });
   }
 
-  function renderDlcSources(sources) {
+  function renderDlcSources(sources, publishMap = new Map()) {
     const host = document.getElementById("admin-dlc-sources");
     if (!host) return;
     host.innerHTML = "";
@@ -1673,14 +1705,87 @@
       });
       actions.appendChild(removeBtn);
       card.appendChild(actions);
+
+      const publishInfo = publishMap.get(source.id) || null;
+      const credSet = publishInfo?.credential?.set === true;
+      const credRow = document.createElement("div");
+      credRow.className = "dlc-plugin-actions dlc-publish-cred-row";
+      const userInput = document.createElement("input");
+      userInput.type = "text";
+      userInput.autocomplete = "off";
+      userInput.placeholder = "username (optional)";
+      userInput.value = publishInfo?.credential?.username || "";
+      userInput.style.width = "140px";
+      const tokenInput = document.createElement("input");
+      tokenInput.type = "password";
+      tokenInput.autocomplete = "new-password";
+      tokenInput.placeholder = credSet ? "token saved — enter to replace" : "access token";
+      tokenInput.style.width = "180px";
+      const credStatus = document.createElement("span");
+      credStatus.className = "settings-field-hint";
+      credStatus.textContent = credSet ? "repo access: token set" : "repo access: none";
+      const saveCredBtn = document.createElement("button");
+      saveCredBtn.type = "button";
+      saveCredBtn.className = "dlc-shop-btn";
+      saveCredBtn.textContent = "Save access";
+      saveCredBtn.addEventListener("click", async () => {
+        const token = String(tokenInput.value || "").trim();
+        if (!token) {
+          setStatus("Enter an access token (or use Clear).", true);
+          return;
+        }
+        saveCredBtn.disabled = true;
+        try {
+          await requestJson("PUT", "/api/v1/admin/dlc/publish/credentials", {
+            sourceId: source.id,
+            username: userInput.value,
+            token
+          });
+          tokenInput.value = "";
+          await loadDlcSources();
+          setStatus(`Saved access token for ${source.name}.`);
+        } catch (error) {
+          setStatus(`Could not save access token for ${source.name}. ${error?.message || ""}`, true);
+        } finally {
+          saveCredBtn.disabled = false;
+        }
+      });
+      credRow.append(userInput, tokenInput, saveCredBtn);
+      if (credSet) {
+        const clearCredBtn = document.createElement("button");
+        clearCredBtn.type = "button";
+        clearCredBtn.className = "dlc-shop-btn";
+        clearCredBtn.textContent = "Clear";
+        clearCredBtn.addEventListener("click", async () => {
+          if (!window.confirm(`Remove the saved access token for '${source.name}'?`)) return;
+          clearCredBtn.disabled = true;
+          try {
+            await requestJson("DELETE", `/api/v1/admin/dlc/publish/credentials/${encodeURIComponent(source.id)}`);
+            await loadDlcSources();
+            setStatus(`Cleared access token for ${source.name}.`);
+          } catch (error) {
+            setStatus(`Could not clear access token for ${source.name}. ${error?.message || ""}`, true);
+          } finally {
+            clearCredBtn.disabled = false;
+          }
+        });
+        credRow.appendChild(clearCredBtn);
+      }
+      credRow.appendChild(credStatus);
+      card.appendChild(credRow);
       host.appendChild(card);
     });
   }
 
   async function loadDlcSources() {
     try {
-      const payload = await requestJson("GET", "/api/v1/admin/dlc/sources");
-      renderDlcSources(payload?.sources || payload?.data?.sources);
+      const [payload, publishPayload] = await Promise.all([
+        requestJson("GET", "/api/v1/admin/dlc/sources"),
+        requestJson("GET", "/api/v1/admin/dlc/publish").catch(() => null)
+      ]);
+      const publishList = publishPayload?.sources || publishPayload?.data?.sources || [];
+      const publishMap = new Map((Array.isArray(publishList) ? publishList : []).map((entry) => [entry.id, entry]));
+      renderDlcSources(payload?.sources || payload?.data?.sources, publishMap);
     } catch (error) {
       renderDlcSources([]);
       setStatus(`Could not load DLC repositories. ${error?.message || ""}`, true);

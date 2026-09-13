@@ -135,10 +135,10 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260912-dlc-share"
+      "app/ui-admin.js?v=20260913-publish"
     ],
     profile: [
-      "app/ui-profile.js?v=20260913-match-score"
+      "app/ui-profile.js?v=20260913-decan-detail"
     ]
   };
 

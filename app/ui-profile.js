@@ -1323,6 +1323,276 @@
     };
   }
 
+  const WEEKDAY_RULERS = ["sol", "luna", "mars", "mercury", "jupiter", "venus", "saturn"];
+  const WEEKDAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const PLANET_FALLBACKS = {
+    sol: { name: "Sun", symbol: "☉︎" },
+    luna: { name: "Moon", symbol: "☾︎" },
+    mars: { name: "Mars", symbol: "♂︎" },
+    mercury: { name: "Mercury", symbol: "☿︎" },
+    jupiter: { name: "Jupiter", symbol: "♃︎" },
+    venus: { name: "Venus", symbol: "♀︎" },
+    saturn: { name: "Saturn", symbol: "♄︎" }
+  };
+
+  function parseEntryDate(dateStr) {
+    const match = String(dateStr || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0, 0);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function formatMmddRange(start, end) {
+    const fmt = (token) => {
+      const match = String(token || "").trim().match(/^(\d{1,2})-(\d{1,2})$/);
+      if (!match) return "";
+      const date = new Date(2000, Number(match[1]) - 1, Number(match[2]));
+      return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    };
+    const from = fmt(start);
+    const to = fmt(end);
+    return from && to ? `${from} – ${to}` : "";
+  }
+
+  function mmddKey(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+    return `${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+  }
+
+  function holidayDateTokens(holiday) {
+    return [holiday?.dateText, holiday?.dateRange, holiday?.monthDayStart, holiday?.date]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean);
+  }
+
+  function holidayRangeKeys(holiday) {
+    for (const token of holidayDateTokens(holiday)) {
+      const match = token.match(/(\d{1,2})-(\d{1,2})\D+?(\d{1,2})-(\d{1,2})/);
+      if (match) {
+        return [
+          `${pad2(Number(match[1]))}-${pad2(Number(match[2]))}`,
+          `${pad2(Number(match[3]))}-${pad2(Number(match[4]))}`
+        ];
+      }
+    }
+    return null;
+  }
+
+  let holidayDataPromise = null;
+  async function ensureHolidayData() {
+    if (window.HolidayDataUi?.resolveHolidayGregorianDate) {
+      return window.HolidayDataUi;
+    }
+    if (!holidayDataPromise) {
+      holidayDataPromise = (async () => {
+        try {
+          await window.TarotLazySections?.loadScript?.("app/ui-holidays-data.js");
+        } catch (_error) {
+          // Holiday helpers stay unavailable; callers fall back to raw entries.
+        }
+        return window.HolidayDataUi || null;
+      })();
+    }
+    return holidayDataPromise;
+  }
+
+  function normalizeHolidayList(referenceData) {
+    const ui = window.HolidayDataUi;
+    if (ui?.buildAllHolidays) {
+      return ui.buildAllHolidays(referenceData);
+    }
+    const fromRepo = Array.isArray(referenceData?.calendarHolidays) ? referenceData.calendarHolidays : [];
+    if (fromRepo.length) return fromRepo;
+    const legacy = Array.isArray(referenceData?.celestialHolidays) ? referenceData.celestialHolidays : [];
+    return legacy.map((holiday) => ({
+      ...holiday,
+      calendarId: "gregorian",
+      dateText: holiday?.date || holiday?.dateRange || ""
+    }));
+  }
+
+  function expandRangeKeys(start, end, year) {
+    const toDate = (key) => {
+      const [month, day] = String(key || "").split("-").map(Number);
+      return new Date(year, month - 1, day, 12, 0, 0, 0);
+    };
+    const keys = [];
+    let cursor = toDate(start);
+    const endDate = toDate(end);
+    if (Number.isNaN(cursor.getTime()) || Number.isNaN(endDate.getTime())) {
+      return keys;
+    }
+    if (endDate < cursor) {
+      endDate.setFullYear(endDate.getFullYear() + 1);
+    }
+    let guard = 0;
+    while (cursor <= endDate && guard < 366) {
+      keys.push(mmddKey(cursor));
+      cursor = new Date(cursor.getTime() + 86400000);
+      guard += 1;
+    }
+    return keys;
+  }
+
+  const holidayIndexCache = new Map();
+  async function getHolidayIndexForYear(year) {
+    const cacheKey = Number(year);
+    if (holidayIndexCache.has(cacheKey)) {
+      return holidayIndexCache.get(cacheKey);
+    }
+    const referenceData = await getReferenceDataOnce();
+    const holidayUi = await ensureHolidayData();
+    const all = normalizeHolidayList(referenceData);
+    const calendarData = holidayUi?.buildCalendarData ? holidayUi.buildCalendarData(referenceData) : {};
+    const index = new Map();
+    const push = (key, entry) => {
+      if (!key) return;
+      if (!index.has(key)) index.set(key, []);
+      const list = index.get(key);
+      if (!list.some((item) => item.id === entry.id)) {
+        list.push(entry);
+      }
+    };
+    all.forEach((holiday) => {
+      const id = String(holiday?.id || holiday?.name || "").trim();
+      if (!id) return;
+      const entry = {
+        id,
+        name: String(holiday?.name || id),
+        calendarId: String(holiday?.calendarId || "gregorian"),
+        calendarLabel: holidayUi?.calendarLabel
+          ? holidayUi.calendarLabel(holiday?.calendarId)
+          : String(holiday?.calendarId || "Gregorian"),
+        dateText: holidayDateTokens(holiday)[0] || "",
+        description: String(holiday?.description || "").trim()
+      };
+      const range = holidayRangeKeys(holiday);
+      if (range) {
+        expandRangeKeys(range[0], range[1], year).forEach((key) => push(key, entry));
+        return;
+      }
+      if (holidayUi?.resolveHolidayGregorianDate) {
+        const resolved = holidayUi.resolveHolidayGregorianDate(holiday, { selectedYear: year, calendarData });
+        if (resolved) {
+          push(mmddKey(resolved), entry);
+        }
+      }
+    });
+    holidayIndexCache.set(cacheKey, index);
+    return index;
+  }
+
+  async function getHolidaysForDate(dateStr) {
+    const date = parseEntryDate(dateStr);
+    if (!date) return [];
+    const index = await getHolidayIndexForYear(date.getFullYear());
+    return index.get(mmddKey(date)) || [];
+  }
+
+  function weekdayRulerForDate(date, planets) {
+    const weekdayName = WEEKDAY_NAMES[date.getDay()] || "";
+    const match = Object.values(planets || {}).find(
+      (planet) => String(planet?.weekday || "").trim().toLowerCase() === weekdayName
+    );
+    if (match) {
+      return {
+        id: String(match.id || ""),
+        name: String(match.name || weekdayName),
+        symbol: String(match.symbol || "")
+      };
+    }
+    const rulerId = WEEKDAY_RULERS[date.getDay()] || "";
+    const meta = planets?.[rulerId] || PLANET_FALLBACKS[rulerId] || null;
+    return meta
+      ? { id: rulerId, name: String(meta.name || rulerId), symbol: String(meta.symbol || "") }
+      : null;
+  }
+
+  function daysIntoSign(date, sign) {
+    const parse = (token) => {
+      const match = String(token || "").trim().match(/^(\d{1,2})-(\d{1,2})$/);
+      return match ? { month: Number(match[1]), day: Number(match[2]) } : null;
+    };
+    const start = parse(sign?.start);
+    const end = parse(sign?.end);
+    if (!start || !(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    let year = date.getFullYear();
+    if (end && start.month > end.month && (month < start.month || (month === start.month && day < start.day))) {
+      year -= 1;
+    }
+    const startDate = new Date(year, start.month - 1, start.day, 12, 0, 0, 0);
+    const days = Math.round((date.getTime() - startDate.getTime()) / 86400000);
+    return Number.isFinite(days) && days >= 0 ? days : null;
+  }
+
+  function getMoonPhaseForDate(date) {
+    try {
+      const calc = window.TarotCalc;
+      const sun = window.SunCalc;
+      if (!date || !calc?.getMoonPhaseName || !sun?.getMoonIllumination) return null;
+      const illum = sun.getMoonIllumination(date);
+      return {
+        phase: calc.getMoonPhaseName(illum.phase),
+        illuminationPct: Math.round(Number(illum.fraction || 0) * 100)
+      };
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  async function getDayContext(dateStr, { includeHolidays = true } = {}) {
+    const date = parseEntryDate(dateStr);
+    const cards = await getDayTarotCards(dateStr);
+    const context = {
+      ...cards,
+      sign: null,
+      signDegree: null,
+      signElement: "",
+      signModality: "",
+      decanInfo: null,
+      decanRuler: null,
+      decanDegreeStart: null,
+      decanDegreeEnd: null,
+      moon: null,
+      moonTarot: "",
+      planetRuler: null,
+      holidays: []
+    };
+    const referenceData = await getReferenceDataOnce();
+    if (date && referenceData) {
+      try {
+        const calc = window.TarotCalc;
+        if (calc?.getDecanForDate) {
+          const res = calc.getDecanForDate(date, referenceData.signs || [], referenceData.decansBySign || {}) || {};
+          const decan = res.decan || null;
+          context.sign = res.sign || null;
+          context.signElement = String(res.sign?.element || "").trim();
+          context.signModality = String(res.sign?.modality || res.sign?.sourceQuadruplicity || "").trim();
+          context.decanInfo = decan;
+          const index = Number(decan?.index);
+          context.decanDegreeStart = Number.isFinite(index) ? (index - 1) * 10 : null;
+          context.decanDegreeEnd = Number.isFinite(index) ? index * 10 : null;
+          context.signDegree = daysIntoSign(date, context.sign);
+        }
+      } catch (_error) {
+        // Sign/decan context is optional.
+      }
+      const planets = referenceData.planets && typeof referenceData.planets === "object" ? referenceData.planets : {};
+      const rulerId = context.decanInfo?.rulerPlanetId;
+      context.decanRuler = rulerId
+        ? (planets[rulerId] || PLANET_FALLBACKS[rulerId] || { name: rulerId, symbol: "" })
+        : null;
+      context.planetRuler = weekdayRulerForDate(date, planets);
+      context.moon = getMoonPhaseForDate(date);
+      const lunaTarot = planets.luna?.tarot;
+      context.moonTarot = String(lunaTarot?.majorArcana || (typeof lunaTarot === "string" ? lunaTarot : "") || "");
+    }
+    context.holidays = includeHolidays ? await getHolidaysForDate(dateStr) : [];
+    return context;
+  }
+
   async function getReferenceDataOnce() {
     if (referenceDataPromise) {
       return referenceDataPromise;
@@ -1511,13 +1781,14 @@
     return `${seq.count} ${word} passed`;
   }
 
-  function buildPlanetHorizonHtml(seq, { pdf = false } = {}) {
+  function buildPlanetHorizonHtml(seq, { pdf = false, theme = null } = {}) {
     if (!seq || !Array.isArray(seq.planets) || !seq.planets.length) {
       return "";
     }
     const planets = seq.planets.slice(0, 12);
     const n = planets.length;
     const orbSize = pdf ? "9mm" : "28px";
+    const faceColor = theme?.text || "#222";
     const nodes = planets.map((planet, index) => {
       const t = n === 1 ? 0.5 : index / (n - 1);
       const lift = Math.sin(t * Math.PI);
@@ -1528,13 +1799,13 @@
       const tarotUrl = planet.tarotName ? getMoodCardImageUrl(planet.tarotName) : null;
       const face = tarotUrl
         ? `<img src="${tarotUrl}" alt="${escapeHtml(planet.name)}" style="width:100%;height:100%;object-fit:cover;display:block;" crossorigin="anonymous" />`
-        : `<span style="font-size:${pdf ? "10px" : "13px"};line-height:1;color:#222;">${escapeHtml(planet.symbol || planet.name.slice(0, 1))}</span>`;
+        : `<span style="font-size:${pdf ? "10px" : "13px"};line-height:1;color:${faceColor};">${escapeHtml(planet.symbol || planet.name.slice(0, 1))}</span>`;
       return `<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:2px;${liftCss};flex:1;min-width:0;">
         <div style="width:${orbSize};height:${orbSize};border-radius:50%;overflow:hidden;border:1px solid rgba(0,0,0,0.22);background:radial-gradient(circle at 32% 28%, rgba(255,255,255,0.55), transparent 46%), ${color};display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.18);">${face}</div>
         <div style="font-size:${pdf ? "6px" : "9px"};opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${escapeHtml(planet.name || planet.id)}</div>
       </div>`;
     }).join("");
-    const lineColor = pdf ? "#888" : "var(--tt-border-soft)";
+    const lineColor = pdf ? (theme?.border || "#888") : "var(--tt-border-soft)";
     const line = `<div style="position:absolute;left:5%;right:5%;bottom:${pdf ? "7mm" : "18px"};border-top:1.6px dotted ${lineColor};opacity:0.9;"></div>`;
     return `<div class="planet-horizon" style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;min-height:${pdf ? "18mm" : "54px"};padding:${pdf ? "1mm 1mm 0" : "8px 4px 0"};">${line}${nodes}</div>`;
   }
@@ -1641,17 +1912,48 @@
   async function updateDayCardsDisplay() {
     const el = document.getElementById("profile-day-cards");
     if (!el) return;
-    const cards = await getDayTarotCards(state.occurredOn);
+    const context = await getDayContext(state.occurredOn, { includeHolidays: false }).catch(() => null);
+    if (!context) {
+      el.innerHTML = "";
+      el.style.display = "none";
+      return;
+    }
+    const cards = context;
     el.innerHTML = "";
     el.style.display = "none";
 
     const hasCourt = !!cards.court;
     const hasDecan = !!(cards.activeDecan || cards.decan);
-    if (!hasCourt && !hasDecan) {
+    const hasSign = !!cards.sign;
+    const hasMoon = !!cards.moon;
+    const hasHolidays = Array.isArray(cards.holidays) && cards.holidays.length > 0;
+    if (!hasCourt && !hasDecan && !hasSign && !hasMoon && !hasHolidays) {
       return;
     }
 
     el.style.display = "flex";
+
+    if (hasMoon) {
+      const moonChip = document.createElement("span");
+      moonChip.className = "profile-day-card";
+      moonChip.innerHTML = `<span class="dc-label">Moon</span><span class="dc-name">${escapeHtml(cards.moon.phase)} · ${cards.moon.illuminationPct}%</span>`;
+      if (cards.moonTarot) {
+        moonChip.title = `Moon tarot: ${cards.moonTarot}`;
+      }
+      el.appendChild(moonChip);
+    }
+
+    if (hasSign) {
+      const signChip = document.createElement("span");
+      signChip.className = "profile-day-card";
+      const signLabel = `${cards.sign.symbol ? `${cards.sign.symbol} ` : ""}${cards.sign.name || cards.sign.id || ""}`.trim();
+      const degree = cards.signDegree != null ? `${cards.signDegree}°` : "";
+      signChip.innerHTML = `<span class="dc-label">Sun</span><span class="dc-name">${escapeHtml(signLabel)}${degree ? ` · ${escapeHtml(degree)}` : ""}</span>`;
+      if (cards.sign.tarot?.majorArcana) {
+        signChip.title = `Sign tarot: ${cards.sign.tarot.majorArcana}`;
+      }
+      el.appendChild(signChip);
+    }
 
     if (hasCourt) {
       const courtChip = document.createElement("span");
@@ -1676,7 +1978,19 @@
       const decanChip = document.createElement("span");
       decanChip.className = "profile-day-card";
       decanChip.innerHTML = `<span class="dc-label">Decan</span><span class="dc-name">${escapeHtml(decanName)}</span>`;
-      decanChip.title = `Click to set mood to ${decanName} (active for this date among ${cards.decans.join(" / ")})`;
+      const decanBand = cards.decanDegreeStart != null && cards.decanDegreeEnd != null
+        ? ` (${cards.decanDegreeStart}°–${cards.decanDegreeEnd}°)`
+        : "";
+      const decanRange = formatMmddRange(cards.decanInfo?.dateStart, cards.decanInfo?.dateEnd);
+      const decanRuler = cards.decanRuler
+        ? `${cards.decanRuler.symbol ? `${cards.decanRuler.symbol} ` : ""}${cards.decanRuler.name || ""}`.trim()
+        : "";
+      decanChip.title = [
+        `Decan ${cards.decanInfo?.index ?? ""}${decanBand}`.trim(),
+        decanRuler ? `ruler ${decanRuler}` : "",
+        decanRange,
+        `Click to set mood to ${decanName}`
+      ].filter(Boolean).join(" · ");
       decanChip.addEventListener("click", () => {
         if (state.scenes.length) {
           const target = state.scenes[0];
@@ -1688,6 +2002,23 @@
         }
       });
       el.appendChild(decanChip);
+    }
+
+    const appendHolidayChips = (holidays) => {
+      if (!el.isConnected || !Array.isArray(holidays) || !holidays.length) return;
+      el.style.display = "flex";
+      holidays.forEach((holiday) => {
+        const holidayChip = document.createElement("span");
+        holidayChip.className = "profile-day-card is-holiday";
+        holidayChip.innerHTML = `<span class="dc-label">${escapeHtml(holiday.calendarLabel)}</span><span class="dc-name">${escapeHtml(holiday.name)}</span>`;
+        if (holiday.dateText) holidayChip.title = holiday.dateText;
+        el.appendChild(holidayChip);
+      });
+    };
+    if (hasHolidays) {
+      appendHolidayChips(cards.holidays);
+    } else {
+      void getHolidaysForDate(state.occurredOn).then(appendHolidayChips).catch(() => {});
     }
   }
 
@@ -2954,12 +3285,7 @@
     await updateDayCardsDisplay();
     setStatus("");
 
-    // Attach export listener defensively (in case init ran before button or cached bundle)
-    const expBtn = document.getElementById("profile-note-export-pdf");
-    if (expBtn && !expBtn._pdfExportBound) {
-      expBtn._pdfExportBound = true;
-      expBtn.addEventListener("click", () => void exportCurrentNoteAsPdf());
-    }
+    bindExportButton();
   }
 
   function historyPassageText(scene, kind) {
@@ -3108,12 +3434,7 @@
     await updateDayCardsDisplay();
     await openEditor();
 
-    // Defensive attach for export button
-    const expBtn2 = document.getElementById("profile-note-export-pdf");
-    if (expBtn2 && !expBtn2._pdfExportBound) {
-      expBtn2._pdfExportBound = true;
-      expBtn2.addEventListener("click", () => void exportCurrentNoteAsPdf());
-    }
+    bindExportButton();
   }
 
   function wrapDiaryHistory(panel) {
@@ -3705,9 +4026,7 @@
     document.getElementById("profile-note-delete")?.addEventListener("click", () => {
       void deleteNote();
     });
-    document.getElementById("profile-note-export-pdf")?.addEventListener("click", () => {
-      void exportCurrentNoteAsPdf();
-    });
+    bindExportButton();
     document.getElementById("profile-scene-add")?.addEventListener("click", addScene);
     elements.kindDreamBtn?.addEventListener("click", () => setKind("dream"));
     elements.kindWakingBtn?.addEventListener("click", () => setKind("waking"));
@@ -3799,9 +4118,81 @@
     void refreshProfile();
   }
 
+  function readPdfTheme() {
+    const fallbacks = {
+      page: "#0f0f14",
+      bg: "#18181b",
+      deep: "#111118",
+      deepest: "#09090b",
+      surface: "#27272a",
+      border: "#3f3f46",
+      text: "#f4f4f5",
+      muted: "#a1a1aa",
+      dim: "#71717a",
+      accent: "#6366f1",
+      accentSoft: "#a5b4fc",
+      accentPale: "#e0e7ff",
+      brand: "#fbbf24"
+    };
+    const names = {
+      page: "--tt-page-bg",
+      bg: "--tt-bg",
+      deep: "--tt-bg-deep",
+      deepest: "--tt-bg-deepest",
+      surface: "--tt-surface",
+      border: "--tt-border",
+      text: "--tt-text",
+      muted: "--tt-text-muted",
+      dim: "--tt-text-dim",
+      accent: "--tt-accent",
+      accentSoft: "--tt-accent-soft",
+      accentPale: "--tt-accent-pale",
+      brand: "--tt-brand"
+    };
+    const rootStyle = window.getComputedStyle(document.documentElement);
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:absolute;left:-9999px;top:0;";
+    document.body.appendChild(probe);
+    const theme = {};
+    Object.entries(names).forEach(([key, varName]) => {
+      const specified = String(rootStyle.getPropertyValue(varName) || "").trim() || fallbacks[key];
+      probe.style.backgroundColor = specified;
+      const resolved = window.getComputedStyle(probe).backgroundColor;
+      theme[key] = resolved && resolved !== "rgba(0, 0, 0, 0)" && resolved !== "transparent"
+        ? resolved
+        : fallbacks[key];
+    });
+    probe.remove();
+    return theme;
+  }
+
+  function pdfOnDark(theme) {
+    const rgb = String(theme?.page || "").match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (!rgb) return true;
+    return (Number(rgb[1]) * 0.2126 + Number(rgb[2]) * 0.7152 + Number(rgb[3]) * 0.0722) < 140;
+  }
+
+  function bindExportButton() {
+    const exportBtn = document.getElementById("profile-note-export-pdf");
+    if (!exportBtn || exportBtn._pdfExportBound) return;
+    exportBtn._pdfExportBound = true;
+    exportBtn.addEventListener("click", () => {
+      void exportCurrentNoteAsPdf();
+    });
+  }
+
+  let pdfExportInFlight = false;
+
   async function exportCurrentNoteAsPdf() {
+    if (pdfExportInFlight) return;
+    pdfExportInFlight = true;
     const exportBtn = document.getElementById("profile-note-export-pdf");
     if (exportBtn) exportBtn.disabled = true;
+    const bail = (message) => {
+      if (message) setError(message);
+      if (exportBtn) exportBtn.disabled = false;
+      pdfExportInFlight = false;
+    };
 
     setStatus("Preparing PDF export…");
 
@@ -3814,18 +4205,15 @@
 
     syncScenesFromDom();
     const scenes = (state.scenes || []).slice();
-    const dayCards = await getDayTarotCards(occurredOn);
 
     if (!scenes.length) {
-      setError("Nothing to export.");
-      if (exportBtn) exportBtn.disabled = false;
+      bail("Nothing to export.");
       return;
     }
 
     // Make sure we have the PDF loader
     if (!window.TarotLazySections || typeof window.TarotLazySections.ensureJsPDF !== "function") {
-      setError("PDF export requires the updated lazy loader. Hard refresh the page (Ctrl+Shift+R).");
-      if (exportBtn) exportBtn.disabled = false;
+      bail("PDF export requires the updated lazy loader. Hard refresh the page (Ctrl+Shift+R).");
       return;
     }
 
@@ -3835,24 +4223,21 @@
       JsPDF = await window.TarotLazySections.ensureJsPDF();
       html2canvas = await window.TarotLazySections.ensureHtml2Canvas();
     } catch (e) {
-      setError("Export libraries failed to load. Run `npm install` in the KABBAK folder and reload. " + (e?.message || ""));
-      if (exportBtn) exportBtn.disabled = false;
+      bail("Export libraries failed to load. Run `npm install` in the KABBAK folder and reload. " + (e?.message || ""));
       return;
     }
 
     if (typeof JsPDF !== "function" || typeof html2canvas !== "function") {
-      setError("Could not initialize PDF exporter.");
-      if (exportBtn) exportBtn.disabled = false;
+      bail("Could not initialize PDF exporter.");
       return;
     }
 
-    const USE_FANCY_PDF = false; // set true to restore the original radial-gradient magical notebook background + fancy header (kept for future)
+    const theme = readPdfTheme();
+    const dark = pdfOnDark(theme);
+    const badgeFg = dark ? theme.deepest : theme.page;
+    const kindColor = kind === "dream" ? theme.accent : theme.brand;
 
-    // Build export container (A4-ish width for good layout)
     const root = document.createElement("div");
-    const rootBg = USE_FANCY_PDF
-      ? "background:radial-gradient(circle at 30% 20%, #1a1433 0%, #0f0a1f 60%); color:#e0d4ff;"
-      : "background:#ffffff; color:#222222;";
     root.style.cssText = [
       "position:fixed",
       "left:-99999px",
@@ -3860,78 +4245,128 @@
       "width:210mm",
       "padding:8mm 10mm 10mm",
       "box-sizing:border-box",
-      rootBg,
+      `background:${theme.page}`,
+      `color:${theme.text}`,
       "font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
       "line-height:1.35"
     ].join(";");
 
-    // Base styles for rich text content inside the export (so blockquote, pre, code, etc render decently)
     const richStyle = document.createElement("style");
     richStyle.textContent = `
-      blockquote { border-left: 3px solid #888; margin: 3px 0; padding-left: 6px; font-style: italic; color: #555; }
-      pre { background: #f4f4f4; padding: 3px 5px; border-radius: 2px; font-family: monospace; font-size: 8px; white-space: pre-wrap; overflow: auto; }
-      code { font-family: monospace; background: #f0f0f0; padding: 0 2px; border-radius: 2px; font-size: 8px; }
+      blockquote { border-left: 3px solid ${theme.accent}; margin: 3px 0; padding-left: 6px; font-style: italic; color: ${theme.muted}; }
+      pre { background: ${theme.deep}; padding: 3px 5px; border-radius: 2px; font-family: monospace; font-size: 8px; white-space: pre-wrap; overflow: auto; color: ${theme.text}; }
+      code { font-family: monospace; background: ${theme.deep}; padding: 0 2px; border-radius: 2px; font-size: 8px; }
       .scene-thoughts, .scene-notes { white-space: pre-wrap; }
     `;
     root.appendChild(richStyle);
 
-    // Header (simplified; fancy version kept behind flag)
     const header = document.createElement("div");
     const kindLabel = kind === "dream" ? "DREAM" : "WAKING";
-    if (USE_FANCY_PDF) {
-      const kindColor = kind === "dream" ? "#7dd3fc" : "#f9a8d4";
-      header.style.cssText = "text-align:center; margin-bottom:6mm; border-bottom:1px solid #4c3d7a; padding-bottom:4mm;";
-      header.innerHTML = `
-        <div style="font-size:9px; letter-spacing:3px; opacity:0.6;">KABBAK</div>
-        <div style="font-size:22px; font-weight:700; margin:1mm 0; background:linear-gradient(90deg,#c4b5fd,#f9a8d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Magical Notebook</div>
-        <div style="display:inline-block; padding:1px 8px; border-radius:999px; font-size:9px; font-weight:700; letter-spacing:0.5px; background:${kindColor}; color:#120d22;">${kindLabel}</div>
-        <div style="margin-top:2mm; font-size:11px; opacity:0.8;">${escapeHtml(formatEntryDate(occurredOn) || occurredOn)}</div>
-         <div style="margin-top:1mm; font-size:14px; font-weight:600;">${escapeHtml(title)}</div>
-         ${kind === "dream" && (state.sleptAt || state.awokeAt) ? `<div style="margin-top:1.5mm; font-size:10px; opacity:0.75;">Slept ${escapeHtml(state.sleptAt || "—")} · Awoke ${escapeHtml(state.awokeAt || "—")}${sleepDurationLabel(state.sleptAt, state.awokeAt) ? ` · ${escapeHtml(sleepDurationLabel(state.sleptAt, state.awokeAt))}` : ""}</div>` : ""}
-      `;
-    } else {
-      header.style.cssText = "margin-bottom:4mm; border-bottom:1px solid #ddd; padding-bottom:3mm;";
-      header.innerHTML = `
-        <div style="font-size:10px; color:#666; letter-spacing:1px;">${kindLabel} — ${escapeHtml(formatEntryDate(occurredOn) || occurredOn)}</div>
-        <div style="font-size:15px; font-weight:600; margin-top:1mm;">${escapeHtml(title)}</div>
-      `;
-    }
+    header.style.cssText = `text-align:center; margin-bottom:6mm; border-bottom:1px solid ${theme.border}; padding-bottom:4mm;`;
+    header.innerHTML = `
+      <div style="font-size:9px; letter-spacing:3px; color:${theme.muted};">KABBAK</div>
+      <div style="font-size:20px; font-weight:700; margin:1.5mm 0; color:${theme.accentSoft};">Journal</div>
+      <div style="display:inline-block; padding:1px 8px; border-radius:999px; font-size:9px; font-weight:700; letter-spacing:0.5px; background:${kindColor}; color:${badgeFg};">${kindLabel}</div>
+      <div style="margin-top:2mm; font-size:11px; color:${theme.muted};">${escapeHtml(formatEntryDate(occurredOn) || occurredOn)}</div>
+      <div style="margin-top:1mm; font-size:14px; font-weight:600; color:${theme.text};">${escapeHtml(title)}</div>
+      ${kind === "dream" && (state.sleptAt || state.awokeAt) ? `<div style="margin-top:1.5mm; font-size:10px; color:${theme.muted};">Slept ${escapeHtml(state.sleptAt || "—")} · Awoke ${escapeHtml(state.awokeAt || "—")}${sleepDurationLabel(state.sleptAt, state.awokeAt) ? ` · ${escapeHtml(sleepDurationLabel(state.sleptAt, state.awokeAt))}` : ""}</div>` : ""}
+    `;
     root.appendChild(header);
 
     const tarotCardImg = (url, alt, widthMm) =>
-      `<img src="${url}" style="width:${widthMm}mm; aspect-ratio:2.75/4.75; object-fit:contain; height:auto; border-radius:2px; border:1px solid #aaa; display:block; background:#f3f3f3;" crossorigin="anonymous" alt="${escapeHtml(alt)}" />`;
+      `<img src="${url}" style="width:${widthMm}mm; aspect-ratio:2.75/4.75; object-fit:contain; height:auto; border-radius:2px; border:1px solid ${theme.border}; display:block; background:${theme.deep};" crossorigin="anonymous" alt="${escapeHtml(alt)}" />`;
 
     const stackedField = (label, value) =>
-      `<div style="margin-top:1.6mm;"><div style="font-size:7px; opacity:0.6; letter-spacing:0.4px;">${label}</div><div style="font-size:9px; line-height:1.25; word-break:break-word;">${escapeHtml(String(value || "—").trim() || "—")}</div></div>`;
+      `<div style="margin-top:1.6mm;"><div style="font-size:7px; color:${theme.muted}; letter-spacing:0.4px;">${label}</div><div style="font-size:9px; line-height:1.25; word-break:break-word;">${escapeHtml(String(value || "—").trim() || "—")}</div></div>`;
 
-    // Date tarot cards (court + decan) — true card ratio
-    if (dayCards && (dayCards.court || dayCards.decan || dayCards.activeDecan)) {
+    // Day context: date cards plus the related dates/observances that fall on
+    // this entry's day (sign, moon, weekday ruler, holidays/festivals).
+    const dayContext = await getDayContext(occurredOn).catch(() => null);
+    const cName = dayContext?.court || "";
+    const dName = dayContext?.activeDecan || dayContext?.decan || "";
+    const holidays = Array.isArray(dayContext?.holidays) ? dayContext.holidays : [];
+    const hasDayContext = Boolean(
+      cName
+      || dName
+      || dayContext?.sign
+      || dayContext?.moon
+      || dayContext?.planetRuler
+      || holidays.length
+    );
+    if (hasDayContext) {
       const dcWrap = document.createElement("div");
-      const dcBg = USE_FANCY_PDF ? "background:rgba(26,20,51,0.4); border:1px solid #4c3d7a; color:#e0d4ff;" : "background:#f8f8f8; border:1px solid #ddd; color:#333;";
-      dcWrap.style.cssText = `margin:2mm 0 3mm; padding:2.5mm 3mm; border-radius:4px; ${dcBg}`;
-      const cName = dayCards.court || "";
-      const dName = dayCards.activeDecan || dayCards.decan || "";
-      let dcHtml = `<div style="font-size:8px; margin-bottom:1.5mm; opacity:0.7;">DATE CARDS — ${escapeHtml(formatEntryDate(occurredOn) || occurredOn)}</div>`;
+      dcWrap.style.cssText = `margin:2mm 0 3mm; padding:2.5mm 3mm; border-radius:4px; background:${theme.bg}; border:1px solid ${theme.border}; color:${theme.text};`;
+      let dcHtml = `<div style="font-size:8px; margin-bottom:1.5mm; color:${theme.muted}; letter-spacing:0.4px;">DATE CONTEXT — ${escapeHtml(formatEntryDate(occurredOn) || occurredOn)}</div>`;
       dcHtml += `<div style="display:flex; gap:4mm; align-items:flex-start;">`;
-      if (cName) {
-        const cUrl = getMoodCardImageUrl(cName);
-        dcHtml += `
-          <div style="flex:0 0 40mm; font-size:8px; text-align:center;">
-            <div style="font-size:7px; opacity:0.6;">COURT</div>
-            ${cUrl ? tarotCardImg(cUrl, cName, 40) : `<strong style="font-size:9px;">${escapeHtml(cName)}</strong>`}
-            <div style="margin-top:0.8mm; font-size:8px; font-weight:600; word-break:break-word;">${escapeHtml(cName)}</div>
+
+      const cardBlock = (label, name) => {
+        const url = getMoodCardImageUrl(name);
+        return `
+          <div style="flex:0 0 38mm; font-size:8px; text-align:center;">
+            <div style="font-size:7px; color:${theme.dim};">${label}</div>
+            ${url ? tarotCardImg(url, name, 38) : `<strong style="font-size:9px;">${escapeHtml(name)}</strong>`}
+            <div style="margin-top:0.8mm; font-size:8px; font-weight:600; word-break:break-word;">${escapeHtml(name)}</div>
           </div>`;
+      };
+      if (cName) dcHtml += cardBlock("COURT", cName);
+      if (dName) dcHtml += cardBlock("DECAN", dName);
+
+      const metaRows = [];
+      if (dayContext?.sign) {
+        const signLabel = `${dayContext.sign.symbol ? `${dayContext.sign.symbol} ` : ""}${dayContext.sign.name || dayContext.sign.id || ""}`.trim();
+        const traits = [dayContext.signElement, dayContext.signModality].filter(Boolean).join(" · ");
+        const degree = dayContext.signDegree != null ? `${dayContext.signDegree}°` : "";
+        const signTarot = dayContext.sign.tarot?.majorArcana ? ` · ${dayContext.sign.tarot.majorArcana}` : "";
+        const range = formatMmddRange(dayContext.sign.start, dayContext.sign.end);
+        metaRows.push(["SUN SIGN", `${signLabel}${traits ? ` · ${traits}` : ""}${degree ? ` · ${degree}` : ""}${signTarot}${range ? ` · ${range}` : ""}`]);
       }
-      if (dName) {
-        const dUrl = getMoodCardImageUrl(dName);
-        dcHtml += `
-          <div style="flex:0 0 40mm; font-size:8px; text-align:center;">
-            <div style="font-size:7px; opacity:0.6;">DECAN</div>
-            ${dUrl ? tarotCardImg(dUrl, dName, 40) : `<strong style="font-size:9px;">${escapeHtml(dName)}</strong>`}
-            <div style="margin-top:0.8mm; font-size:8px; font-weight:600; word-break:break-word;">${escapeHtml(dName)}</div>
-          </div>`;
+      if (dayContext?.decanInfo) {
+        const decan = dayContext.decanInfo;
+        const band = dayContext.decanDegreeStart != null && dayContext.decanDegreeEnd != null
+          ? `${dayContext.decanDegreeStart}°–${dayContext.decanDegreeEnd}°`
+          : "";
+        const ruler = dayContext.decanRuler
+          ? `${dayContext.decanRuler.symbol ? `${dayContext.decanRuler.symbol} ` : ""}${dayContext.decanRuler.name || ""}`.trim()
+          : "";
+        const range = formatMmddRange(decan.dateStart, decan.dateEnd);
+        const decanParts = [
+          `Decan ${decan.index}${band ? ` (${band})` : ""}`,
+          decan.tarotMinorArcana || "",
+          ruler ? `ruler ${ruler}` : "",
+          range
+        ].filter(Boolean).join(" · ");
+        metaRows.push(["DECAN", decanParts]);
+      }
+      if (dayContext?.moon) {
+        const moonTarot = dayContext.moonTarot ? ` · ${dayContext.moonTarot}` : "";
+        metaRows.push(["MOON", `${dayContext.moon.phase} · ${dayContext.moon.illuminationPct}% illuminated${moonTarot}`]);
+      }
+      if (dayContext?.planetRuler) {
+        const ruler = dayContext.planetRuler;
+        metaRows.push(["DAY RULER", `${ruler.symbol ? `${ruler.symbol} ` : ""}${ruler.name}`.trim()]);
+      }
+      if (metaRows.length) {
+        dcHtml += `<div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:1.2mm;">`;
+        metaRows.forEach(([label, value]) => {
+          dcHtml += `<div><div style="font-size:7px; color:${theme.dim}; letter-spacing:0.4px;">${label}</div><div style="font-size:9px; line-height:1.3;">${escapeHtml(value)}</div></div>`;
+        });
+        dcHtml += `</div>`;
       }
       dcHtml += `</div>`;
+
+      if (holidays.length) {
+        dcHtml += `<div style="margin-top:2mm; padding-top:1.5mm; border-top:1px dashed ${theme.border};">`;
+        dcHtml += `<div style="font-size:7px; color:${theme.dim}; letter-spacing:0.4px; margin-bottom:1mm;">OBSERVANCES</div>`;
+        holidays.forEach((holiday) => {
+          const meta = [holiday.calendarLabel, holiday.dateText].filter(Boolean).join(" · ");
+          const description = holiday.description
+            ? ` — ${holiday.description.length > 160 ? `${holiday.description.slice(0, 157)}…` : holiday.description}`
+            : "";
+          dcHtml += `<div style="font-size:9px; line-height:1.35; margin-bottom:0.6mm;"><strong>${escapeHtml(holiday.name)}</strong>${meta ? ` <span style="color:${theme.muted}; font-size:8px;">(${escapeHtml(meta)})</span>` : ""}${escapeHtml(description)}</div>`;
+        });
+        dcHtml += `</div>`;
+      }
+
       dcWrap.innerHTML = dcHtml;
       root.appendChild(dcWrap);
     }
@@ -3945,10 +4380,7 @@
     for (let i = 0; i < scenes.length; i++) {
       const s = scenes[i];
       const block = document.createElement("div");
-      const blockBg = USE_FANCY_PDF
-        ? "background:rgba(26,20,51,0.5); border:1px solid #4c3d7a; color:#e0d4ff;"
-        : "background:#fff; border:1px solid #ccc; color:#222;";
-      block.style.cssText = `margin:2mm 0; padding:3mm; border-radius:3px; ${blockBg}`;
+      block.style.cssText = `margin:2mm 0; padding:3mm; border-radius:3px; background:${theme.bg}; border:1px solid ${theme.border}; color:${theme.text};`;
 
       let hourHtml = "";
       let positionsHtml = "";
@@ -3979,8 +4411,8 @@
             }
           }
           const hourImg = sky.tarotName ? getMoodCardImageUrl(sky.tarotName) : null;
-          hourHtml = `<div style="margin-top:2mm; font-size:8px; color:#444;">
-            <div style="font-size:7px; opacity:0.6; letter-spacing:0.4px;">PLANETARY HOUR</div>
+          hourHtml = `<div style="margin-top:2mm; font-size:8px; color:${theme.muted};">
+            <div style="font-size:7px; color:${theme.dim}; letter-spacing:0.4px;">PLANETARY HOUR</div>
             ${hourImg ? `<div style="margin:1mm 0;">${tarotCardImg(hourImg, sky.tarotName || "hour", 32)}</div>` : ""}
             <div style="font-size:8px; line-height:1.3;">${escapeHtml(getSceneSkyText(sky))}${escapeHtml(durationSuffix)}</div>
           </div>`;
@@ -3995,7 +4427,7 @@
               }));
               const positions = Array.isArray(snapshot?.stats?.planetPositions) ? snapshot.stats.planetPositions : [];
               if (positions.length) {
-                positionsHtml = `<div style="font-size:7px; color:#666; margin-bottom:1mm;">SKY · ${positions.map((p) => `${escapeHtml(p.symbol || "")} ${escapeHtml(p.sign?.name || "")} ${Number(p.degreeInSign).toFixed(1)}°`).join(" · ")}</div>`;
+                positionsHtml = `<div style="font-size:7px; color:${theme.muted}; margin-bottom:1mm;">SKY · ${positions.map((p) => `${escapeHtml(p.symbol || "")} ${escapeHtml(p.sign?.name || "")} ${Number(p.degreeInSign).toFixed(1)}°`).join(" · ")}</div>`;
               }
             } catch (_err) {
               // Planet positions are optional; skip silently if the API cannot answer.
@@ -4027,19 +4459,19 @@
           const imgBlocks = imageAtts.map(a => {
             const name = escapeHtml(a.name || 'attachment');
             const size = a.size ? ` (${(a.size/1024).toFixed(0)}KB)` : '';
-            return `<div style="margin:2mm 0 0; text-align:left;">
-              <img src="${a.data}" style="max-width:78mm; max-height:92mm; width:auto; height:auto; object-fit:contain; border:1px solid #aaa; border-radius:3px; display:block;" crossorigin="anonymous" alt="${name}" />
-              <div style="font-size:7px; color:#555; margin-top:1px;">${name}${size}</div>
+              return `<div style="margin:2mm 0 0; text-align:left;">
+              <img src="${a.data}" style="max-width:78mm; max-height:92mm; width:auto; height:auto; object-fit:contain; border:1px solid ${theme.border}; border-radius:3px; display:block;" crossorigin="anonymous" alt="${name}" />
+              <div style="font-size:7px; color:${theme.muted}; margin-top:1px;">${name}${size}</div>
             </div>`;
           }).join('');
           content += `<div style="margin-top:1mm;">${imgBlocks}</div>`;
         }
         if (nonImageAtts.length) {
           const list = nonImageAtts.map(a => escapeHtml(a.name + (a.size ? ` (${(a.size/1024).toFixed(0)}KB)` : ''))).join(' • ');
-          content += `<div style="font-size:8px; color:#555; margin-top:1mm;">${list}</div>`;
+          content += `<div style="font-size:8px; color:${theme.muted}; margin-top:1mm;">${list}</div>`;
         } else if (!imageAtts.length) {
           const list = s.attachments.map(a => escapeHtml(a.name + (a.size ? ` (${(a.size/1024).toFixed(0)}KB)` : ''))).join(' • ');
-          content = `<div style="font-size:8px; color:#555;">${list}</div>`;
+          content = `<div style="font-size:8px; color:${theme.muted};">${list}</div>`;
         }
         attachmentsHtml = `<div style="margin-top:2.5mm;"><div style="font-size:7px; opacity:0.6;">ATTACHMENTS</div>${content}</div>`;
       }
@@ -4087,12 +4519,12 @@
           }
         }
         const seqText = formatHourSequenceText(seq);
-        const horizonHtml = buildPlanetHorizonHtml(seq, { pdf: true });
+        const horizonHtml = buildPlanetHorizonHtml(seq, { pdf: true, theme });
         const tDiv = document.createElement("div");
-        tDiv.style.cssText = "margin:2mm 4mm 3mm; color:#555;";
+        tDiv.style.cssText = `margin:2mm 4mm 3mm; color:${theme.muted};`;
         tDiv.innerHTML = `<div style="font-size:8px; display:flex; align-items:center; gap:4px; margin-bottom:1mm;">
           <span>${escapeHtml(trans.label)}</span>
-          ${seqText ? `<span style="color:#777;">· ${escapeHtml(seqText)}</span>` : ""}
+          ${seqText ? `<span style="color:${theme.dim};">· ${escapeHtml(seqText)}</span>` : ""}
         </div>${horizonHtml}`;
         scenesWrap.appendChild(tDiv);
       }
@@ -4101,8 +4533,7 @@
 
     // Footer
     const foot = document.createElement("div");
-    const footColor = USE_FANCY_PDF ? "#6b5b9a" : "#888";
-    foot.style.cssText = `margin-top:5mm; text-align:center; font-size:7px; color:${footColor}; letter-spacing:0.5px;`;
+    foot.style.cssText = `margin-top:5mm; text-align:center; font-size:7px; color:${theme.dim}; letter-spacing:0.5px;`;
     foot.textContent = `Exported from KABBAK • ${new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
     root.appendChild(foot);
 
@@ -4130,7 +4561,7 @@
     try {
       const canvas = await html2canvas(root, {
         scale: 2,
-        backgroundColor: "#0f0a1f",
+        backgroundColor: theme.page,
         logging: false,
         useCORS: true
       });
@@ -4162,11 +4593,18 @@
         pageCanvas.width = canvas.width;
         pageCanvas.height = sliceH;
         const ctx = pageCanvas.getContext("2d");
+        ctx.fillStyle = theme.page;
+        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
         ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
 
         const pageImg = pageCanvas.toDataURL("image/png");
 
         if (srcY > 0) pdf.addPage();
+        const pageRgb = String(theme.page).match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (pageRgb) {
+          pdf.setFillColor(Number(pageRgb[1]), Number(pageRgb[2]), Number(pageRgb[3]));
+          pdf.rect(0, 0, pageW, pageH, "F");
+        }
         const drawH = (sliceH / canvas.width) * imgW;
         pdf.addImage(pageImg, "PNG", margin, margin, imgW, drawH);
 
@@ -4182,6 +4620,7 @@
       setError("Failed to generate PDF. " + (err?.message || ""));
     } finally {
       if (exportBtn) exportBtn.disabled = false;
+      pdfExportInFlight = false;
     }
   }
 
