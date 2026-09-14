@@ -128,6 +128,207 @@
     document.body.appendChild(overlay);
   }
 
+  // In-app replacement for window.prompt (blocked in some embedded browsers).
+  function promptPublishMessage(item) {
+    return new Promise((resolve) => {
+      document.querySelector(".dlc-publish-overlay")?.remove();
+      const overlay = document.createElement("div");
+      overlay.className = "dlc-settings-overlay dlc-publish-overlay";
+      overlay.setAttribute("role", "dialog");
+      overlay.setAttribute("aria-modal", "true");
+      overlay.innerHTML = `
+        <div class="dlc-settings-overlay-panel">
+          <div class="dlc-settings-overlay-head"><strong>Publish ${escapeHtml(item.title || item.name)}</strong></div>
+          <div class="dlc-install-overlay-body">
+            <p class="settings-field-hint">Commits this ${escapeHtml(item.kind || "item")} to its DLC repository and pushes to the source branch.</p>
+            <label class="settings-field">Commit message
+              <input type="text" class="dlc-publish-message" value="Update ${escapeHtml(item.kind)}: ${escapeHtml(item.name)}">
+            </label>
+            <div class="dlc-shop-actions">
+              <button type="button" class="dlc-shop-btn" data-action="confirm">Publish</button>
+              <button type="button" class="dlc-shop-btn" data-action="cancel">Cancel</button>
+            </div>
+          </div>
+        </div>`;
+      const input = overlay.querySelector(".dlc-publish-message");
+      let settled = false;
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        overlay.remove();
+        resolve(value);
+      };
+      overlay.querySelector('[data-action="confirm"]').addEventListener("click", () => finish(String(input.value || "")));
+      overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => finish(null));
+      overlay.addEventListener("mousedown", (event) => {
+        if (event.target === overlay) finish(null);
+      });
+      document.addEventListener("keydown", function onKey(event) {
+        if (event.key === "Escape") {
+          document.removeEventListener("keydown", onKey);
+          finish(null);
+        }
+      });
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") finish(String(input.value || ""));
+      });
+      document.body.appendChild(overlay);
+      input.focus();
+      input.select();
+    });
+  }
+
+  async function openDlcItemEditor(item) {
+    document.querySelector(".dlc-item-editor-overlay")?.remove();
+    const overlay = document.createElement("div");
+    overlay.className = "dlc-settings-overlay dlc-item-editor-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.innerHTML = `
+      <div class="dlc-settings-overlay-panel dlc-item-editor-panel">
+        <div class="dlc-settings-overlay-head">
+          <strong>Edit ${escapeHtml(item.title || item.name)}</strong>
+          <button type="button" class="dlc-shop-btn" data-action="close">Close</button>
+        </div>
+        <div class="dlc-item-editor-body">
+          <div class="dlc-item-files" data-role="files"><span class="settings-field-hint">Loading files…</span></div>
+          <div class="dlc-item-editor-main">
+            <div class="dlc-item-editor-path settings-field-hint" data-role="path">Select a file to edit.</div>
+            <textarea class="dlc-item-textarea" data-role="editor" spellcheck="false" disabled></textarea>
+            <div class="dlc-shop-actions">
+              <button type="button" class="dlc-shop-btn" data-action="save" disabled>Save file</button>
+              <span class="settings-field-hint" data-role="edit-status"></span>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const closeOverlay = () => overlay.remove();
+    overlay.querySelector('[data-action="close"]').addEventListener("click", closeOverlay);
+    overlay.addEventListener("mousedown", (event) => {
+      if (event.target === overlay) closeOverlay();
+    });
+    document.addEventListener("keydown", function onKey(event) {
+      if (event.key === "Escape") {
+        document.removeEventListener("keydown", onKey);
+        closeOverlay();
+      }
+    });
+
+    const filesHost = overlay.querySelector('[data-role="files"]');
+    const pathLabel = overlay.querySelector('[data-role="path"]');
+    const editor = overlay.querySelector('[data-role="editor"]');
+    const saveBtn = overlay.querySelector('[data-action="save"]');
+    const editStatus = overlay.querySelector('[data-role="edit-status"]');
+    const query = `kind=${encodeURIComponent(item.kind)}&name=${encodeURIComponent(item.name)}&sourceId=${encodeURIComponent(item.sourceId || "")}&id=${encodeURIComponent(item.id || "")}`;
+    let currentPath = "";
+    let loadedContent = "";
+
+    async function loadFile(filePath) {
+      editStatus.textContent = "Loading…";
+      try {
+        const file = await requestJson("GET", `/api/v1/admin/dlc/item/file?${query}&path=${encodeURIComponent(filePath)}`);
+        currentPath = file.path;
+        pathLabel.textContent = file.path;
+        if (file.binary || !file.editable) {
+          editor.value = "";
+          editor.disabled = true;
+          saveBtn.disabled = true;
+          editStatus.textContent = "Binary or unsupported file — read-only.";
+          return;
+        }
+        editor.value = file.content || "";
+        loadedContent = editor.value;
+        editor.disabled = false;
+        saveBtn.disabled = true;
+        editStatus.textContent = `${file.size || 0} bytes`;
+      } catch (error) {
+        editor.value = "";
+        editor.disabled = true;
+        saveBtn.disabled = true;
+        editStatus.textContent = error?.message || "Could not load file.";
+      }
+    }
+
+    editor.addEventListener("input", () => {
+      saveBtn.disabled = editor.value === loadedContent;
+    });
+
+    saveBtn.addEventListener("click", async () => {
+      if (!currentPath) return;
+      saveBtn.disabled = true;
+      editStatus.textContent = "Saving…";
+      try {
+        await requestJson("PUT", "/api/v1/admin/dlc/item/file", {
+          kind: item.kind,
+          name: item.name,
+          sourceId: item.sourceId || "",
+          id: item.id || "",
+          path: currentPath,
+          content: editor.value
+        });
+        loadedContent = editor.value;
+        editStatus.textContent = "Saved.";
+        setStatus(`Saved ${currentPath} in ${item.name}.`);
+      } catch (error) {
+        editStatus.textContent = error?.message || "Could not save.";
+        saveBtn.disabled = false;
+      }
+    });
+
+    try {
+      const listing = await requestJson("GET", `/api/v1/admin/dlc/item/files?${query}`);
+      const files = Array.isArray(listing?.files) ? listing.files : [];
+      filesHost.innerHTML = "";
+      if (!files.length) {
+        const empty = document.createElement("span");
+        empty.className = "settings-field-hint";
+        empty.textContent = "No editable files found.";
+        filesHost.appendChild(empty);
+      }
+      files.forEach((file) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "dlc-item-file";
+        button.textContent = file.path;
+        if (!file.editable) button.classList.add("is-readonly");
+        button.addEventListener("click", () => {
+          filesHost.querySelectorAll(".dlc-item-file").forEach((other) => other.classList.toggle("is-active", other === button));
+          void loadFile(file.path);
+        });
+        filesHost.appendChild(button);
+      });
+      const first = files.find((file) => file.editable) || files[0];
+      if (first) {
+        filesHost.querySelector(".dlc-item-file")?.classList.add("is-active");
+        void loadFile(first.path);
+      }
+    } catch (error) {
+      filesHost.innerHTML = "";
+      const failed = document.createElement("span");
+      failed.className = "settings-field-hint";
+      failed.textContent = error?.message || "Could not list files.";
+      filesHost.appendChild(failed);
+    }
+  }
+
+  async function deleteDlcItem(item) {
+    if (!window.confirm(`Delete '${item.title || item.name}' (${item.kind}) from the local DLC checkout? This cannot be undone.`)) return;
+    try {
+      await requestJson("DELETE", "/api/v1/admin/dlc/item", {
+        kind: item.kind,
+        name: item.name,
+        sourceId: item.sourceId || "",
+        id: item.id || ""
+      });
+      setStatus(`Deleted ${item.name}.`);
+      await loadPlugins();
+    } catch (error) {
+      setStatus(`Could not delete ${item.name}. ${error?.message || ""}`, true);
+    }
+  }
+
   // --- Tabs ------------------------------------------------------------------
 
   function activateTab(tabId) {
@@ -1430,7 +1631,7 @@
             if (isInstalled && !window.confirm(`Uninstall '${item.title || item.name}' (${kind})?`)) return;
             button.disabled = true;
             try {
-              await requestJson("POST", `/api/v1/dlc/${isInstalled ? "uninstall" : "install"}`, { kind: item.kind, name: item.name, sourceId: item.sourceId || "" });
+              await requestJson("POST", `/api/v1/dlc/${isInstalled ? "uninstall" : "install"}`, { kind: item.kind, name: item.name, id: item.id || "", sourceId: item.sourceId || "" });
               setStatus(isInstalled
                 ? `Uninstalled ${item.name}. Refreshing storage…`
                 : `Installing ${item.name}…`);
@@ -1479,20 +1680,50 @@
           });
         }
 
+        const actionRow = card.querySelector(".dlc-plugin-actions");
+
+        if (kind !== "pack" && item?.downloaded === true && item?.status !== "installed") {
+          const editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.className = "dlc-shop-btn";
+          editBtn.textContent = "Edit";
+          editBtn.title = "Edit this item's files (available while it is not installed)";
+          const deleteBtn = document.createElement("button");
+          deleteBtn.type = "button";
+          deleteBtn.className = "dlc-shop-btn";
+          deleteBtn.textContent = "Delete";
+          deleteBtn.title = "Delete this item from the local DLC checkout";
+          actionRow?.append(editBtn, deleteBtn);
+          editBtn.addEventListener("click", () => {
+            if (["reference", "text", "deck"].includes(item.kind) && window.TaroTimeDlcShop?.openCreateDlc) {
+              window.TaroTimeDlcShop.openCreateDlc(card, {
+                editItem: item,
+                onCreated: () => { void loadPlugins(); }
+              });
+              return;
+            }
+            void openDlcItemEditor(item);
+          });
+          deleteBtn.addEventListener("click", () => {
+            void deleteDlcItem(item);
+          });
+        }
+
         if (kind !== "pack" && item?.downloaded === true) {
           const publishBtn = document.createElement("button");
           publishBtn.type = "button";
           publishBtn.className = "dlc-shop-btn";
           publishBtn.textContent = "Publish";
-          publishBtn.title = "Commit and push this item to its DLC repository";
-          card.querySelector(".dlc-plugin-actions")?.appendChild(publishBtn);
+          publishBtn.title = "Validate, commit, and push this item to its DLC repository";
+          const publishStatus = document.createElement("span");
+          publishStatus.className = "dlc-publish-status settings-field-hint";
+          actionRow?.append(publishBtn, publishStatus);
           publishBtn.addEventListener("click", async () => {
-            const message = window.prompt(
-              `Commit message for publishing '${item.title || item.name}'?`,
-              `Update ${item.kind}: ${item.name}`
-            );
+            if (publishBtn.disabled) return;
+            const message = await promptPublishMessage(item);
             if (message === null) return;
             publishBtn.disabled = true;
+            publishStatus.textContent = "Publishing…";
             setStatus(`Publishing ${item.name}…`);
             try {
               const result = await requestJson("POST", "/api/v1/admin/dlc/publish", {
@@ -1501,10 +1732,14 @@
                 sourceId: item.sourceId || "",
                 message
               });
-              setStatus(result?.note || `Published ${item.name} to ${result?.sourceName || "repo"} (${result?.branch || ""}).`);
+              const okText = result?.note || `Published to ${result?.sourceName || "repo"} (${result?.branch || ""})${result?.head ? ` · ${result.head}` : ""}.`;
+              publishStatus.textContent = okText;
+              setStatus(okText);
               await loadPlugins();
             } catch (error) {
-              setStatus(`Could not publish ${item.name}. ${error?.message || ""}`, true);
+              const failText = `Publish failed. ${error?.message || "Unknown error."}`;
+              publishStatus.textContent = failText;
+              setStatus(failText, true);
             } finally {
               publishBtn.disabled = false;
             }
@@ -1735,6 +1970,7 @@
           return;
         }
         saveCredBtn.disabled = true;
+        credStatus.textContent = "saving…";
         try {
           await requestJson("PUT", "/api/v1/admin/dlc/publish/credentials", {
             sourceId: source.id,
@@ -1742,9 +1978,11 @@
             token
           });
           tokenInput.value = "";
+          credStatus.textContent = "repo access: token set";
           await loadDlcSources();
           setStatus(`Saved access token for ${source.name}.`);
         } catch (error) {
+          credStatus.textContent = "repo access: save failed";
           setStatus(`Could not save access token for ${source.name}. ${error?.message || ""}`, true);
         } finally {
           saveCredBtn.disabled = false;
@@ -1759,11 +1997,14 @@
         clearCredBtn.addEventListener("click", async () => {
           if (!window.confirm(`Remove the saved access token for '${source.name}'?`)) return;
           clearCredBtn.disabled = true;
+          credStatus.textContent = "clearing…";
           try {
             await requestJson("DELETE", `/api/v1/admin/dlc/publish/credentials/${encodeURIComponent(source.id)}`);
+            credStatus.textContent = "repo access: none";
             await loadDlcSources();
             setStatus(`Cleared access token for ${source.name}.`);
           } catch (error) {
+            credStatus.textContent = "repo access: clear failed";
             setStatus(`Could not clear access token for ${source.name}. ${error?.message || ""}`, true);
           } finally {
             clearCredBtn.disabled = false;
@@ -1777,7 +2018,118 @@
     });
   }
 
+  function openDlcReposOverlay() {
+    document.querySelector(".dlc-repos-overlay")?.remove();
+    const overlay = document.createElement("div");
+    overlay.className = "dlc-settings-overlay dlc-repos-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    const panel = document.createElement("div");
+    panel.className = "dlc-settings-overlay-panel dlc-repos-panel";
+    const head = document.createElement("div");
+    head.className = "dlc-settings-overlay-head";
+    const title = document.createElement("strong");
+    title.textContent = "DLC Repositories";
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "dlc-shop-btn";
+    closeBtn.textContent = "Close";
+    head.append(title, closeBtn);
+
+    const body = document.createElement("div");
+    body.className = "dlc-repos-body";
+    const hint = document.createElement("p");
+    hint.className = "settings-field-hint";
+    hint.textContent = "The primary repo is the main catalog checkout. Additional repos merge into the shop; matching names keep the primary copy.";
+
+    const sourcesHost = document.createElement("div");
+    sourcesHost.id = "admin-dlc-sources";
+    sourcesHost.className = "dlc-plugin-list";
+
+    const addBox = document.createElement("div");
+    addBox.className = "dlc-repos-add";
+    const addHead = document.createElement("strong");
+    addHead.textContent = "Add repository";
+    const makeField = (labelText, placeholder, value = "") => {
+      const label = document.createElement("label");
+      label.className = "settings-field";
+      label.textContent = labelText;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.maxLength = 200;
+      input.placeholder = placeholder;
+      input.value = value;
+      label.appendChild(input);
+      return { label, input };
+    };
+    const nameField = makeField("Name", "Community DLC");
+    const urlField = makeField("Repository URL", "https://example.com/org/kabbak-dlc");
+    const branchField = makeField("Branch", "main", "main");
+    const actions = document.createElement("div");
+    actions.className = "dlc-shop-actions";
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "settings-button-primary";
+    addBtn.textContent = "Add Repository";
+    const statusEl = document.createElement("span");
+    statusEl.className = "settings-field-hint";
+    actions.append(addBtn, statusEl);
+    addBox.append(addHead, nameField.label, urlField.label, branchField.label, actions);
+
+    body.append(hint, sourcesHost, addBox);
+    panel.append(head, body);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    closeBtn.addEventListener("click", close);
+    overlay.addEventListener("mousedown", (event) => {
+      if (event.target === overlay) close();
+    });
+    document.addEventListener("keydown", function onKey(event) {
+      if (event.key === "Escape") {
+        document.removeEventListener("keydown", onKey);
+        close();
+      }
+    });
+
+    addBtn.addEventListener("click", async () => {
+      const name = String(nameField.input.value || "").trim();
+      const url = String(urlField.input.value || "").trim();
+      const branch = String(branchField.input.value || "main").trim();
+      if (!url) {
+        statusEl.textContent = "A repository URL is required.";
+        statusEl.classList.add("is-error");
+        return;
+      }
+      addBtn.disabled = true;
+      statusEl.classList.remove("is-error");
+      statusEl.textContent = "Adding…";
+      try {
+        await requestJson("POST", "/api/v1/admin/dlc/sources", { name, url, branch });
+        nameField.input.value = "";
+        urlField.input.value = "";
+        await window.TaroTimePluginHost?.refresh?.();
+        await loadDlcSources();
+        await loadPlugins();
+        statusEl.textContent = "Repository added.";
+        setStatus("DLC repository added.");
+      } catch (error) {
+        statusEl.textContent = `Could not add repository. ${error?.message || ""}`;
+        statusEl.classList.add("is-error");
+      } finally {
+        addBtn.disabled = false;
+      }
+    });
+
+    void loadDlcSources();
+    nameField.input.focus();
+  }
+
   async function loadDlcSources() {
+    if (!document.getElementById("admin-dlc-sources")) {
+      return;
+    }
     try {
       const [payload, publishPayload] = await Promise.all([
         requestJson("GET", "/api/v1/admin/dlc/sources"),
@@ -1833,7 +2185,20 @@
       adminBtn.hidden = !allowed;
     }
     if (!allowed && adminSection && !adminSection.hidden) {
-      document.getElementById("open-home")?.click();
+      // Access is unknown until the API responds (roles/scopes arrive with it).
+      // Only bounce a fully resolved non-admin, otherwise a slow/late access
+      // update yanks the user from Admin back to Home.
+      const access = window.TarotAppConfig?.getConnectionAccess?.();
+      const hasIdentity = Array.isArray(access?.roles) || Array.isArray(access?.scopes);
+      const resolved = Boolean(
+        access
+        && access.authenticated === true
+        && hasIdentity
+        && (access.roles.length > 0 || access.scopes.length > 0)
+      );
+      if (resolved) {
+        document.getElementById("open-home")?.click();
+      }
     }
     if (allowed) {
       void loadOverview();
@@ -1867,35 +2232,7 @@
         }
       });
     }
-    const addSourceBtn = document.getElementById("admin-dlc-source-add");
-    if (addSourceBtn) {
-      addSourceBtn.addEventListener("click", async () => {
-        const name = String(document.getElementById("admin-dlc-source-name")?.value || "").trim();
-        const url = String(document.getElementById("admin-dlc-source-url")?.value || "").trim();
-        const branch = String(document.getElementById("admin-dlc-source-branch")?.value || "main").trim();
-        if (!url) {
-          setStatus("A repository URL is required.", true);
-          return;
-        }
-        addSourceBtn.disabled = true;
-        setStatus("Adding DLC repository…");
-        try {
-          await requestJson("POST", "/api/v1/admin/dlc/sources", { name, url, branch });
-          const nameEl = document.getElementById("admin-dlc-source-name");
-          const urlEl = document.getElementById("admin-dlc-source-url");
-          if (nameEl) nameEl.value = "";
-          if (urlEl) urlEl.value = "";
-          await window.TaroTimePluginHost?.refresh?.();
-          await loadDlcSources();
-          await loadPlugins();
-          setStatus("DLC repository added.");
-        } catch (error) {
-          setStatus(`Could not add repository. ${error?.message || ""}`, true);
-        } finally {
-          addSourceBtn.disabled = false;
-        }
-      });
-    }
+    document.getElementById("admin-dlc-repos-open")?.addEventListener("click", openDlcReposOverlay);
     const importDlcBtn = document.getElementById("admin-import-dlc");
     const importDlcFile = document.getElementById("admin-import-dlc-file");
     if (importDlcBtn && importDlcFile) {

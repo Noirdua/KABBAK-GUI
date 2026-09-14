@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260913-publish">
+  <link rel="stylesheet" href="app/styles.css?v=20260913-one-row">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -674,27 +674,6 @@
       <section id="admin-panel-plugins" class="admin-panel" hidden>
         <div class="settings-panel settings-panel-wide">
           <div class="settings-panel-head">
-            <strong>DLC Repositories</strong>
-            <span>The primary repo is the main catalog checkout. Additional repos merge into the shop; matching names keep the primary copy.</span>
-          </div>
-          <div id="admin-dlc-sources" class="dlc-plugin-list"></div>
-          <div class="settings-grid admin-client-create-grid" style="margin-top:10px;">
-            <label class="settings-field">Name
-              <input id="admin-dlc-source-name" type="text" maxlength="80" placeholder="Community DLC">
-            </label>
-            <label class="settings-field">Repository URL
-              <input id="admin-dlc-source-url" type="url" placeholder="https://example.com/org/kabbak-dlc">
-            </label>
-            <label class="settings-field">Branch
-              <input id="admin-dlc-source-branch" type="text" value="main" placeholder="main">
-            </label>
-          </div>
-          <div class="dlc-shop-actions" style="margin-top:10px;">
-            <button id="admin-dlc-source-add" class="settings-button-primary" type="button">Add Repository</button>
-          </div>
-        </div>
-        <div class="settings-panel settings-panel-wide">
-          <div class="settings-panel-head">
             <strong>DLC Catalog</strong>
             <span>Everything in one list: installed items get Uninstall, plugins get Settings, available items get Install. Packs are curated lists.</span>
           </div>
@@ -710,6 +689,7 @@
           </div>
           <div id="admin-dlc-catalog" class="dlc-plugin-list"></div>
           <div class="dlc-shop-actions" style="margin-top:10px;">
+            <button id="admin-dlc-repos-open" class="dlc-shop-btn" type="button" title="Manage DLC repositories">Repositories</button>
             <button id="admin-dlc-refresh" class="dlc-shop-btn" type="button" title="Pull latest DLC repos and reload plugins">Refresh</button>
             <button id="admin-create-plugin" class="dlc-shop-btn" type="button">Create DLC</button>
             <button id="admin-import-dlc" class="dlc-shop-btn" type="button">Import DLC</button>
@@ -2466,7 +2446,7 @@
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260911-profile-timing-fix"></script>
-  <script src="app/ui-dlc-shop.js?v=20260913-jsonl-detail"></script>
+  <script src="app/ui-dlc-shop.js?v=20260913-stable-deck-id"></script>
   <script src="app/ui-chrome.js?v=20260911-export-marks"></script>
   <script src="app/ui-navigation.js?v=20260902-syn"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>

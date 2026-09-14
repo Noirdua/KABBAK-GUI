@@ -1142,6 +1142,72 @@
       padding-top: 8px;
       border-top: 1px dashed var(--tt-border);
     }
+    .dlc-publish-status {
+      flex: 0 1 auto;
+      min-width: 0;
+      max-width: 100%;
+    }
+    .dlc-item-editor-panel {
+      width: min(980px, 96vw);
+      max-width: 96vw;
+    }
+    .dlc-item-editor-body {
+      display: flex;
+      gap: 12px;
+      min-height: 360px;
+    }
+    .dlc-item-files {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex: 0 0 240px;
+      max-height: 62vh;
+      overflow: auto;
+    }
+    .dlc-item-file {
+      text-align: left;
+      padding: 5px 8px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--tt-text);
+      font-size: 12px;
+      font-family: monospace;
+      cursor: pointer;
+      word-break: break-all;
+    }
+    .dlc-item-file:hover {
+      background: color-mix(in srgb, var(--tt-accent) 14%, transparent);
+    }
+    .dlc-item-file.is-active {
+      background: color-mix(in srgb, var(--tt-accent) 24%, transparent);
+      border-color: var(--tt-accent);
+    }
+    .dlc-item-file.is-readonly {
+      opacity: 0.6;
+    }
+    .dlc-item-editor-main {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .dlc-item-textarea {
+      flex: 1 1 auto;
+      min-height: 320px;
+      width: 100%;
+      resize: vertical;
+      padding: 10px;
+      border: 1px solid var(--tt-border);
+      border-radius: 8px;
+      background: var(--tt-bg-deep);
+      color: var(--tt-text);
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre;
+    }
     .dlc-publish-cred-row input {
       padding: 5px 8px;
       border: 1px solid var(--tt-border);
@@ -2617,6 +2683,32 @@
       border-radius: 10px;
       background: var(--tt-bg-deepest);
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    }
+    .dlc-ctx-menu[hidden] {
+      display: none;
+    }
+    .dlc-repos-panel {
+      width: min(720px, 100%);
+    }
+    .dlc-repos-body {
+      display: grid;
+      gap: 12px;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .dlc-repos-add {
+      display: grid;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--tt-border);
+    }
+    .dlc-deck-loose-picker {
+      z-index: 290;
+    }
+    .dlc-deck-loose-picker .dlc-settings-overlay-panel {
+      width: min(720px, 100%);
     }
     .dlc-ctx-menu button {
       text-align: left;

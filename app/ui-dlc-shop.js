@@ -3165,11 +3165,12 @@
     return concatBytes([...locals, ...centrals, eocd]);
   }
 
-  function openCreateDlc(hostEl, { onCreated } = {}) {
+  function openCreateDlc(hostEl, { onCreated, editItem } = {}) {
     if (!isAdmin()) {
       setStatus("Admin key required to create DLC.", true);
       return;
     }
+    const editing = editItem && typeof editItem === "object";
     document.querySelector(".dlc-create-overlay")?.remove();
     const overlay = document.createElement("div");
     overlay.className = "dlc-settings-overlay dlc-create-overlay";
@@ -3178,7 +3179,7 @@
     overlay.innerHTML = `
       <div class="dlc-settings-overlay-panel">
         <div class="dlc-settings-overlay-head">
-          <strong>Create DLC</strong>
+          <strong>${editing ? `Edit ${editItem.title || editItem.name}` : "Create DLC"}</strong>
           <button type="button" class="dlc-shop-btn" data-action="close">Close</button>
         </div>
         <div class="dlc-settings-overlay-body">
@@ -4083,10 +4084,11 @@
             kind: String(overlay.querySelector(".dlc-create-ref-kind")?.value || "dictionary").trim(),
             keyScheme: String(overlay.querySelector(".dlc-create-ref-scheme")?.value || "word").trim(),
             fieldConfig: referenceFieldConfig,
-            listOrder: getRefListKeys()
+            listOrder: getRefListKeys(),
+            ...(editing ? { overwrite: true, renameFrom: editItem.name } : {})
           }
         );
-        setFormStatus(`Saved '${result?.reference?.title || result?.reference?.id}'.`);
+        setFormStatus(`${editing ? "Updated" : "Saved"} '${result?.reference?.title || result?.reference?.id}'. Install or Publish it from Admin → DLC when ready.`);
         overlay.remove();
         if (typeof onCreated === "function") {
           void Promise.resolve(onCreated(result?.reference)).catch(() => {});
@@ -4297,11 +4299,12 @@
             tradition: String(overlay.querySelector(".dlc-create-text-tradition")?.value || "").trim(),
             format: String(overlay.querySelector(".dlc-create-text-format")?.value || previewState.format || "").trim(),
             text: sourceText,
-            document: collectEditedDocument(overlay, previewState)
+            document: collectEditedDocument(overlay, previewState),
+            ...(editing ? { overwrite: true, renameFrom: editItem.name } : {})
           }
         );
-        setFormStatus(`Saved '${result?.text?.title || result?.text?.id}'. Storage is refreshing so it appears in the library.`);
-        setStatus(`Created text '${result?.text?.id}'.`);
+        setFormStatus(`${editing ? "Updated" : "Saved"} '${result?.text?.title || result?.text?.id}'. Install or Publish it from Admin → DLC when ready.`);
+        setStatus(`${editing ? "Updated" : "Created"} text '${result?.text?.id}'.`);
         if (typeof onCreated === "function") {
           await onCreated(result?.text);
         }
@@ -4481,6 +4484,78 @@
         if (ctxMenu) ctxMenu.hidden = true;
       }
     });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") hideDeckMenus();
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (ctxMenu && !ctxMenu.hidden && !event.target.closest("[data-role='deck-ctx']")) {
+        hideDeckMenus();
+      }
+    }, true);
+
+    const assignLooseToSlot = (slotKey, path) => {
+      const previous = deckState.assigned[slotKey];
+      deckState.assigned[slotKey] = path;
+      deckState.pendingLoose = previous || "";
+      renderDeckEditor();
+    };
+
+    const openLoosePicker = (slot) => {
+      const used = new Set(Object.values(deckState.assigned).filter(Boolean));
+      const loose = deckState.files.filter((entry) => !used.has(entry.path));
+      if (!loose.length) {
+        setFormStatus("No unmapped images left to place.", true);
+        return;
+      }
+      document.querySelector(".dlc-deck-loose-picker")?.remove();
+      const picker = document.createElement("div");
+      picker.className = "dlc-settings-overlay dlc-deck-loose-picker";
+      picker.setAttribute("role", "dialog");
+      picker.setAttribute("aria-modal", "true");
+      const panel = document.createElement("div");
+      panel.className = "dlc-settings-overlay-panel";
+      const head = document.createElement("div");
+      head.className = "dlc-settings-overlay-head";
+      const title = document.createElement("strong");
+      title.textContent = `Place image on ${slotDisplayLabel(slot)}`;
+      const closeBtn = document.createElement("button");
+      closeBtn.type = "button";
+      closeBtn.className = "dlc-shop-btn";
+      closeBtn.textContent = "Close";
+      head.append(title, closeBtn);
+      const body = document.createElement("div");
+      body.className = "dlc-settings-overlay-body";
+      const hint = document.createElement("p");
+      hint.className = "settings-field-hint";
+      hint.textContent = "Pick an unmapped image for this card.";
+      const grid = document.createElement("div");
+      grid.className = "dlc-deck-loose-list";
+      loose.forEach((entry) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "dlc-deck-loose-item";
+        const img = document.createElement("img");
+        img.src = entry.url;
+        img.alt = entry.path;
+        const name = document.createElement("span");
+        name.textContent = entry.path.replace(/\\/g, "/").split("/").pop();
+        item.append(img, name);
+        item.addEventListener("click", () => {
+          picker.remove();
+          assignLooseToSlot(slot.key, entry.path);
+        });
+        grid.appendChild(item);
+      });
+      body.append(hint, grid);
+      panel.append(head, body);
+      picker.appendChild(panel);
+      const close = () => picker.remove();
+      closeBtn.addEventListener("click", close);
+      picker.addEventListener("click", (event) => {
+        if (event.target === picker) close();
+      });
+      document.body.appendChild(picker);
+    };
 
     const renderDeckEditor = () => {
       const statsEl = overlay.querySelector("[data-role='deck-stats']");
@@ -4557,7 +4632,13 @@
           card.addEventListener("click", () => {
             if (file?.url) {
               openDeckPreview(file.url, displayName, file.path);
+              return;
             }
+            if (deckState.pendingLoose) {
+              assignLooseToSlot(slot.key, deckState.pendingLoose);
+              return;
+            }
+            openLoosePicker(slot);
           });
           card.addEventListener("contextmenu", (event) => {
             const items = [
@@ -4782,21 +4863,9 @@
       });
     });
 
-    overlay.querySelector(".dlc-create-deck-folder").addEventListener("change", (event) => {
-      const files = [...(event.currentTarget.files || [])].filter((file) => DECK_IMAGE_EXT.test(file.name));
-      if (!files.length) {
-        setFormStatus("No images found in that folder.", true);
-        return;
-      }
+    const applyDeckEntries = (entries) => {
       revokeFaceUrls();
-      deckState.files = files.map((file) => {
-        const path = String(file.webkitRelativePath || file.name).replace(/\\/g, "/");
-        return {
-          path,
-          file,
-          url: URL.createObjectURL(file)
-        };
-      });
+      deckState.files = entries;
       deckState.assigned = {};
       deckState.pendingLoose = "";
       deckState.cardNames = {};
@@ -4832,6 +4901,23 @@
       overlay.querySelector("[data-role='deck-fields']").hidden = false;
       renderDeckEditor();
       setFormStatus("Check the mapping, then save. Unmapped images stay on the device until you assign or skip them.");
+    };
+
+    overlay.querySelector(".dlc-create-deck-folder").addEventListener("change", (event) => {
+      const files = [...(event.currentTarget.files || [])].filter((file) => DECK_IMAGE_EXT.test(file.name));
+      if (!files.length) {
+        setFormStatus("No images found in that folder.", true);
+        return;
+      }
+      const entries = files.map((file) => {
+        const path = String(file.webkitRelativePath || file.name).replace(/\\/g, "/");
+        return {
+          path,
+          file,
+          url: URL.createObjectURL(file)
+        };
+      });
+      applyDeckEntries(entries);
     });
 
     overlay.querySelector('[data-action="deck-help"]').addEventListener("click", () => {
@@ -5058,7 +5144,12 @@
         setFormStatus(`Uploading ${mapped.length} card(s)…`);
         const result = await new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
-          xhr.open("POST", window.TarotDataService.buildApiUrl("/api/v1/dlc/decks"));
+          xhr.open(
+            "POST",
+            window.TarotDataService.buildApiUrl(
+              `/api/v1/dlc/decks${editing ? `?overwrite=1&renameFrom=${encodeURIComponent(editItem.name)}` : ""}`
+            )
+          );
           xhr.setRequestHeader("Content-Type", "application/zip");
           const apiKey = window.TarotDataService.getApiKey?.();
           if (apiKey) xhr.setRequestHeader("x-api-key", apiKey);
@@ -5083,8 +5174,8 @@
           xhr.onerror = () => reject(new Error("Network error during deck upload."));
           xhr.send(zipBytes);
         });
-        setFormStatus(`Saved '${result?.deck?.title || id}'. Storage is refreshing so the deck appears.`);
-        setStatus(`Created deck '${result?.deck?.id || id}'.`);
+        setFormStatus(`${editing ? "Updated" : "Saved"} '${result?.deck?.title || id}'. Install or Publish it from Admin → DLC when ready.`);
+        setStatus(`${editing ? "Updated" : "Created"} deck '${result?.deck?.id || id}'.`);
         if (typeof onCreated === "function") {
           await onCreated(result?.deck);
         }
@@ -5096,6 +5187,152 @@
         button.disabled = false;
       }
     });
+
+    const prefillEdit = async () => {
+      if (!editing) return;
+      const kind = editItem.kind === "gui" ? "plugin" : editItem.kind;
+      const query = [
+        `kind=${encodeURIComponent(editItem.kind)}`,
+        `name=${encodeURIComponent(editItem.name)}`,
+        `sourceId=${encodeURIComponent(editItem.sourceId || "")}`,
+        `id=${encodeURIComponent(editItem.id || "")}`
+      ].join("&");
+      overlay.querySelector(`.dlc-create-kind[data-kind="${kind}"]`)?.click();
+      setFormStatus("Loading saved item…");
+      let draft = null;
+      try {
+        draft = await window.TarotDataService.requestJson(
+          "GET",
+          window.TarotDataService.buildApiUrl(`/api/v1/admin/dlc/item/draft?${query}`)
+        );
+      } catch (error) {
+        setFormStatus(error?.message || "Could not load the saved item.", true);
+        return;
+      }
+      try {
+        if (kind === "reference" && draft?.reference) {
+          const manifest = draft.reference.manifest || {};
+          const entries = draft.reference.entries || {};
+          referenceIdManual = true;
+          referenceFileName = `${manifest.id || editItem.name}.json`;
+          referenceParsed = entries;
+          referenceSource = JSON.stringify(entries);
+          if (manifest.fieldConfig && typeof manifest.fieldConfig === "object") {
+            referenceFieldConfig = manifest.fieldConfig;
+          }
+          referenceListOrder = Array.isArray(manifest.listOrder) ? manifest.listOrder.slice() : [];
+          overlay.querySelector(".dlc-create-ref-title").value = manifest.title || editItem.title || "";
+          overlay.querySelector(".dlc-create-ref-id").value = manifest.id || editItem.name;
+          overlay.querySelector(".dlc-create-ref-kind").value = manifest.kind || "dictionary";
+          overlay.querySelector(".dlc-create-ref-scheme").value = manifest.keyScheme || "word";
+          overlay.querySelector(".dlc-create-ref-description").value = manifest.description || "";
+          syncRefKindUi();
+          await runReferencePreview({ fillMeta: false });
+          return;
+        }
+        if (kind === "text" && draft?.text) {
+          const manifest = draft.text.manifest || {};
+          idManual = true;
+          sourceText = String(draft.text.sourceText || "");
+          sourceName = `${manifest.id || editItem.name}.txt`;
+          overlay.querySelector(".dlc-create-text-body").value = sourceText;
+          overlay.querySelector(".dlc-create-text-title").value = manifest.title || editItem.title || "";
+          overlay.querySelector(".dlc-create-text-id").value = manifest.id || editItem.name;
+          overlay.querySelector(".dlc-create-text-description").value = manifest.description || "";
+          overlay.querySelector(".dlc-create-text-language").value = manifest.language || "English";
+          overlay.querySelector(".dlc-create-text-tradition").value = manifest.tradition || "";
+          await runTextPreview({
+            syncFields: false,
+            keepFormat: true,
+            format: manifest?.input?.format || undefined,
+            statusText: "Loading saved text…"
+          });
+          return;
+        }
+        if (kind === "deck" && draft?.deck) {
+          const manifest = draft.deck || {};
+          const listing = await window.TarotDataService.requestJson(
+            "GET",
+            window.TarotDataService.buildApiUrl(`/api/v1/admin/dlc/item/files?${query}`)
+          );
+          const imageFiles = (listing?.files || []).filter((file) => DECK_IMAGE_EXT.test(file.path));
+          if (!imageFiles.length) {
+            setFormStatus("No card images found in this deck.", true);
+            return;
+          }
+          const entries = [];
+          for (const file of imageFiles) {
+            const blob = await window.TarotDataService.requestBlob(
+              "GET",
+              window.TarotDataService.buildApiUrl(
+                `/api/v1/admin/dlc/item/raw?${query}&path=${encodeURIComponent(file.path)}`
+              )
+            );
+            const name = file.path.split("/").pop();
+            const deckFile = new File([blob], name, { type: blob.type || "application/octet-stream" });
+            entries.push({ path: file.path, file: deckFile, url: URL.createObjectURL(deckFile) });
+          }
+          // Editing keeps the deck's id stable: renaming the title must not
+          // change identity or the runtime/installed deck would look new.
+          deckState.idManual = true;
+          applyDeckEntries(entries);
+          const byBase = new Map(entries.map((entry) => [entry.path.split("/").pop().toLowerCase(), entry.path]));
+          Object.entries(manifest.majors?.cards || {}).forEach(([trump, fileName]) => {
+            const path = byBase.get(String(fileName).toLowerCase());
+            if (path) deckState.assigned[`major-${trump}`] = path;
+          });
+          const minorCards = manifest.minors?.cards || {};
+          deckSlots.forEach((slot) => {
+            if (slot.key.startsWith("major-")) return;
+            const parts = slot.key.split("-");
+            const suitId = parts[1] === "pentacles" ? "disks" : parts[1];
+            const rankId = parts.slice(2).join("-");
+            const path = byBase.get(String(minorCards[`${rankId} of ${suitId}`] || "").toLowerCase());
+            if (path) deckState.assigned[slot.key] = path;
+          });
+          Object.entries(manifest.majorNameOverridesByTrump || {}).forEach(([trump, name]) => {
+            deckState.cardNames[`major-${trump}`] = name;
+          });
+          deckSlots.forEach((slot) => {
+            if (slot.key.startsWith("major-")) return;
+            const parts = slot.key.split("-");
+            const suitId = parts[1] === "pentacles" ? "disks" : parts[1];
+            const rankId = parts.slice(2).join("-");
+            const saved = (manifest.minorNameOverrides || {})[`${rankId} of ${suitId}`];
+            if (saved) deckState.cardNames[slot.key] = saved;
+          });
+          Object.entries(manifest.suitNameOverrides || {}).forEach(([suitId, name]) => {
+            const id = suitId === "disks" ? "pentacles" : suitId;
+            if (DECK_SUITS.some((suit) => suit.id === id)) deckState.suitNames[id] = name;
+          });
+          if (manifest.cardBack) {
+            const backPath = byBase.get(String(manifest.cardBack).toLowerCase());
+            const backEntry = backPath ? entries.find((entry) => entry.path === backPath) : null;
+            if (backEntry) {
+              deckState.backFile = { ...backEntry, name: backEntry.path.split("/").pop() };
+            }
+          }
+          const titleEl = overlay.querySelector(".dlc-create-deck-title");
+          const idEl = overlay.querySelector(".dlc-create-deck-id");
+          if (titleEl) titleEl.value = manifest.name || editItem.title || titleEl.value;
+          if (idEl) idEl.value = manifest.id || editItem.name;
+          DECK_SUITS.forEach((suit) => {
+            const aliasEl = overlay.querySelector(`.dlc-deck-alias-${suit.id}`);
+            if (aliasEl) aliasEl.value = deckState.suitNames[suit.id] || "";
+          });
+          renderDeckEditor();
+          setFormStatus(`Loaded ${entries.length} card image(s) with the saved mapping. Adjust, then save to overwrite.`);
+          return;
+        }
+        setFormStatus("This item opens in the file editor instead.", false);
+      } catch (error) {
+        setFormStatus(error?.message || "Could not load the saved item.", true);
+      }
+    };
+
+    if (editing) {
+      void prefillEdit();
+    }
   }
 
   function openCreatePlugin(hostEl, options) {
