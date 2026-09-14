@@ -2839,6 +2839,26 @@
     .dlc-repos-panel {
       width: min(720px, 100%);
     }
+    .admin-dlc-search-row {
+      margin: 10px 0 0;
+    }
+    .admin-dlc-search {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid var(--tt-border);
+      border-radius: 8px;
+      background: var(--tt-bg);
+      color: var(--tt-text);
+      font-size: 13px;
+    }
+    .admin-dlc-search:focus {
+      outline: none;
+      border-color: var(--tt-accent);
+    }
+    .dlc-load-more {
+      display: block;
+      margin: 12px auto 0;
+    }
     .dlc-repos-body {
       display: grid;
       gap: 12px;

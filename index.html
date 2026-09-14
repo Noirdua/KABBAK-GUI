@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260914-zen-raw">
+  <link rel="stylesheet" href="app/styles.css?v=20260914-dlc-search">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -676,6 +676,9 @@
           <div class="settings-panel-head">
             <strong>DLC Catalog</strong>
             <span>Everything in one list: installed items get Uninstall, plugins get Settings, available items get Install. Packs are curated lists.</span>
+          </div>
+          <div class="admin-dlc-search-row">
+            <input id="admin-dlc-search" type="search" class="admin-dlc-search" placeholder="Search DLC by name, title, or id…" autocomplete="off" spellcheck="false">
           </div>
           <div id="admin-dlc-filter" class="admin-dlc-filter" role="group" aria-label="Filter DLC by type">
             <button type="button" class="dlc-shop-btn is-active" data-dlc-filter="all">All</button>

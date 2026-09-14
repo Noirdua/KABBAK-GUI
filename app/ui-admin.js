@@ -1672,6 +1672,44 @@
 
   let allDlcItems = [];
   let activeDlcFilter = "all";
+  let dlcSearchQuery = "";
+  const DLC_RENDER_STEP = 60;
+  let dlcRenderLimit = DLC_RENDER_STEP;
+  let dlcLoadObserver = null;
+
+  function matchesDlcSearch(item, query) {
+    const q = String(query || "").trim().toLowerCase();
+    if (!q) return true;
+    return [item?.name, item?.title, item?.id, item?.description]
+      .some((value) => String(value || "").toLowerCase().includes(q));
+  }
+
+  function buildDlcRenderGroups(items) {
+    const groups = [];
+    groupCatalogItems(items).forEach(([kind, kindItems]) => {
+      if (kind !== "deck") {
+        groups.push({ kind, headingLabel: KIND_LABELS[kind] || kind, items: kindItems });
+        return;
+      }
+      const bySystem = new Map();
+      kindItems.forEach((item) => {
+        const system = String(item?.system || "tarot").trim().toLowerCase() || "tarot";
+        if (!bySystem.has(system)) bySystem.set(system, []);
+        bySystem.get(system).push(item);
+      });
+      [...bySystem.entries()]
+        .sort((a, b) => (a[0] === "tarot" ? -1 : b[0] === "tarot" ? 1 : a[0].localeCompare(b[0])))
+        .forEach(([system, deckItems]) => {
+          const headingLabel = system === "tarot"
+            ? "Tarot Decks"
+            : system === "iching"
+              ? "I Ching Decks"
+              : `${system.charAt(0).toUpperCase()}${system.slice(1)} Decks`;
+          groups.push({ kind: "deck", headingLabel, items: deckItems });
+        });
+    });
+    return groups;
+  }
 
   function syncDlcFilterButtons() {
     document.querySelectorAll("#admin-dlc-filter [data-dlc-filter]").forEach((button) => {
@@ -1684,29 +1722,34 @@
     if (!dlcCatalogEl) return;
     dlcCatalogEl.innerHTML = "";
 
-    const visibleItems = mergeCatalogItems(activeDlcFilter === "all"
+    const searched = mergeCatalogItems(activeDlcFilter === "all"
       ? allDlcItems
       : allDlcItems.filter((item) => item?.kind === activeDlcFilter));
+    const visibleItems = dlcSearchQuery.trim()
+      ? searched.filter((item) => matchesDlcSearch(item, dlcSearchQuery))
+      : searched;
 
     if (!visibleItems.length) {
       const empty = document.createElement("span");
       empty.className = "settings-field-hint";
-      empty.textContent = activeDlcFilter === "all"
-        ? "The DLC catalog is empty."
-        : `No ${KIND_LABELS[activeDlcFilter] || activeDlcFilter} in the catalog.`;
+      empty.textContent = dlcSearchQuery.trim()
+        ? `No DLC items match "${dlcSearchQuery.trim()}".`
+        : activeDlcFilter === "all"
+          ? "The DLC catalog is empty."
+          : `No ${KIND_LABELS[activeDlcFilter] || activeDlcFilter} in the catalog.`;
       dlcCatalogEl.appendChild(empty);
       return;
     }
 
     // Groups are rendered by kind; decks split further by system (tarot,
     // iching, …) so new deck types slot in without code changes.
-    const renderKindGroup = (kind, items, headingLabel) => {
-      const availableCount = items.filter((item) => item?.status === "available").length;
+    const renderKindGroup = (kind, items, headingLabel, fullItems = items) => {
+      const availableCount = fullItems.filter((item) => item?.status === "available").length;
       const installableKind = kind === "plugin" || kind === "api" || kind === "gui" || kind === "deck" || kind === "text" || kind === "reference";
-      dlcCatalogEl.appendChild(createKindHeading(kind, items.length, {
+      dlcCatalogEl.appendChild(createKindHeading(kind, fullItems.length, {
         label: headingLabel,
         ...(installableKind
-          ? { installAll: (button) => installAvailableItems(items, { button, kindLabel: headingLabel }), disabled: availableCount === 0 }
+          ? { installAll: (button) => installAvailableItems(fullItems, { button, kindLabel: headingLabel }), disabled: availableCount === 0 }
           : {})
       }));
       items.forEach((item) => {
@@ -1954,28 +1997,44 @@
       });
     };
 
-    groupCatalogItems(visibleItems).forEach(([kind, items]) => {
-      if (kind !== "deck") {
-        renderKindGroup(kind, items, KIND_LABELS[kind] || kind);
-        return;
-      }
-      const bySystem = new Map();
-      items.forEach((item) => {
-        const system = String(item?.system || "tarot").trim().toLowerCase() || "tarot";
-        if (!bySystem.has(system)) bySystem.set(system, []);
-        bySystem.get(system).push(item);
-      });
-      [...bySystem.entries()]
-        .sort((a, b) => (a[0] === "tarot" ? -1 : b[0] === "tarot" ? 1 : a[0].localeCompare(b[0])))
-        .forEach(([system, deckItems]) => {
-          const label = system === "tarot"
-            ? "Tarot Decks"
-            : system === "iching"
-              ? "I Ching Decks"
-              : `${system.charAt(0).toUpperCase()}${system.slice(1)} Decks`;
-          renderKindGroup("deck", deckItems, label);
-        });
+    // Render in chunks so a large catalog (e.g. thousands of texts) stays
+    // responsive; a "Show more" button plus scroll sentinel paginate the rest.
+    const groups = buildDlcRenderGroups(visibleItems);
+    let remaining = Math.max(DLC_RENDER_STEP, dlcRenderLimit);
+    let shown = 0;
+    groups.forEach((group) => {
+      if (remaining <= 0) return;
+      const slice = group.items.slice(0, remaining);
+      remaining -= slice.length;
+      shown += slice.length;
+      renderKindGroup(group.kind, slice, group.headingLabel, group.items);
     });
+
+    if (shown < visibleItems.length) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "dlc-shop-btn dlc-load-more";
+      more.textContent = `Show more (${shown} of ${visibleItems.length})`;
+      more.addEventListener("click", () => {
+        dlcRenderLimit += DLC_RENDER_STEP;
+        renderDlcCatalog();
+      });
+      dlcCatalogEl.appendChild(more);
+      if (typeof IntersectionObserver === "function") {
+        dlcLoadObserver?.disconnect();
+        dlcLoadObserver = new IntersectionObserver((entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            dlcLoadObserver.disconnect();
+            dlcRenderLimit += DLC_RENDER_STEP;
+            renderDlcCatalog();
+          }
+        }, { rootMargin: "300px 0px" });
+        dlcLoadObserver.observe(more);
+      }
+    } else {
+      dlcLoadObserver?.disconnect();
+      dlcLoadObserver = null;
+    }
   }
 
   function renderDlcSources(sources, publishMap = new Map()) {
@@ -2460,11 +2519,18 @@
     document.querySelectorAll("#admin-dlc-filter [data-dlc-filter]").forEach((button) => {
       button.addEventListener("click", () => {
         activeDlcFilter = String(button.dataset.dlcFilter || "all");
+        dlcRenderLimit = DLC_RENDER_STEP;
         syncDlcFilterButtons();
         renderDlcCatalog();
       });
     });
     syncDlcFilterButtons();
+
+    document.getElementById("admin-dlc-search")?.addEventListener("input", (event) => {
+      dlcSearchQuery = String(event.target.value || "");
+      dlcRenderLimit = DLC_RENDER_STEP;
+      renderDlcCatalog();
+    });
 
     const refreshPanel = (panelId) => {
       if (panelId === "overview") void loadOverview();

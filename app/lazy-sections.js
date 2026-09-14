@@ -135,7 +135,7 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260914-deck-groups"
+      "app/ui-admin.js?v=20260914-dlc-search"
     ],
     profile: [
       "app/ui-profile.js?v=20260913-decan-detail"
