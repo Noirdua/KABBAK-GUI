@@ -2759,6 +2759,7 @@
   async function ensureAlphabetTextSection() {
     getElements();
     bindControls();
+    ensureZenReaderButton();
     window.TarotChromeUi?.initializeSidebarPopouts?.();
     window.TarotChromeUi?.initializeDetailPopouts?.();
 
@@ -2831,6 +2832,7 @@
   document.addEventListener("section:changed", (event) => {
     if (event?.detail?.activeSection !== "alphabet-text") {
       removeSearchOverlay();
+      closeZenReader();
     }
   });
 
@@ -2844,8 +2846,352 @@
     await openSearchResult(result, strongsId);
   }
 
+  // --- Zen Reader ------------------------------------------------------------
+  // Fullscreen, reflowable reading view over the current section (or whole
+  // text) with resizable text, line width, and a speed-reading (RSVP) mode.
+  const ZEN_STORAGE = {
+    fontSize: "kabbak.zenReader.fontSize",
+    lineWidth: "kabbak.zenReader.lineWidth",
+    wpm: "kabbak.zenReader.wpm",
+    scope: "kabbak.zenReader.scope",
+    headings: "kabbak.zenReader.headings"
+  };
+  const zenState = {
+    overlay: null,
+    flowEl: null,
+    headingEl: null,
+    rsvpEl: null,
+    wordEl: null,
+    settingsEl: null,
+    fontSize: 20,
+    lineWidth: 46,
+    wpm: 300,
+    scope: "section",
+    showHeadings: false,
+    blocks: [],
+    rsvp: { running: false, words: [], index: 0, timer: 0 },
+    onKey: null
+  };
+
+  function zenNumber(key, fallback) {
+    const value = Number(window.localStorage?.getItem?.(key));
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  function zenWrite(key, value) {
+    try {
+      window.localStorage?.setItem?.(key, String(value));
+    } catch (_error) {
+      // Storage can be unavailable; ignore.
+    }
+  }
+
+  function ensureZenReaderButton() {
+    const host = document.querySelector("#alphabet-text-section .detail-pane-export-controls")
+      || document.querySelector("#alphabet-text-section .alpha-text-heading-tools");
+    if (!(host instanceof HTMLElement) || host.querySelector(".zen-reader-open")) {
+      return;
+    }
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "detail-sequence-btn zen-reader-open";
+    button.textContent = "Zen Reader";
+    button.title = "Open a fullscreen, reflowable reading view";
+    button.addEventListener("click", () => openZenReader());
+    host.appendChild(button);
+  }
+
+  function zenVerseBlocks(scope) {
+    const blocks = [];
+    const pushVerses = (verses, workTitle, heading) => {
+      (Array.isArray(verses) ? verses : []).forEach((verse) => {
+        const text = String(verse?.text || "").trim();
+        if (!text) return;
+        blocks.push({
+          workTitle: String(workTitle || "").trim(),
+          heading: String(heading || "").trim(),
+          reference: String(verse.reference || (verse.number ? `Verse ${verse.number}` : "")).trim(),
+          text
+        });
+      });
+    };
+
+    // The loaded passage carries the verses; the cached catalog sections often
+    // don't, so always prefer it for the current section.
+    const passage = state.currentPassage;
+    const passageHeading = passage?.section?.label || passage?.section?.title || getSelectedSection(getSelectedSource(), getSelectedWork())?.label || "";
+
+    if (scope === "text") {
+      const source = getSelectedSource();
+      (Array.isArray(source?.works) ? source.works : []).forEach((work) => {
+        (Array.isArray(work?.sections) ? work.sections : []).forEach((section) => {
+          pushVerses(section.verses, work.title || work.label || "", section.label || section.title || "");
+        });
+      });
+    }
+    if (!blocks.length) {
+      pushVerses(passage?.verses, "", passageHeading);
+    }
+    return blocks;
+  }
+
+  function zenApplyTypography() {
+    if (!zenState.flowEl) return;
+    zenState.flowEl.style.fontSize = `${zenState.fontSize}px`;
+    zenState.flowEl.style.maxWidth = `${zenState.lineWidth}ch`;
+  }
+
+  function zenRenderFlow() {
+    if (!zenState.flowEl) return;
+    zenState.flowEl.replaceChildren();
+    let lastWork = "";
+    let lastHeading = "";
+    zenState.blocks.forEach((block) => {
+      if (zenState.showHeadings && block.workTitle && block.workTitle !== lastWork) {
+        lastWork = block.workTitle;
+        lastHeading = "";
+        const workHead = document.createElement("h3");
+        workHead.className = "zen-reader-work";
+        workHead.textContent = block.workTitle;
+        zenState.flowEl.appendChild(workHead);
+      }
+      if (zenState.showHeadings && block.heading && block.heading !== lastHeading) {
+        lastHeading = block.heading;
+        const heading = document.createElement("h4");
+        heading.className = "zen-reader-section";
+        heading.textContent = block.heading;
+        zenState.flowEl.appendChild(heading);
+      }
+      const para = document.createElement("p");
+      para.className = "zen-reader-verse";
+      if (zenState.showHeadings && block.reference) {
+        const ref = document.createElement("span");
+        ref.className = "zen-reader-ref";
+        ref.textContent = block.reference;
+        para.appendChild(ref);
+      }
+      para.appendChild(document.createTextNode(block.text));
+      zenState.flowEl.appendChild(para);
+    });
+    zenApplyTypography();
+  }
+
+  function zenStopRsvp() {
+    zenState.rsvp.running = false;
+    if (zenState.rsvp.timer) {
+      window.clearTimeout(zenState.rsvp.timer);
+      zenState.rsvp.timer = 0;
+    }
+  }
+
+  function zenRsvpTick() {
+    if (!zenState.rsvp.running || !zenState.wordEl) return;
+    const words = zenState.rsvp.words;
+    if (zenState.rsvp.index >= words.length) {
+      zenStopRsvp();
+      zenState.wordEl.textContent = "— done —";
+      return;
+    }
+    const word = words[zenState.rsvp.index];
+    zenState.rsvp.index += 1;
+    const focus = Math.max(0, Math.min(word.length - 1, Math.floor(word.length / 3)));
+    zenState.wordEl.replaceChildren(
+      document.createTextNode(word.slice(0, focus)),
+      Object.assign(document.createElement("span"), { className: "zen-reader-orp", textContent: word.charAt(focus) || "" }),
+      document.createTextNode(word.slice(focus + 1))
+    );
+    zenState.rsvp.timer = window.setTimeout(zenRsvpTick, Math.round(60000 / Math.max(60, zenState.wpm)));
+  }
+
+  function zenStartRsvp() {
+    const words = zenState.blocks
+      .map((block) => block.text)
+      .join(" ")
+      .split(/\s+/)
+      .map((word) => word.trim())
+      .filter(Boolean);
+    if (!words.length) return;
+    zenState.rsvp.words = words;
+    zenState.rsvp.index = 0;
+    zenState.rsvp.running = true;
+    zenRsvpTick();
+  }
+
+  function zenToggleRsvp() {
+    if (zenState.rsvp.running) {
+      zenStopRsvp();
+      if (zenState.wordEl) zenState.wordEl.textContent = "Paused";
+    } else {
+      zenStartRsvp();
+    }
+  }
+
+  function zenSetScope(scope) {
+    zenState.scope = scope === "text" ? "text" : "section";
+    zenWrite(ZEN_STORAGE.scope, zenState.scope);
+    zenState.blocks = zenVerseBlocks(zenState.scope);
+    zenStopRsvp();
+    if (zenState.overlay) {
+      zenState.overlay.classList.toggle("is-text-scope", zenState.scope === "text");
+    }
+    zenRenderFlow();
+    const scopeSelect = zenState.overlay?.querySelector(".zen-reader-scope");
+    if (scopeSelect) scopeSelect.value = zenState.scope;
+  }
+
+  function closeZenReader() {
+    zenStopRsvp();
+    if (zenState.onKey) {
+      document.removeEventListener("keydown", zenState.onKey);
+      zenState.onKey = null;
+    }
+    zenState.overlay?.remove();
+    zenState.overlay = null;
+    zenState.flowEl = null;
+  }
+
+  function openZenReader() {
+    closeZenReader();
+    zenState.fontSize = zenNumber(ZEN_STORAGE.fontSize, 20);
+    zenState.lineWidth = zenNumber(ZEN_STORAGE.lineWidth, 46);
+    zenState.wpm = zenNumber(ZEN_STORAGE.wpm, 300);
+    zenState.scope = window.localStorage?.getItem?.(ZEN_STORAGE.scope) === "text" ? "text" : "section";
+    zenState.showHeadings = window.localStorage?.getItem?.(ZEN_STORAGE.headings) === "1";
+    zenState.blocks = zenVerseBlocks(zenState.scope);
+    if (!zenState.blocks.length) {
+      return;
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "zen-reader";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.innerHTML = `
+      <div class="zen-reader-bar">
+        <strong class="zen-reader-title"></strong>
+        <div class="zen-reader-tools">
+          <button type="button" class="zen-reader-btn" data-action="font-smaller" title="Smaller text">A−</button>
+          <button type="button" class="zen-reader-btn" data-action="font-bigger" title="Larger text">A+</button>
+          <button type="button" class="zen-reader-btn" data-action="rsvp" title="Speed reading (space)">Speed</button>
+          <button type="button" class="zen-reader-btn" data-action="settings" title="Reader settings">Settings</button>
+          <button type="button" class="zen-reader-btn" data-action="close" title="Close (Esc)">Close</button>
+        </div>
+      </div>
+      <div class="zen-reader-rsvp" hidden>
+        <div class="zen-reader-word">Ready</div>
+        <div class="zen-reader-rsvp-controls">
+          <button type="button" class="zen-reader-btn" data-action="rsvp-toggle">Start</button>
+          <label class="zen-reader-rsvp-wpm">WPM
+            <input type="range" min="120" max="700" step="10" class="zen-reader-wpm">
+            <span class="zen-reader-wpm-value"></span>
+          </label>
+        </div>
+      </div>
+      <div class="zen-reader-scroll">
+        <div class="zen-reader-flow"></div>
+      </div>
+      <div class="zen-reader-settings" hidden>
+        <label>Text size <input type="range" min="14" max="36" step="1" class="zen-reader-font"></label>
+        <label>Line width <input type="range" min="28" max="80" step="2" class="zen-reader-width"></label>
+        <label>Speed <input type="range" min="120" max="700" step="10" class="zen-reader-settings-wpm"></label>
+        <label>Scope
+          <select class="zen-reader-scope">
+            <option value="section">This section</option>
+            <option value="text">Whole text</option>
+          </select>
+        </label>
+        <label class="zen-reader-check"><input type="checkbox" class="zen-reader-headings"> Show headings &amp; verse numbers</label>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    zenState.overlay = overlay;
+    zenState.flowEl = overlay.querySelector(".zen-reader-flow");
+    zenState.rsvpEl = overlay.querySelector(".zen-reader-rsvp");
+    zenState.wordEl = overlay.querySelector(".zen-reader-word");
+    zenState.settingsEl = overlay.querySelector(".zen-reader-settings");
+    overlay.querySelector(".zen-reader-title").textContent = detailNameEl?.textContent?.trim() || detailSubEl?.textContent?.trim() || "Zen Reader";
+
+    const fontInput = overlay.querySelector(".zen-reader-font");
+    const widthInput = overlay.querySelector(".zen-reader-width");
+    const wpmInput = overlay.querySelector(".zen-reader-wpm");
+    const settingsWpm = overlay.querySelector(".zen-reader-settings-wpm");
+    const wpmValue = overlay.querySelector(".zen-reader-wpm-value");
+    fontInput.value = String(zenState.fontSize);
+    widthInput.value = String(zenState.lineWidth);
+    wpmInput.value = String(zenState.wpm);
+    settingsWpm.value = String(zenState.wpm);
+    wpmValue.textContent = `${zenState.wpm}`;
+    overlay.querySelector(".zen-reader-scope").value = zenState.scope;
+    const headingsInput = overlay.querySelector(".zen-reader-headings");
+    headingsInput.checked = zenState.showHeadings;
+
+    const setFont = (value) => {
+      zenState.fontSize = Math.max(14, Math.min(36, Number(value) || zenState.fontSize));
+      zenWrite(ZEN_STORAGE.fontSize, zenState.fontSize);
+      fontInput.value = String(zenState.fontSize);
+      zenApplyTypography();
+    };
+    const setWidth = (value) => {
+      zenState.lineWidth = Math.max(28, Math.min(80, Number(value) || zenState.lineWidth));
+      zenWrite(ZEN_STORAGE.lineWidth, zenState.lineWidth);
+      widthInput.value = String(zenState.lineWidth);
+      zenApplyTypography();
+    };
+    const setWpm = (value) => {
+      zenState.wpm = Math.max(120, Math.min(700, Number(value) || zenState.wpm));
+      zenWrite(ZEN_STORAGE.wpm, zenState.wpm);
+      wpmInput.value = String(zenState.wpm);
+      settingsWpm.value = String(zenState.wpm);
+      wpmValue.textContent = `${zenState.wpm}`;
+    };
+
+    overlay.addEventListener("click", (event) => {
+      const button = event.target.closest?.("[data-action]");
+      if (!(button instanceof HTMLElement)) return;
+      const action = button.dataset.action;
+      if (action === "close") closeZenReader();
+      else if (action === "font-smaller") setFont(zenState.fontSize - 2);
+      else if (action === "font-bigger") setFont(zenState.fontSize + 2);
+      else if (action === "settings") zenState.settingsEl.hidden = !zenState.settingsEl.hidden;
+      else if (action === "rsvp") {
+        zenState.rsvpEl.hidden = !zenState.rsvpEl.hidden;
+        if (zenState.rsvpEl.hidden) zenStopRsvp();
+      } else if (action === "rsvp-toggle") {
+        zenToggleRsvp();
+        button.textContent = zenState.rsvp.running ? "Pause" : "Start";
+      }
+    });
+    overlay.addEventListener("input", (event) => {
+      if (event.target === fontInput) setFont(fontInput.value);
+      else if (event.target === widthInput) setWidth(widthInput.value);
+      else if (event.target === wpmInput) setWpm(wpmInput.value);
+      else if (event.target === settingsWpm) setWpm(settingsWpm.value);
+    });
+    overlay.querySelector(".zen-reader-scope").addEventListener("change", (event) => {
+      zenSetScope(event.target.value);
+    });
+    headingsInput.addEventListener("change", () => {
+      zenState.showHeadings = headingsInput.checked;
+      zenWrite(ZEN_STORAGE.headings, zenState.showHeadings ? "1" : "0");
+      zenRenderFlow();
+    });
+
+    zenState.onKey = (event) => {
+      if (event.key === "Escape") closeZenReader();
+      else if (event.key === " ") {
+        event.preventDefault();
+        zenToggleRsvp();
+      } else if (event.key === "=" || event.key === "+") setFont(zenState.fontSize + 2);
+      else if (event.key === "-" || event.key === "_") setFont(zenState.fontSize - 2);
+    };
+    document.addEventListener("keydown", zenState.onKey);
+
+    zenRenderFlow();
+  }
+
   window.AlphabetTextUi = {
     ensureAlphabetTextSection,
-    openPassage
+    openPassage,
+    openZenReader
   };
 })();

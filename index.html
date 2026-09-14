@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260914-slot-peek2">
+  <link rel="stylesheet" href="app/styles.css?v=20260914-zen-raw">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -998,11 +998,11 @@
       <div class="tarot-frame-shell">
         <div class="tarot-frame-header">
           <div>
-            <h2 class="tarot-frame-title">Tarot Frame</h2>
+            <h2 class="tarot-frame-title">Frame</h2>
           </div>
           <div class="tarot-frame-actions">
             <button id="tarot-frame-selection-chip" class="tarot-frame-selection-chip" type="button" hidden>0 Selected</button>
-            <div id="tarot-frame-settings-panel" class="tarot-frame-settings-panel" role="dialog" aria-label="Tarot Frame settings" hidden>
+            <div id="tarot-frame-settings-panel" class="tarot-frame-settings-panel" role="dialog" aria-label="Frame settings" hidden>
               <div class="tarot-frame-settings-heading">Layout</div>
               <div id="tarot-frame-layout-options" class="tarot-frame-layout-options">
                 <button class="tarot-frame-layout-option" type="button" data-layout-preset-id="frames" role="menuitemradio" aria-checked="true">
@@ -1042,6 +1042,13 @@
                   <option value="12">1000%</option>
                   <option value="13">1200%</option>
                   <option value="14">1400%</option>
+                </select>
+              </label>
+              <label class="tarot-frame-field" for="tarot-frame-system">
+                <span>Card System</span>
+                <select id="tarot-frame-system">
+                  <option value="tarot">Tarot (78 + back)</option>
+                  <option value="iching">I Ching (64 + back)</option>
                 </select>
               </label>
               <label class="tarot-frame-field" for="tarot-frame-deck-select">
@@ -1394,6 +1401,10 @@
           <div class="meta-card">
             <strong>Planetary Influence</strong>
             <p id="iching-detail-planet" class="body-text">--</p>
+          </div>
+          <div class="meta-card" id="iching-meta-deck-card" hidden>
+            <strong>Deck Card</strong>
+            <div id="iching-detail-deck-image" class="iching-deck-card"></div>
           </div>
           <div class="meta-card">
             <strong>Tarot Correspondences</strong>
@@ -2439,14 +2450,14 @@
   <script src="app/plugins-host.js?v=20260911-preauth-widgets"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
-  <script src="app/card-images.js?v=20260911-file-map"></script>
+  <script src="app/card-images.js?v=20260914-iching-num"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260807-perf-01"></script>
   <script src="app/lazy-sections.js?v=20260910-export-folder"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260911-profile-timing-fix"></script>
-  <script src="app/ui-dlc-shop.js?v=20260914-slot-peek3"></script>
+  <script src="app/ui-dlc-shop.js?v=20260914-iching-simple"></script>
   <script src="app/ui-chrome.js?v=20260911-export-marks"></script>
   <script src="app/ui-navigation.js?v=20260902-syn"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>

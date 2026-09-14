@@ -131,7 +131,7 @@
   }
 
   function getLightboxHelpTitle() {
-    return isCompactLightboxLayout() ? "Lightbox Gestures" : "Lightbox Shortcuts";
+    return isCompactLightboxLayout() ? "Card Reader Gestures" : "Card Reader Shortcuts";
   }
 
   function getLightboxHelpLines() {
@@ -142,7 +142,7 @@
         "Tap the side arrows: move between cards, or move the overlay card in compare mode",
         "Tap Overlay: choose a second card to compare",
         "Tap Compare: show the same card from other registered decks",
-        "Tap outside the card or use Close Lightbox to exit"
+        "Tap outside the card or use Close to exit"
       ];
     }
 
@@ -3120,7 +3120,7 @@
     settingsPanelEl.style.zIndex = "3";
 
     const settingsTitleEl = document.createElement("div");
-    settingsTitleEl.textContent = "Lightbox Settings";
+    settingsTitleEl.textContent = "Card Reader";
     settingsTitleEl.style.font = "700 12px/1.3 sans-serif";
     settingsTitleEl.style.color = "var(--tt-text-muted)";
     settingsTitleEl.style.textTransform = "uppercase";
@@ -3140,7 +3140,7 @@
     helpPanelEl.style.zIndex = "2";
 
     helpTitleEl = document.createElement("div");
-    helpTitleEl.textContent = "Lightbox Shortcuts";
+    helpTitleEl.textContent = "Card Reader Shortcuts";
     helpTitleEl.style.font = "700 13px/1.3 sans-serif";
 
     helpListEl = document.createElement("div");
@@ -3156,7 +3156,7 @@
 
     backdropEl = document.createElement("button");
     backdropEl.type = "button";
-    backdropEl.setAttribute("aria-label", "Close enlarged tarot card");
+    backdropEl.setAttribute("aria-label", "Close card reader");
     backdropEl.style.position = "absolute";
     backdropEl.style.inset = "0";
     backdropEl.style.border = "none";

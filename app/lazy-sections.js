@@ -18,12 +18,12 @@
 
   const SCRIPT_GROUPS = {
     tarotCore: [
-      "app/ui-tarot-lightbox.js?v=20260911-lb-hd",
+      "app/ui-tarot-lightbox.js?v=20260914-card-reader",
       "app/ui-tarot-relations.js",
       "app/ui-tarot-card-derivations.js?v=20260307b",
       "app/ui-tarot-detail.js?v=20260805-no-active-deck",
       "app/ui-tarot-relation-display.js?v=20260307b",
-      "app/ui-tarot.js?v=20260830-library",
+      "app/ui-tarot.js?v=20260914-frame-iching",
       "app/ui-tarot-spread.js?v=20260905-reverse-off",
       "app/tarot-database-builders.js?v=20260424-decan-ranges-01",
       "app/tarot-database-assembly.js?v=20260402-princess-links-01",
@@ -31,7 +31,7 @@
     ],
     tarotFrame: [
       "node_modules/html2canvas/dist/html2canvas.min.js",
-      "app/ui-tarot-frame.js?v=20260911-export-trim"
+      "app/ui-tarot-frame.js?v=20260914-frame-export-name"
     ],
     tarotHouse: [
       "app/ui-tarot-house.js?v=20260401-house-top-date-01"
@@ -47,7 +47,7 @@
       "app/ui-elements.js?v=20260820-template"
     ],
     tattvas: [
-      "app/ui-tarot-lightbox.js?v=20260911-lb-hd",
+      "app/ui-tarot-lightbox.js?v=20260914-card-reader",
       "app/ui-tattvas.js?v=20260827-tattvas-nest"
     ],
     modalities: [
@@ -59,7 +59,7 @@
     ],
     iching: [
       "app/ui-iching-references.js",
-      "app/ui-iching.js?v=20260820-template",
+      "app/ui-iching.js?v=20260914-deck-compare",
       "app/ui-iching-trigram.js?v=20260820-template",
       "app/ui-iching-bigram.js?v=20260820-template",
       "app/ui-iching-phase.js?v=20260820-template"
@@ -84,7 +84,7 @@
       "app/ui-alphabet-detail.js?v=20260822-rashi",
       "app/ui-alphabet-kabbalah.js",
       "app/ui-alphabet.js?v=20260822-rashi",
-      "app/ui-alphabet-text.js?v=20260830-library",
+      "app/ui-alphabet-text.js?v=20260914-zen-raw",
       "app/ui-alphabet-reference.js?v=20260913-syn-cells"
     ],
     scriber: [
@@ -135,7 +135,7 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260914-card-peek"
+      "app/ui-admin.js?v=20260914-deck-groups"
     ],
     profile: [
       "app/ui-profile.js?v=20260913-decan-detail"

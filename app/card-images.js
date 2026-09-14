@@ -854,8 +854,11 @@
       cardBack: String(rawManifest.cardBack || "").trim(),
       cardBackPath: String(rawManifest.cardBackPath || source.cardBackPath || "").trim(),
       thumbnails: normalizeThumbnailConfig(rawManifest.thumbnails, source.thumbnailRoot),
+      system: String(rawManifest.system || "tarot").trim().toLowerCase() || "tarot",
       majors: rawManifest.majors || {},
       minors: rawManifest.minors || {},
+      hexagrams: rawManifest.hexagrams && typeof rawManifest.hexagrams === "object" ? rawManifest.hexagrams : {},
+      hexagramNames: rawManifest.hexagramNames && typeof rawManifest.hexagramNames === "object" ? rawManifest.hexagramNames : {},
       minorNameOverrides,
       majorNameOverridesByTrump,
       suitNameOverrides
@@ -1075,9 +1078,27 @@
     return null;
   }
 
+  function resolveIChingCardFiles(manifest, cardName) {
+    const hexagrams = manifest?.hexagrams && typeof manifest.hexagrams === "object" ? manifest.hexagrams : {};
+    const names = manifest?.hexagramNames && typeof manifest.hexagramNames === "object" ? manifest.hexagramNames : {};
+    const target = String(cardName || "").trim().toLowerCase();
+    if (!target) return [];
+    const numberMatch = target.match(/^(?:hexagram[\s#_-]*)?(\d{1,2})(?:\D|$)/)
+      || target.match(/^(?:hexagram|hex)[\s#_-]*(\d{1,2})$/);
+    const key = numberMatch
+      ? String(Number(numberMatch[1]))
+      : Object.keys(names).find((candidate) => String(names[candidate] || "").trim().toLowerCase() === target);
+    const file = key ? hexagrams[key] : null;
+    return file ? normalizeCardFiles(file) : [];
+  }
+
   function resolveCardRelativePaths(manifest, cardName) {
     if (!manifest) {
       return [];
+    }
+
+    if (String(manifest.system || "").trim().toLowerCase() === "iching") {
+      return resolveIChingCardFiles(manifest, cardName);
     }
 
     const canonical = canonicalMajorName(cardName);
@@ -1553,7 +1574,8 @@
       const manifest = getDeckManifest(source.id);
       return {
         id: source.id,
-        label: manifest?.label || source.label
+        label: manifest?.label || source.label,
+        system: String(manifest?.system || "tarot").trim().toLowerCase() || "tarot"
       };
     });
   }

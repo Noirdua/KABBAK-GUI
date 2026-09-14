@@ -55,7 +55,9 @@
       ichingDetailTrigramsEl: document.getElementById("iching-detail-trigrams"),
       ichingDetailPlanetEl: document.getElementById("iching-detail-planet"),
       ichingDetailTarotEl: document.getElementById("iching-detail-tarot"),
-      ichingDetailCalendarEl: document.getElementById("iching-detail-calendar")
+      ichingDetailCalendarEl: document.getElementById("iching-detail-calendar"),
+      ichingMetaDeckCardEl: document.getElementById("iching-meta-deck-card"),
+      ichingDetailDeckImageEl: document.getElementById("iching-detail-deck-image")
     };
   }
 
@@ -554,11 +556,124 @@
     }
 
     renderPlanetInfluence(entry, elements);
+    renderDeckCard(entry, elements);
 
     renderKeywords(entry, elements);
     renderTrigrams(entry, elements);
     renderTarotCorrespondences(entry, elements);
     renderCalendarMonths(entry, elements);
+  }
+
+  function hexagramDisplayName(number) {
+    const found = state.hexagrams.find((hexagram) => Number(hexagram.number) === Number(number));
+    return String(found?.name || `Hexagram ${number}`);
+  }
+
+  function buildHexagramCardRequest(number, deckId) {
+    const imagesApi = window.TarotCardImages;
+    if (typeof imagesApi?.resolveTarotCardImage !== "function") {
+      return null;
+    }
+    const src = imagesApi.resolveTarotCardImage(`Hexagram ${number}`, { deckId });
+    if (!src) {
+      return null;
+    }
+    const deck = (imagesApi.getDeckOptions?.() || [])
+      .find((candidate) => String(candidate.id).toLowerCase() === String(deckId || "").toLowerCase());
+    const name = hexagramDisplayName(number);
+    return {
+      src,
+      altText: `${number} · ${name}`,
+      label: `${number} · ${name}`,
+      cardId: `hex-${number}`,
+      deckId,
+      deckLabel: deck?.label || deckId,
+      compareDetails: []
+    };
+  }
+
+  async function ensureCardReader() {
+    if (window.TarotUiLightbox?.open) {
+      return true;
+    }
+    try {
+      await window.TarotLazySections?.loadScript?.("app/ui-tarot-lightbox.js?v=20260914-card-reader");
+    } catch (_error) {
+      // Fall through to the availability check below.
+    }
+    return Boolean(window.TarotUiLightbox?.open);
+  }
+
+  function openHexagramInReader(number, deckId, deckList, originRect) {
+    if (!Number.isFinite(Number(number))) return;
+    void ensureCardReader().then((ready) => {
+      if (!ready || typeof window.TarotUiLightbox?.open !== "function") return;
+      const primary = buildHexagramCardRequest(Number(number), deckId);
+      if (!primary) return;
+      const decks = (Array.isArray(deckList) ? deckList : []).filter((deck) => deck?.id);
+      window.TarotUiLightbox.open({
+        ...primary,
+        sequenceIds: Array.from({ length: 64 }, (_value, index) => `hex-${index + 1}`),
+        resolveCardById: (cardId) => {
+          const match = String(cardId || "").match(/^hex-(\d+)$/);
+          return match ? buildHexagramCardRequest(Number(match[1]), deckId) : null;
+        },
+        allowOverlayCompare: true,
+        allowDeckCompare: decks.length > 1,
+        availableCompareDecks: decks.map((deck) => ({ id: deck.id, label: deck.label })),
+        resolveDeckCardById: (cardId, nextDeckId) => {
+          const match = String(cardId || "").match(/^hex-(\d+)$/);
+          return match ? buildHexagramCardRequest(Number(match[1]), nextDeckId) : null;
+        },
+        maxCompareDecks: 3,
+        originRect: originRect || null
+      });
+    });
+  }
+
+  // Gallery of the hexagram across every installed I Ching deck.
+  function renderDeckCard(entry, elements) {
+    const host = elements?.ichingDetailDeckImageEl;
+    const card = elements?.ichingMetaDeckCardEl;
+    if (!host) {
+      return;
+    }
+    clearChildren(host);
+    const imagesApi = window.TarotCardImages;
+    if (typeof imagesApi?.resolveTarotCardImage !== "function" || typeof imagesApi?.getDeckOptions !== "function") {
+      if (card) card.hidden = true;
+      return;
+    }
+    const ichingDecks = (imagesApi.getDeckOptions() || [])
+      .filter((deck) => String(deck?.system || "").toLowerCase() === "iching" && deck.id);
+    const number = Number(entry?.number);
+    if (!ichingDecks.length || !Number.isFinite(number)) {
+      if (card) card.hidden = true;
+      return;
+    }
+    const deckList = ichingDecks.filter((candidate) => candidate.id);
+    ichingDecks.forEach((deck) => {
+      const request = buildHexagramCardRequest(number, deck.id);
+      if (!request) return;
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "iching-deck-card-item";
+      item.title = `Open ${deck.label || deck.id} in the Card Reader`;
+      const img = document.createElement("img");
+      img.className = "iching-deck-card-image";
+      img.src = request.src;
+      img.alt = entry?.name || request.label;
+      img.loading = "lazy";
+      const label = document.createElement("span");
+      label.className = "iching-deck-card-label";
+      label.textContent = deck.label || deck.id;
+      item.append(img, label);
+      item.addEventListener("click", () => {
+        openHexagramInReader(number, deck.id, deckList, img.getBoundingClientRect());
+      });
+      host.appendChild(item);
+    });
+    if (card) card.hidden = host.childElementCount === 0;
   }
 
   function selectByNumber(number, elements) {

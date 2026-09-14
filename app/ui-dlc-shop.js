@@ -2956,8 +2956,83 @@
     { id: "queen", label: "Queen", aliases: ["queen"] },
     { id: "king", label: "King", aliases: ["king", "knight-king"] }
   ];
+  // Court ranks get deck-wide name overrides (Page → Princess, Knight → Prince…).
+  const COURT_RANKS = ["page", "knight", "queen", "king"];
 
-  function deckSlotList() {
+  const ICHING_HEXAGRAM_COUNT = 64;
+  let ichingHexagramNames = null;
+  let ichingHexagramData = null;
+
+  // Hexagram names/lines come from the reference data; the manifest stores them
+  // too so the deck is self-contained.
+  async function ensureIChingNames() {
+    if (ichingHexagramNames && ichingHexagramData) return ichingHexagramNames;
+    ichingHexagramNames = {};
+    ichingHexagramData = {};
+    try {
+      const payload = await window.TarotDataService.requestJson(
+        "GET",
+        window.TarotDataService.buildApiUrl("/api/v1/iching")
+      );
+      (Array.isArray(payload?.hexagrams) ? payload.hexagrams : []).forEach((hexagram) => {
+        const number = Number(hexagram?.number);
+        if (number < 1 || number > ICHING_HEXAGRAM_COUNT) return;
+        const name = String(hexagram?.name || `Hexagram ${number}`).trim();
+        ichingHexagramNames[number] = name;
+        ichingHexagramData[number] = {
+          number,
+          name,
+          chineseName: String(hexagram?.chineseName || "").trim(),
+          lineDiagram: String(hexagram?.lineDiagram || "").trim(),
+          binary: String(hexagram?.binary || "").trim()
+        };
+      });
+    } catch (_error) {
+      // Fall back to generic names.
+    }
+    return ichingHexagramNames;
+  }
+
+  // Six lines drawn top-to-bottom: solid = yang, broken = yin. `binary` is
+  // stored top-down, but `lineDiagram` is bottom-up, so reverse those.
+  function renderHexagramLines(pattern) {
+    const wrap = document.createElement("div");
+    wrap.className = "tt-hexagram";
+    let raw = String(pattern || "").trim();
+    if (/^[|:]+$/.test(raw)) {
+      raw = raw.split("").reverse().join("");
+    }
+    const chars = raw.replace(/\|/g, "1").replace(/:/g, "0").replace(/[^01]/g, "").split("").slice(0, 6);
+    if (!chars.length) {
+      wrap.hidden = true;
+      return wrap;
+    }
+    chars.forEach((char) => {
+      const line = document.createElement("span");
+      line.className = `tt-hex-line ${char === "1" ? "is-yang" : "is-yin"}`;
+      wrap.appendChild(line);
+    });
+    return wrap;
+  }
+
+  function iChingSlotList(names = ichingHexagramNames || {}) {
+    const slots = [];
+    for (let number = 1; number <= ICHING_HEXAGRAM_COUNT; number += 1) {
+      slots.push({
+        key: `hex-${number}`,
+        group: "Hexagrams",
+        label: `${String(number).padStart(2, "0")} · ${names[number] || `Hexagram ${number}`}`,
+        file: `${String(number - 1).padStart(2, "0")}.png`
+      });
+    }
+    slots.push({ key: "back", group: "Back", label: "Card back", file: "back.png" });
+    return slots;
+  }
+
+  function deckSlotList(system = "tarot") {
+    if (system === "iching") {
+      return iChingSlotList();
+    }
     const slots = DECK_MAJORS.map((name, trump) => ({
       key: `major-${trump}`,
       group: "Majors",
@@ -2975,6 +3050,7 @@
         });
       });
     });
+    slots.push({ key: "back", group: "Back", label: "Card back", file: "back.png" });
     return slots;
   }
 
@@ -3178,7 +3254,7 @@
     }
   }
 
-  function openCardPeek({ items, index = 0, context = "", onEmpty = null, refresh = null } = {}) {
+  function openCardPeek({ items, index = 0, context = "", onEmpty = null, onRemove = null, onRename = null, refresh = null } = {}) {
     let list = (Array.isArray(items) ? items : []).filter((entry) => entry && (entry.src || entry.empty));
     if (!list.length) return;
     closeCardPeek();
@@ -3199,6 +3275,7 @@
         </div>
       </div>
       <div class="tt-peek-info">
+        <div class="tt-peek-hexagram" data-role="peek-hexagram" hidden></div>
         <strong data-role="peek-label"></strong>
         <code data-role="peek-file"></code>
         <span data-role="peek-context"></span>
@@ -3215,6 +3292,7 @@
     const emptyEl = overlay.querySelector('[data-role="peek-empty"]');
     const emptyTextEl = overlay.querySelector('[data-role="peek-empty-text"]');
     const pickBtn = overlay.querySelector('[data-action="peek-pick"]');
+    const hexagramEl = overlay.querySelector('[data-role="peek-hexagram"]');
     const labelEl = overlay.querySelector('[data-role="peek-label"]');
     const fileEl = overlay.querySelector('[data-role="peek-file"]');
     const contextEl = overlay.querySelector('[data-role="peek-context"]');
@@ -3224,6 +3302,22 @@
 
     const render = () => {
       const entry = list[current];
+      if (hexagramEl) {
+        hexagramEl.replaceChildren();
+        const hexagram = entry.hexagram;
+        if (hexagram && hexagram.lineDiagram) {
+          hexagramEl.appendChild(renderHexagramLines(hexagram.lineDiagram));
+          if (hexagram.chineseName) {
+            const chinese = document.createElement("span");
+            chinese.className = "tt-peek-hex-name";
+            chinese.textContent = hexagram.chineseName;
+            hexagramEl.appendChild(chinese);
+          }
+          hexagramEl.hidden = false;
+        } else {
+          hexagramEl.hidden = true;
+        }
+      }
       labelEl.textContent = entry.label || "Card";
       fileEl.textContent = entry.file || "";
       contextEl.textContent = context || "";
@@ -3250,25 +3344,84 @@
       render();
     };
 
+    const doRefresh = async () => {
+      if (typeof refresh !== "function") return;
+      const next = await refresh();
+      if (Array.isArray(next) && next.length) {
+        const key = list[current]?.key;
+        list = next;
+        const found = key ? list.findIndex((entry) => entry.key === key) : -1;
+        current = found >= 0 ? found : Math.max(0, Math.min(current, list.length - 1));
+        render();
+      }
+    };
+
     pickBtn.addEventListener("click", async () => {
       if (typeof onEmpty !== "function") return;
       pickBtn.disabled = true;
       try {
         await onEmpty(list[current]);
-        if (typeof refresh === "function") {
-          const next = await refresh();
-          if (Array.isArray(next) && next.length) {
-            const key = list[current]?.key;
-            list = next;
-            const found = key ? list.findIndex((entry) => entry.key === key) : -1;
-            current = found >= 0 ? found : Math.max(0, Math.min(current, list.length - 1));
-            render();
-          }
-        }
+        await doRefresh();
       } finally {
         pickBtn.disabled = false;
       }
     });
+
+    // Small right-click menu: remove on a mapped slot, add on an empty one.
+    const menu = document.createElement("div");
+    menu.className = "dlc-ctx-menu tt-peek-menu";
+    menu.hidden = true;
+    overlay.appendChild(menu);
+    const hideMenu = () => {
+      menu.hidden = true;
+    };
+    overlay.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      const entry = list[current];
+      const actions = [];
+      if (typeof onRename === "function") {
+        actions.push({
+          label: "Rename card…",
+          action: async () => {
+            await onRename(entry);
+            await doRefresh();
+          }
+        });
+      }
+      if (entry?.src && typeof onRemove === "function") {
+        actions.push({
+          label: "Remove image",
+          action: async () => {
+            await onRemove(entry);
+            await doRefresh();
+          }
+        });
+      } else if (!entry?.src && typeof onEmpty === "function") {
+        actions.push({
+          label: "Add image",
+          action: async () => {
+            await onEmpty(entry);
+            await doRefresh();
+          }
+        });
+      }
+      if (!actions.length) return;
+      menu.replaceChildren();
+      actions.forEach((item) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = item.label;
+        button.addEventListener("click", () => {
+          hideMenu();
+          void item.action();
+        });
+        menu.appendChild(button);
+      });
+      menu.hidden = false;
+      menu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - 180))}px`;
+      menu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - 8 - actions.length * 36))}px`;
+    });
+    overlay.addEventListener("click", hideMenu);
 
     prevBtn.addEventListener("click", () => step(-1));
     nextBtn.addEventListener("click", () => step(1));
@@ -3398,6 +3551,21 @@
                 <label class="settings-field">Tradition
                   <input type="text" class="dlc-create-text-tradition" maxlength="80" placeholder="optional">
                 </label>
+                <label class="settings-field">Short title
+                  <input type="text" class="dlc-create-text-short-title" maxlength="80" placeholder="optional">
+                </label>
+                <label class="settings-field">Script
+                  <input type="text" class="dlc-create-text-script" maxlength="60" value="Latin">
+                </label>
+                <label class="settings-field">Work label
+                  <input type="text" class="dlc-create-text-work-label" maxlength="40" placeholder="Text">
+                </label>
+                <label class="settings-field">Section label
+                  <input type="text" class="dlc-create-text-section-label" maxlength="40" placeholder="Section">
+                </label>
+                <label class="settings-field">Passage label
+                  <input type="text" class="dlc-create-text-verse-label" maxlength="40" placeholder="Passage">
+                </label>
                 <div class="dlc-shop-actions">
                   <button type="button" class="dlc-shop-btn" data-action="change-source">Change source</button>
                 </div>
@@ -3406,6 +3574,11 @@
           </div>
           <div data-role="kind-deck" hidden>
             <div data-role="deck-source">
+              <div class="dlc-shop-actions dlc-deck-system">
+                <span class="settings-field-hint">Deck system</span>
+                <button type="button" class="dlc-shop-btn is-active" data-deck-mode="tarot">Tarot (78 + back)</button>
+                <button type="button" class="dlc-shop-btn" data-deck-mode="iching">I Ching (64 + back)</button>
+              </div>
               <div class="settings-field">Deck folder
                 <label class="dlc-shop-btn dlc-file-btn">Choose folder
                   <input type="file" class="dlc-create-deck-folder" webkitdirectory multiple accept="image/*" hidden>
@@ -3436,13 +3609,13 @@
               </div>
               <div class="dlc-deck-pattern-groups">
                 <section class="dlc-deck-pattern-card">
-                  <h3>Trumps</h3>
-                  <div class="dlc-deck-pattern-row">
+                  <h3 data-role="deck-majors-heading">Trumps</h3>
+                  <div class="dlc-deck-pattern-row" data-role="deck-majors-pattern-row">
                     <label class="settings-field">Pattern
                       <input type="text" class="dlc-deck-pat-majors" placeholder="a##">
                     </label>
                     <label class="settings-field">Start
-                      <input type="number" class="dlc-deck-start-majors" value="0" min="0" max="22">
+                      <input type="number" class="dlc-deck-start-majors" value="0" min="0" max="64">
                     </label>
                   </div>
                   <div class="dlc-deck-grid" data-role="deck-grid-majors"></div>
@@ -3507,16 +3680,28 @@
                   </div>
                   <div class="dlc-deck-grid" data-role="deck-grid-pentacles"></div>
                 </section>
+                <section class="dlc-deck-pattern-card" data-role="deck-court-section">
+                  <h3>Court names</h3>
+                  <div class="dlc-deck-pattern-row">
+                    <label class="settings-field">Page
+                      <input type="text" class="dlc-deck-court-page" placeholder="Princess">
+                    </label>
+                    <label class="settings-field">Knight
+                      <input type="text" class="dlc-deck-court-knight" placeholder="Prince">
+                    </label>
+                    <label class="settings-field">Queen
+                      <input type="text" class="dlc-deck-court-queen" placeholder="Queen">
+                    </label>
+                    <label class="settings-field">King
+                      <input type="text" class="dlc-deck-court-king" placeholder="King">
+                    </label>
+                  </div>
+                  <p class="settings-field-hint">Shown as applies to every suit (e.g. Page → Princess, Knight → Prince).</p>
+                </section>
                 <section class="dlc-deck-pattern-card dlc-deck-pattern-card-back">
                   <h3>Back</h3>
-                  <div class="dlc-deck-pattern-row">
-                    <div class="settings-field">One image for every card
-                      <label class="dlc-shop-btn dlc-file-btn">Choose image
-                        <input type="file" class="dlc-create-deck-back" accept="image/*" hidden>
-                      </label>
-                    </div>
-                    <div class="dlc-deck-back" data-role="deck-back"></div>
-                  </div>
+                  <div class="dlc-deck-grid" data-role="deck-grid-back"></div>
+                  <p class="settings-field-hint">Assign the back card like any other slot (or leave it unmapped).</p>
                 </section>
               </div>
               <details class="dlc-deck-loose" data-role="deck-loose" hidden>
@@ -3525,6 +3710,9 @@
               </details>
               <div class="dlc-shop-actions">
                 <button type="button" class="dlc-shop-btn" data-action="change-deck-source">Change folder</button>
+                <label class="dlc-shop-btn dlc-file-btn">Upload image
+                  <input type="file" class="dlc-create-deck-upload" accept="image/*" multiple hidden>
+                </label>
                 <label class="dlc-menu-hide-label">
                   <input type="checkbox" class="dlc-create-deck-incomplete">
                   Allow incomplete deck
@@ -4419,6 +4607,11 @@
             description: String(overlay.querySelector(".dlc-create-text-description")?.value || "").trim(),
             language: String(overlay.querySelector(".dlc-create-text-language")?.value || "English").trim(),
             tradition: String(overlay.querySelector(".dlc-create-text-tradition")?.value || "").trim(),
+            shortTitle: String(overlay.querySelector(".dlc-create-text-short-title")?.value || "").trim(),
+            script: String(overlay.querySelector(".dlc-create-text-script")?.value || "Latin").trim(),
+            workLabel: String(overlay.querySelector(".dlc-create-text-work-label")?.value || "").trim(),
+            sectionLabel: String(overlay.querySelector(".dlc-create-text-section-label")?.value || "").trim(),
+            verseLabel: String(overlay.querySelector(".dlc-create-text-verse-label")?.value || "").trim(),
             format: String(overlay.querySelector(".dlc-create-text-format")?.value || previewState.format || "").trim(),
             text: sourceText,
             document: collectEditedDocument(overlay, previewState),
@@ -4438,8 +4631,9 @@
       }
     });
 
-    const deckSlots = deckSlotList();
+    let deckSlots = deckSlotList("tarot");
     const deckState = {
+      system: "tarot",
       files: [],
       assigned: {},
       back: "",
@@ -4447,8 +4641,8 @@
       idManual: false,
       cardNames: {},
       suitNames: {},
-      suitOrder: DECK_SUITS.map((suit) => suit.id),
-      backFile: null
+      courtNames: {},
+      suitOrder: DECK_SUITS.map((suit) => suit.id)
     };
 
     overlay.querySelectorAll("[data-suit-block]").forEach((select) => {
@@ -4468,9 +4662,6 @@
     };
     const revokeDeckUrls = () => {
       revokeFaceUrls();
-      if (deckState.backFile?.url) {
-        URL.revokeObjectURL(deckState.backFile.url);
-      }
     };
 
     overlay.addEventListener("click", (event) => {
@@ -4492,17 +4683,39 @@
       return DECK_SUITS.find((suit) => suit.id === suitId)?.label || suitId;
     };
 
-    const slotDisplayLabel = (slot) => {
-      const custom = String(deckState.cardNames[slot.key] || "").trim();
+    const courtLabel = (rankId) => {
+      const custom = String(deckState.courtNames[rankId] || overlay.querySelector(`.dlc-deck-court-${rankId}`)?.value || "").trim();
       if (custom) return custom;
+      return DECK_RANKS.find((entry) => entry.id === rankId)?.label || rankId;
+    };
+
+    // The default card name without the slot number prefix (renaming should not
+    // require typing "01 · The Magician").
+    const slotDefaultName = (slot) => {
+      if (String(slot.key).startsWith("major-")) {
+        const trump = Number(String(slot.key).slice(6));
+        return DECK_MAJORS[trump] || slot.label;
+      }
+      if (String(slot.key).startsWith("hex-")) {
+        const number = Number(String(slot.key).slice(4));
+        return (ichingHexagramNames && ichingHexagramNames[number]) || `Hexagram ${number}`;
+      }
       if (String(slot.key).startsWith("minor-")) {
         const parts = String(slot.key).split("-");
         const suitId = parts[1];
         const rankId = parts.slice(2).join("-");
-        const rank = DECK_RANKS.find((entry) => entry.id === rankId)?.label || rankId;
+        const rank = COURT_RANKS.includes(rankId) ? courtLabel(rankId) : (DECK_RANKS.find((entry) => entry.id === rankId)?.label || rankId);
         return `${rank} of ${suitLabel(suitId)}`;
       }
       return slot.label;
+    };
+
+    const slotDisplayLabel = (slot) => {
+      const custom = String(deckState.cardNames[slot.key] || "").trim();
+      if (custom) return custom;
+      // Majors/hexagrams keep their numbered caption ("01 · …") in the grid.
+      if (String(slot.key).startsWith("major-") || String(slot.key).startsWith("hex-")) return slot.label;
+      return slotDefaultName(slot);
     };
 
     const openDeckPreview = (url, label, filePath) => {
@@ -4520,12 +4733,15 @@
       return deckSlots.map((slot) => {
         const assignedPath = deckState.assigned[slot.key];
         const entry = assignedPath ? filesByPath.get(assignedPath) : null;
+        const hexMatch = String(slot.key).match(/^hex-(\d+)$/);
+        const hexagram = hexMatch && ichingHexagramData ? ichingHexagramData[Number(hexMatch[1])] : null;
         return {
           key: slot.key,
           label: slotDisplayLabel(slot),
           file: assignedPath || "",
           src: entry?.url || "",
-          empty: !entry
+          empty: !entry,
+          hexagram: hexagram || null
         };
       });
     };
@@ -4546,11 +4762,30 @@
           }
           await openLoosePicker(slot);
         },
+        onRemove: (entry) => {
+          if (!entry?.key) return;
+          delete deckState.assigned[entry.key];
+          renderDeckEditor();
+        },
+        onRename: async (entry) => {
+          const slot = deckSlots.find((candidate) => candidate.key === entry.key);
+          if (!slot) return;
+          const defaultName = slotDefaultName(slot);
+          const current = String(deckState.cardNames[slot.key] || defaultName).trim();
+          await openRenamePop("Card name", current, (value) => {
+            if (value && value !== defaultName) {
+              deckState.cardNames[slot.key] = value;
+            } else {
+              delete deckState.cardNames[slot.key];
+            }
+            renderDeckEditor();
+          });
+        },
         refresh: () => buildDeckPeekItems()
       });
     };
 
-    const openRenamePop = (title, value, onSave) => {
+    const openRenamePop = (title, value, onSave) => new Promise((resolve) => {
       hideDeckMenus();
       const pop = document.createElement("div");
       pop.className = "dlc-settings-overlay dlc-deck-rename-overlay";
@@ -4582,6 +4817,7 @@
         const next = String(input?.value || "").trim();
         pop.remove();
         if (save) onSave(next);
+        resolve(save ? next : null);
       };
       pop.querySelector('[data-action="rename-ok"]').addEventListener("click", () => finish(true));
       pop.querySelector('[data-action="rename-cancel"]').addEventListener("click", () => finish(false));
@@ -4592,7 +4828,7 @@
         if (event.key === "Enter") finish(true);
         if (event.key === "Escape") finish(false);
       });
-    };
+    });
 
     const showDeckContextMenu = (event, items) => {
       event.preventDefault();
@@ -4699,15 +4935,17 @@
 
     const renderDeckEditor = () => {
       const statsEl = overlay.querySelector("[data-role='deck-stats']");
-      const backEl = overlay.querySelector("[data-role='deck-back']");
       const looseHost = overlay.querySelector("[data-role='deck-loose']");
       const looseList = overlay.querySelector("[data-role='deck-loose-list']");
+      const majorsGridEl = overlay.querySelector("[data-role='deck-grid-majors']");
       const grids = {
-        Majors: overlay.querySelector("[data-role='deck-grid-majors']"),
+        Majors: majorsGridEl,
+        Hexagrams: majorsGridEl,
         Wands: overlay.querySelector("[data-role='deck-grid-wands']"),
         Cups: overlay.querySelector("[data-role='deck-grid-cups']"),
         Swords: overlay.querySelector("[data-role='deck-grid-swords']"),
-        Disks: overlay.querySelector("[data-role='deck-grid-pentacles']")
+        Disks: overlay.querySelector("[data-role='deck-grid-pentacles']"),
+        Back: overlay.querySelector("[data-role='deck-grid-back']")
       };
       DECK_SUITS.forEach((suit) => {
         const head = overlay.querySelector(`[data-role="suit-head-${suit.id}"]`);
@@ -4716,9 +4954,10 @@
         }
       });
       const assignedCount = Object.keys(deckState.assigned).filter((key) => key !== "back" && deckState.assigned[key]).length;
+      const totalLabel = deckState.system === "iching" ? "64 hexagrams" : "78 cards";
       if (statsEl) {
         statsEl.innerHTML = "";
-        [`${assignedCount}/78 cards`, deckState.backFile ? "back set" : "no back", `${deckState.files.length} files`].forEach((label) => {
+        [`${assignedCount} / ${totalLabel}`, deckState.assigned.back ? "back set" : "no back", `${deckState.files.length} files`].forEach((label) => {
           const chip = document.createElement("span");
           chip.className = "dlc-text-chip";
           chip.textContent = label;
@@ -4726,18 +4965,6 @@
         });
       }
       const fileByPath = new Map(deckState.files.map((entry) => [entry.path, entry]));
-      if (backEl) {
-        backEl.replaceChildren();
-        if (deckState.backFile?.url) {
-          const img = document.createElement("img");
-          img.alt = "Card back";
-          img.src = deckState.backFile.url;
-          img.addEventListener("click", () => {
-            openDeckPreview(deckState.backFile.url, "Card back", deckState.backFile.name);
-          });
-          backEl.appendChild(img);
-        }
-      }
       Object.values(grids).forEach((grid) => grid?.replaceChildren());
       deckSlots.forEach((slot) => {
           const gridEl = grids[slot.group];
@@ -4776,14 +5003,17 @@
             const items = [
               {
                 label: "Rename card…",
-                action: () => openRenamePop("Card name", displayName, (value) => {
-                  if (value && value !== slot.label) {
-                    deckState.cardNames[slot.key] = value;
-                  } else {
-                    delete deckState.cardNames[slot.key];
-                  }
-                  renderDeckEditor();
-                })
+                action: () => {
+                  const defaultName = slotDefaultName(slot);
+                  return openRenamePop("Card name", String(deckState.cardNames[slot.key] || defaultName).trim(), (value) => {
+                    if (value && value !== defaultName) {
+                      deckState.cardNames[slot.key] = value;
+                    } else {
+                      delete deckState.cardNames[slot.key];
+                    }
+                    renderDeckEditor();
+                  });
+                }
               },
               {
                 label: "Reset name",
@@ -4870,6 +5100,22 @@
     const applyDeckPatterns = (overwrite) => {
       const majorsPattern = String(overlay.querySelector(".dlc-deck-pat-majors")?.value || "").trim();
       const majorsStart = Number(overlay.querySelector(".dlc-deck-start-majors")?.value);
+      if (deckState.system === "iching") {
+        const start = Number.isInteger(majorsStart) ? majorsStart : 1;
+        let hexMapped = 0;
+        deckState.files.forEach((entry) => {
+          const number = matchDeckPattern(deckFileBase(entry.path), majorsPattern);
+          if (number == null) return;
+          const hexagram = number - start + 1;
+          if (hexagram < 1 || hexagram > 64) return;
+          const key = `hex-${hexagram}`;
+          if (overwrite || !deckState.assigned[key]) {
+            deckState.assigned[key] = entry.path;
+            hexMapped += 1;
+          }
+        });
+        return hexMapped;
+      }
       let mapped = 0;
       deckState.files.forEach((entry) => {
         const base = deckFileBase(entry.path);
@@ -5002,14 +5248,31 @@
       deckState.pendingLoose = "";
       deckState.cardNames = {};
       deckState.suitNames = {};
+      deckState.courtNames = {};
       deckState.suitOrder = DECK_SUITS.map((suit) => suit.id);
       overlay.querySelectorAll("[data-suit-block]").forEach((select, index) => {
         select.value = deckState.suitOrder[index];
       });
+      const usesZeroBased = deckState.files.some((entry) => /(^|\D)0{1,2}$/.test(deckFileBase(entry.path)));
       deckState.files.forEach((entry) => {
-        const slot = guessDeckSlot(entry.path, deckState.suitOrder);
-        if (slot && slot !== "back" && !deckState.assigned[slot]) {
-          deckState.assigned[slot] = entry.path;
+        const guessed = guessDeckSlot(entry.path, deckState.suitOrder);
+        if (guessed === "back") {
+          if (!deckState.assigned.back) deckState.assigned.back = entry.path;
+          return;
+        }
+        if (deckState.system === "iching") {
+          const numeric = deckFileBase(entry.path).match(/^(?:hex[_-]?)?(\d{1,3})$/);
+          const number = numeric ? Number(numeric[1]) : NaN;
+          if (!Number.isInteger(number)) return;
+          const hexagram = usesZeroBased ? number + 1 : number;
+          if (hexagram >= 1 && hexagram <= 64) {
+            const key = `hex-${hexagram}`;
+            if (!deckState.assigned[key]) deckState.assigned[key] = entry.path;
+          }
+          return;
+        }
+        if (guessed && !deckState.assigned[guessed]) {
+          deckState.assigned[guessed] = entry.path;
         }
       });
       const detected = detectDeckPatterns(deckState.files);
@@ -5017,6 +5280,10 @@
       DECK_SUITS.forEach((suit) => {
         const aliasEl = overlay.querySelector(`.dlc-deck-alias-${suit.id}`);
         if (aliasEl) aliasEl.value = "";
+      });
+      COURT_RANKS.forEach((rankId) => {
+        const courtEl = overlay.querySelector(`.dlc-deck-court-${rankId}`);
+        if (courtEl) courtEl.value = "";
       });
       applyDeckPatterns(false);
       const folderName = String(deckState.files[0]?.path || "").split("/")[0] || "My Deck";
@@ -5034,6 +5301,50 @@
       renderDeckEditor();
       setFormStatus("Check the mapping, then save. Unmapped images stay on the device until you assign or skip them.");
     };
+
+    const applyDeckModeUi = () => {
+      const isIChing = deckState.system === "iching";
+      overlay.querySelectorAll("[data-deck-mode]").forEach((button) => {
+        const active = button.getAttribute("data-deck-mode") === deckState.system;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+      const majorsHeading = overlay.querySelector("[data-role='deck-majors-heading']");
+      if (majorsHeading) majorsHeading.textContent = isIChing ? "Hexagrams" : "Trumps";
+      const majorsPatternRow = overlay.querySelector("[data-role='deck-majors-pattern-row']");
+      if (majorsPatternRow) majorsPatternRow.style.display = isIChing ? "none" : "";
+      const suitOrder = overlay.querySelector(".dlc-deck-suit-order");
+      if (suitOrder) suitOrder.style.display = isIChing ? "none" : "";
+      overlay.querySelectorAll("[data-role^='suit-head-']").forEach((heading) => {
+        const section = heading.closest(".dlc-deck-pattern-card");
+        if (section) section.style.display = isIChing ? "none" : "";
+      });
+      const courtSection = overlay.querySelector("[data-role='deck-court-section']");
+      if (courtSection) courtSection.style.display = isIChing ? "none" : "";
+    };
+
+    const setDeckMode = async (system) => {
+      const next = system === "iching" ? "iching" : "tarot";
+      deckState.system = next;
+      if (next === "iching") {
+        await ensureIChingNames();
+      }
+      deckSlots = deckSlotList(next);
+      deckState.assigned = {};
+      deckState.pendingLoose = "";
+      applyDeckModeUi();
+      renderDeckEditor();
+      setFormStatus(next === "iching"
+        ? "I Ching mode: 64 hexagram slots + back. Map the images, then save."
+        : "Tarot mode: 78 cards + back.");
+    };
+
+    overlay.querySelectorAll("[data-deck-mode]").forEach((button) => {
+      button.addEventListener("click", () => {
+        void setDeckMode(button.getAttribute("data-deck-mode"));
+      });
+    });
+    applyDeckModeUi();
 
     overlay.querySelector(".dlc-create-deck-folder").addEventListener("change", (event) => {
       const files = [...(event.currentTarget.files || [])].filter((file) => DECK_IMAGE_EXT.test(file.name));
@@ -5065,7 +5376,7 @@
           <div class="dlc-settings-overlay-body">
             <p class="settings-field-hint">Pick a folder of card images. Mapping stays in the browser until you save.</p>
             <p class="settings-field-hint">Pattern <code>a##</code> is a prefix plus number. Start is the first index in those files (0 or 1). Detect reads letter groups like a/b/c from the folder.</p>
-            <p class="settings-field-hint">Left-click a card to view it larger. Right-click to rename, unmap, or assign a selected leftover. Shown as maps a suit (Wands → Batons) onto the standard deck.</p>
+            <p class="settings-field-hint">Left-click a card to view it larger. Right-click to rename, unmap, or assign a selected leftover. Shown as maps a suit (Wands → Batons) onto the standard deck, and Court names renames Page/Knight/Queen/King across every suit.</p>
             <p class="settings-field-hint">For 00–77 files, After trumps sets which suit owns 22–35, 36–49, 50–63, and 64–77. Right-click a suit heading to swap its cards with another suit.</p>
             <p class="settings-field-hint">Unmapped leftovers can be assigned or skipped. All 78 slots are required unless you allow an incomplete deck.</p>
           </div>
@@ -5134,6 +5445,19 @@
       });
     });
 
+    COURT_RANKS.forEach((rankId) => {
+      overlay.querySelector(`.dlc-deck-court-${rankId}`)?.addEventListener("input", (event) => {
+        const value = String(event.currentTarget.value || "").trim();
+        const defaultLabel = DECK_RANKS.find((entry) => entry.id === rankId)?.label || rankId;
+        if (value && value !== defaultLabel) {
+          deckState.courtNames[rankId] = value;
+        } else {
+          delete deckState.courtNames[rankId];
+        }
+        renderDeckEditor();
+      });
+    });
+
     overlay.querySelector('[data-action="apply-deck-patterns"]').addEventListener("click", () => {
       if (!deckState.files.length) {
         setFormStatus("Choose a deck folder first.", true);
@@ -5152,19 +5476,27 @@
         overlay.querySelector(".dlc-create-deck-id").value = slugifyId(event.currentTarget.value);
       }
     });
-    overlay.querySelector(".dlc-create-deck-back").addEventListener("change", (event) => {
-      const file = event.currentTarget.files?.[0];
-      if (!file) return;
-      if (deckState.backFile?.url) {
-        URL.revokeObjectURL(deckState.backFile.url);
+    overlay.querySelector(".dlc-create-deck-upload").addEventListener("change", (event) => {
+      const files = [...(event.currentTarget.files || [])].filter((file) => DECK_IMAGE_EXT.test(file.name));
+      event.currentTarget.value = "";
+      if (!files.length) {
+        setFormStatus("No image files found in that upload.", true);
+        return;
       }
-      deckState.backFile = {
-        file,
-        name: file.name,
-        url: URL.createObjectURL(file)
-      };
+      const existing = new Set(deckState.files.map((entry) => entry.path));
+      const added = [];
+      files.forEach((file) => {
+        if (existing.has(file.name)) return;
+        existing.add(file.name);
+        added.push({ path: file.name, file, url: URL.createObjectURL(file) });
+      });
+      if (!added.length) {
+        setFormStatus("Those images are already loaded.", true);
+        return;
+      }
+      deckState.files.push(...added);
       renderDeckEditor();
-      setFormStatus(`Card back set from ${file.name}. Used for every card.`);
+      setFormStatus(`Added ${added.length} unmapped image(s). Assign them to a slot from the grid.`);
     });
 
     overlay.querySelector('[data-action="change-deck-source"]').addEventListener("click", () => {
@@ -5193,10 +5525,18 @@
         const majorNameOverridesByTrump = {};
         const minorNameOverrides = {};
         const suitNameOverrides = {};
+        const courtNameOverrides = {};
         DECK_SUITS.forEach((suit) => {
           const custom = String(deckState.suitNames[suit.id] || overlay.querySelector(`.dlc-deck-alias-${suit.id}`)?.value || "").trim();
           if (custom && custom !== suit.label) {
             suitNameOverrides[suit.id === "pentacles" ? "disks" : suit.id] = custom;
+          }
+        });
+        COURT_RANKS.forEach((rankId) => {
+          const custom = String(deckState.courtNames[rankId] || overlay.querySelector(`.dlc-deck-court-${rankId}`)?.value || "").trim();
+          const defaultLabel = DECK_RANKS.find((entry) => entry.id === rankId)?.label || rankId;
+          if (custom && custom !== defaultLabel) {
+            courtNameOverrides[rankId] = custom;
           }
         });
         deckSlots.forEach((slot) => {
@@ -5220,15 +5560,29 @@
         };
         const majorCards = {};
         const minorCards = {};
+        const hexagramCards = {};
+        const hexagramNames = {};
+        const hexagramLines = {};
         const addFile = async (slotFile, zipName) => {
           const entry = fileByPath.get(slotFile);
           if (!entry) return;
           zipFiles.push({ name: zipName, bytes: new Uint8Array(await entry.file.arrayBuffer()) });
         };
         for (const slot of mapped) {
+          if (slot.key === "back") continue;
           const sourcePath = deckState.assigned[slot.key];
           const zipName = `${String(slot.file).replace(/\.[^.]+$/, "")}${imageExt(sourcePath)}`;
           await addFile(sourcePath, zipName);
+          if (slot.key.startsWith("hex-")) {
+            const number = String(slot.key.slice(4));
+            hexagramCards[number] = zipName;
+            const custom = String(deckState.cardNames[slot.key] || "").trim();
+            const defaultName = (ichingHexagramNames && ichingHexagramNames[Number(number)]) || `Hexagram ${number}`;
+            hexagramNames[number] = custom || defaultName;
+            const lineDiagram = ichingHexagramData && ichingHexagramData[Number(number)]?.lineDiagram;
+            if (lineDiagram) hexagramLines[number] = lineDiagram;
+            continue;
+          }
           if (slot.key.startsWith("major-")) {
             majorCards[String(slot.key.slice(6))] = zipName;
           } else {
@@ -5239,31 +5593,47 @@
           }
         }
         let cardBack = "";
-        if (deckState.backFile?.file) {
-          cardBack = `back${imageExt(deckState.backFile.name)}`;
-          zipFiles.push({
-            name: cardBack,
-            bytes: new Uint8Array(await deckState.backFile.file.arrayBuffer())
-          });
+        const backPath = deckState.assigned.back;
+        if (backPath) {
+          cardBack = `back${imageExt(backPath)}`;
+          await addFile(backPath, cardBack);
         }
-        const manifest = {
-          id,
-          name: title,
-          thumbnails: { root: "thumbs", width: 240, height: 360, fit: "inside", quality: 82 },
-          majors: { mode: "trump-map", cards: majorCards },
-          minors: { mode: "file-map", cards: minorCards }
-        };
+        const thumbnails = { root: "thumbs", width: 240, height: 360, fit: "inside", quality: 82 };
+        let manifest;
+        if (deckState.system === "iching") {
+          manifest = {
+            id,
+            name: title,
+            system: "iching",
+            thumbnails,
+            hexagrams: hexagramCards,
+            hexagramNames,
+            hexagramLines
+          };
+        } else {
+          manifest = {
+            id,
+            name: title,
+            system: "tarot",
+            thumbnails,
+            majors: { mode: "trump-map", cards: majorCards },
+            minors: { mode: "file-map", cards: minorCards }
+          };
+          if (Object.keys(majorNameOverridesByTrump).length) {
+            manifest.majorNameOverridesByTrump = majorNameOverridesByTrump;
+          }
+          if (Object.keys(minorNameOverrides).length) {
+            manifest.minorNameOverrides = minorNameOverrides;
+          }
+          if (Object.keys(suitNameOverrides).length) {
+            manifest.suitNameOverrides = suitNameOverrides;
+          }
+          if (Object.keys(courtNameOverrides).length) {
+            manifest.courtNameOverrides = courtNameOverrides;
+          }
+        }
         if (cardBack) {
           manifest.cardBack = cardBack;
-        }
-        if (Object.keys(majorNameOverridesByTrump).length) {
-          manifest.majorNameOverridesByTrump = majorNameOverridesByTrump;
-        }
-        if (Object.keys(minorNameOverrides).length) {
-          manifest.minorNameOverrides = minorNameOverrides;
-        }
-        if (Object.keys(suitNameOverrides).length) {
-          manifest.suitNameOverrides = suitNameOverrides;
         }
         zipFiles.unshift({
           name: "deck.json",
@@ -5373,6 +5743,11 @@
           overlay.querySelector(".dlc-create-text-description").value = manifest.description || "";
           overlay.querySelector(".dlc-create-text-language").value = manifest.language || "English";
           overlay.querySelector(".dlc-create-text-tradition").value = manifest.tradition || "";
+          overlay.querySelector(".dlc-create-text-short-title").value = manifest.shortTitle || "";
+          overlay.querySelector(".dlc-create-text-script").value = manifest.script || "Latin";
+          overlay.querySelector(".dlc-create-text-work-label").value = manifest.workLabel || "";
+          overlay.querySelector(".dlc-create-text-section-label").value = manifest.sectionLabel || "";
+          overlay.querySelector(".dlc-create-text-verse-label").value = manifest.verseLabel || "";
           await runTextPreview({
             syncFields: false,
             keepFormat: true,
@@ -5407,50 +5782,93 @@
           // Editing keeps the deck's id stable: renaming the title must not
           // change identity or the runtime/installed deck would look new.
           deckState.idManual = true;
-          applyDeckEntries(entries);
-          const byBase = new Map(entries.map((entry) => [entry.path.split("/").pop().toLowerCase(), entry.path]));
-          Object.entries(manifest.majors?.cards || {}).forEach(([trump, fileName]) => {
-            const path = byBase.get(String(fileName).toLowerCase());
-            if (path) deckState.assigned[`major-${trump}`] = path;
-          });
-          const minorCards = manifest.minors?.cards || {};
-          deckSlots.forEach((slot) => {
-            if (slot.key.startsWith("major-")) return;
-            const parts = slot.key.split("-");
-            const suitId = parts[1] === "pentacles" ? "disks" : parts[1];
-            const rankId = parts.slice(2).join("-");
-            const path = byBase.get(String(minorCards[`${rankId} of ${suitId}`] || "").toLowerCase());
-            if (path) deckState.assigned[slot.key] = path;
-          });
-          Object.entries(manifest.majorNameOverridesByTrump || {}).forEach(([trump, name]) => {
-            deckState.cardNames[`major-${trump}`] = name;
-          });
-          deckSlots.forEach((slot) => {
-            if (slot.key.startsWith("major-")) return;
-            const parts = slot.key.split("-");
-            const suitId = parts[1] === "pentacles" ? "disks" : parts[1];
-            const rankId = parts.slice(2).join("-");
-            const saved = (manifest.minorNameOverrides || {})[`${rankId} of ${suitId}`];
-            if (saved) deckState.cardNames[slot.key] = saved;
-          });
-          Object.entries(manifest.suitNameOverrides || {}).forEach(([suitId, name]) => {
-            const id = suitId === "disks" ? "pentacles" : suitId;
-            if (DECK_SUITS.some((suit) => suit.id === id)) deckState.suitNames[id] = name;
-          });
-          if (manifest.cardBack) {
-            const backPath = byBase.get(String(manifest.cardBack).toLowerCase());
-            const backEntry = backPath ? entries.find((entry) => entry.path === backPath) : null;
-            if (backEntry) {
-              deckState.backFile = { ...backEntry, name: backEntry.path.split("/").pop() };
+          const isIChing = String(manifest.system || "").toLowerCase() === "iching";
+          if (isIChing) {
+            deckState.system = "iching";
+            await ensureIChingNames();
+            Object.entries(manifest.hexagramNames || {}).forEach(([number, name]) => {
+              const key = Number(number);
+              if (key >= 1 && key <= 64 && String(name || "").trim()) {
+                ichingHexagramNames[key] = String(name).trim();
+              }
+            });
+            deckSlots = deckSlotList("iching");
+            applyDeckModeUi();
+            applyDeckEntries(entries);
+            const byBaseHex = new Map(entries.map((entry) => [entry.path.split("/").pop().toLowerCase(), entry.path]));
+            Object.entries(manifest.hexagrams || {}).forEach(([number, fileName]) => {
+              const path = byBaseHex.get(String(fileName).toLowerCase());
+              if (path) deckState.assigned[`hex-${number}`] = path;
+            });
+            Object.entries(manifest.hexagramNames || {}).forEach(([number, name]) => {
+              if (String(name || "").trim()) deckState.cardNames[`hex-${number}`] = String(name).trim();
+            });
+            if (manifest.cardBack) {
+              const backPath = byBaseHex.get(String(manifest.cardBack).toLowerCase());
+              if (backPath) deckState.assigned.back = backPath;
+            }
+          } else {
+            deckState.system = "tarot";
+            applyDeckModeUi();
+            applyDeckEntries(entries);
+            const byBase = new Map(entries.map((entry) => [entry.path.split("/").pop().toLowerCase(), entry.path]));
+            Object.entries(manifest.majors?.cards || {}).forEach(([trump, fileName]) => {
+              const path = byBase.get(String(fileName).toLowerCase());
+              if (path) deckState.assigned[`major-${trump}`] = path;
+            });
+            const minorCards = manifest.minors?.cards || {};
+            deckSlots.forEach((slot) => {
+              if (slot.key.startsWith("major-")) return;
+              const parts = slot.key.split("-");
+              const suitId = parts[1] === "pentacles" ? "disks" : parts[1];
+              const rankId = parts.slice(2).join("-");
+              const path = byBase.get(String(minorCards[`${rankId} of ${suitId}`] || "").toLowerCase());
+              if (path) deckState.assigned[slot.key] = path;
+            });
+            Object.entries(manifest.majorNameOverridesByTrump || {}).forEach(([trump, name]) => {
+              deckState.cardNames[`major-${trump}`] = name;
+            });
+            // Legacy major overrides keyed by canonical name (e.g. judgement → Aeon).
+            Object.entries(manifest.nameOverrides || {}).forEach(([key, name]) => {
+              if (deckState.cardNames[`major-${key}`]) return;
+              const trumpIndex = DECK_MAJORS.findIndex((entry) => entry.toLowerCase() === String(key).toLowerCase());
+              if (trumpIndex >= 0 && String(name || "").trim()) {
+                deckState.cardNames[`major-${trumpIndex}`] = String(name).trim();
+              }
+            });
+            deckSlots.forEach((slot) => {
+              if (slot.key.startsWith("major-")) return;
+              const parts = slot.key.split("-");
+              const suitId = parts[1] === "pentacles" ? "disks" : parts[1];
+              const rankId = parts.slice(2).join("-");
+              const saved = (manifest.minorNameOverrides || {})[`${rankId} of ${suitId}`];
+              if (saved) deckState.cardNames[slot.key] = saved;
+            });
+            Object.entries(manifest.suitNameOverrides || {}).forEach(([suitId, name]) => {
+              const id = suitId === "disks" ? "pentacles" : suitId;
+              if (DECK_SUITS.some((suit) => suit.id === id)) deckState.suitNames[id] = name;
+            });
+            Object.entries(manifest.courtNameOverrides || {}).forEach(([rankId, name]) => {
+              if (COURT_RANKS.includes(rankId) && String(name || "").trim()) {
+                deckState.courtNames[rankId] = String(name).trim();
+              }
+            });
+            if (manifest.cardBack) {
+              const backPath = byBase.get(String(manifest.cardBack).toLowerCase());
+              if (backPath) deckState.assigned.back = backPath;
             }
           }
           const titleEl = overlay.querySelector(".dlc-create-deck-title");
           const idEl = overlay.querySelector(".dlc-create-deck-id");
-          if (titleEl) titleEl.value = manifest.name || editItem.title || titleEl.value;
+          if (titleEl) titleEl.value = manifest.name || manifest.label || manifest.title || editItem.title || titleEl.value;
           if (idEl) idEl.value = manifest.id || editItem.name;
           DECK_SUITS.forEach((suit) => {
             const aliasEl = overlay.querySelector(`.dlc-deck-alias-${suit.id}`);
             if (aliasEl) aliasEl.value = deckState.suitNames[suit.id] || "";
+          });
+          COURT_RANKS.forEach((rankId) => {
+            const courtEl = overlay.querySelector(`.dlc-deck-court-${rankId}`);
+            if (courtEl) courtEl.value = deckState.courtNames[rankId] || "";
           });
           renderDeckEditor();
           setFormStatus(`Loaded ${entries.length} card image(s) with the saved mapping. Adjust, then save to overwrite.`);

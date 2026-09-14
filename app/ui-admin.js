@@ -344,7 +344,8 @@
       return {
         src: `${service.buildApiUrl("/api/v1/admin/dlc/deck/image")}?${params.toString()}`,
         label: file.label || file.name,
-        file: file.path
+        file: file.path,
+        hexagram: file.hexagram || null
       };
     });
     window.TaroDlcCardPeek.open({
@@ -1503,16 +1504,17 @@
   function createKindHeading(kind, count, options = {}) {
     const head = document.createElement("div");
     head.className = "dlc-kind-head";
-    head.innerHTML = `<strong>${escapeHtml(KIND_LABELS[kind] || kind)}</strong><span>${Number(count) || 0}</span>`;
+    const label = String(options.label || KIND_LABELS[kind] || kind);
+    head.innerHTML = `<strong>${escapeHtml(label)}</strong><span>${Number(count) || 0}</span>`;
     if (typeof options.installAll === "function") {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "dlc-shop-btn";
       button.textContent = "Install All";
-      button.title = `Install every available ${KIND_LABELS[kind] || kind} item`;
+      button.title = `Install every available ${label} item`;
       if (options.disabled) {
         button.disabled = true;
-        button.title = `No ${KIND_LABELS[kind] || kind} items available to install`;
+        button.title = `No ${label} items available to install`;
       }
       button.addEventListener("click", (event) => {
         event.preventDefault();
@@ -1696,12 +1698,17 @@
       return;
     }
 
-    groupCatalogItems(visibleItems).forEach(([kind, items]) => {
+    // Groups are rendered by kind; decks split further by system (tarot,
+    // iching, …) so new deck types slot in without code changes.
+    const renderKindGroup = (kind, items, headingLabel) => {
       const availableCount = items.filter((item) => item?.status === "available").length;
       const installableKind = kind === "plugin" || kind === "api" || kind === "gui" || kind === "deck" || kind === "text" || kind === "reference";
-      dlcCatalogEl.appendChild(createKindHeading(kind, items.length, installableKind
-        ? { installAll: (button) => installAvailableItems(items, { button, kindLabel: KIND_LABELS[kind] || kind }), disabled: availableCount === 0 }
-        : {}));
+      dlcCatalogEl.appendChild(createKindHeading(kind, items.length, {
+        label: headingLabel,
+        ...(installableKind
+          ? { installAll: (button) => installAvailableItems(items, { button, kindLabel: headingLabel }), disabled: availableCount === 0 }
+          : {})
+      }));
       items.forEach((item) => {
         const isInstalled = item?.status === "installed" || item?.status === "staged";
         const isPlugin = kind === "plugin" || kind === "api" || kind === "gui";
@@ -1945,6 +1952,29 @@
 
         dlcCatalogEl.appendChild(card);
       });
+    };
+
+    groupCatalogItems(visibleItems).forEach(([kind, items]) => {
+      if (kind !== "deck") {
+        renderKindGroup(kind, items, KIND_LABELS[kind] || kind);
+        return;
+      }
+      const bySystem = new Map();
+      items.forEach((item) => {
+        const system = String(item?.system || "tarot").trim().toLowerCase() || "tarot";
+        if (!bySystem.has(system)) bySystem.set(system, []);
+        bySystem.get(system).push(item);
+      });
+      [...bySystem.entries()]
+        .sort((a, b) => (a[0] === "tarot" ? -1 : b[0] === "tarot" ? 1 : a[0].localeCompare(b[0])))
+        .forEach(([system, deckItems]) => {
+          const label = system === "tarot"
+            ? "Tarot Decks"
+            : system === "iching"
+              ? "I Ching Decks"
+              : `${system.charAt(0).toUpperCase()}${system.slice(1)} Decks`;
+          renderKindGroup("deck", deckItems, label);
+        });
     });
   }
 

@@ -1054,9 +1054,73 @@
       .filter(Boolean);
   }
 
+  function getIChingDeckOptions() {
+    return (typeof getDeckOptions === "function" ? getDeckOptions() : [])
+      .filter((deck) => deck?.id && String(deck.system || "").trim().toLowerCase() === "iching");
+  }
+
+  function buildIChingLightboxCardRequest(cardId, deckId) {
+    const match = String(cardId || "").trim().match(/^hex-(\d+)$/);
+    if (!match) {
+      return null;
+    }
+    const number = Number(match[1]);
+    const src = resolveTarotCardImage?.(`Hexagram ${number}`, { deckId });
+    if (!src) {
+      return null;
+    }
+    const deck = getIChingDeckOptions()
+      .find((candidate) => candidate.id.toLowerCase() === String(deckId || "").trim().toLowerCase());
+    return {
+      src,
+      altText: `Hexagram ${number}`,
+      label: `Hexagram ${number}`,
+      cardId: `hex-${number}`,
+      deckId,
+      deckLabel: deck?.label || deckId,
+      compareDetails: []
+    };
+  }
+
+  function openIChingCardLightbox(cardId, requestedDeckId, options = {}) {
+    const ichingDecks = getIChingDeckOptions();
+    if (!ichingDecks.length) {
+      return false;
+    }
+    const wanted = String(requestedDeckId || "").trim().toLowerCase();
+    const deckId = ichingDecks.some((deck) => deck.id.toLowerCase() === wanted)
+      ? ichingDecks.find((deck) => deck.id.toLowerCase() === wanted).id
+      : ichingDecks[0].id;
+    const primary = buildIChingLightboxCardRequest(cardId, deckId);
+    if (!primary) {
+      return false;
+    }
+    window.TarotUiLightbox?.open?.({
+      ...primary,
+      allowOverlayCompare: true,
+      allowDeckCompare: ichingDecks.length > 1,
+      activeDeckId: deckId,
+      activeDeckLabel: primary.deckLabel,
+      availableCompareDecks: ichingDecks.map((deck) => ({ id: deck.id, label: deck.label })),
+      maxCompareDecks: 3,
+      sequenceIds: Array.from({ length: 64 }, (_value, index) => `hex-${index + 1}`),
+      resolveCardById: (nextCardId) => buildIChingLightboxCardRequest(nextCardId, deckId),
+      resolveDeckCardById: (nextCardId, nextDeckId) => buildIChingLightboxCardRequest(nextCardId, nextDeckId),
+      originRect: options?.originRect || null,
+      rotated: Boolean(options?.rotated),
+      onClose: typeof options?.onClose === "function" ? options.onClose : null
+    });
+    return true;
+  }
+
   function openCardLightboxById(cardIdToOpen, options = {}) {
     const normalizedCardId = String(cardIdToOpen || "").trim();
     if (!normalizedCardId) {
+      return;
+    }
+
+    if (/^hex-\d+$/.test(normalizedCardId)
+      && openIChingCardLightbox(normalizedCardId, options?.deckId || getActiveDeck?.(), options)) {
       return;
     }
 

@@ -58,6 +58,9 @@
   const FRAME_ACTIVE_LAYOUT_STORAGE_KEY = "tarot-frame-active-layout-v1";
   const FRAME_CARD_PICKER_QUERY_STORAGE_KEY = "tarot-frame-card-picker-query-v1";
   const FRAME_LAYOUT_NOTES_STORAGE_KEY = "tarot-frame-layout-notes-v1";
+  const FRAME_SYSTEM_STORAGE_KEY = "tarot-frame-system-v1";
+  const FRAME_EXPORT_COUNTS_STORAGE_KEY = "tarot-frame-export-counts-v1";
+  const FRAME_SYSTEM_LABELS = { tarot: "Tarot", iching: "I Ching" };
   const HOUSE_TOP_INFO_MODE_IDS = ["hebrew", "planet", "zodiac", "trump", "path", "date"];
   const HOUSE_BOTTOM_INFO_MODE_IDS = ["zodiac", "decan", "month", "ruler", "date"];
   const FRAME_LONG_PRESS_DELAY_MS = 460;
@@ -220,6 +223,29 @@
         const rows = Math.max(1, Math.ceil(ordered.length / columns));
         return buildCenteredBandPlacements(ordered, rows, columns);
       }
+    },
+    {
+      id: "iching",
+      label: "I Ching (8×8)",
+      title: "I Ching Hexagrams",
+      subtitle: "All 64 hexagrams in a centered 8×8 grid, in King Wen order.",
+      statusMessage: "I Ching layout applied to the master grid.",
+      legendItems: [
+        {
+          title: "Hexagrams",
+          description: "Hexagram 1–64, eight across and eight down."
+        }
+      ],
+      buildPlacements(cards) {
+        const hexagrams = (Array.isArray(cards) ? cards : []).slice(0, 64);
+        const columns = 8;
+        const start = Math.floor((MASTER_GRID_SIZE - columns) / 2) + 1;
+        return hexagrams.map((card, index) => ({
+          row: start + Math.floor(index / columns),
+          column: start + (index % columns),
+          cardId: getCardId(card)
+        }));
+      }
     }
   ];
 
@@ -269,13 +295,16 @@
     customCards: new Map(),
     slotDeckOverrides: new Map(),
     frameDeckId: "",
+    tarotLayoutId: "",
     layoutNotesById: {},
     exportInProgress: false,
     exportFormat: "webp",
     exportScope: "used",
     gridZoomStepIndex: 0,
-    gridZoomScale: FRAME_GRID_ZOOM_STEPS[0]
+    gridZoomScale: FRAME_GRID_ZOOM_STEPS[0],
+    system: "tarot"
   };
+  state.system = String(readStorageValue(FRAME_SYSTEM_STORAGE_KEY) || "").trim().toLowerCase() === "iching" ? "iching" : "tarot";
 
   let config = {
     ensureTarotSection: null,
@@ -359,6 +388,7 @@
       tarotFrameFramesPanelEl: document.getElementById("tarot-frame-frames-panel"),
       tarotFrameGridZoomEl: document.getElementById("tarot-frame-grid-zoom"),
       tarotFrameDeckSelectEl: document.getElementById("tarot-frame-deck-select"),
+      tarotFrameSystemEl: document.getElementById("tarot-frame-system"),
       tarotFrameExportScopeEl: document.getElementById("tarot-frame-export-scope"),
       tarotFrameShowInfoEl: document.getElementById("tarot-frame-show-info"),
       tarotFrameHouseSettingsEl: document.getElementById("tarot-frame-house-settings"),
@@ -652,9 +682,11 @@
   }
 
   function getDeckOptionsList() {
-    const options = Array.isArray(tarotCardImages.getDeckOptions?.())
+    const wantedSystem = state.system === "iching" ? "iching" : "tarot";
+    const options = (Array.isArray(tarotCardImages.getDeckOptions?.())
       ? tarotCardImages.getDeckOptions()
-      : [];
+      : []
+    ).filter((option) => String(option?.system || "tarot").trim().toLowerCase() === wantedSystem);
 
     const seen = new Set();
     return options
@@ -694,6 +726,69 @@
   function getFrameDeckId() {
     const normalized = normalizeFrameDeckId(state.frameDeckId);
     return normalized || getFallbackDeckId();
+  }
+
+  // Tarot vs I Ching card set. Switching clears placements so the two card
+  // namespaces never mix, and re-points the Frame Deck list at that system.
+  function syncSystemUi() {
+    const { tarotFrameSystemEl, tarotFrameLayoutOptionsEl, tarotFrameFramesPanelEl } = getElements();
+    if (tarotFrameSystemEl) {
+      tarotFrameSystemEl.value = state.system;
+    }
+    const isIChing = state.system === "iching";
+    [[tarotFrameLayoutOptionsEl, "tarot-frame-layout-options"], [tarotFrameFramesPanelEl, "tarot-frame-frames-panel"]]
+      .forEach(([element]) => {
+        if (!(element instanceof HTMLElement)) return;
+        element.style.display = isIChing ? "none" : "";
+        const heading = element.previousElementSibling;
+        if (heading && heading.classList?.contains("tarot-frame-settings-heading")) {
+          heading.style.display = isIChing ? "none" : "";
+        }
+      });
+    // Tarot-only display info (Hebrew, planet, zodiac, trump, path, date…) does
+    // not apply to hexagram cards.
+    const showInfoLabel = document.getElementById("tarot-frame-show-info")?.closest("label");
+    if (showInfoLabel) {
+      showInfoLabel.style.display = isIChing ? "none" : "";
+    }
+    const houseSettings = document.getElementById("tarot-frame-house-settings");
+    if (houseSettings) {
+      houseSettings.style.display = isIChing ? "none" : "";
+    }
+  }
+
+  function setFrameSystem(system) {
+    const next = system === "iching" ? "iching" : "tarot";
+    if (state.system === next) {
+      syncSystemUi();
+      return;
+    }
+    if (state.system === "tarot") {
+      state.tarotLayoutId = state.currentLayoutId;
+    }
+    state.system = next;
+    writeStorageValue(FRAME_SYSTEM_STORAGE_KEY, next);
+    state.slotAssignments.clear();
+    state.slotFlips.clear();
+    state.slotDeckOverrides.clear();
+    state.customCards.clear();
+    state.selectedSlotIds.clear();
+    state.frameDeckId = "";
+    const apply = () => {
+      syncSystemUi();
+      if (next === "iching") {
+        applyLayoutPreset("iching", getCards(), "I Ching layout applied to the master grid.");
+      } else {
+        applyLayoutSelection(state.tarotLayoutId || "frames", getCards(), "Tarot layout applied to the master grid.");
+      }
+      render();
+      syncControls();
+    };
+    if (next === "iching") {
+      void ensureFrameIChingCards().then(apply);
+    } else {
+      apply();
+    }
   }
 
   function getSlotDeckOverride(slotId) {
@@ -1155,7 +1250,7 @@
 
     // Move settings panel to view for proper absolute positioning in immersive
     // mode — but never when the shared overlay owns it, or it gets yanked out
-    // of the overlay (leaving an empty "Tarot Frame" header).
+    // of the overlay (leaving an empty "Frame" header).
     if (!state.settingsOverlayOpen && tarotFrameViewEl && tarotFrameSettingsPanelEl && state.gridFocusMode) {
       if (tarotFrameSettingsPanelEl.parentElement !== tarotFrameViewEl) {
         tarotFrameViewEl.appendChild(tarotFrameSettingsPanelEl);
@@ -1174,7 +1269,7 @@
   }
 
   function setGridFocusMode(nextFocus) {
-    // Immersive full-grid mode is always on for the Tarot Frame (playful canvas)
+    // Immersive full-grid mode is always on for the Frame (playful canvas)
     const shouldFocus = true;
     if (state.gridFocusMode === shouldFocus) {
       applyGridFocusModeUi();
@@ -2352,6 +2447,14 @@
       return matchesCardPickerTerms(queryTerms, haystack);
     };
 
+    if (state.system === "iching") {
+      const hexagrams = cards
+        .filter(matchesQuery)
+        .sort((left, right) => Number(left?.number) - Number(right?.number));
+      return [{ title: "Hexagrams", groups: [{ title: "", items: hexagrams }] }]
+        .filter((section) => section.groups.some((group) => group.items.length));
+    }
+
     const majorCards = cards
       .filter((card) => card?.arcana === "Major" && matchesQuery(card))
       .sort((left, right) => Number(left?.number) - Number(right?.number));
@@ -2553,11 +2656,11 @@
 
   function clearGrid() {
     if (!state.slotAssignments.size) {
-      setStatus("The Tarot Frame grid is already empty.");
+      setStatus("The Frame grid is already empty.");
       return;
     }
 
-    const shouldClear = window.confirm("Clear every card from the current Tarot Frame grid?");
+    const shouldClear = window.confirm("Clear every card from the current Frame grid?");
     if (!shouldClear) {
       return;
     }
@@ -2570,7 +2673,7 @@
     state.layoutReady = true;
     render();
     syncControls();
-    setStatus("Tarot Frame grid cleared. Use the card picker or a layout preset to repopulate it.");
+    setStatus("Frame grid cleared. Use the card picker or a layout preset to repopulate it.");
   }
 
   function clearLongPressGesture() {
@@ -3055,7 +3158,37 @@
       .replace(/\b(pentacles?|coins?)\b/g, "disks");
   }
 
+  let frameIChingCards = null;
+
+  async function ensureFrameIChingCards() {
+    if (Array.isArray(frameIChingCards) && frameIChingCards.length) {
+      return frameIChingCards;
+    }
+    try {
+      const payload = await window.TarotDataService.requestJson(
+        "GET",
+        window.TarotDataService.buildApiUrl("/api/v1/iching")
+      );
+      frameIChingCards = (Array.isArray(payload?.hexagrams) ? payload.hexagrams : [])
+        .map((hexagram) => {
+          const number = Number(hexagram?.number);
+          if (!Number.isFinite(number)) return null;
+          const name = String(hexagram?.name || `Hexagram ${number}`).trim() || `Hexagram ${number}`;
+          // id keeps every card distinct; the leading number lets decks resolve
+          // by hexagram number even when their names differ.
+          return { id: `hex-${number}`, name: `${number} · ${name}`, arcana: "Hexagram", number, suit: "", rank: "" };
+        })
+        .filter(Boolean);
+    } catch (_error) {
+      frameIChingCards = [];
+    }
+    return frameIChingCards;
+  }
+
   function getCards() {
+    if (state.system === "iching") {
+      return Array.isArray(frameIChingCards) ? frameIChingCards : [];
+    }
     const cards = config.getCards?.();
     return Array.isArray(cards) ? cards : [];
   }
@@ -4400,7 +4533,7 @@
     };
 
     overlayApi.open({
-      title: "Tarot Frame",
+        title: "Frame",
       body: tarotFrameSettingsPanelEl,
       size: "large",
       className: "tarot-frame-settings-overlay",
@@ -5166,6 +5299,7 @@
   }
 
   function syncControls() {
+    syncSystemUi();
     const {
       tarotFrameSelectionChipEl,
       tarotFrameFocusExitEl,
@@ -6706,13 +6840,39 @@
     const blob = await canvasToBlobByFormat(canvas, format);
     const blobUrl = URL.createObjectURL(blob);
     const downloadLink = document.createElement("a");
-    const stamp = new Date().toISOString().slice(0, 10);
     downloadLink.href = blobUrl;
-    downloadLink.download = `tarot-frame-grid-${stamp}.${exportFormat.extension}`;
+    downloadLink.download = nextFrameExportFileName(exportFormat.extension);
     document.body.appendChild(downloadLink);
     downloadLink.click();
     downloadLink.remove();
     setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  }
+
+  // Export name is "<System> - <Deck>", e.g. "I Ching - Tao Oracle". Repeats of
+  // the same name get an increment suffix (no timestamp).
+  function sanitizeFileNamePart(value) {
+    return String(value || "").replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim();
+  }
+
+  function buildFrameExportBaseName() {
+    const systemLabel = FRAME_SYSTEM_LABELS[state.system] || "Frame";
+    const deckId = getFrameDeckId();
+    const deckLabel = getDeckOptionsList().find((option) => option.id === deckId)?.label || deckId || "Frame";
+    return sanitizeFileNamePart(`${systemLabel} - ${deckLabel}`) || `Frame - ${systemLabel}`;
+  }
+
+  function nextFrameExportFileName(extension) {
+    const base = buildFrameExportBaseName();
+    let counts = {};
+    try {
+      counts = JSON.parse(readStorageValue(FRAME_EXPORT_COUNTS_STORAGE_KEY) || "{}") || {};
+    } catch (_error) {
+      counts = {};
+    }
+    const next = Number(counts[base] || 0) + 1;
+    counts[base] = next;
+    writeStorageValue(FRAME_EXPORT_COUNTS_STORAGE_KEY, JSON.stringify(counts));
+    return `${base}${next > 1 ? ` (${next})` : ""}.${extension}`;
   }
 
   async function exportFrame(format = "webp") {
@@ -6729,7 +6889,7 @@
       await exportImage(format);
       setStatus(`Downloaded a ${String(format || "webp").toUpperCase()} export of the current frame grid.`);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Unable to export the Tarot Frame image.");
+      window.alert(error instanceof Error ? error.message : "Unable to export the Frame image.");
     } finally {
       state.exportInProgress = false;
       state.exportFormat = "webp";
@@ -6916,6 +7076,13 @@
       });
     }
 
+    const { tarotFrameSystemEl } = getElements();
+    if (tarotFrameSystemEl) {
+      tarotFrameSystemEl.addEventListener("change", () => {
+        setFrameSystem(tarotFrameSystemEl.value);
+      });
+    }
+
     if (tarotFrameDeckSelectEl) {
       tarotFrameDeckSelectEl.addEventListener("change", () => {
         if (setFrameDeckId(tarotFrameDeckSelectEl.value)) {
@@ -6983,6 +7150,21 @@
     }
 
     resetFrameSectionScroll();
+
+    if (state.system === "iching") {
+      await ensureFrameIChingCards();
+      const hexagramCards = getCards();
+      if (!hexagramCards.length) {
+        setStatus("I Ching hexagrams are still loading...");
+        return;
+      }
+      state.cardSignature = buildCardSignature(hexagramCards);
+      applyLayoutPreset("iching", hexagramCards);
+      render();
+      syncControls();
+      setGridFocusMode(true);
+      return;
+    }
 
     const cards = getCards();
     if (!cards.length) {

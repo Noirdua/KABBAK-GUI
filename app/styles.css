@@ -612,6 +612,40 @@
     .tt-peek-info strong {
       font-size: 15px;
     }
+    .tt-peek-info .tt-peek-hexagram {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 6px;
+    }
+    .tt-peek-hexagram[hidden],
+    .tt-hexagram[hidden] {
+      display: none;
+    }
+    .tt-hexagram {
+      display: grid;
+      gap: 4px;
+      width: 84px;
+    }
+    .tt-hex-line {
+      display: block;
+      height: 6px;
+      border-radius: 2px;
+      background: #fff;
+    }
+    .tt-hex-line.is-yin {
+      background: linear-gradient(
+        to right,
+        #fff 0 42%,
+        rgba(255, 255, 255, 0) 42% 58%,
+        #fff 58% 100%
+      );
+    }
+    .tt-peek-hex-name {
+      font-size: 13px;
+      opacity: 0.85;
+    }
     .tt-peek-info code {
       font-size: 12px;
       opacity: 0.85;
@@ -2819,8 +2853,10 @@
       padding-top: 10px;
       border-top: 1px dashed var(--tt-border);
     }
-    .dlc-deck-loose-picker {
-      z-index: 320;
+    .dlc-deck-loose-picker,
+    .dlc-deck-rename-overlay,
+    .dlc-deck-help-overlay {
+      z-index: 330;
     }
     .tt-peek-empty[hidden] {
       display: none;
@@ -6606,6 +6642,37 @@
       width: min(100%, 140px);
       display: grid;
       gap: 6px;
+    }
+    .iching-deck-card {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .iching-deck-card-item {
+      display: grid;
+      gap: 4px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: zoom-in;
+    }
+    .iching-deck-card-image {
+      max-width: 180px;
+      width: auto;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      display: block;
+    }
+    .iching-deck-card-item:hover .iching-deck-card-image {
+      border-color: var(--tt-accent);
+    }
+    .iching-deck-card-label {
+      font-size: 11px;
+      color: var(--tt-text-muted);
     }
     .iching-lines-trigram {
       width: min(100%, 110px);
@@ -15322,4 +15389,141 @@
       .scriber-sidebar {
         display: none;
       }
+    }
+
+    /* Zen Reader: fullscreen reflowable text view. */
+    .zen-reader {
+      position: fixed;
+      inset: 0;
+      z-index: 400;
+      display: flex;
+      flex-direction: column;
+      background: var(--tt-page-bg);
+      color: var(--tt-text);
+    }
+    .zen-reader-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--tt-border);
+      flex-wrap: wrap;
+      background: var(--tt-bg);
+    }
+    .zen-reader-title {
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      opacity: 0.85;
+    }
+    .zen-reader-tools {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .zen-reader-btn {
+      padding: 5px 10px;
+      border: 1px solid var(--tt-border);
+      border-radius: 8px;
+      background: var(--tt-bg);
+      color: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .zen-reader-btn:hover {
+      border-color: var(--tt-accent);
+    }
+    .zen-reader-scroll {
+      flex: 1 1 auto;
+      overflow: auto;
+      padding: 28px 16px 72px;
+    }
+    .zen-reader-flow {
+      margin: 0 auto;
+      line-height: 1.75;
+      transition: font-size 0.12s ease;
+    }
+    .zen-reader-work {
+      margin: 24px auto 8px;
+      font-size: 1.5em;
+    }
+    .zen-reader-section {
+      margin: 20px auto 8px;
+      font-size: 1.2em;
+      opacity: 0.9;
+    }
+    .zen-reader-verse {
+      margin: 0 0 0.9em;
+    }
+    .zen-reader-ref {
+      font-size: 0.7em;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      opacity: 0.55;
+      margin-right: 0.6em;
+    }
+    .zen-reader-rsvp {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 18px 14px;
+      border-bottom: 1px solid var(--tt-border);
+      background: var(--tt-bg-deep);
+    }
+    .zen-reader-rsvp[hidden] {
+      display: none;
+    }
+    .zen-reader-word {
+      font-size: clamp(32px, 8vw, 64px);
+      font-weight: 700;
+      min-height: 1.2em;
+      font-variant-numeric: tabular-nums;
+    }
+    .zen-reader-orp {
+      color: var(--tt-brand);
+    }
+    .zen-reader-rsvp-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      font-size: 12px;
+    }
+    .zen-reader-rsvp-wpm {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .zen-reader-settings {
+      position: absolute;
+      right: 14px;
+      top: 54px;
+      z-index: 2;
+      display: grid;
+      gap: 10px;
+      padding: 12px 14px;
+      border: 1px solid var(--tt-border);
+      border-radius: 12px;
+      background: var(--tt-bg-deep);
+      min-width: 240px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+    }
+    .zen-reader-settings[hidden] {
+      display: none;
+    }
+    .zen-reader-settings label {
+      display: grid;
+      gap: 4px;
+      font-size: 12px;
+    }
+    .zen-reader-settings .zen-reader-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .zen-reader-settings input[type="range"],
+    .zen-reader-rsvp-wpm input[type="range"] {
+      width: 100%;
     }
