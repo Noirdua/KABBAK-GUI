@@ -1709,7 +1709,7 @@
           });
         }
 
-        if (kind !== "pack" && item?.downloaded === true) {
+        if (kind !== "pack" && item?.downloaded === true && item?.publishPending === true) {
           const publishBtn = document.createElement("button");
           publishBtn.type = "button";
           publishBtn.className = "dlc-shop-btn";
@@ -2144,12 +2144,33 @@
     }
   }
 
+  async function annotatePublishPending() {
+    const candidates = allDlcItems.filter((item) => item?.downloaded === true && item?.kind !== "pack");
+    if (!candidates.length) return;
+    try {
+      const result = await requestJson("POST", "/api/v1/admin/dlc/publish/status", {
+        items: candidates.map((item) => ({ kind: item.kind, name: item.name, sourceId: item.sourceId || "" }))
+      });
+      const map = new Map((result?.statuses || []).map((entry) => [`${entry.kind}:${entry.name}`, entry]));
+      allDlcItems.forEach((item) => {
+        const status = map.get(`${item.kind}:${item.name}`);
+        item.publishPending = status ? status.pending === true : false;
+      });
+    } catch (_error) {
+      // Never hide Publish entirely if the status check fails.
+      allDlcItems.forEach((item) => {
+        item.publishPending = true;
+      });
+    }
+  }
+
   async function loadPlugins() {
     const { dlcCatalogEl } = getElements();
     if (!dlcCatalogEl) return;
     try {
       const catalog = await requestJson("GET", "/api/v1/dlc/catalog?refresh=1");
       allDlcItems = Array.isArray(catalog?.items) ? catalog.items : [];
+      await annotatePublishPending();
       renderDlcCatalog();
       const baseUrl = window.TarotDataService?.getApiBaseUrl?.() || "";
       const pluginCount = allDlcItems.filter((item) => item?.kind === "plugin").length;
