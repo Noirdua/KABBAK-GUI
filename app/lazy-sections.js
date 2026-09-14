@@ -135,7 +135,7 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260914-repo-delete2"
+      "app/ui-admin.js?v=20260914-card-peek"
     ],
     profile: [
       "app/ui-profile.js?v=20260913-decan-detail"

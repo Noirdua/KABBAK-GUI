@@ -3165,6 +3165,128 @@
     return concatBytes([...locals, ...centrals, eocd]);
   }
 
+  // Stripped-down tarot viewer: full-bleed image with a small overlay showing
+  // what card the file is meant to be and its file name. Shared by the deck
+  // builder and the Admin → DLC deck preview.
+  let cardPeekOnKey = null;
+
+  function closeCardPeek() {
+    document.querySelector(".tt-peek")?.remove();
+    if (cardPeekOnKey) {
+      document.removeEventListener("keydown", cardPeekOnKey);
+      cardPeekOnKey = null;
+    }
+  }
+
+  function openCardPeek({ items, index = 0, context = "", onEmpty = null, refresh = null } = {}) {
+    let list = (Array.isArray(items) ? items : []).filter((entry) => entry && (entry.src || entry.empty));
+    if (!list.length) return;
+    closeCardPeek();
+    let current = Math.max(0, Math.min(Number(index) || 0, list.length - 1));
+
+    const overlay = document.createElement("div");
+    overlay.className = "tt-peek";
+    overlay.tabIndex = -1;
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.innerHTML = `
+      <div class="tarot-lightbox-backdrop" data-role="peek-backdrop"></div>
+      <div class="tt-peek-stage">
+        <img data-role="peek-image" alt="">
+        <div class="tt-peek-empty" data-role="peek-empty" hidden>
+          <span data-role="peek-empty-text">No image mapped.</span>
+          <button type="button" class="tt-lb-btn" data-action="peek-pick">Pick image</button>
+        </div>
+      </div>
+      <div class="tt-peek-info">
+        <strong data-role="peek-label"></strong>
+        <code data-role="peek-file"></code>
+        <span data-role="peek-context"></span>
+      </div>
+      <div class="tt-peek-controls">
+        <button type="button" class="tt-lb-btn" data-action="peek-prev">◀ Prev</button>
+        <span class="tt-lb-control"><span data-role="peek-counter"></span></span>
+        <button type="button" class="tt-lb-btn" data-action="peek-next">Next ▶</button>
+        <button type="button" class="tt-lb-btn is-danger" data-action="peek-close">Close</button>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const img = overlay.querySelector('[data-role="peek-image"]');
+    const emptyEl = overlay.querySelector('[data-role="peek-empty"]');
+    const emptyTextEl = overlay.querySelector('[data-role="peek-empty-text"]');
+    const pickBtn = overlay.querySelector('[data-action="peek-pick"]');
+    const labelEl = overlay.querySelector('[data-role="peek-label"]');
+    const fileEl = overlay.querySelector('[data-role="peek-file"]');
+    const contextEl = overlay.querySelector('[data-role="peek-context"]');
+    const counterEl = overlay.querySelector('[data-role="peek-counter"]');
+    const prevBtn = overlay.querySelector('[data-action="peek-prev"]');
+    const nextBtn = overlay.querySelector('[data-action="peek-next"]');
+
+    const render = () => {
+      const entry = list[current];
+      labelEl.textContent = entry.label || "Card";
+      fileEl.textContent = entry.file || "";
+      contextEl.textContent = context || "";
+      counterEl.textContent = `${current + 1} / ${list.length}`;
+      if (entry.src) {
+        img.hidden = false;
+        emptyEl.hidden = true;
+        img.src = entry.src;
+        img.alt = entry.label || entry.file || "Card";
+      } else {
+        img.hidden = true;
+        img.removeAttribute("src");
+        emptyEl.hidden = false;
+        emptyTextEl.textContent = `${entry.label || "This slot"} has no image mapped.`;
+        pickBtn.hidden = typeof onEmpty !== "function";
+      }
+      const single = list.length <= 1;
+      prevBtn.disabled = single;
+      nextBtn.disabled = single;
+    };
+    const step = (delta) => {
+      if (list.length <= 1) return;
+      current = (current + delta + list.length) % list.length;
+      render();
+    };
+
+    pickBtn.addEventListener("click", async () => {
+      if (typeof onEmpty !== "function") return;
+      pickBtn.disabled = true;
+      try {
+        await onEmpty(list[current]);
+        if (typeof refresh === "function") {
+          const next = await refresh();
+          if (Array.isArray(next) && next.length) {
+            const key = list[current]?.key;
+            list = next;
+            const found = key ? list.findIndex((entry) => entry.key === key) : -1;
+            current = found >= 0 ? found : Math.max(0, Math.min(current, list.length - 1));
+            render();
+          }
+        }
+      } finally {
+        pickBtn.disabled = false;
+      }
+    });
+
+    prevBtn.addEventListener("click", () => step(-1));
+    nextBtn.addEventListener("click", () => step(1));
+    overlay.querySelector('[data-action="peek-close"]').addEventListener("click", closeCardPeek);
+    overlay.querySelector('[data-role="peek-backdrop"]').addEventListener("click", closeCardPeek);
+    cardPeekOnKey = (event) => {
+      if (event.key === "Escape") closeCardPeek();
+      else if (event.key === "ArrowLeft") step(-1);
+      else if (event.key === "ArrowRight") step(1);
+    };
+    document.addEventListener("keydown", cardPeekOnKey);
+
+    overlay.focus({ preventScroll: true });
+    render();
+  }
+
+  window.TaroDlcCardPeek = { open: openCardPeek, close: closeCardPeek };
+
   function openCreateDlc(hostEl, { onCreated, editItem } = {}) {
     if (!isAdmin()) {
       setStatus("Admin key required to create DLC.", true);
@@ -4386,31 +4508,45 @@
     const openDeckPreview = (url, label, filePath) => {
       if (!url) return;
       const relative = String(filePath || "").replace(/\\/g, "/");
-      const fileName = relative.split("/").pop() || "";
-      document.querySelector(".dlc-deck-preview-overlay")?.remove();
-      const pop = document.createElement("div");
-      pop.className = "dlc-settings-overlay dlc-deck-preview-overlay";
-      pop.setAttribute("role", "dialog");
-      pop.innerHTML = `
-        <div class="dlc-settings-overlay-panel dlc-deck-preview-panel">
-          <div class="dlc-settings-overlay-head">
-            <strong>${escapeHtml(label || "Card")}</strong>
-            <button type="button" class="dlc-shop-btn" data-action="preview-close">Close</button>
-          </div>
-          <div class="dlc-deck-preview-file">
-            <code>${escapeHtml(fileName)}</code>
-            ${relative && relative !== fileName ? `<span>${escapeHtml(relative)}</span>` : ""}
-          </div>
-          <div class="dlc-deck-preview-body">
-            <img src="${escapeHtml(url)}" alt="${escapeHtml(label || "Card")}">
-          </div>
-        </div>
-      `;
-      document.body.appendChild(pop);
-      const close = () => pop.remove();
-      pop.querySelector('[data-action="preview-close"]').addEventListener("click", close);
-      pop.addEventListener("click", (event) => {
-        if (event.target === pop) close();
+      window.TaroDlcCardPeek?.open({
+        items: [{ src: url, label: label || "Card", file: relative }],
+        context: deckState.title || ""
+      });
+    };
+
+    // Full-deck peek across every slot; empty slots offer a pick action.
+    const buildDeckPeekItems = () => {
+      const filesByPath = new Map(deckState.files.map((entry) => [entry.path, entry]));
+      return deckSlots.map((slot) => {
+        const assignedPath = deckState.assigned[slot.key];
+        const entry = assignedPath ? filesByPath.get(assignedPath) : null;
+        return {
+          key: slot.key,
+          label: slotDisplayLabel(slot),
+          file: assignedPath || "",
+          src: entry?.url || "",
+          empty: !entry
+        };
+      });
+    };
+
+    const openDeckPeekAt = (slotKey) => {
+      const items = buildDeckPeekItems();
+      const index = Math.max(0, items.findIndex((entry) => entry.key === slotKey));
+      window.TaroDlcCardPeek?.open({
+        items,
+        index,
+        context: deckState.title || "",
+        onEmpty: async (entry) => {
+          const slot = deckSlots.find((candidate) => candidate.key === entry.key);
+          if (!slot) return;
+          if (deckState.pendingLoose) {
+            assignLooseToSlot(slot.key, deckState.pendingLoose);
+            return;
+          }
+          await openLoosePicker(slot);
+        },
+        refresh: () => buildDeckPeekItems()
       });
     };
 
@@ -4500,11 +4636,12 @@
       renderDeckEditor();
     };
 
-    const openLoosePicker = (slot) => {
+    const openLoosePicker = (slot) => new Promise((resolve) => {
       const used = new Set(Object.values(deckState.assigned).filter(Boolean));
       const loose = deckState.files.filter((entry) => !used.has(entry.path));
       if (!loose.length) {
         setFormStatus("No unmapped images left to place.", true);
+        resolve(null);
         return;
       }
       document.querySelector(".dlc-deck-loose-picker")?.remove();
@@ -4541,21 +4678,24 @@
         name.textContent = entry.path.replace(/\\/g, "/").split("/").pop();
         item.append(img, name);
         item.addEventListener("click", () => {
-          picker.remove();
           assignLooseToSlot(slot.key, entry.path);
+          finish(entry.path);
         });
         grid.appendChild(item);
       });
       body.append(hint, grid);
       panel.append(head, body);
       picker.appendChild(panel);
-      const close = () => picker.remove();
-      closeBtn.addEventListener("click", close);
+      const finish = (value) => {
+        picker.remove();
+        resolve(value ?? null);
+      };
+      closeBtn.addEventListener("click", () => finish(null));
       picker.addEventListener("click", (event) => {
-        if (event.target === picker) close();
+        if (event.target === picker) finish(null);
       });
       document.body.appendChild(picker);
-    };
+    });
 
     const renderDeckEditor = () => {
       const statsEl = overlay.querySelector("[data-role='deck-stats']");
@@ -4630,15 +4770,7 @@
             card.classList.add("is-renamed");
           }
           card.addEventListener("click", () => {
-            if (file?.url) {
-              openDeckPreview(file.url, displayName, file.path);
-              return;
-            }
-            if (deckState.pendingLoose) {
-              assignLooseToSlot(slot.key, deckState.pendingLoose);
-              return;
-            }
-            openLoosePicker(slot);
+            openDeckPeekAt(slot.key);
           });
           card.addEventListener("contextmenu", (event) => {
             const items = [

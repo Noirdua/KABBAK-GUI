@@ -314,97 +314,43 @@
   }
 
   async function openDeckPreview(item) {
-    document.querySelector(".dlc-deck-preview-overlay")?.remove();
-    const overlay = document.createElement("div");
-    overlay.className = "dlc-settings-overlay dlc-deck-preview-overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
-    overlay.innerHTML = `
-      <div class="dlc-settings-overlay-panel dlc-deck-preview-panel">
-        <div class="dlc-settings-overlay-head">
-          <strong>Preview ${escapeHtml(item.title || item.name)}</strong>
-          <button type="button" class="dlc-shop-btn" data-action="close">Close</button>
-        </div>
-        <div class="dlc-deck-preview-body">
-          <div class="dlc-deck-preview-stage"><img data-role="image" alt="${escapeHtml(item.title || item.name)}" /></div>
-          <div class="dlc-deck-preview-controls">
-            <button type="button" class="dlc-shop-btn" data-action="prev">◀ Prev</button>
-            <span class="dlc-deck-preview-counter" data-role="counter">—</span>
-            <button type="button" class="dlc-shop-btn" data-action="next">Next ▶</button>
-            <span class="dlc-deck-preview-file settings-field-hint" data-role="file"></span>
-          </div>
-          <div class="settings-field-hint" data-role="status">Loading deck…</div>
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-
-    const close = () => overlay.remove();
-    overlay.querySelector('[data-action="close"]').addEventListener("click", close);
-    overlay.addEventListener("mousedown", (event) => {
-      if (event.target === overlay) close();
-    });
-
-    const img = overlay.querySelector('[data-role="image"]');
-    const counter = overlay.querySelector('[data-role="counter"]');
-    const fileLabel = overlay.querySelector('[data-role="file"]');
-    const statusEl = overlay.querySelector('[data-role="status"]');
-    const prevBtn = overlay.querySelector('[data-action="prev"]');
-    const nextBtn = overlay.querySelector('[data-action="next"]');
-    let images = [];
-    let index = 0;
-
     const service = window.TarotDataService;
     const itemQuery = `kind=deck&name=${encodeURIComponent(item.name)}&sourceId=${encodeURIComponent(item.sourceId || "")}`;
-
-    const renderImage = () => {
-      const file = images[index];
-      if (!file) return;
-      const params = new URLSearchParams({ kind: "deck", name: item.name, sourceId: item.sourceId || "", path: file.path });
-      const apiKey = service.getApiKey?.();
-      if (apiKey) params.set("apiKey", apiKey);
-      img.src = `${service.buildApiUrl("/api/v1/admin/dlc/deck/image")}?${params.toString()}`;
-      counter.textContent = `${index + 1} / ${images.length}`;
-      fileLabel.textContent = file.name;
-    };
-    const step = (delta) => {
-      if (!images.length) return;
-      index = (index + delta + images.length) % images.length;
-      renderImage();
-    };
-    prevBtn.addEventListener("click", () => step(-1));
-    nextBtn.addEventListener("click", () => step(1));
-
-    document.addEventListener("keydown", function onKey(event) {
-      if (event.key === "Escape") {
-        document.removeEventListener("keydown", onKey);
-        close();
-      } else if (event.key === "ArrowLeft") {
-        step(-1);
-      } else if (event.key === "ArrowRight") {
-        step(1);
-      }
-    });
-
-    img.addEventListener("error", () => {
-      statusEl.textContent = "Could not load this card image.";
-    });
-
+    let result;
     try {
-      const result = await requestJson("GET", `/api/v1/admin/dlc/deck/preview?${itemQuery}`);
-      images = Array.isArray(result?.images) ? result.images : [];
-      if (!images.length) {
-        statusEl.textContent = "No card images found in this deck.";
-        prevBtn.disabled = true;
-        nextBtn.disabled = true;
-        return;
-      }
-      statusEl.textContent = `${images.length} image(s) · ${result?.materialized ? "from local checkout" : "from repository"}`;
-      renderImage();
+      result = await requestJson("GET", `/api/v1/admin/dlc/deck/preview?${itemQuery}`);
     } catch (error) {
-      statusEl.textContent = error?.message || "Could not load deck preview.";
-      prevBtn.disabled = true;
-      nextBtn.disabled = true;
+      setStatus(`Could not load deck preview. ${error?.message || ""}`, true);
+      return;
     }
+    const images = Array.isArray(result?.images) ? result.images : [];
+    if (!images.length) {
+      setStatus(`No card images found in ${item.name}.`, true);
+      return;
+    }
+    if (!window.TaroDlcCardPeek?.open) {
+      setStatus("Card viewer is unavailable; hard refresh the page.", true);
+      return;
+    }
+    const apiKey = service.getApiKey?.();
+    const items = images.map((file) => {
+      const params = new URLSearchParams({
+        kind: "deck",
+        name: item.name,
+        sourceId: item.sourceId || "",
+        path: file.path
+      });
+      if (apiKey) params.set("apiKey", apiKey);
+      return {
+        src: `${service.buildApiUrl("/api/v1/admin/dlc/deck/image")}?${params.toString()}`,
+        label: file.label || file.name,
+        file: file.path
+      };
+    });
+    window.TaroDlcCardPeek.open({
+      items,
+      context: `${result?.title || item.title || item.name} · ${result?.materialized ? "local" : "repository"}`
+    });
   }
 
   function promptDeleteScope(item) {
