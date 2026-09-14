@@ -313,16 +313,161 @@
     }
   }
 
-  async function deleteDlcItem(item) {
-    if (!window.confirm(`Delete '${item.title || item.name}' (${item.kind}) from the local DLC checkout? This cannot be undone.`)) return;
+  async function openDeckPreview(item) {
+    document.querySelector(".dlc-deck-preview-overlay")?.remove();
+    const overlay = document.createElement("div");
+    overlay.className = "dlc-settings-overlay dlc-deck-preview-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.innerHTML = `
+      <div class="dlc-settings-overlay-panel dlc-deck-preview-panel">
+        <div class="dlc-settings-overlay-head">
+          <strong>Preview ${escapeHtml(item.title || item.name)}</strong>
+          <button type="button" class="dlc-shop-btn" data-action="close">Close</button>
+        </div>
+        <div class="dlc-deck-preview-body">
+          <div class="dlc-deck-preview-stage"><img data-role="image" alt="${escapeHtml(item.title || item.name)}" /></div>
+          <div class="dlc-deck-preview-controls">
+            <button type="button" class="dlc-shop-btn" data-action="prev">◀ Prev</button>
+            <span class="dlc-deck-preview-counter" data-role="counter">—</span>
+            <button type="button" class="dlc-shop-btn" data-action="next">Next ▶</button>
+            <span class="dlc-deck-preview-file settings-field-hint" data-role="file"></span>
+          </div>
+          <div class="settings-field-hint" data-role="status">Loading deck…</div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    overlay.querySelector('[data-action="close"]').addEventListener("click", close);
+    overlay.addEventListener("mousedown", (event) => {
+      if (event.target === overlay) close();
+    });
+
+    const img = overlay.querySelector('[data-role="image"]');
+    const counter = overlay.querySelector('[data-role="counter"]');
+    const fileLabel = overlay.querySelector('[data-role="file"]');
+    const statusEl = overlay.querySelector('[data-role="status"]');
+    const prevBtn = overlay.querySelector('[data-action="prev"]');
+    const nextBtn = overlay.querySelector('[data-action="next"]');
+    let images = [];
+    let index = 0;
+
+    const service = window.TarotDataService;
+    const itemQuery = `kind=deck&name=${encodeURIComponent(item.name)}&sourceId=${encodeURIComponent(item.sourceId || "")}`;
+
+    const renderImage = () => {
+      const file = images[index];
+      if (!file) return;
+      const params = new URLSearchParams({ kind: "deck", name: item.name, sourceId: item.sourceId || "", path: file.path });
+      const apiKey = service.getApiKey?.();
+      if (apiKey) params.set("apiKey", apiKey);
+      img.src = `${service.buildApiUrl("/api/v1/admin/dlc/deck/image")}?${params.toString()}`;
+      counter.textContent = `${index + 1} / ${images.length}`;
+      fileLabel.textContent = file.name;
+    };
+    const step = (delta) => {
+      if (!images.length) return;
+      index = (index + delta + images.length) % images.length;
+      renderImage();
+    };
+    prevBtn.addEventListener("click", () => step(-1));
+    nextBtn.addEventListener("click", () => step(1));
+
+    document.addEventListener("keydown", function onKey(event) {
+      if (event.key === "Escape") {
+        document.removeEventListener("keydown", onKey);
+        close();
+      } else if (event.key === "ArrowLeft") {
+        step(-1);
+      } else if (event.key === "ArrowRight") {
+        step(1);
+      }
+    });
+
+    img.addEventListener("error", () => {
+      statusEl.textContent = "Could not load this card image.";
+    });
+
     try {
-      await requestJson("DELETE", "/api/v1/admin/dlc/item", {
+      const result = await requestJson("GET", `/api/v1/admin/dlc/deck/preview?${itemQuery}`);
+      images = Array.isArray(result?.images) ? result.images : [];
+      if (!images.length) {
+        statusEl.textContent = "No card images found in this deck.";
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        return;
+      }
+      statusEl.textContent = `${images.length} image(s) · ${result?.materialized ? "from local checkout" : "from repository"}`;
+      renderImage();
+    } catch (error) {
+      statusEl.textContent = error?.message || "Could not load deck preview.";
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+    }
+  }
+
+  function promptDeleteScope(item) {
+    return new Promise((resolve) => {
+      document.querySelector(".dlc-delete-overlay")?.remove();
+      const overlay = document.createElement("div");
+      overlay.className = "dlc-settings-overlay dlc-delete-overlay";
+      overlay.setAttribute("role", "dialog");
+      overlay.setAttribute("aria-modal", "true");
+      overlay.innerHTML = `
+        <div class="dlc-settings-overlay-panel dlc-delete-panel">
+          <div class="dlc-settings-overlay-head">
+            <strong>Delete ${escapeHtml(item.title || item.name)}</strong>
+          </div>
+          <div class="dlc-install-overlay-body">
+            <p>Remove this ${escapeHtml(item.kind)}?</p>
+            <p class="settings-field-hint">${item?.downloaded === true
+              ? "Deleting from the repository commits the removal and pushes it to the source branch. The local copy is removed either way."
+              : "This item is only in the repository; deleting commits the removal and pushes it to the source branch."}</p>
+            <div class="dlc-shop-actions">
+              ${item?.downloaded === true ? '<button type="button" class="dlc-shop-btn" data-action="local">Delete locally</button>' : ""}
+              <button type="button" class="dlc-shop-btn is-danger" data-action="repo">Delete from repository</button>
+              <button type="button" class="dlc-shop-btn" data-action="cancel">Cancel</button>
+            </div>
+          </div>
+        </div>`;
+      let settled = false;
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        overlay.remove();
+        resolve(value);
+      };
+      overlay.querySelector('[data-action="local"]')?.addEventListener("click", () => finish("local"));
+      overlay.querySelector('[data-action="repo"]').addEventListener("click", () => finish("repo"));
+      overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => finish(null));
+      overlay.addEventListener("mousedown", (event) => {
+        if (event.target === overlay) finish(null);
+      });
+      document.addEventListener("keydown", function onKey(event) {
+        if (event.key === "Escape") {
+          document.removeEventListener("keydown", onKey);
+          finish(null);
+        }
+      });
+      document.body.appendChild(overlay);
+    });
+  }
+
+  async function deleteDlcItem(item) {
+    const scope = await promptDeleteScope(item);
+    if (!scope) return;
+    const fromRepo = scope === "repo";
+    setStatus(fromRepo ? `Deleting ${item.name} from the repository…` : `Deleting ${item.name}…`);
+    try {
+      const result = await requestJson("POST", "/api/v1/admin/dlc/delete", {
         kind: item.kind,
         name: item.name,
+        id: item.id || "",
         sourceId: item.sourceId || "",
-        id: item.id || ""
+        fromRepo
       });
-      setStatus(`Deleted ${item.name}.`);
+      setStatus(result?.note || `${fromRepo ? "Removed from repository" : "Deleted"} ${item.name}.`);
       await loadPlugins();
     } catch (error) {
       setStatus(`Could not delete ${item.name}. ${error?.message || ""}`, true);
@@ -1682,28 +1827,45 @@
 
         const actionRow = card.querySelector(".dlc-plugin-actions");
 
-        if (kind !== "pack" && item?.downloaded === true && item?.status !== "installed") {
-          const editBtn = document.createElement("button");
-          editBtn.type = "button";
-          editBtn.className = "dlc-shop-btn";
-          editBtn.textContent = "Edit";
-          editBtn.title = "Edit this item's files (available while it is not installed)";
+        if (kind === "deck" && item?.status !== "installed") {
+          const previewBtn = document.createElement("button");
+          previewBtn.type = "button";
+          previewBtn.className = "dlc-shop-btn";
+          previewBtn.textContent = "Preview";
+          previewBtn.title = "Sample this deck's card images";
+          actionRow?.appendChild(previewBtn);
+          previewBtn.addEventListener("click", () => {
+            void openDeckPreview(item);
+          });
+        }
+
+        if (kind !== "pack" && item?.status !== "installed") {
+          if (item?.downloaded === true) {
+            const editBtn = document.createElement("button");
+            editBtn.type = "button";
+            editBtn.className = "dlc-shop-btn";
+            editBtn.textContent = "Edit";
+            editBtn.title = "Edit this item's files (available while it is not installed)";
+            actionRow?.appendChild(editBtn);
+            editBtn.addEventListener("click", () => {
+              if (["reference", "text", "deck"].includes(item.kind) && window.TaroTimeDlcShop?.openCreateDlc) {
+                window.TaroTimeDlcShop.openCreateDlc(card, {
+                  editItem: item,
+                  onCreated: () => { void loadPlugins(); }
+                });
+                return;
+              }
+              void openDlcItemEditor(item);
+            });
+          }
           const deleteBtn = document.createElement("button");
           deleteBtn.type = "button";
           deleteBtn.className = "dlc-shop-btn";
           deleteBtn.textContent = "Delete";
-          deleteBtn.title = "Delete this item from the local DLC checkout";
-          actionRow?.append(editBtn, deleteBtn);
-          editBtn.addEventListener("click", () => {
-            if (["reference", "text", "deck"].includes(item.kind) && window.TaroTimeDlcShop?.openCreateDlc) {
-              window.TaroTimeDlcShop.openCreateDlc(card, {
-                editItem: item,
-                onCreated: () => { void loadPlugins(); }
-              });
-              return;
-            }
-            void openDlcItemEditor(item);
-          });
+          deleteBtn.title = item?.downloaded === true
+            ? "Delete this item locally or from the repository"
+            : "Delete this item from the repository";
+          actionRow?.appendChild(deleteBtn);
           deleteBtn.addEventListener("click", () => {
             void deleteDlcItem(item);
           });

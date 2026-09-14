@@ -2687,6 +2687,57 @@
     .dlc-ctx-menu[hidden] {
       display: none;
     }
+    .dlc-delete-panel {
+      width: min(460px, 96vw);
+    }
+    .dlc-shop-btn.is-danger {
+      border-color: color-mix(in srgb, #ef4444 60%, var(--tt-border));
+      color: #fca5a5;
+    }
+    .dlc-deck-preview-panel {
+      width: min(560px, 96vw);
+    }
+    .dlc-deck-preview-body {
+      display: grid;
+      gap: 10px;
+      justify-items: center;
+    }
+    .dlc-deck-preview-stage {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 320px;
+      max-height: 62vh;
+      padding: 8px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: var(--tt-bg-deepest);
+    }
+    .dlc-deck-preview-stage img {
+      max-width: 100%;
+      max-height: 60vh;
+      width: auto;
+      height: auto;
+      border-radius: 6px;
+      object-fit: contain;
+    }
+    .dlc-deck-preview-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .dlc-deck-preview-counter {
+      font-variant-numeric: tabular-nums;
+      min-width: 64px;
+      text-align: center;
+    }
+    .dlc-deck-preview-file {
+      flex-basis: 100%;
+      text-align: center;
+    }
     .dlc-repos-panel {
       width: min(720px, 100%);
     }
