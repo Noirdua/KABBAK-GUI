@@ -787,6 +787,84 @@
     return templates;
   }
 
+  async function fetchBoardTopics() {
+    return requestJson("GET", buildApiUrl("/api/v1/board/topics"));
+  }
+
+  async function fetchBoardContributors(limit) {
+    return requestJson("GET", buildApiUrl("/api/v1/board/contributors", { limit }));
+  }
+
+  async function reportBoardPost(payload) {
+    return requestJson("POST", buildApiUrl("/api/v1/board/report"), payload);
+  }
+
+  async function watchBoardTopic(topicId, watching) {
+    return requestJson(
+      "POST",
+      buildApiUrl(`/api/v1/board/topics/${encodeURIComponent(topicId)}/watch`),
+      { watching }
+    );
+  }
+
+  async function fetchBoardTopic(topicId) {
+    return requestJson("GET", buildApiUrl(`/api/v1/board/topics/${encodeURIComponent(topicId)}`));
+  }
+
+  async function createBoardTopic(topic) {
+    return requestJson("POST", buildApiUrl("/api/v1/board/topics"), topic);
+  }
+
+  async function deleteBoardTopic(topicId) {
+    return requestJson("DELETE", buildApiUrl(`/api/v1/board/topics/${encodeURIComponent(topicId)}`));
+  }
+
+  async function createBoardReply(topicId, body) {
+    return requestJson(
+      "POST",
+      buildApiUrl(`/api/v1/board/topics/${encodeURIComponent(topicId)}/replies`),
+      { body }
+    );
+  }
+
+  async function deleteBoardReply(topicId, replyId) {
+    return requestJson(
+      "DELETE",
+      buildApiUrl(`/api/v1/board/topics/${encodeURIComponent(topicId)}/replies/${encodeURIComponent(replyId)}`)
+    );
+  }
+
+  async function updateBoardTopic(topicId, patch) {
+    return requestJson("PATCH", buildApiUrl(`/api/v1/board/topics/${encodeURIComponent(topicId)}`), patch);
+  }
+
+  async function updateBoardReply(topicId, replyId, body) {
+    return requestJson(
+      "PATCH",
+      buildApiUrl(`/api/v1/board/topics/${encodeURIComponent(topicId)}/replies/${encodeURIComponent(replyId)}`),
+      { body }
+    );
+  }
+
+  async function pinBoardTopic(topicId, pinned) {
+    return requestJson(
+      "POST",
+      buildApiUrl(`/api/v1/board/topics/${encodeURIComponent(topicId)}/pin`),
+      { pinned }
+    );
+  }
+
+  async function fetchQuizSession(query = {}) {
+    return fetchJson(buildApiUrl("/api/v1/quiz/session", {
+      categoryId: query?.categoryId,
+      templateKey: query?.templateKey,
+      difficulty: query?.difficulty,
+      count: query?.count,
+      seed: query?.seed,
+      includeAnswer: query?.includeAnswer
+    }));
+  }
+
   async function pullQuizQuestion(query = {}) {
     return fetchJson(buildApiUrl("/api/v1/quiz/questions/pull", {
       categoryId: query?.categoryId,
@@ -1052,6 +1130,13 @@
     }));
   }
 
+  async function fetchInboxMessage(scope, messageId) {
+    return requestJson(
+      "GET",
+      buildApiUrl(`/api/v1/profile/inbox/${encodeURIComponent(scope)}/${encodeURIComponent(messageId)}`)
+    );
+  }
+
   async function markInboxItemRead(scope, messageId) {
     return requestJson(
       "POST",
@@ -1072,8 +1157,52 @@
     return requestJson("GET", buildApiUrl("/api/v1/admin/messages"));
   }
 
+  async function fetchAdminMessageLog() {
+    return requestJson("GET", buildApiUrl("/api/v1/admin/messages/log"));
+  }
+
+  async function clearAdminMessageLog() {
+    return requestJson("DELETE", buildApiUrl("/api/v1/admin/messages/log/all"));
+  }
+
+  async function fetchAdminReplies() {
+    return requestJson("GET", buildApiUrl("/api/v1/admin/messages/replies"));
+  }
+
+  async function fetchAdminReports() {
+    return requestJson("GET", buildApiUrl("/api/v1/admin/reports"));
+  }
+
+  async function resolveAdminReport(reportId) {
+    return requestJson("POST", buildApiUrl(`/api/v1/admin/reports/${encodeURIComponent(reportId)}/resolve`), {});
+  }
+
+  async function clearAdminReports() {
+    return requestJson("DELETE", buildApiUrl("/api/v1/admin/reports/all"));
+  }
+
+  async function clearAdminReplies() {
+    return requestJson("DELETE", buildApiUrl("/api/v1/admin/messages/replies/all"));
+  }
+
+  async function sendInboxReply(scope, messageId, body) {
+    return requestJson(
+      "POST",
+      buildApiUrl(`/api/v1/profile/inbox/${encodeURIComponent(scope)}/${encodeURIComponent(messageId)}/reply`),
+      { body }
+    );
+  }
+
   async function fetchQuietHours() {
     return requestJson("GET", buildApiUrl("/api/v1/profile/quiet-hours"));
+  }
+
+  async function fetchQuizProgress() {
+    return requestJson("GET", buildApiUrl("/api/v1/profile/quiz-progress"));
+  }
+
+  async function fetchQuizLeaderboard(limit) {
+    return requestJson("GET", buildApiUrl("/api/v1/quiz/leaderboard", { limit }));
   }
 
   async function fetchProfileDirectory() {
@@ -1088,12 +1217,16 @@
     return requestJson("GET", buildApiUrl("/api/v1/directory"));
   }
 
-  async function sendAdminDirectMessage(clientId, message) {
-    return requestJson(
-      "POST",
-      buildApiUrl(`/api/v1/admin/users/${encodeURIComponent(clientId)}/messages`),
-      message
-    );
+  async function sendAdminMessage(message) {
+    return requestJson("POST", buildApiUrl("/api/v1/admin/messages/send"), message);
+  }
+
+  async function fetchAdminRoles() {
+    return requestJson("GET", buildApiUrl("/api/v1/admin/roles"));
+  }
+
+  async function fetchAdminAccessLevels() {
+    return requestJson("GET", buildApiUrl("/api/v1/admin/access-levels"));
   }
 
   async function updateQuietHours(settings) {
@@ -1128,16 +1261,36 @@
     buildApiUrl,
     buildEventAttachmentUrl,
     buildInboxAttachmentUrl,
+    createBoardReply,
+    createBoardTopic,
     createBroadcast,
     createProfileEvent,
     createProfileLink,
+    deleteBoardReply,
+    deleteBoardTopic,
     deleteAdminMessage,
     deleteProfileEvent,
+    clearAdminMessageLog,
+    clearAdminReplies,
+    clearAdminReports,
+    fetchAdminAccessLevels,
+    fetchAdminReplies,
+    fetchAdminReports,
+    resolveAdminReport,
+    fetchAdminMessageLog,
     fetchAdminMessages,
+    fetchAdminRoles,
     fetchDirectory,
     fetchInbox,
+    fetchInboxMessage,
+    fetchBoardContributors,
+    fetchBoardTopic,
+    fetchBoardTopics,
     fetchJson,
     fetchProfileDirectory,
+    fetchQuizLeaderboard,
+    fetchQuizProgress,
+    fetchQuizSession,
     fetchQuietHours,
     fetchNowSnapshot,
     fetchProfileCalendarFeed,
@@ -1169,14 +1322,20 @@
     listProfileLinks,
     markInboxAllRead,
     markInboxItemRead,
+    pinBoardTopic,
     loadTextReferenceOccurrences,
     probeConnection,
     pullQuizQuestion,
     pullTarotSpread,
+    reportBoardPost,
     requestBlob,
     requestJson,
-    sendAdminDirectMessage,
+    sendAdminMessage,
+    sendInboxReply,
     toApiAssetUrl,
+    updateBoardReply,
+    updateBoardTopic,
+    watchBoardTopic,
     updateProfileCalendarFeed,
     updateProfileDirectory,
     updateProfileEvent,

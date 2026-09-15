@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260915-directory">
+  <link rel="stylesheet" href="app/styles.css?v=20260915-community">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -163,6 +163,7 @@
         </div>
       </div>
       <button id="open-quiz" class="settings-trigger" type="button" aria-pressed="false">Quiz</button>
+      <button id="open-community" class="settings-trigger" type="button" aria-pressed="false">Community</button>
       <button id="open-scriber" class="settings-trigger" type="button" aria-pressed="false">Scriber</button>
       <div class="topbar-dropdown" aria-label="Tarot menu">
         <button id="open-tarot" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="tarot-subpages" aria-expanded="false">Tarot ▾</button>
@@ -739,6 +740,21 @@
             <span id="admin-digest-status" class="settings-field-hint" aria-live="polite"></span>
           </div>
           <div id="admin-messages-list" class="admin-messages-list"></div>
+          <div class="admin-messages-log-head">
+            <strong>Send history</strong>
+            <button id="admin-message-log-clear" class="dlc-shop-btn" type="button">Clear history</button>
+          </div>
+          <div id="admin-message-log-list" class="admin-messages-list"></div>
+          <div class="admin-messages-log-head">
+            <strong>Replies</strong>
+            <button id="admin-replies-clear" class="dlc-shop-btn" type="button">Clear replies</button>
+          </div>
+          <div id="admin-replies-list" class="admin-messages-list"></div>
+          <div class="admin-messages-log-head">
+            <strong>Community reports</strong>
+            <button id="admin-reports-clear" class="dlc-shop-btn" type="button">Clear reports</button>
+          </div>
+          <div id="admin-reports-list" class="admin-messages-list"></div>
         </div>
       </section>
       <section id="admin-panel-server" class="admin-panel" hidden>
@@ -866,6 +882,16 @@
         <label id="admin-message-attach-add" class="planner-btn planner-attach-add" for="admin-message-attach-input">Add file</label>
         <input id="admin-message-attach-input" class="planner-attach-input" type="file" accept="image/*,application/pdf,text/plain" multiple>
       </div>
+      <div class="planner-field" id="admin-message-audience-field">
+        <span>Audience</span>
+        <div class="planner-audience">
+          <label class="planner-check"><input type="radio" name="admin-message-audience" value="all" checked> Everyone</label>
+          <label class="planner-check"><input type="radio" name="admin-message-audience" value="users"> Specific users</label>
+          <label class="planner-check"><input type="radio" name="admin-message-audience" value="roles"> By tier / role</label>
+        </div>
+        <div id="admin-message-audience-users" class="planner-audience-list" hidden></div>
+        <div id="admin-message-audience-roles" class="planner-audience-list" hidden></div>
+      </div>
       <div class="planner-row">
         <label class="planner-field">Kind
           <select id="admin-message-kind">
@@ -933,6 +959,23 @@
       </div>
       <div id="inbox-status" class="planner-status" aria-live="polite"></div>
       <div id="inbox-list" class="inbox-list"></div>
+      <div id="inbox-detail" class="inbox-detail" hidden>
+        <div class="inbox-detail-head">
+          <button id="inbox-detail-back" class="planner-btn" type="button">Back</button>
+          <button id="inbox-detail-open" class="planner-btn" type="button" hidden>Open public page</button>
+        </div>
+        <h3 id="inbox-detail-title" class="inbox-detail-title"></h3>
+        <div id="inbox-detail-meta" class="inbox-item-meta"></div>
+        <div id="inbox-detail-body" class="inbox-detail-body"></div>
+        <div id="inbox-detail-files" class="inbox-item-files"></div>
+        <label class="planner-field">Reply
+          <textarea id="inbox-reply-body" rows="3" maxlength="4000"></textarea>
+        </label>
+        <div class="planner-modal-actions">
+          <span id="inbox-reply-status" class="planner-status" aria-live="polite"></span>
+          <button id="inbox-reply-send" class="planner-btn planner-primary" type="button">Send reply</button>
+        </div>
+      </div>
       <div class="planner-modal-actions">
         <button id="inbox-close" class="planner-btn" type="button">Close</button>
       </div>
@@ -1717,6 +1760,11 @@
             <div id="quiz-score-accuracy" class="quiz-score-value">0%</div>
           </div>
         </div>
+        <div id="quiz-high-scores" class="quiz-high-scores" aria-live="polite" hidden></div>
+        <div id="quiz-leaderboard" class="quiz-leaderboard" aria-live="polite" hidden>
+          <div class="quiz-leaderboard-title">Leaderboard <span class="quiz-leaderboard-note">public players only</span></div>
+          <div id="quiz-leaderboard-list" class="quiz-leaderboard-list"></div>
+        </div>
       </div>
 
       <div class="quiz-card" aria-live="polite">
@@ -1728,6 +1776,81 @@
           <button id="quiz-reset" class="settings-trigger" type="button">Reset Score</button>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section id="community-section" hidden>
+    <div class="community-layout">
+      <aside class="community-list-panel">
+        <div class="community-head">
+          <strong>Community</strong>
+          <button id="community-new" class="settings-trigger" type="button">New topic</button>
+        </div>
+        <div id="community-topic-list" class="community-topic-list" role="listbox" aria-label="Board topics"></div>
+        <div class="community-posters">
+          <div class="community-posters-title">Top posters</div>
+          <div id="community-posters" class="community-posters-list"></div>
+        </div>
+      </aside>
+      <section class="community-detail-panel" aria-live="polite">
+        <div id="community-compose" class="community-compose" hidden>
+          <label class="community-field">Title
+            <input id="community-title" type="text" maxlength="200" autocomplete="off">
+          </label>
+          <label class="community-field">Body
+            <textarea id="community-body" rows="5" maxlength="10000"></textarea>
+          </label>
+          <div class="community-actions">
+            <button id="community-post" class="settings-button-primary" type="button">Post topic</button>
+            <button id="community-cancel" class="settings-trigger" type="button">Cancel</button>
+          </div>
+          <div id="community-status" class="community-status" aria-live="polite"></div>
+        </div>
+        <div id="community-topic-view" class="community-topic-view" hidden>
+          <div class="community-topic-header">
+            <h2 id="community-topic-title">--</h2>
+            <div id="community-topic-meta" class="community-topic-meta"></div>
+            <div class="community-topic-actions">
+              <button id="community-topic-watch" class="settings-trigger" type="button">Watch</button>
+              <button id="community-topic-edit" class="settings-trigger" type="button">Edit</button>
+              <button id="community-topic-pin" class="settings-trigger" type="button">Pin</button>
+              <button id="community-topic-report" class="settings-trigger" type="button">Report</button>
+              <button id="community-topic-delete" class="settings-trigger" type="button">Delete</button>
+            </div>
+          </div>
+          <div id="community-topic-editor" class="community-topic-editor" hidden>
+            <label class="community-field">Title
+              <input id="community-edit-title" type="text" maxlength="200" autocomplete="off">
+            </label>
+            <label class="community-field">Body
+              <textarea id="community-edit-body" rows="5" maxlength="10000"></textarea>
+            </label>
+            <div class="community-actions">
+              <button id="community-edit-save" class="settings-button-primary" type="button">Save</button>
+              <button id="community-edit-cancel" class="settings-trigger" type="button">Cancel</button>
+            </div>
+          </div>
+          <div id="community-topic-body" class="community-topic-body"></div>
+          <div id="community-replies" class="community-replies"></div>
+          <label class="community-field">Reply
+            <textarea id="community-reply-body" rows="3" maxlength="5000"></textarea>
+          </label>
+          <div class="community-actions">
+            <button id="community-reply-post" class="settings-button-primary" type="button">Post reply</button>
+          </div>
+          <div id="community-report-box" class="community-report-box" hidden>
+            <label class="community-field">Report reason
+              <textarea id="community-report-reason" rows="2" maxlength="500"></textarea>
+            </label>
+            <div class="community-actions">
+              <button id="community-report-send" class="settings-button-primary" type="button">Send report</button>
+              <button id="community-report-cancel" class="settings-trigger" type="button">Cancel</button>
+            </div>
+          </div>
+          <div id="community-reply-status" class="community-status" aria-live="polite"></div>
+        </div>
+        <p id="community-empty" class="body-text">Select a topic or start a new one.</p>
+      </section>
     </div>
   </section>
 
@@ -2631,7 +2754,7 @@
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
   <script src="app/app-config.js?v=20260911-tarot-admin"></script>
-  <script src="app/data-service.js?v=20260915-directory"></script>
+  <script src="app/data-service.js?v=20260915-watch"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-library-marks.js?v=20260830-library"></script>
   <script src="app/plugins-host.js?v=20260911-preauth-widgets"></script>
@@ -2640,7 +2763,7 @@
   <script src="app/card-images.js?v=20260914-iching-num"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260807-perf-01"></script>
-  <script src="app/lazy-sections.js?v=20260915-planner"></script>
+  <script src="app/lazy-sections.js?v=20260915-board"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260911-profile-timing-fix"></script>
@@ -2652,7 +2775,7 @@
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
   <script src="app/ui-section-state.js?v=20260915-planner"></script>
   <script src="app/ui-planner.js?v=20260915-notes"></script>
-  <script src="app/ui-inbox.js?v=20260915-visibility"></script>
+  <script src="app/ui-inbox.js?v=20260915-reply"></script>
   <script src="app/app-runtime.js?v=20260915-planner"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
   <script src="app.js?v=20260915-theme-live"></script>

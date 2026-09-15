@@ -37,6 +37,7 @@
     "num-pad",
     "zodiac",
     "quiz",
+    "community",
     "gods",
     "enochian",
     "admin",
@@ -86,6 +87,7 @@
     "num-pad": "Num Pad",
     zodiac: "Zodiac",
     quiz: "Quiz",
+    community: "Community",
     gods: "Gods",
     enochian: "Enochian",
     admin: "Admin",
@@ -311,6 +313,7 @@
     const isNumPadOpen = activeSection === "num-pad";
     const isNumbersMenuOpen = isNumbersOpen || isNumPadOpen;
     const isQuizOpen = activeSection === "quiz";
+    const isCommunityOpen = activeSection === "community";
     const isGodsOpen = activeSection === "gods";
     const isEnochianOpen = activeSection === "enochian";
     const isProfileOpen = activeSection === "profile";
@@ -350,6 +353,7 @@
     setHidden(elements.numPadSectionEl, !isNumPadOpen);
     setHidden(elements.zodiacSectionEl, !isZodiacOpen);
     setHidden(elements.quizSectionEl, !isQuizOpen);
+    setHidden(elements.communitySectionEl, !isCommunityOpen);
     setHidden(elements.godsSectionEl, !isGodsOpen);
     setHidden(elements.enochianSectionEl, !isEnochianOpen);
     setHidden(elements.profileSectionEl, !isProfileOpen);
@@ -402,6 +406,7 @@
     toggleActive(elements.openZodiacEl, isZodiacOpen);
     toggleActive(elements.openNatalEl, isNatalOpen);
     setPressed(elements.openQuizEl, isQuizOpen);
+    setPressed(elements.openCommunityEl, isCommunityOpen);
     setPressed(elements.openGodsEl, isGodsOpen);
     setPressed(elements.openEnochianEl, isEnochianOpen);
     setPressed(elements.openProfileEl, isProfileOpen);
@@ -613,6 +618,10 @@
     }
     if (sectionId === "quiz") {
       ensure.ensureQuizSection?.(latestReferenceData, latestMagickDataset);
+      return;
+    }
+    if (sectionId === "community") {
+      ensure.ensureCommunitySection?.();
       return;
     }
     if (sectionId === "profile") {

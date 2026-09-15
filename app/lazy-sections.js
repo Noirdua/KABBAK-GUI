@@ -98,10 +98,13 @@
       "app/ui-quiz-bank-builtins-domains.js",
       "app/ui-quiz-bank-builtins.js",
       "app/ui-quiz-bank.js",
-      "app/ui-quiz.js?v=20260820-profile",
+      "app/ui-quiz.js?v=20260915-leaderboard",
       "app/quiz-plugin-helpers.js",
       "app/quiz-calendars.js",
       "app/quiz-connections.js"
+    ],
+    community: [
+      "app/ui-board.js?v=20260915-watch"
     ],
     gods: [
       "app/ui-gods-references.js",
@@ -123,7 +126,7 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260915-directory"
+      "app/ui-admin.js?v=20260915-community"
     ],
     profile: [
       "app/ui-profile.js?v=20260915-directory"
@@ -158,6 +161,7 @@
     scriber: ["scriber"],
     zodiac: ["zodiac"],
     quiz: ["quiz"],
+    community: ["community"],
     gods: ["gods"],
     enochian: ["enochian"],
     numbers: ["numbers"],

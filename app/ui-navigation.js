@@ -314,6 +314,10 @@
       setActiveSection(getActiveSection() === "quiz" ? "home" : "quiz");
     });
 
+    bindClick(elements.openCommunityEl, () => {
+      setActiveSection(getActiveSection() === "community" ? "home" : "community");
+    });
+
     bindClick(elements.openScriberEl, () => {
       setActiveSection(getActiveSection() === "scriber" ? "home" : "scriber");
     });

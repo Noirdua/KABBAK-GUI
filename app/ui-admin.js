@@ -551,6 +551,14 @@
     if (visibilityField) {
       visibilityField.hidden = Boolean(messageTargetClientId);
     }
+    const audienceField = document.getElementById("admin-message-audience-field");
+    if (audienceField) {
+      audienceField.hidden = Boolean(messageTargetClientId);
+    }
+    if (!messageTargetClientId) {
+      void loadAudienceOptions();
+      syncAudienceUi();
+    }
     const titleEl = document.getElementById("admin-message-title-input");
     const bodyEl = document.getElementById("admin-message-body");
     const kindEl = document.getElementById("admin-message-kind");
@@ -619,13 +627,36 @@
         expiresAt,
         requiresAck
       };
-      const created = messageTargetClientId
-        ? await window.TarotDataService.sendAdminDirectMessage(messageTargetClientId, { ...payload, visibility: "internal" })
-        : await window.TarotDataService.createBroadcast({ ...payload, visibility });
 
-      // Only a public broadcast has a shareable page; direct/internal messages
+      let audience;
+      if (messageTargetClientId) {
+        audience = { type: "users", clientIds: [messageTargetClientId] };
+      } else {
+        const audienceType = document.querySelector('input[name="admin-message-audience"]:checked')?.value || "all";
+        if (audienceType === "users") {
+          audience = {
+            type: "users",
+            clientIds: Array.from(document.querySelectorAll('input[name="admin-au-user"]:checked')).map((input) => input.value)
+          };
+        } else if (audienceType === "roles") {
+          audience = {
+            type: "roles",
+            roles: Array.from(document.querySelectorAll('input[name="admin-au-role"]:checked')).map((input) => input.value)
+          };
+        } else {
+          audience = { type: "all" };
+        }
+      }
+
+      const created = await window.TarotDataService.sendAdminMessage({
+        ...payload,
+        audience,
+        visibility: messageTargetClientId ? "internal" : visibility
+      });
+
+      // Only an "everyone" broadcast has a shareable page; direct/role messages
       // are inbox-only.
-      const isPublic = !messageTargetClientId && visibility === "public";
+      const isPublic = audience.type === "all" && visibility === "public";
       const urlEl = document.getElementById("admin-message-url");
       const result = document.getElementById("admin-message-result");
       const copyBtn = document.getElementById("admin-message-copy");
@@ -646,6 +677,11 @@
       if (messageTargetClientId) {
         setMessageStatus("Direct message delivered to their inbox.");
         setStatus("Direct message sent.");
+      } else if (audience.type === "users" || audience.type === "roles") {
+        const delivered = Number(created?.delivered) || 0;
+        const failed = Array.isArray(created?.failures) ? created.failures.length : 0;
+        setMessageStatus(`Delivered to ${delivered} inbox${delivered === 1 ? "" : "es"}${failed ? ` · ${failed} failed` : ""}.`);
+        setStatus("Message sent.");
       } else if (isPublic) {
         setMessageStatus("Sent to every user's inbox. The URL below is a public page you can also share.");
         setStatus("Broadcast sent to all users.");
@@ -719,6 +755,39 @@
     document.getElementById("admin-digest-save")?.addEventListener("click", () => {
       void saveDigestSettings();
     });
+    document.querySelectorAll('input[name="admin-message-audience"]').forEach((radio) => {
+      radio.addEventListener("change", syncAudienceUi);
+    });
+    document.getElementById("admin-reports-clear")?.addEventListener("click", async () => {
+      if (!window.confirm("Clear all community reports?")) return;
+      try {
+        await requestJson("DELETE", "/api/v1/admin/reports/all");
+        setStatus("Reports cleared.");
+        void renderAdminReports();
+      } catch (error) {
+        setStatus(error?.message || "Could not clear reports.", true);
+      }
+    });
+    document.getElementById("admin-replies-clear")?.addEventListener("click", async () => {
+      if (!window.confirm("Clear all replies? They cannot be recovered.")) return;
+      try {
+        await requestJson("DELETE", "/api/v1/admin/messages/replies/all");
+        setStatus("Replies cleared.");
+        void renderAdminReplies();
+      } catch (error) {
+        setStatus(error?.message || "Could not clear replies.", true);
+      }
+    });
+    document.getElementById("admin-message-log-clear")?.addEventListener("click", async () => {
+      if (!window.confirm("Clear the send history? Messages already delivered are not removed.")) return;
+      try {
+        await requestJson("DELETE", "/api/v1/admin/messages/log");
+        setStatus("Send history cleared.");
+        void renderAdminMessageLog();
+      } catch (error) {
+        setStatus(error?.message || "Could not clear history.", true);
+      }
+    });
   }
 
   async function loadDigestSettings() {
@@ -743,6 +812,72 @@
       if (status) status.textContent = "Saved.";
     } catch (error) {
       if (status) status.textContent = error?.message || "Could not save.";
+    }
+  }
+
+  let audienceOptionsLoaded = false;
+
+  function buildAudienceCheckbox(name, value, label) {
+    const wrap = document.createElement("label");
+    wrap.className = "planner-check planner-audience-item";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.name = name;
+    input.value = value;
+    const text = document.createElement("span");
+    text.textContent = label;
+    wrap.appendChild(input);
+    wrap.appendChild(text);
+    return wrap;
+  }
+
+  function syncAudienceUi() {
+    const type = document.querySelector('input[name="admin-message-audience"]:checked')?.value || "all";
+    const usersBox = document.getElementById("admin-message-audience-users");
+    const rolesBox = document.getElementById("admin-message-audience-roles");
+    if (usersBox) usersBox.hidden = type !== "users";
+    if (rolesBox) rolesBox.hidden = type !== "roles";
+  }
+
+  async function loadAudienceOptions() {
+    if (audienceOptionsLoaded) {
+      return;
+    }
+    audienceOptionsLoaded = true;
+    const usersBox = document.getElementById("admin-message-audience-users");
+    const rolesBox = document.getElementById("admin-message-audience-roles");
+    try {
+      const [usersResult, rolesResult, levelsResult] = await Promise.all([
+        requestJson("GET", "/api/v1/admin/users"),
+        requestJson("GET", "/api/v1/admin/roles"),
+        requestJson("GET", "/api/v1/admin/access-levels")
+      ]);
+      if (usersBox) {
+        usersBox.textContent = "";
+        const users = Array.isArray(usersResult?.users) ? usersResult.users : [];
+        users.forEach((user) => {
+          usersBox.appendChild(buildAudienceCheckbox("admin-au-user", user.id, `${user.displayName || user.id} (${user.id})`));
+        });
+      }
+      if (rolesBox) {
+        rolesBox.textContent = "";
+        const roles = Array.isArray(rolesResult?.roles) ? rolesResult.roles : [];
+        const levels = Array.isArray(levelsResult?.levels) ? levelsResult.levels : [];
+        roles.forEach((role) => {
+          rolesBox.appendChild(buildAudienceCheckbox("admin-au-role", role.id, `${role.label || role.name || role.id}`));
+        });
+        levels.forEach((level) => {
+          rolesBox.appendChild(buildAudienceCheckbox("admin-au-role", level.id, `${level.label || level.name || level.id} (access)`));
+        });
+        if (!roles.length && !levels.length) {
+          const empty = document.createElement("span");
+          empty.className = "settings-field-hint";
+          empty.textContent = "No roles or access levels defined.";
+          rolesBox.appendChild(empty);
+        }
+      }
+    } catch (_error) {
+      audienceOptionsLoaded = false;
     }
   }
 
@@ -812,10 +947,180 @@
     return row;
   }
 
+  function buildAdminLogRow(entry) {
+    const row = document.createElement("div");
+    row.className = "admin-message-row";
+    const info = document.createElement("div");
+    info.className = "admin-message-info";
+    const title = document.createElement("strong");
+    title.textContent = entry.title || "(untitled)";
+    const meta = document.createElement("span");
+    meta.className = "settings-field-hint";
+    const parts = [];
+    if (entry.audience === "all") {
+      parts.push("everyone");
+    } else if (entry.audience === "roles") {
+      parts.push(`roles: ${(entry.audienceDetail?.roles || []).join(", ") || "none"}`);
+    } else {
+      parts.push(`${Number(entry.audienceDetail?.userCount) || 0} user(s)`);
+    }
+    parts.push(entry.visibility === "public" ? "public" : "internal");
+    parts.push(entry.broadcast ? "broadcast" : `delivered ${Number(entry.delivered) || 0}`);
+    if (Number(entry.failures) > 0) parts.push(`${Number(entry.failures)} failed`);
+    if (entry.createdAt) parts.push(new Date(entry.createdAt).toLocaleString());
+    meta.textContent = parts.join(" · ");
+    info.appendChild(title);
+    info.appendChild(meta);
+    row.appendChild(info);
+    return row;
+  }
+
+  async function renderAdminMessageLog() {
+    const list = document.getElementById("admin-message-log-list");
+    if (!list) return;
+    list.textContent = "";
+    try {
+      const result = await requestJson("GET", "/api/v1/admin/messages/log");
+      const entries = Array.isArray(result?.entries) ? result.entries : [];
+      if (!entries.length) {
+        const empty = document.createElement("p");
+        empty.className = "settings-field-hint";
+        empty.textContent = "Nothing sent yet.";
+        list.appendChild(empty);
+        return;
+      }
+      entries.slice(0, 100).forEach((entry) => list.appendChild(buildAdminLogRow(entry)));
+    } catch (error) {
+      const err = document.createElement("p");
+      err.className = "settings-field-hint";
+      err.textContent = error?.message || "Could not load history.";
+      list.appendChild(err);
+    }
+  }
+
+  async function renderAdminReplies() {
+    const list = document.getElementById("admin-replies-list");
+    if (!list) return;
+    list.textContent = "";
+    try {
+      const result = await requestJson("GET", "/api/v1/admin/messages/replies");
+      const replies = Array.isArray(result?.replies) ? result.replies : [];
+      if (!replies.length) {
+        const empty = document.createElement("p");
+        empty.className = "settings-field-hint";
+        empty.textContent = "No replies yet.";
+        list.appendChild(empty);
+        return;
+      }
+      replies.slice(0, 100).forEach((reply) => {
+        const row = document.createElement("div");
+        row.className = "admin-message-row";
+        const info = document.createElement("div");
+        info.className = "admin-message-info";
+        const title = document.createElement("strong");
+        title.textContent = `${reply.fromName || reply.fromClientId || "Someone"} — ${reply.messageTitle || "(message)"}`;
+        const body = document.createElement("span");
+        body.className = "settings-field-hint";
+        body.textContent = String(reply.body || "").slice(0, 300);
+        const meta = document.createElement("span");
+        meta.className = "settings-field-hint";
+        meta.textContent = [reply.fromClientId, reply.scope, new Date(reply.createdAt).toLocaleString()]
+          .filter(Boolean)
+          .join(" · ");
+        info.appendChild(title);
+        info.appendChild(body);
+        info.appendChild(meta);
+        row.appendChild(info);
+        list.appendChild(row);
+      });
+    } catch (error) {
+      const err = document.createElement("p");
+      err.className = "settings-field-hint";
+      err.textContent = error?.message || "Could not load replies.";
+      list.appendChild(err);
+    }
+  }
+
+  async function renderAdminReports() {
+    const list = document.getElementById("admin-reports-list");
+    if (!list) return;
+    list.textContent = "";
+    try {
+      const result = await requestJson("GET", "/api/v1/admin/reports");
+      const reports = Array.isArray(result?.reports) ? result.reports : [];
+      if (!reports.length) {
+        const empty = document.createElement("p");
+        empty.className = "settings-field-hint";
+        empty.textContent = "No reports.";
+        list.appendChild(empty);
+        return;
+      }
+      reports.slice(0, 100).forEach((report) => {
+        const row = document.createElement("div");
+        row.className = "admin-message-row";
+        const info = document.createElement("div");
+        info.className = "admin-message-info";
+        const title = document.createElement("strong");
+        title.textContent = `${report.status === "resolved" ? "[resolved] " : ""}${report.topicTitle || report.topicId}`;
+        const reason = document.createElement("span");
+        reason.className = "settings-field-hint";
+        reason.textContent = String(report.reason || "").slice(0, 300);
+        const meta = document.createElement("span");
+        meta.className = "settings-field-hint";
+        meta.textContent = [
+          report.reporterName || report.reporterClientId || "Someone",
+          report.replyId ? "reply" : "topic",
+          new Date(report.createdAt).toLocaleString()
+        ].filter(Boolean).join(" · ");
+        info.append(title, reason, meta);
+
+        const actions = document.createElement("div");
+        actions.className = "admin-message-actions";
+        const resolveBtn = document.createElement("button");
+        resolveBtn.type = "button";
+        resolveBtn.className = "dlc-shop-btn";
+        resolveBtn.textContent = "Resolve";
+        resolveBtn.addEventListener("click", async () => {
+          try {
+            await requestJson("POST", `/api/v1/admin/reports/${encodeURIComponent(report.id)}/resolve`, {});
+            setStatus("Report resolved.");
+            void renderAdminReports();
+          } catch (error) {
+            setStatus(error?.message || "Could not resolve the report.", true);
+          }
+        });
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "dlc-shop-btn";
+        deleteBtn.textContent = "Delete";
+        deleteBtn.addEventListener("click", async () => {
+          try {
+            await requestJson("DELETE", `/api/v1/admin/reports/${encodeURIComponent(report.id)}`);
+            setStatus("Report deleted.");
+            void renderAdminReports();
+          } catch (error) {
+            setStatus(error?.message || "Could not delete the report.", true);
+          }
+        });
+        actions.append(resolveBtn, deleteBtn);
+        row.append(info, actions);
+        list.appendChild(row);
+      });
+    } catch (error) {
+      const err = document.createElement("p");
+      err.className = "settings-field-hint";
+      err.textContent = error?.message || "Could not load reports.";
+      list.appendChild(err);
+    }
+  }
+
   async function renderAdminMessages() {
     const list = document.getElementById("admin-messages-list");
     if (!list) return;
     void loadDigestSettings();
+    void renderAdminMessageLog();
+    void renderAdminReplies();
+    void renderAdminReports();
     list.textContent = "";
     const loading = document.createElement("p");
     loading.className = "settings-field-hint";

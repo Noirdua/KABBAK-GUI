@@ -4,6 +4,7 @@
   const POLL_MS = 60000;
   let items = [];
   let filter = "all";
+  let currentItem = null;
 
   function matchesFilter(item) {
     if (filter === "all") return true;
@@ -73,7 +74,7 @@
     row.tabIndex = 0;
     row.setAttribute("role", "button");
     const activate = () => {
-      void openItem(item);
+      openDetail(item);
     };
     row.addEventListener("click", activate);
     row.addEventListener("keydown", (event) => {
@@ -195,23 +196,139 @@
     visible.forEach((item) => list.appendChild(buildItem(item)));
   }
 
-  async function openItem(item) {
-    // Only public messages have a shareable page; internal ones are read inline.
-    if (item.visibility === "public" && item.token) {
-      const url = window.TarotDataService.buildApiUrl(`/api/v1/share/${encodeURIComponent(item.token)}`);
-      if (url) {
-        window.open(url, "_blank", "noopener");
+  function setListView(show) {
+    ["inbox-digest", "inbox-filters", "inbox-quiet", "inbox-status", "inbox-list"].forEach((id) => {
+      const node = el(id);
+      if (node) node.hidden = !show;
+    });
+    const markAll = el("inbox-mark-all");
+    if (markAll) markAll.hidden = !show;
+  }
+
+  function setReplyStatus(text) {
+    const node = el("inbox-reply-status");
+    if (node) node.textContent = text || "";
+  }
+
+  function buildDetailFiles(item) {
+    const box = el("inbox-detail-files");
+    if (!box) return;
+    box.textContent = "";
+    (item.attachments || []).forEach((att) => {
+      const url = window.TarotDataService.buildInboxAttachmentUrl(item.scope, item.id, att.id);
+      if (String(att.type || "").startsWith("image/")) {
+        const img = document.createElement("img");
+        img.className = "inbox-item-thumb";
+        img.src = url;
+        img.alt = att.name || "attachment";
+        img.addEventListener("click", () => window.open(url, "_blank", "noopener"));
+        box.appendChild(img);
+      } else {
+        const link = document.createElement("a");
+        link.className = "inbox-item-file";
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = att.name || "file";
+        box.appendChild(link);
+      }
+    });
+  }
+
+  async function markRead(item) {
+    if (item.read) return;
+    item.read = true;
+    setBadge(Math.max(0, items.filter((entry) => !entry.read).length));
+    renderList();
+    try {
+      await window.TarotDataService.markInboxItemRead(item.scope, item.id);
+    } catch (_error) {
+      // Marking read is best-effort; the badge refreshes on the next poll.
+    }
+  }
+
+  function setDetailBody(item) {
+    const body = el("inbox-detail-body");
+    if (!body) return;
+    body.textContent = "";
+    if (item.bodyHtml) {
+      // Script-less sandbox: newsletter HTML cannot touch the app.
+      const frame = document.createElement("iframe");
+      frame.className = "inbox-html";
+      frame.setAttribute("sandbox", "");
+      frame.setAttribute("title", item.title || "Message");
+      frame.srcdoc = item.bodyHtml;
+      body.appendChild(frame);
+      return;
+    }
+    body.textContent = item.description || "";
+  }
+
+  async function openDetail(item) {
+    currentItem = item;
+    const title = el("inbox-detail-title");
+    if (title) title.textContent = item.title || "(untitled)";
+    const meta = el("inbox-detail-meta");
+    if (meta) {
+      const parts = [item.scope === "broadcast" ? "Announcement" : String(item.kind || "message")];
+      if (item.sender) parts.push(item.sender);
+      if (item.createdAt) parts.push(new Date(item.createdAt).toLocaleString());
+      if (item.visibility) parts.push(item.visibility);
+      meta.textContent = parts.join(" · ");
+    }
+    setDetailBody(item);
+    buildDetailFiles(item);
+    const openBtn = el("inbox-detail-open");
+    if (openBtn) openBtn.hidden = item.visibility !== "public" || !item.token;
+    const replyBody = el("inbox-reply-body");
+    if (replyBody) replyBody.value = "";
+    setReplyStatus("");
+    setListView(false);
+    const detail = el("inbox-detail");
+    if (detail) detail.hidden = false;
+    void markRead(item);
+
+    // The list omits HTML bodies, so load the full message for the viewer.
+    if (item.hasHtml) {
+      try {
+        const full = await window.TarotDataService.fetchInboxMessage(item.scope, item.id);
+        if (currentItem === item && full) {
+          currentItem = { ...item, ...full };
+          setDetailBody(currentItem);
+        }
+      } catch (_error) {
+        // Fall back to the plain-text description already shown.
       }
     }
-    if (!item.read) {
-      item.read = true;
-      renderList();
-      setBadge(Math.max(0, items.filter((entry) => !entry.read).length));
-      try {
-        await window.TarotDataService.markInboxItemRead(item.scope, item.id);
-      } catch (_error) {
-        // Marking read is best-effort; the badge refreshes on the next poll.
-      }
+  }
+
+  function closeDetail() {
+    currentItem = null;
+    const detail = el("inbox-detail");
+    if (detail) detail.hidden = true;
+    setListView(true);
+    renderList();
+    void refreshBadge();
+  }
+
+  async function sendReply() {
+    if (!currentItem) return;
+    const body = String(el("inbox-reply-body")?.value || "").trim();
+    if (!body) {
+      setReplyStatus("Write a reply first.");
+      return;
+    }
+    const sendBtn = el("inbox-reply-send");
+    if (sendBtn) sendBtn.disabled = true;
+    try {
+      await window.TarotDataService.sendInboxReply(currentItem.scope, currentItem.id, body);
+      const replyBody = el("inbox-reply-body");
+      if (replyBody) replyBody.value = "";
+      setReplyStatus("Reply sent.");
+    } catch (error) {
+      setReplyStatus(error?.message || "Could not send the reply.");
+    } finally {
+      if (sendBtn) sendBtn.disabled = false;
     }
   }
 
@@ -249,6 +366,11 @@
   function openModal() {
     const modal = el("inbox-modal");
     if (modal) modal.hidden = false;
+    // Always start on the list view.
+    const detail = el("inbox-detail");
+    if (detail) detail.hidden = true;
+    currentItem = null;
+    setListView(true);
     renderList();
     void loadQuietHours();
     void refreshBadge();
@@ -274,6 +396,15 @@
   function init() {
     el("open-inbox")?.addEventListener("click", openModal);
     el("inbox-close")?.addEventListener("click", closeModal);
+    el("inbox-detail-back")?.addEventListener("click", closeDetail);
+    el("inbox-reply-send")?.addEventListener("click", () => {
+      void sendReply();
+    });
+    el("inbox-detail-open")?.addEventListener("click", () => {
+      if (!currentItem?.token) return;
+      const url = window.TarotDataService.buildApiUrl(`/api/v1/share/${encodeURIComponent(currentItem.token)}`);
+      if (url) window.open(url, "_blank", "noopener");
+    });
     el("inbox-mark-all")?.addEventListener("click", () => {
       void markAll();
     });

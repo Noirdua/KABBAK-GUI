@@ -15,6 +15,7 @@
     runUnseenKeys: [],
     runRetryKeys: [],
     runRetrySet: new Set(),
+    runQuestions: [],
     currentQuestion: null,
     answeredCurrent: false,
     loadingQuestion: false,
@@ -78,6 +79,7 @@
   let scoreCorrectEl;
   let scoreAnsweredEl;
   let scoreAccuracyEl;
+  let highScoresEl;
 
   function getElements() {
     categoryEl = document.getElementById("quiz-category");
@@ -90,6 +92,85 @@
     scoreCorrectEl = document.getElementById("quiz-score-correct");
     scoreAnsweredEl = document.getElementById("quiz-score-answered");
     scoreAccuracyEl = document.getElementById("quiz-score-accuracy");
+    highScoresEl = document.getElementById("quiz-high-scores");
+  }
+
+  // Personal bests, split by difficulty, from the profile's quiz history.
+  async function renderHighScores() {
+    if (!highScoresEl || typeof window.TarotDataService?.fetchQuizProgress !== "function") {
+      return;
+    }
+    if (!window.TarotAppConfig?.isProfileAuthorized?.()) {
+      highScoresEl.hidden = true;
+      return;
+    }
+    try {
+      const progress = await window.TarotDataService.fetchQuizProgress();
+      const byDifficulty = Array.isArray(progress?.stats?.byDifficulty) ? progress.stats.byDifficulty : [];
+      highScoresEl.textContent = "";
+      if (!byDifficulty.some((entry) => entry.attempts > 0)) {
+        highScoresEl.hidden = true;
+        return;
+      }
+      const labels = { easy: "Easy", normal: "Normal", hard: "Hard" };
+      byDifficulty.forEach((entry) => {
+        const row = document.createElement("div");
+        row.className = "quiz-high-score-row";
+        const name = document.createElement("span");
+        name.className = "quiz-high-score-name";
+        name.textContent = labels[entry.difficulty] || entry.difficulty;
+        const value = document.createElement("span");
+        value.className = "quiz-high-score-value";
+        value.textContent = entry.best
+          ? `${Math.round(entry.best.accuracy * 100)}% (${entry.best.score}/${entry.best.total}) · ${entry.attempts} run${entry.attempts === 1 ? "" : "s"}`
+          : "No runs yet";
+        row.append(name, value);
+        highScoresEl.appendChild(row);
+      });
+      highScoresEl.hidden = false;
+    } catch (_error) {
+      highScoresEl.hidden = true;
+    }
+  }
+
+  // Internal leaderboard: only players who opted into the public directory.
+  async function renderLeaderboard() {
+    const block = document.getElementById("quiz-leaderboard");
+    const list = document.getElementById("quiz-leaderboard-list");
+    if (!block || !list || typeof window.TarotDataService?.fetchQuizLeaderboard !== "function") {
+      return;
+    }
+    if (!window.TarotAppConfig?.isProfileAuthorized?.()) {
+      block.hidden = true;
+      return;
+    }
+    try {
+      const result = await window.TarotDataService.fetchQuizLeaderboard(25);
+      const entries = Array.isArray(result?.entries) ? result.entries : [];
+      list.textContent = "";
+      if (!entries.length) {
+        block.hidden = true;
+        return;
+      }
+      entries.forEach((entry, index) => {
+        const row = document.createElement("div");
+        row.className = "quiz-leaderboard-row";
+        const rank = document.createElement("span");
+        rank.className = "quiz-leaderboard-rank";
+        rank.textContent = `${index + 1}.`;
+        const name = document.createElement("span");
+        name.className = "quiz-leaderboard-name";
+        name.textContent = entry.displayName || entry.clientId || "Anonymous";
+        const score = document.createElement("span");
+        score.className = "quiz-leaderboard-score";
+        score.textContent = `${Math.round((entry.accuracy || 0) * 100)}% · ${entry.totalCorrect}/${entry.totalQuestions} · ${entry.attempts} run${entry.attempts === 1 ? "" : "s"}`;
+        row.append(rank, name, score);
+        list.appendChild(row);
+      });
+      block.hidden = false;
+    } catch (_error) {
+      block.hidden = true;
+    }
   }
 
   function isReady() {
@@ -392,11 +473,51 @@
     state.runUnseenKeys = orderedTemplates.map((template) => template.key);
     state.runRetryKeys = [];
     state.runRetrySet = new Set();
+    state.runQuestions = [];
     state.currentQuestion = null;
     state.answeredCurrent = true;
 
+    // Prefer one batch request for the round (the server picks distinct
+    // questions and answers so the client can still grade). Falls back to the
+    // local per-template pull when the API is unavailable.
+    if (mode !== "all" && typeof dataService.fetchQuizSession === "function") {
+      try {
+        const session = await dataService.fetchQuizSession({
+          categoryId: mode === "random" ? "" : mode,
+          difficulty: getActiveDifficulty(),
+          count: Math.min(12, orderedTemplates.length),
+          includeAnswer: true
+        });
+        const usable = (Array.isArray(session?.questions) ? session.questions : [])
+          .filter((question) => question && question.prompt && Array.isArray(question.options) && Number.isInteger(question.correctIndex));
+        if (usable.length) {
+          state.runQuestions = usable;
+          state.runUnseenKeys = usable.map((question) => String(question.key || ""));
+          state.runRetryKeys = [];
+          state.runRetrySet = new Set();
+        }
+      } catch (_error) {
+        // Keep the locally ordered run.
+      }
+    }
+
     updateScoreboard();
     await showNextQuestion(serial);
+  }
+
+  function popNextQuestionFromRun() {
+    while (state.runQuestions.length) {
+      const question = state.runQuestions.shift();
+      const key = String(question?.key || "");
+      const index = state.runUnseenKeys.indexOf(key);
+      if (index >= 0) {
+        state.runUnseenKeys.splice(index, 1);
+      }
+      if (question && question.prompt && Array.isArray(question.options)) {
+        return question;
+      }
+    }
+    return null;
   }
 
   function popNextTemplateFromRun() {
@@ -467,6 +588,9 @@
       difficulty: String(state.selectedDifficulty || ""),
       score: state.scoreCorrect,
       total: state.scoreAnswered
+    }).then?.(() => {
+      void renderHighScores();
+      void renderLeaderboard();
     });
   }
 
@@ -566,6 +690,12 @@
     feedbackEl.textContent = "Loading question...";
 
     for (let index = 0; index < maxAttempts; index += 1) {
+      const readyQuestion = popNextQuestionFromRun();
+      if (readyQuestion) {
+        renderQuestion(readyQuestion);
+        return;
+      }
+
       const template = popNextTemplateFromRun();
       if (!template) {
         continue;
@@ -660,6 +790,8 @@
       bindEvents();
       state.initialized = true;
       updateScoreboard();
+      void renderHighScores();
+      void renderLeaderboard();
     }
 
     const isQuizActive = window.TarotSectionStateUi?.getActiveSection?.() === "quiz";
