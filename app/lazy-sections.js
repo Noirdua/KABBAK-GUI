@@ -119,18 +119,6 @@
       "app/ui-num-pad-model.js?v=20260902-grid-degree",
       "app/ui-num-pad.js?v=20260902-grid-degree"
     ],
-    calendar: [
-      "app/ui-calendar-dates.js",
-      "app/ui-calendar-detail-panels.js?v=20260820-template",
-      "app/ui-calendar-detail.js?v=20260820-template",
-      "app/ui-calendar-data.js?v=20260424-decan-ranges-01",
-      "app/ui-calendar.js?v=20260820-template"
-    ],
-    holidays: [
-      "app/ui-holidays-data.js",
-      "app/ui-holidays-render.js?v=20260820-template",
-      "app/ui-holidays.js?v=20260528-sequence-nav-01"
-    ],
     natal: [
       "app/ui-natal.js"
     ],
@@ -174,8 +162,6 @@
     enochian: ["enochian"],
     numbers: ["numbers"],
     "num-pad": ["numPad"],
-    calendar: ["calendar"],
-    holidays: ["holidays"],
     natal: ["natal"],
     admin: ["admin"],
     profile: ["profile"]

@@ -44,7 +44,6 @@
     numbers: "#numbers-section .numbers-main-layout",
     iching: "#iching-section .browse-layout",
     gods: "#gods-section .browse-layout",
-    calendar: "#calendar-section .browse-layout",
     kabbalah: "#kabbalah-section .browse-layout",
     "kabbalah-worlds": "#kabbalah-worlds-section .browse-layout",
     "kabbalah-paths": "#kabbalah-paths-section .browse-layout",
@@ -336,21 +335,7 @@
     });
 
     bindClick(elements.openCalendarEl, () => {
-      const activeSection = getActiveSection();
-      const isCalendarMenuActive = activeSection === "timeline" || activeSection === "calendar" || activeSection === "holidays";
-      setActiveSection(isCalendarMenuActive ? "home" : "timeline");
-    });
-
-    bindClick(elements.openCalendarTimelineEl, () => {
-      setActiveSection(getActiveSection() === "timeline" ? "home" : "timeline");
-    });
-
-    bindClick(elements.openCalendarMonthsEl, () => {
-      setActiveSection(getActiveSection() === "calendar" ? "home" : "calendar");
-    });
-
-    bindClick(elements.openHolidaysEl, () => {
-      setActiveSection(getActiveSection() === "holidays" ? "home" : "holidays");
+      setActiveSection(getActiveSection() === "planner" ? "home" : "planner");
     });
   }
 
@@ -506,30 +491,6 @@
           scheduleSectionDetailOnly("gods");
         });
       })();
-    });
-
-    document.addEventListener("nav:calendar-month", (event) => {
-      const referenceData = getReferenceData();
-      const magickDataset = getMagickDataset();
-      const calendarId = event?.detail?.calendarId;
-      const monthId = event?.detail?.monthId;
-      if (!monthId) {
-        return;
-      }
-
-      if (typeof ensure.ensureCalendarSection === "function" && referenceData) {
-        ensure.ensureCalendarSection(referenceData, magickDataset);
-      }
-
-      setActiveSection("calendar");
-
-      requestAnimationFrame(() => {
-        if (calendarId) {
-          window.CalendarSectionUi?.selectCalendarType?.(calendarId);
-        }
-        window.CalendarSectionUi?.selectByMonthId?.(monthId);
-        scheduleSectionDetailOnly("calendar");
-      });
     });
 
     document.addEventListener("nav:kabbalah-path", (event) => {

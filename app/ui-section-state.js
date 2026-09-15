@@ -4,9 +4,7 @@
   const BUILTIN_SECTIONS = new Set([
     "home",
     "settings",
-    "timeline",
-    "calendar",
-    "holidays",
+    "planner",
     "audio-circle",
     "audio-notes",
     "tarot",
@@ -55,9 +53,7 @@
   const SECTION_LABELS = {
     home: "Home",
     settings: "Settings",
-    timeline: "Timeline",
-    calendar: "Calendar",
-    holidays: "Holidays",
+    planner: "Calendar",
     "audio-circle": "Circle",
     "audio-notes": "Notes",
     tarot: "Tarot",
@@ -133,13 +129,6 @@
 
   function getMagickDataset() {
     return config.getMagickDataset?.() || null;
-  }
-
-  function renderHomeFallback() {
-    requestAnimationFrame(() => {
-      config.calendar?.render?.();
-      config.calendarVisualsUi?.updateMonthStrip?.();
-    });
   }
 
   function sectionLabel(sectionId) {
@@ -282,10 +271,7 @@
 
     const isHomeOpen = activeSection === "home";
     const isSettingsOpen = activeSection === "settings";
-    const isTimelineOpen = activeSection === "timeline";
-    const isCalendarOpen = activeSection === "calendar";
-    const isHolidaysOpen = activeSection === "holidays";
-    const isCalendarMenuOpen = isTimelineOpen || isCalendarOpen || isHolidaysOpen;
+    const isPlannerOpen = activeSection === "planner";
     const isAudioNotesOpen = activeSection === "audio-notes";
     const isAudioCircleOpen = activeSection === "audio-circle";
     const isAudioMenuOpen = isAudioNotesOpen || isAudioCircleOpen;
@@ -330,10 +316,8 @@
     const isProfileOpen = activeSection === "profile";
     const isAdminOpen = activeSection === "admin";
 
-    setHidden(elements.timelineSectionEl, !isTimelineOpen);
+    setHidden(elements.plannerSectionEl, !isPlannerOpen);
     setHidden(elements.settingsSectionEl, !isSettingsOpen);
-    setHidden(elements.calendarSectionEl, !isCalendarOpen);
-    setHidden(elements.holidaySectionEl, !isHolidaysOpen);
     setHidden(elements.audioCircleSectionEl, !isAudioCircleOpen);
     setHidden(elements.audioNotesSectionEl, !isAudioNotesOpen);
     setHidden(elements.tarotSectionEl, !isTarotOpen);
@@ -381,10 +365,7 @@
 
     setPressed(elements.openHomeEl, isHomeOpen);
     setPressed(elements.openSettingsEl, isSettingsOpen);
-    setPressed(elements.openCalendarEl, isCalendarMenuOpen);
-    toggleActive(elements.openCalendarTimelineEl, isTimelineOpen);
-    toggleActive(elements.openCalendarMonthsEl, isCalendarOpen);
-    toggleActive(elements.openHolidaysEl, isHolidaysOpen);
+    setPressed(elements.openCalendarEl, isPlannerOpen);
     setPressed(elements.openAudioEl, isAudioMenuOpen);
     toggleActive(elements.openAudioCircleEl, isAudioCircleOpen);
     toggleActive(elements.openAudioNotesEl, isAudioNotesOpen);
@@ -426,9 +407,8 @@
     setPressed(elements.openProfileEl, isProfileOpen);
     setPressed(elements.openAdminEl, isAdminOpen);
 
-    if (isTimelineOpen) {
-      renderHomeFallback();
-      void window.TarotAppRuntime?.ensureWeekRendered?.();
+    if (isPlannerOpen) {
+      window.TarotPlannerUi?.render?.();
       return;
     }
 
@@ -450,8 +430,6 @@
   }
 
   const MAGICK_SECTIONS = new Set([
-    "calendar",
-    "holidays",
     "tarot",
     "tarot-frame",
     "tarot-house",
@@ -506,14 +484,6 @@
       latestMagickDataset = getMagickDataset() || latestMagickDataset;
     }
 
-    if (sectionId === "calendar") {
-      ensure.ensureCalendarSection?.(latestReferenceData, latestMagickDataset);
-      return;
-    }
-    if (sectionId === "holidays") {
-      ensure.ensureHolidaySection?.(latestReferenceData, latestMagickDataset);
-      return;
-    }
     if (sectionId === "audio-circle") {
       ensure.ensureAudioCircleSection?.();
       return;

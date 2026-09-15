@@ -1009,10 +1009,46 @@
     }
   }
 
+  async function fetchProfileEvents(from, to) {
+    return requestJson("GET", buildApiUrl("/api/v1/profile/events", {
+      ...(from ? { from } : {}),
+      ...(to ? { to } : {})
+    }));
+  }
+
+  async function fetchProfileEvent(eventId) {
+    return requestJson("GET", buildApiUrl(`/api/v1/profile/events/${encodeURIComponent(eventId)}`));
+  }
+
+  async function createProfileEvent(event) {
+    return requestJson("POST", buildApiUrl("/api/v1/profile/events"), event);
+  }
+
+  async function updateProfileEvent(eventId, event) {
+    return requestJson("PATCH", buildApiUrl(`/api/v1/profile/events/${encodeURIComponent(eventId)}`), event);
+  }
+
+  async function deleteProfileEvent(eventId) {
+    return requestJson("DELETE", buildApiUrl(`/api/v1/profile/events/${encodeURIComponent(eventId)}`));
+  }
+
+  async function fetchProfileCalendarFeed() {
+    return requestJson("GET", buildApiUrl("/api/v1/profile/calendar-feed"));
+  }
+
+  async function updateProfileCalendarFeed(action) {
+    return requestJson("POST", buildApiUrl("/api/v1/profile/calendar-feed"), { action });
+  }
+
   window.TarotDataService = {
     buildApiUrl,
+    createProfileEvent,
+    deleteProfileEvent,
     fetchJson,
     fetchNowSnapshot,
+    fetchProfileCalendarFeed,
+    fetchProfileEvent,
+    fetchProfileEvents,
     fetchWeekEvents,
     getApiBaseUrl,
     getApiKey,
@@ -1042,7 +1078,9 @@
     pullTarotSpread,
     requestBlob,
     requestJson,
-    toApiAssetUrl
+    toApiAssetUrl,
+    updateProfileCalendarFeed,
+    updateProfileEvent
   };
 
   document.addEventListener("connection:updated", resetCaches);

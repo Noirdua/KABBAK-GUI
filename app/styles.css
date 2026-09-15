@@ -978,21 +978,7 @@
       box-sizing: border-box;
       overflow: hidden;
     }
-    #calendar-section {
-      height: calc(100vh - 61px);
-      background: var(--tt-bg);
-      box-sizing: border-box;
-      overflow: hidden;
-    }
-    #timeline-section {
-      height: calc(100vh - 61px);
-      background: var(--tt-bg);
-      box-sizing: border-box;
-      overflow: hidden;
-      display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
-    }
-    #holiday-section {
+    #planner-section {
       height: calc(100vh - 61px);
       background: var(--tt-bg);
       box-sizing: border-box;
@@ -1058,13 +1044,7 @@
     #iching-phase-section[hidden] {
       display: none;
     }
-    #calendar-section[hidden] {
-      display: none;
-    }
-    #timeline-section[hidden] {
-      display: none;
-    }
-    #holiday-section[hidden] {
+    #planner-section[hidden] {
       display: none;
     }
     #settings-section[hidden] {
@@ -15627,4 +15607,310 @@
     .zen-reader-settings input[type="range"],
     .zen-reader-rsvp-wpm input[type="range"] {
       width: 100%;
+    }
+
+    /* ── Personal calendar (planner) ──────────────────────────────────────── */
+    #planner-section {
+      display: flex;
+      flex-direction: column;
+      color: var(--tt-text);
+    }
+    .planner-shell {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      height: 100%;
+      min-height: 0;
+    }
+    .planner-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--tt-border);
+      background: var(--tt-bg-deep);
+    }
+    .planner-nav,
+    .planner-views,
+    .planner-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .planner-range {
+      min-width: 170px;
+      font-size: 14px;
+      color: var(--tt-text-bright);
+    }
+    .planner-btn {
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deep);
+      color: var(--tt-text);
+      border-radius: 8px;
+      padding: 7px 14px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+    }
+    .planner-btn:hover {
+      border-color: var(--tt-accent);
+    }
+    .planner-primary {
+      background: var(--tt-accent);
+      border-color: var(--tt-accent);
+      color: var(--tt-bg-deepest);
+      font-weight: 600;
+    }
+    .planner-primary:hover {
+      background: var(--tt-brand);
+      border-color: var(--tt-brand);
+    }
+    .planner-danger {
+      border-color: color-mix(in srgb, #ef4444 60%, var(--tt-border));
+      color: var(--tt-text-bright);
+    }
+    .planner-icon-btn {
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deep);
+      color: var(--tt-text);
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .planner-icon-btn:hover {
+      border-color: var(--tt-accent);
+    }
+    .planner-view-btn {
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--tt-text-muted);
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .planner-view-btn:hover {
+      color: var(--tt-text);
+    }
+    .planner-view-btn.is-active {
+      border-color: var(--tt-accent);
+      background: color-mix(in srgb, var(--tt-accent) 22%, transparent);
+      color: var(--tt-text-bright);
+    }
+    .planner-layer {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--tt-text-soft);
+    }
+    .planner-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      min-height: 0;
+    }
+    .planner-calendar-wrap {
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+    /* Safety net: toast-ui's default theme paints the layout white. The dark
+       theme object covers this, but keep the surface dark regardless. */
+    #planner-section #calendar .toastui-calendar-layout {
+      background-color: var(--tt-bg) !important;
+      color: var(--tt-text);
+    }
+    .planner-side {
+      min-height: 0;
+      overflow: auto;
+      padding: 12px;
+      border-left: 1px solid var(--tt-border);
+      background: var(--tt-bg-deep);
+    }
+    .planner-side[hidden] {
+      display: none;
+    }
+    .planner-side-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: var(--tt-text-bright);
+    }
+    .planner-agenda {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .planner-agenda-item {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      text-align: left;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-surface);
+      color: var(--tt-text);
+      cursor: pointer;
+    }
+    .planner-agenda-item:hover {
+      border-color: var(--tt-accent);
+    }
+    .planner-agenda-item:disabled {
+      cursor: default;
+      opacity: 0.85;
+    }
+    .planner-agenda-swatch {
+      width: 10px;
+      border-radius: 3px;
+      flex: 0 0 auto;
+      align-self: stretch;
+    }
+    .planner-agenda-body {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .planner-agenda-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--tt-text-bright);
+    }
+    .planner-agenda-meta {
+      font-size: 12px;
+      color: var(--tt-text-muted);
+    }
+    .planner-empty {
+      color: var(--tt-text-muted);
+      font-size: 13px;
+      margin: 0;
+    }
+    .planner-status {
+      min-height: 16px;
+      font-size: 12px;
+      color: var(--tt-text-muted);
+      padding: 0 16px 8px;
+    }
+    .planner-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.85);
+    }
+    .planner-modal[hidden] {
+      display: none;
+    }
+    .planner-modal-card {
+      width: min(540px, 100%);
+      max-height: 90vh;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 18px;
+      border-radius: 14px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deepest);
+      color: var(--tt-text);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+    .planner-modal-title {
+      margin: 0;
+      font-size: 18px;
+      color: var(--tt-text-bright);
+    }
+    .planner-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--tt-text-soft);
+    }
+    .planner-field input,
+    .planner-field select,
+    .planner-field textarea {
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-surface);
+      color: var(--tt-text);
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .planner-field input:focus,
+    .planner-field select:focus,
+    .planner-field textarea:focus {
+      outline: none;
+      border-color: var(--tt-accent);
+    }
+    .planner-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .planner-segments {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .planner-segment-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .planner-segment-row input {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .planner-add-segment {
+      align-self: flex-start;
+      margin-top: 2px;
+    }
+    .planner-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--tt-text-soft);
+    }
+    .planner-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .planner-feed-copy {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--tt-text-muted);
+    }
+    @media (max-width: 900px) {
+      .planner-body {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto;
+      }
+      .planner-side {
+        border-left: 0;
+        border-top: 1px solid var(--tt-border);
+        max-height: 38vh;
+      }
+      .planner-range {
+        min-width: 120px;
+      }
     }

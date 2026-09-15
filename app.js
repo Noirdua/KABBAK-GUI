@@ -26,8 +26,6 @@ const ensureQuizSection = (...args) => window.QuizSectionUi?.ensureQuizSection?.
 const ensureProfileSection = () => window.ProfileUi?.ensureProfileSection?.();
 const ensureGodsSection = (...args) => window.GodsSectionUi?.ensureGodsSection?.(...args);
 const ensureEnochianSection = (...args) => window.EnochianSectionUi?.ensureEnochianSection?.(...args);
-const ensureCalendarSection = (...args) => window.CalendarSectionUi?.ensureCalendarSection?.(...args);
-const ensureHolidaySection = (...args) => window.HolidaySectionUi?.ensureHolidaySection?.(...args);
 const ensureNatalPanel = (...args) => window.TarotNatalUi?.ensureNatalPanel?.(...args);
 const ensureNumbersSection = (...args) => window.TarotNumbersUi?.ensureNumbersSection?.(...args);
 const ensureNumPadSection = (...args) => window.NumPadUi?.ensureNumPadSection?.(...args);
@@ -50,10 +48,8 @@ const appRuntime = window.TarotAppRuntime || {};
 const statusEl = document.getElementById("status");
 const monthStripEl = document.getElementById("month-strip");
 const calendarEl = document.getElementById("calendar");
-const timelineSectionEl = document.getElementById("timeline-section");
+const plannerSectionEl = document.getElementById("planner-section");
 const settingsSectionEl = document.getElementById("settings-section");
-const calendarSectionEl = document.getElementById("calendar-section");
-const holidaySectionEl = document.getElementById("holiday-section");
 const audioCircleSectionEl = document.getElementById("audio-circle-section");
 const audioNotesSectionEl = document.getElementById("audio-notes-section");
 const tarotSectionEl = document.getElementById("tarot-section");
@@ -92,9 +88,6 @@ const openHomeEl = document.getElementById("open-home");
 const openHomeMenuEl = document.getElementById("open-home-menu");
 const openSettingsEl = document.getElementById("open-settings");
 const openCalendarEl = document.getElementById("open-calendar");
-const openCalendarTimelineEl = document.getElementById("open-calendar-timeline");
-const openCalendarMonthsEl = document.getElementById("open-calendar-months");
-const openHolidaysEl = document.getElementById("open-holidays");
 const openAudioEl = document.getElementById("open-audio");
 const openAudioCircleEl = document.getElementById("open-audio-circle");
 const openAudioNotesEl = document.getElementById("open-audio-notes");
@@ -437,6 +430,82 @@ const PLANET_CALENDAR_STYLES = {
   }
 };
 
+// toast-ui Calendar ships a light default theme. Build the dark theme from the
+// live --tt-* tokens so it follows every ui-theme palette, not hardcoded hex.
+function readThemeToken(token, fallback) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+  return value || fallback;
+}
+
+function buildCalendarTheme() {
+  const border = readThemeToken("--tt-border", "#3f3f46");
+  const surface = readThemeToken("--tt-bg", "#18181b");
+  const surfaceDeep = readThemeToken("--tt-bg-deep", "#111118");
+  const text = readThemeToken("--tt-text", "#f4f4f5");
+  const textSoft = readThemeToken("--tt-text-soft", "#d4d4d8");
+  const textMuted = readThemeToken("--tt-text-muted", "#a1a1aa");
+  const accent = readThemeToken("--tt-accent", "#6366f1");
+  const accentStrong = readThemeToken("--tt-accent-strong", "#818cf8");
+  const holiday = readThemeToken("--tt-danger", "#f87171");
+  const faded = (color, percent) => `color-mix(in srgb, ${color} ${percent}%, transparent)`;
+
+  return {
+    common: {
+      border: `1px solid ${border}`,
+      backgroundColor: surface,
+      holiday: { color: holiday },
+      saturday: { color: textMuted },
+      dayName: { color: text },
+      gridSelection: {
+        backgroundColor: faded(accent, 18),
+        border: `1px solid ${accent}`
+      }
+    },
+    week: {
+      dayName: {
+        borderLeft: "none",
+        borderTop: `1px solid ${border}`,
+        borderBottom: `1px solid ${border}`,
+        backgroundColor: "inherit"
+      },
+      weekend: { backgroundColor: "inherit" },
+      today: { color: "inherit", backgroundColor: faded(accent, 14) },
+      pastDay: { color: textMuted },
+      panelResizer: { border: `1px solid ${border}` },
+      dayGrid: { borderRight: `1px solid ${border}`, backgroundColor: "inherit" },
+      dayGridLeft: { borderRight: `1px solid ${border}`, backgroundColor: surfaceDeep, width: "72px" },
+      timeGrid: { borderRight: `1px solid ${border}` },
+      timeGridLeft: { backgroundColor: surfaceDeep, borderRight: `1px solid ${border}`, width: "72px" },
+      timeGridLeftAdditionalTimezone: { backgroundColor: surfaceDeep },
+      timeGridHourLine: { borderBottom: `1px solid ${border}` },
+      timeGridHalfHourLine: { borderBottom: "none" },
+      nowIndicatorLabel: { color: accentStrong },
+      nowIndicatorPast: { border: `1px dashed ${accentStrong}` },
+      nowIndicatorBullet: { backgroundColor: accentStrong },
+      nowIndicatorToday: { border: `1px solid ${accentStrong}` },
+      nowIndicatorFuture: { border: "none" },
+      pastTime: { color: textMuted },
+      futureTime: { color: textSoft },
+      gridSelection: { color: accentStrong }
+    },
+    month: {
+      dayName: { borderLeft: "none", backgroundColor: "inherit" },
+      holidayExceptThisMonth: { color: faded(holiday, 40) },
+      dayExceptThisMonth: { color: faded(text, 32) },
+      weekend: { backgroundColor: "inherit" },
+      moreView: {
+        border: `1px solid ${border}`,
+        boxShadow: "0 2px 6px 0 rgba(0, 0, 0, 0.45)",
+        backgroundColor: surfaceDeep,
+        width: null,
+        height: null
+      },
+      gridCell: { headerHeight: 31, footerHeight: null },
+      moreViewTitle: { backgroundColor: "inherit" }
+    }
+  };
+}
+
 const planetaryCalendars = PLANET_CALENDAR_ORDER.map((planetId) => {
   const style = PLANET_CALENDAR_STYLES[planetId];
   return {
@@ -456,6 +525,7 @@ const calendar = new tui.Calendar("#calendar", {
   useFormPopup: false,
   useDetailPopup: false,
   gridSelection: false,
+  theme: buildCalendarTheme(),
   calendars: [
     ...planetaryCalendars,
     {
@@ -473,12 +543,64 @@ const calendar = new tui.Calendar("#calendar", {
       backgroundColor: "#fcd34d",
       dragBackgroundColor: "#fcd34d",
       borderColor: "#fcd34d"
+    },
+    {
+      id: "user",
+      name: "My Events",
+      color: "#ffffff",
+      backgroundColor: "#6366f1",
+      dragBackgroundColor: "#6366f1",
+      borderColor: "#6366f1"
+    },
+    {
+      id: "holiday",
+      name: "Holidays",
+      color: "#1f2937",
+      backgroundColor: "#fde68a",
+      dragBackgroundColor: "#fde68a",
+      borderColor: "#fde68a"
+    },
+    {
+      id: "moon",
+      name: "Moon",
+      color: "#1f2937",
+      backgroundColor: "#c7d2fe",
+      dragBackgroundColor: "#c7d2fe",
+      borderColor: "#c7d2fe"
     }
   ],
   week: {
     ...baseWeekOptions,
     startDayOfWeek: getCenteredWeekStartDay(new Date())
   }
+});
+
+function refreshCalendarTheme() {
+  try {
+    calendar.setTheme(buildCalendarTheme());
+  } catch (_error) {
+    // Theme refresh is best-effort; the constructor theme stays as a fallback.
+  }
+}
+
+window.TarotAppCalendar = calendar;
+window.TarotRefreshCalendarTheme = refreshCalendarTheme;
+
+// ui-theme.js writes --tt-* inline on <html>, so mirror any palette change onto
+// the calendar. Coalesced to one frame to avoid a burst while tokens apply.
+let calendarThemeFrame = 0;
+const calendarThemeObserver = new MutationObserver(() => {
+  if (calendarThemeFrame) {
+    return;
+  }
+  calendarThemeFrame = requestAnimationFrame(() => {
+    calendarThemeFrame = 0;
+    refreshCalendarTheme();
+  });
+});
+calendarThemeObserver.observe(document.documentElement, {
+  attributes: true,
+  attributeFilter: ["style", "class"]
 });
 
 appRuntime.init?.({
@@ -524,8 +646,6 @@ appRuntime.init?.({
     ensureAlphabetReferenceSection,
     ensureScriberSection,
     ensureZodiacSection,
-    ensureCalendarSection,
-    ensureHolidaySection,
     ensureNatalPanel,
     ensureQuizSection,
     ensureGodsSection,
@@ -944,9 +1064,7 @@ sectionStateUi.init?.({
     nowPanelEl,
     homeWelcomeEl,
     settingsSectionEl,
-    timelineSectionEl,
-    calendarSectionEl,
-    holidaySectionEl,
+    plannerSectionEl,
     audioCircleSectionEl,
     audioNotesSectionEl,
     tarotSectionEl,
@@ -986,9 +1104,6 @@ sectionStateUi.init?.({
     openHomeMenuEl,
     openSettingsEl,
     openCalendarEl,
-    openCalendarTimelineEl,
-    openCalendarMonthsEl,
-    openHolidaysEl,
     openAudioEl,
     openAudioCircleEl,
     openAudioNotesEl,
@@ -1058,8 +1173,6 @@ sectionStateUi.init?.({
     ensureProfileSection,
     ensureGodsSection,
     ensureEnochianSection,
-    ensureCalendarSection,
-    ensureHolidaySection,
     ensureNatalPanel,
     ensureNumbersSection,
     ensureNumPadSection,
@@ -1189,9 +1302,6 @@ navigationUi.init?.({
     openHomeMenuEl,
     openSettingsEl,
     openCalendarEl,
-    openCalendarTimelineEl,
-    openCalendarMonthsEl,
-    openHolidaysEl,
     openAudioEl,
     openAudioCircleEl,
     openAudioNotesEl,
@@ -1257,7 +1367,6 @@ navigationUi.init?.({
     ensureScriberSection,
     ensureZodiacSection,
     ensureGodsSection,
-    ensureCalendarSection,
     ensureAudioCircleSection,
     ensureProfileSection
   }

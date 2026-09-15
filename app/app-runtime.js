@@ -229,6 +229,11 @@
   }
 
   async function renderWeek(options = {}) {
+    // The planner owns the calendar surface and renders profile events into it.
+    if (typeof window.TarotPlannerUi?.isActive === "function" && window.TarotPlannerUi.isActive()) {
+      window.TarotPlannerUi.render?.();
+      return;
+    }
     if (weekRendered && options.force !== true) {
       return;
     }

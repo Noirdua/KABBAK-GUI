@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260914-outline-menu">
+  <link rel="stylesheet" href="app/styles.css?v=20260915-planner-split">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -129,14 +129,7 @@
           <button id="open-audio-notes" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Notes</button>
         </div>
       </div>
-      <div class="topbar-dropdown" aria-label="Calendar menu">
-        <button id="open-calendar" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="calendar-subpages" aria-expanded="false">Calendar ▾</button>
-        <div id="calendar-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Calendar subpages">
-          <button id="open-holidays" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Holidays</button>
-          <button id="open-calendar-months" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Months</button>
-          <button id="open-calendar-timeline" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Timeline</button>
-        </div>
-      </div>
+      <button id="open-calendar" class="settings-trigger" type="button" aria-pressed="false">Calendar</button>
       <button id="open-elements" class="settings-trigger" type="button" aria-pressed="false">Elements</button>
       <button id="open-tattvas" class="settings-trigger" type="button" aria-pressed="false">Tattvas</button>
       <button id="open-enochian" class="settings-trigger" type="button" aria-pressed="false">Enochian</button>
@@ -811,87 +804,6 @@
           </div>
           <div id="admin-log-list" class="admin-log-list"></div>
         </div>
-      </section>
-    </div>
-  </section>
-  <section id="calendar-section" hidden>
-    <div class="browse-layout">
-      <aside class="list-panel">
-        <div class="list-header">
-          <strong id="calendar-list-title">Calendar > Months</strong>
-          <span id="calendar-month-count" class="list-count">--</span>
-        </div>
-        <div class="dataset-search-wrap" id="calendar-type-wrap">
-          <label for="calendar-type-select">Calendar System</label>
-          <select id="calendar-type-select" class="quiz-category-select" aria-label="Select calendar system">
-            <option value="gregorian">Gregorian Calendar</option>
-            <option value="hebrew">Hebrew Calendar</option>
-            <option value="islamic">Islamic Calendar</option>
-            <option value="wheel-of-year">Wheel of the Year</option>
-          </select>
-        </div>
-        <div class="dataset-search-wrap calendar-year-control" id="calendar-year-wrap">
-          <label for="calendar-year-input">Year for month facts</label>
-          <input id="calendar-year-input" type="number" min="1900" max="2500" step="1" value="2026">
-        </div>
-        <div class="dataset-search-wrap">
-          <input id="calendar-search-input" class="dataset-search-input" type="search" placeholder="Search months and events" aria-label="Search calendar months and events">
-          <button id="calendar-search-clear" class="dataset-search-clear" type="button" aria-label="Clear calendar search" disabled>×</button>
-        </div>
-        <div id="calendar-month-list" class="card-list" role="listbox" aria-label="Calendar months"></div>
-      </aside>
-      <section class="detail-panel" aria-live="polite">
-        <div class="detail-heading">
-          <h2 id="calendar-detail-name">--</h2>
-          <div id="calendar-detail-sub" class="detail-type">Select a month to explore</div>
-          <div class="detail-sequence-nav" aria-label="Browse months">
-            <button id="calendar-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous month">Back</button>
-            <div id="calendar-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
-            <button id="calendar-detail-next" class="detail-sequence-btn" type="button" aria-label="Next month">Next</button>
-          </div>
-        </div>
-        <div id="calendar-detail-body"></div>
-      </section>
-    </div>
-  </section>
-  <section id="holiday-section" hidden>
-    <div class="browse-layout">
-      <aside class="list-panel">
-        <div class="list-header">
-          <strong>Holiday Repository</strong>
-          <span id="holiday-count" class="list-count">--</span>
-        </div>
-        <div class="dataset-search-wrap calendar-holiday-filter">
-          <label for="holiday-source-select">Holiday Source</label>
-          <select id="holiday-source-select" class="quiz-category-select" aria-label="Filter holidays by source calendar">
-            <option value="all">All Calendars</option>
-            <option value="gregorian">Gregorian</option>
-            <option value="hebrew">Hebrew</option>
-            <option value="islamic">Islamic</option>
-            <option value="wheel-of-year">Wheel of the Year</option>
-          </select>
-        </div>
-        <div class="dataset-search-wrap calendar-year-control">
-          <label for="holiday-year-input">Reference Year</label>
-          <input id="holiday-year-input" type="number" min="1900" max="2500" step="1" value="2026">
-        </div>
-        <div class="dataset-search-wrap">
-          <input id="holiday-search-input" class="dataset-search-input" type="search" placeholder="Search holidays, calendars, date equivalents" aria-label="Search holiday repository">
-          <button id="holiday-search-clear" class="dataset-search-clear" type="button" aria-label="Clear holiday search" disabled>×</button>
-        </div>
-        <div id="holiday-list" class="card-list" role="listbox" aria-label="Holidays"></div>
-      </aside>
-      <section class="detail-panel" aria-live="polite">
-        <div class="detail-heading">
-          <h2 id="holiday-detail-name">--</h2>
-          <div id="holiday-detail-sub" class="detail-type">Select a holiday to explore</div>
-          <div class="detail-sequence-nav" aria-label="Browse holidays">
-            <button id="holiday-detail-prev" class="detail-sequence-btn" type="button" aria-label="Previous holiday">Back</button>
-            <div id="holiday-detail-position" class="detail-sequence-position" aria-live="polite">--</div>
-            <button id="holiday-detail-next" class="detail-sequence-btn" type="button" aria-label="Next holiday">Next</button>
-          </div>
-        </div>
-        <div id="holiday-detail-body"></div>
       </section>
     </div>
   </section>
@@ -2439,10 +2351,122 @@
     </div>
   </section>
 
-  <section id="timeline-section" hidden>
-    <div id="month-strip" aria-hidden="true"></div>
-    <div id="calendar"></div>
+  <section id="planner-section" hidden>
+    <div class="planner-shell">
+      <header class="planner-toolbar">
+        <div class="planner-nav">
+          <button id="planner-prev" class="planner-icon-btn" type="button" aria-label="Previous">‹</button>
+          <button id="planner-today" class="planner-btn" type="button">Today</button>
+          <button id="planner-next" class="planner-icon-btn" type="button" aria-label="Next">›</button>
+          <strong id="planner-range-label" class="planner-range">—</strong>
+        </div>
+        <div class="planner-views" role="tablist" aria-label="Calendar view">
+          <button class="planner-view-btn" type="button" data-planner-view="month" role="tab">Month</button>
+          <button class="planner-view-btn" type="button" data-planner-view="week" role="tab">Week</button>
+          <button class="planner-view-btn" type="button" data-planner-view="day" role="tab">Day</button>
+          <button class="planner-view-btn" type="button" data-planner-view="agenda" role="tab">Agenda</button>
+        </div>
+        <div class="planner-actions">
+          <label class="planner-layer"><input id="planner-layer-moon" type="checkbox"> Moon</label>
+          <label class="planner-layer"><input id="planner-layer-holidays" type="checkbox"> Holidays</label>
+          <label class="planner-layer"><input id="planner-layer-planetary" type="checkbox"> Planetary hours</label>
+          <button id="planner-feed-toggle" class="planner-btn" type="button">Subscribe</button>
+          <button id="planner-new" class="planner-btn planner-primary" type="button">New event</button>
+        </div>
+      </header>
+      <div class="planner-body">
+        <div class="planner-calendar-wrap">
+          <div id="calendar"></div>
+        </div>
+        <aside id="planner-side" class="planner-side" hidden>
+          <div id="planner-side-title" class="planner-side-title">Selected day</div>
+          <div id="planner-agenda" class="planner-agenda"></div>
+        </aside>
+      </div>
+      <div id="planner-status" class="planner-status" aria-live="polite"></div>
+    </div>
   </section>
+
+  <div id="planner-modal" class="planner-modal" hidden>
+    <div class="planner-modal-card" role="dialog" aria-modal="true" aria-labelledby="planner-modal-title">
+      <h2 id="planner-modal-title" class="planner-modal-title">New event</h2>
+      <label class="planner-field">Title
+        <input id="planner-field-title" type="text" maxlength="300" autocomplete="off">
+      </label>
+      <label class="planner-field">Date
+        <input id="planner-field-date" type="date">
+      </label>
+      <label class="planner-check"><input id="planner-field-allday" type="checkbox"> All day</label>
+      <div class="planner-field planner-segments-field">
+        <span>Time blocks</span>
+        <div id="planner-segments" class="planner-segments"></div>
+        <button id="planner-add-segment" class="planner-btn planner-add-segment" type="button">Add time block</button>
+      </div>
+      <label class="planner-field">Location
+        <input id="planner-field-location" type="text" maxlength="200" autocomplete="off">
+      </label>
+      <div class="planner-row">
+        <label class="planner-field">Category
+          <select id="planner-field-category">
+            <option value="personal">Personal</option>
+            <option value="ritual">Ritual</option>
+            <option value="study">Study</option>
+            <option value="work">Work</option>
+            <option value="health">Health</option>
+            <option value="travel">Travel</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label class="planner-field">Colour
+          <input id="planner-field-color" type="color" value="#6366f1">
+        </label>
+      </div>
+      <label class="planner-field">Repeat
+        <select id="planner-field-freq">
+          <option value="none">Does not repeat</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </label>
+      <div class="planner-row">
+        <label class="planner-field">Every
+          <input id="planner-field-interval" type="number" min="1" max="365" step="1" value="1">
+        </label>
+        <label class="planner-field">Until
+          <input id="planner-field-until" type="date">
+        </label>
+      </div>
+      <label class="planner-field">Notes
+        <textarea id="planner-field-notes" maxlength="20000" rows="3"></textarea>
+      </label>
+      <div id="planner-modal-status" class="planner-status" aria-live="polite"></div>
+      <div class="planner-modal-actions">
+        <button id="planner-delete" class="planner-btn planner-danger" type="button" hidden>Delete</button>
+        <button id="planner-cancel" class="planner-btn" type="button">Cancel</button>
+        <button id="planner-save" class="planner-btn planner-primary" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="planner-feed" class="planner-modal" hidden>
+    <div class="planner-modal-card" role="dialog" aria-modal="true" aria-labelledby="planner-feed-title">
+      <h2 id="planner-feed-title" class="planner-modal-title">Subscribe in your calendar app</h2>
+      <p class="planner-feed-copy">A read-only feed. Your events show up in Apple Calendar, Google Calendar, Outlook and others, and refresh on their schedule. This does not sync changes back.</p>
+      <label class="planner-field">Feed URL
+        <input id="planner-feed-url" type="text" readonly>
+      </label>
+      <div id="planner-feed-status" class="planner-status" aria-live="polite"></div>
+      <div class="planner-modal-actions">
+        <button id="planner-feed-copy" class="planner-btn" type="button">Copy URL</button>
+        <button id="planner-feed-rotate" class="planner-btn" type="button">New URL</button>
+        <button id="planner-feed-disable" class="planner-btn planner-danger" type="button">Disable</button>
+        <button id="planner-feed-enable" class="planner-btn planner-primary" type="button">Enable</button>
+        <button id="planner-feed-close" class="planner-btn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
 
   <div id="home-welcome"></div>
   <!-- Core runtime: home/sky/settings/nav only. Heavy sections load on demand. -->
@@ -2454,7 +2478,7 @@
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
   <script src="app/app-config.js?v=20260911-tarot-admin"></script>
-  <script src="app/data-service.js?v=20260914-dlc-batch"></script>
+  <script src="app/data-service.js?v=20260915-planner"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-library-marks.js?v=20260830-library"></script>
   <script src="app/plugins-host.js?v=20260911-preauth-widgets"></script>
@@ -2463,20 +2487,21 @@
   <script src="app/card-images.js?v=20260914-iching-num"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260807-perf-01"></script>
-  <script src="app/lazy-sections.js?v=20260910-export-folder"></script>
+  <script src="app/lazy-sections.js?v=20260915-planner"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260911-profile-timing-fix"></script>
   <script src="app/ui-dlc-shop.js?v=20260914-outline-filter"></script>
   <script src="app/ui-chrome.js?v=20260911-export-marks"></script>
-  <script src="app/ui-navigation.js?v=20260902-syn"></script>
+  <script src="app/ui-navigation.js?v=20260915-planner"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>
   <script src="app/ui-calendar-visuals.js?v=20260307b"></script>
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
-  <script src="app/ui-section-state.js?v=20260911-back-detail"></script>
-  <script src="app/app-runtime.js?v=20260807-fast-boot"></script>
+  <script src="app/ui-section-state.js?v=20260915-planner"></script>
+  <script src="app/ui-planner.js?v=20260915-theme-live"></script>
+  <script src="app/app-runtime.js?v=20260915-planner"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20260911-skin-splash"></script>
+  <script src="app.js?v=20260915-theme-live"></script>
 
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
