@@ -123,7 +123,7 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260914-merge-editor2"
+      "app/ui-admin.js?v=20260915-visibility"
     ],
     profile: [
       "app/ui-profile.js?v=20260913-decan-detail"

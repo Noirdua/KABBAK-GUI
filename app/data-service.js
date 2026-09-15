@@ -1036,15 +1036,87 @@
     return requestJson("GET", buildApiUrl("/api/v1/profile/calendar-feed"));
   }
 
+  async function createProfileLink(link) {
+    return requestJson("POST", buildApiUrl("/api/v1/profile/links"), link);
+  }
+
+  async function listProfileLinks() {
+    return requestJson("GET", buildApiUrl("/api/v1/profile/links"));
+  }
+
+  async function fetchInbox(filters = {}) {
+    return requestJson("GET", buildApiUrl("/api/v1/profile/inbox", {
+      kind: filters.kind,
+      scope: filters.scope,
+      unread: filters.unreadOnly ? "1" : undefined
+    }));
+  }
+
+  async function markInboxItemRead(scope, messageId) {
+    return requestJson(
+      "POST",
+      buildApiUrl(`/api/v1/profile/inbox/${encodeURIComponent(scope)}/${encodeURIComponent(messageId)}/read`),
+      {}
+    );
+  }
+
+  async function markInboxAllRead() {
+    return requestJson("POST", buildApiUrl("/api/v1/profile/inbox/read-all"), {});
+  }
+
+  async function createBroadcast(message) {
+    return requestJson("POST", buildApiUrl("/api/v1/admin/messages"), message);
+  }
+
+  async function fetchAdminMessages() {
+    return requestJson("GET", buildApiUrl("/api/v1/admin/messages"));
+  }
+
+  async function fetchQuietHours() {
+    return requestJson("GET", buildApiUrl("/api/v1/profile/quiet-hours"));
+  }
+
+  async function updateQuietHours(settings) {
+    return requestJson("PATCH", buildApiUrl("/api/v1/profile/quiet-hours"), settings);
+  }
+
+  async function deleteAdminMessage(messageId) {
+    return requestJson("DELETE", buildApiUrl(`/api/v1/admin/messages/${encodeURIComponent(messageId)}`));
+  }
+
+  // <img> tags cannot send headers, so attachment previews carry the apiKey on
+  // the query string like other media.
+  function buildInboxAttachmentUrl(scope, messageId, attachmentId) {
+    return buildApiUrl(
+      `/api/v1/profile/inbox/${encodeURIComponent(scope)}/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
+      { apiKey: getApiKey() }
+    );
+  }
+
+  function buildEventAttachmentUrl(eventId, attachmentId) {
+    return buildApiUrl(
+      `/api/v1/profile/events/${encodeURIComponent(eventId)}/attachments/${encodeURIComponent(attachmentId)}`,
+      { apiKey: getApiKey() }
+    );
+  }
+
   async function updateProfileCalendarFeed(action) {
     return requestJson("POST", buildApiUrl("/api/v1/profile/calendar-feed"), { action });
   }
 
   window.TarotDataService = {
     buildApiUrl,
+    buildEventAttachmentUrl,
+    buildInboxAttachmentUrl,
+    createBroadcast,
     createProfileEvent,
+    createProfileLink,
+    deleteAdminMessage,
     deleteProfileEvent,
+    fetchAdminMessages,
+    fetchInbox,
     fetchJson,
+    fetchQuietHours,
     fetchNowSnapshot,
     fetchProfileCalendarFeed,
     fetchProfileEvent,
@@ -1072,6 +1144,9 @@
     loadTextSection,
     loadTextReferenceEntry,
     searchTextReference,
+    listProfileLinks,
+    markInboxAllRead,
+    markInboxItemRead,
     loadTextReferenceOccurrences,
     probeConnection,
     pullQuizQuestion,
@@ -1080,7 +1155,8 @@
     requestJson,
     toApiAssetUrl,
     updateProfileCalendarFeed,
-    updateProfileEvent
+    updateProfileEvent,
+    updateQuietHours
   };
 
   document.addEventListener("connection:updated", resetCaches);

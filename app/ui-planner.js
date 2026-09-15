@@ -16,6 +16,9 @@
   const PRINCIPAL_MOON_PHASES = new Set(["New Moon", "First Quarter", "Full Moon", "Last Quarter"]);
   const STATE_ICON = { holiday: "#fde68a", moon: "#c7d2fe" };
   const MAX_SEGMENTS_UI = 12;
+  const MAX_ATTACHMENTS_UI = 6;
+  const MAX_ATTACHMENT_BYTES_UI = 5 * 1024 * 1024;
+  const FEED_LAYERS_STORAGE_KEY = "kabbak-feed-layers-v1";
 
   let bound = false;
   let view = "month";
@@ -25,7 +28,37 @@
   let editingEventId = "";
   let loading = false;
   let feedState = null;
+  let feedLayerPrefs = { moon: true, holidays: true, notes: false, notesFormat: "events" };
   let referenceCache = null;
+  let baseAttachments = [];
+  let occurrenceAttachments = [];
+  let attachmentTarget = "series";
+  let editingOccurrenceDate = "";
+  let editingOccurrenceOverrides = [];
+  let editingIsRecurring = false;
+
+  function activeAttachmentList() {
+    return attachmentTarget === "occurrence" ? occurrenceAttachments : baseAttachments;
+  }
+
+  function findOverrideForDate(list, date) {
+    return (Array.isArray(list) ? list : []).find((entry) => entry.date === date) || null;
+  }
+
+  function buildOccurrenceOverrides(list, date, attachments) {
+    const others = (Array.isArray(list) ? list : []).filter((entry) => entry.date !== date);
+    const cleaned = (attachments || []).map((att) => ({
+      id: att.id,
+      name: att.name,
+      type: att.type,
+      size: att.size,
+      data: att.data
+    }));
+    if (cleaned.length) {
+      others.push({ date, attachments: cleaned });
+    }
+    return others.sort((left, right) => left.date.localeCompare(right.date));
+  }
 
   function $(id) {
     return document.getElementById(id);
@@ -290,6 +323,16 @@
     } else {
       calendar.changeView(view, focusDate);
     }
+
+    if (view === "day" || view === "week") {
+      requestAnimationFrame(() => {
+        try {
+          calendar.scrollToNow?.("smooth");
+        } catch (_error) {
+          // Scrolling to now is a nicety; ignore if the panel is not ready.
+        }
+      });
+    }
   }
 
   function occurrenceTimeText(occurrence) {
@@ -332,6 +375,10 @@
       parts.push(date ? date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) : occurrence.date);
     }
     parts.push(occurrenceTimeText(occurrence));
+    if (Number(occurrence.attachmentCount) > 0) {
+      const count = Number(occurrence.attachmentCount);
+      parts.push(`${count} file${count === 1 ? "" : "s"}`);
+    }
     meta.textContent = parts.join(" · ");
     body.appendChild(meta);
     item.appendChild(body);
@@ -416,6 +463,112 @@
       setStatus(error?.message || "Could not load events.");
     } finally {
       loading = false;
+    }
+  }
+
+  function renderAttachments() {
+    const container = el("planner-attachments");
+    const addLabel = el("planner-attach-add");
+    if (!container) {
+      return;
+    }
+    const list = activeAttachmentList();
+    container.textContent = "";
+    if (!list.length) {
+      const empty = document.createElement("span");
+      empty.className = "planner-attach-empty";
+      empty.textContent = attachmentTarget === "occurrence"
+        ? "No files for this date yet."
+        : "No files attached.";
+      container.appendChild(empty);
+    } else {
+      list.forEach((att, index) => {
+        const item = document.createElement("span");
+        item.className = "planner-attach-item";
+        if (String(att.type || "").startsWith("image/") && att.data) {
+          const img = document.createElement("img");
+          img.className = "planner-attach-thumb";
+          img.alt = att.name || "attachment";
+          img.src = att.data;
+          item.appendChild(img);
+        } else {
+          const icon = document.createElement("span");
+          icon.className = "planner-attach-icon";
+          icon.textContent = "file";
+          item.appendChild(icon);
+        }
+        const name = document.createElement("span");
+        name.className = "planner-attach-name";
+        name.textContent = att.name || "attachment";
+        item.appendChild(name);
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "planner-icon-btn planner-attach-remove";
+        remove.textContent = "×";
+        remove.setAttribute("aria-label", `Remove ${att.name || "attachment"}`);
+        remove.addEventListener("click", () => {
+          activeAttachmentList().splice(index, 1);
+          renderAttachments();
+        });
+        item.appendChild(remove);
+        container.appendChild(item);
+      });
+    }
+    if (addLabel) {
+      addLabel.hidden = list.length >= MAX_ATTACHMENTS_UI;
+    }
+
+    const scope = el("planner-attach-scope");
+    if (scope) {
+      scope.hidden = !(editingIsRecurring && editingOccurrenceDate);
+    }
+    const resetButton = el("planner-attach-reset");
+    if (resetButton) {
+      const hasOverride = Boolean(findOverrideForDate(editingOccurrenceOverrides, editingOccurrenceDate));
+      resetButton.hidden = !(attachmentTarget === "occurrence" && hasOverride);
+    }
+  }
+
+  function addAttachmentFiles(fileList) {
+    Array.from(fileList || []).forEach((file) => {
+      const list = activeAttachmentList();
+      if (list.length >= MAX_ATTACHMENTS_UI) {
+        return;
+      }
+      if (file.size > MAX_ATTACHMENT_BYTES_UI) {
+        setModalStatus(`${file.name} is too large (max 5MB per file).`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        activeAttachmentList().push({
+          id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          name: file.name,
+          type: file.type || "application/octet-stream",
+          size: file.size,
+          data: String(event?.target?.result || "")
+        });
+        renderAttachments();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function resetOccurrenceAttachments() {
+    if (!editingEventId || !editingOccurrenceDate) {
+      return;
+    }
+    setModalStatus("Resetting…");
+    try {
+      await window.TarotDataService.updateProfileEvent(editingEventId, {
+        occurrenceOverrides: buildOccurrenceOverrides(editingOccurrenceOverrides, editingOccurrenceDate, [])
+      });
+      editingOccurrenceOverrides = editingOccurrenceOverrides.filter((entry) => entry.date !== editingOccurrenceDate);
+      occurrenceAttachments = [];
+      renderAttachments();
+      setModalStatus("Reset to the series.");
+    } catch (error) {
+      setModalStatus(error?.message || "Could not reset this date.");
     }
   }
 
@@ -514,6 +667,17 @@
     set("planner-field-interval", "1");
     set("planner-field-until", "");
     set("planner-field-notes", "");
+    baseAttachments = [];
+    occurrenceAttachments = [];
+    attachmentTarget = "series";
+    editingOccurrenceDate = "";
+    editingOccurrenceOverrides = [];
+    editingIsRecurring = false;
+    const scopeBox = el("planner-attach-occurrence");
+    if (scopeBox) {
+      scopeBox.checked = false;
+    }
+    renderAttachments();
     renderSegments([{ startTime: "09:00", endTime: "10:00" }]);
   }
 
@@ -584,6 +748,27 @@
       set("planner-field-interval", String(recurrence.interval || 1));
       set("planner-field-until", recurrence.until || "");
       set("planner-field-notes", occurrence.notes || "");
+      editingIsRecurring = occurrence.isRecurring === true;
+      editingOccurrenceDate = editingIsRecurring ? String(occurrence.date || "") : "";
+      editingOccurrenceOverrides = Array.isArray(occurrence.occurrenceOverrides)
+        ? occurrence.occurrenceOverrides.map((entry) => ({
+            date: entry.date,
+            attachments: Array.isArray(entry.attachments) ? entry.attachments.map((att) => ({ ...att })) : []
+          }))
+        : [];
+      baseAttachments = Array.isArray(occurrence.attachments)
+        ? occurrence.attachments.map((att) => ({ ...att }))
+        : [];
+      const existingOverride = findOverrideForDate(editingOccurrenceOverrides, editingOccurrenceDate);
+      occurrenceAttachments = existingOverride
+        ? existingOverride.attachments.map((att) => ({ ...att }))
+        : [];
+      attachmentTarget = "series";
+      const scopeBox = el("planner-attach-occurrence");
+      if (scopeBox) {
+        scopeBox.checked = false;
+      }
+      renderAttachments();
     }
     if (heading) {
       heading.textContent = occurrence ? "Edit event" : "New event";
@@ -619,11 +804,28 @@
     const recurrence = freq === "none"
       ? { freq: "none" }
       : { freq, interval: Number.isFinite(interval) && interval > 0 ? interval : 1, until };
+    const segments = allDay ? [] : readSegments();
+    if (!allDay) {
+      const firstBlock = segments.find((segment) => segment.startTime);
+      if (!firstBlock) {
+        throw new Error("Add a start time to at least one time block.");
+      }
+    }
     return {
       title,
       date,
       allDay,
-      segments: allDay ? [] : readSegments(),
+      // Mirrors segments[0] so an older API that predates split times still accepts it.
+      startTime: allDay ? "" : (segments[0]?.startTime || ""),
+      endTime: allDay ? "" : (segments[0]?.endTime || ""),
+      segments,
+      attachments: baseAttachments.map((att) => ({
+        id: att.id,
+        name: att.name,
+        type: att.type,
+        size: att.size,
+        data: att.data
+      })),
       location: String(el("planner-field-location")?.value || "").trim(),
       category: String(el("planner-field-category")?.value || "personal"),
       color: String(el("planner-field-color")?.value || ""),
@@ -633,6 +835,22 @@
   }
 
   async function saveEditor() {
+    // Editing a single date of a recurring event stores just an occurrence
+    // override, leaving the series (and its other dates) untouched.
+    if (attachmentTarget === "occurrence" && editingOccurrenceDate && editingEventId) {
+      setModalStatus("Saving…");
+      try {
+        await window.TarotDataService.updateProfileEvent(editingEventId, {
+          occurrenceOverrides: buildOccurrenceOverrides(editingOccurrenceOverrides, editingOccurrenceDate, occurrenceAttachments)
+        });
+        closeEditor();
+        await loadEvents();
+      } catch (error) {
+        setModalStatus(error?.message || "Could not save this date.");
+      }
+      return;
+    }
+
     let payload;
     try {
       payload = buildPayload();
@@ -690,6 +908,59 @@
     }
   }
 
+  function loadFeedPrefs() {
+    try {
+      const raw = window.localStorage.getItem(FEED_LAYERS_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed && typeof parsed === "object") {
+        feedLayerPrefs = {
+          moon: parsed.moon !== false,
+          holidays: parsed.holidays !== false,
+          notes: parsed.notes === true,
+          notesFormat: parsed.notesFormat === "journal" ? "journal" : "events"
+        };
+      }
+    } catch (_error) {
+      // keep defaults
+    }
+  }
+
+  function saveFeedPrefs() {
+    try {
+      window.localStorage.setItem(FEED_LAYERS_STORAGE_KEY, JSON.stringify(feedLayerPrefs));
+    } catch (_error) {
+      // persistence is best-effort
+    }
+  }
+
+  function syncFeedPrefsToControls() {
+    const moon = el("planner-feed-layer-moon");
+    const holidays = el("planner-feed-layer-holidays");
+    const notes = el("planner-feed-layer-notes");
+    const format = el("planner-feed-notes-format");
+    if (moon) moon.checked = feedLayerPrefs.moon;
+    if (holidays) holidays.checked = feedLayerPrefs.holidays;
+    if (notes) notes.checked = feedLayerPrefs.notes;
+    if (format) format.value = feedLayerPrefs.notesFormat;
+    const formatWrap = el("planner-feed-notes-format-wrap");
+    if (formatWrap) formatWrap.hidden = !feedLayerPrefs.notes;
+  }
+
+  function buildFeedUrl() {
+    if (!feedState?.enabled || !feedState?.token) {
+      return "";
+    }
+    const layers = ["user"];
+    if (feedLayerPrefs.moon) layers.push("moon");
+    if (feedLayerPrefs.holidays) layers.push("holidays");
+    if (feedLayerPrefs.notes) layers.push("notes");
+    const params = { token: feedState.token, layers: layers.join(",") };
+    if (feedLayerPrefs.notes && feedLayerPrefs.notesFormat === "journal") {
+      params.notesFormat = "journal";
+    }
+    return window.TarotDataService.buildApiUrl("/api/v1/calendar/feed.ics", params);
+  }
+
   function applyFeedState() {
     const urlInput = el("planner-feed-url");
     const enableButton = el("planner-feed-enable");
@@ -697,10 +968,9 @@
     const rotateButton = el("planner-feed-rotate");
     const copyButton = el("planner-feed-copy");
     const enabled = feedState?.enabled === true && Boolean(feedState?.token);
+    syncFeedPrefsToControls();
     if (urlInput) {
-      urlInput.value = enabled
-        ? window.TarotDataService.buildApiUrl("/api/v1/calendar/feed.ics", { token: feedState.token })
-        : "";
+      urlInput.value = enabled ? buildFeedUrl() : "";
       urlInput.placeholder = enabled ? "" : "Feed disabled";
     }
     if (enableButton) {
@@ -828,12 +1098,41 @@
     el("planner-delete")?.addEventListener("click", deleteEditor);
     el("planner-field-allday")?.addEventListener("change", syncAllDayFields);
     el("planner-add-segment")?.addEventListener("click", () => addSegmentRow("09:00", "10:00"));
+    el("planner-attach-input")?.addEventListener("change", (event) => {
+      addAttachmentFiles(event.target?.files);
+      if (event.target) {
+        event.target.value = "";
+      }
+    });
+    el("planner-attach-occurrence")?.addEventListener("change", (event) => {
+      attachmentTarget = event.target?.checked ? "occurrence" : "series";
+      renderAttachments();
+    });
+    el("planner-attach-reset")?.addEventListener("click", () => {
+      void resetOccurrenceAttachments();
+    });
 
     el("planner-feed-close")?.addEventListener("click", closeFeed);
     el("planner-feed-copy")?.addEventListener("click", copyFeed);
     el("planner-feed-enable")?.addEventListener("click", () => changeFeed("enable"));
     el("planner-feed-rotate")?.addEventListener("click", () => changeFeed("rotate"));
     el("planner-feed-disable")?.addEventListener("click", () => changeFeed("disable"));
+
+    loadFeedPrefs();
+    ["planner-feed-layer-moon", "planner-feed-layer-holidays", "planner-feed-layer-notes"].forEach((id) => {
+      el(id)?.addEventListener("change", () => {
+        feedLayerPrefs.moon = el("planner-feed-layer-moon")?.checked === true;
+        feedLayerPrefs.holidays = el("planner-feed-layer-holidays")?.checked === true;
+        feedLayerPrefs.notes = el("planner-feed-layer-notes")?.checked === true;
+        saveFeedPrefs();
+        applyFeedState();
+      });
+    });
+    el("planner-feed-notes-format")?.addEventListener("change", (event) => {
+      feedLayerPrefs.notesFormat = event.target?.value === "journal" ? "journal" : "events";
+      saveFeedPrefs();
+      applyFeedState();
+    });
 
     const calendar = getCalendar();
     if (calendar?.on) {

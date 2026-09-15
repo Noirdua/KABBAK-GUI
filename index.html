@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260915-planner-split">
+  <link rel="stylesheet" href="app/styles.css?v=20260915-visibility">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -173,6 +173,7 @@
           <button id="open-tarot-house" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">House</button>
         </div>
       </div>
+      <button id="open-inbox" class="settings-trigger topbar-menu-inbox" type="button" aria-pressed="false" hidden>Inbox<span id="inbox-badge" class="topbar-badge" hidden></span></button>
       <button id="open-admin" class="settings-trigger topbar-menu-admin" type="button" aria-pressed="false" hidden>Admin</button>
       <button id="open-settings" class="settings-trigger topbar-menu-settings" type="button" aria-pressed="false">Settings</button>
       <button id="open-profile" class="settings-trigger topbar-menu-profile" type="button" aria-pressed="false" hidden>Profile</button>
@@ -550,13 +551,22 @@
           <h1 class="settings-page-title">Admin Panel</h1>
           <p class="settings-page-copy">Manage API clients, the DLC catalog, plugins, and the user registry.</p>
         </div>
-        <button id="close-admin" class="settings-page-back" type="button">Back</button>
+        <div class="admin-hero-actions">
+          <div class="admin-actions">
+            <button id="admin-actions-toggle" class="settings-page-back" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="admin-actions-menu">Actions ▾</button>
+            <div id="admin-actions-menu" class="admin-actions-menu" role="menu" aria-label="Admin actions" hidden>
+              <button id="admin-action-send-message" class="admin-actions-item" type="button" role="menuitem">Send message…</button>
+            </div>
+          </div>
+          <button id="close-admin" class="settings-page-back" type="button">Back</button>
+        </div>
       </div>
       <div class="admin-tabs" role="tablist" aria-label="Admin panels">
         <button id="admin-tab-overview" class="admin-tab is-active" type="button" role="tab" aria-selected="true">Overview</button>
         <button id="admin-tab-clients" class="admin-tab" type="button" role="tab" aria-selected="false">Users</button>
         <button id="admin-tab-tiers" class="admin-tab" type="button" role="tab" aria-selected="false">Tiers</button>
         <button id="admin-tab-plugins" class="admin-tab" type="button" role="tab" aria-selected="false">Plugins &amp; DLC</button>
+        <button id="admin-tab-messages" class="admin-tab" type="button" role="tab" aria-selected="false">Messages</button>
         <button id="admin-tab-server" class="admin-tab" type="button" role="tab" aria-selected="false">Server</button>
       </div>
       <div id="admin-status" class="settings-page-status" data-tone="neutral" aria-live="polite">
@@ -700,6 +710,27 @@
           </div>
         </div>
       </section>
+      <section id="admin-panel-messages" class="admin-panel" hidden>
+        <div class="settings-panel settings-panel-wide">
+          <div class="settings-panel-head">
+            <strong>Sent Messages</strong>
+            <span>Broadcasts appear in every user's inbox. Deleting one removes it everywhere.</span>
+          </div>
+          <div class="dlc-shop-actions" style="margin-top:10px;">
+            <button id="admin-messages-refresh" class="dlc-shop-btn" type="button">Refresh</button>
+            <button id="admin-messages-compose" class="settings-button-primary" type="button">Send message…</button>
+          </div>
+          <div class="admin-digest-row">
+            <label class="planner-check"><input id="admin-digest-enabled" type="checkbox"> Nightly digest</label>
+            <label class="planner-field admin-digest-hour">Hour
+              <input id="admin-digest-hour" type="number" min="0" max="23" step="1" value="8">
+            </label>
+            <button id="admin-digest-save" class="dlc-shop-btn" type="button">Save digest</button>
+            <span id="admin-digest-status" class="settings-field-hint" aria-live="polite"></span>
+          </div>
+          <div id="admin-messages-list" class="admin-messages-list"></div>
+        </div>
+      </section>
       <section id="admin-panel-server" class="admin-panel" hidden>
         <div class="settings-panel settings-panel-wide">
           <div class="settings-panel-head">
@@ -807,6 +838,95 @@
       </section>
     </div>
   </section>
+
+  <div id="admin-message-modal" class="planner-modal" hidden>
+    <div class="planner-modal-card" role="dialog" aria-modal="true" aria-labelledby="admin-message-title">
+      <h2 id="admin-message-title" class="planner-modal-title">Send message</h2>
+      <p class="planner-feed-copy">Delivered to every user's inbox. The generated link is also a public page you can share directly.</p>
+      <label class="planner-field">Title
+        <input id="admin-message-title-input" type="text" maxlength="200" autocomplete="off">
+      </label>
+      <label class="planner-field">Message
+        <textarea id="admin-message-body" rows="5" maxlength="20000"></textarea>
+      </label>
+      <div class="planner-field planner-attachments-field">
+        <span>Attachments</span>
+        <div id="admin-message-attachments" class="planner-attachments"></div>
+        <label id="admin-message-attach-add" class="planner-btn planner-attach-add" for="admin-message-attach-input">Add file</label>
+        <input id="admin-message-attach-input" class="planner-attach-input" type="file" accept="image/*,application/pdf,text/plain" multiple>
+      </div>
+      <div class="planner-row">
+        <label class="planner-field">Kind
+          <select id="admin-message-kind">
+            <option value="message">Message</option>
+            <option value="alert">Alert</option>
+            <option value="report">Report</option>
+            <option value="calendar">Calendar</option>
+            <option value="note">Note</option>
+            <option value="widget">Widget</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label class="planner-field">Visibility
+          <select id="admin-message-visibility">
+            <option value="internal">Internal (sign-in required)</option>
+            <option value="public">Public (anyone with the link)</option>
+          </select>
+        </label>
+      </div>
+      <div class="planner-row">
+        <label class="planner-field">Publish at (optional)
+          <input id="admin-message-publish" type="datetime-local">
+        </label>
+        <label class="planner-field">Expires (optional)
+          <input id="admin-message-expires" type="datetime-local">
+        </label>
+      </div>
+      <label class="planner-check"><input id="admin-message-ack" type="checkbox"> Requires acknowledgement (stays unread until opened)</label>
+      <div id="admin-message-status" class="planner-status" aria-live="polite"></div>
+      <div id="admin-message-result" class="admin-message-result" hidden>
+        <label class="planner-field">Share URL
+          <input id="admin-message-url" type="text" readonly>
+        </label>
+      </div>
+      <div class="planner-modal-actions">
+        <button id="admin-message-copy" class="planner-btn" type="button" hidden>Copy URL</button>
+        <button id="admin-message-open" class="planner-btn" type="button" hidden>Preview</button>
+        <button id="admin-message-close" class="planner-btn" type="button">Close</button>
+        <button id="admin-message-send" class="planner-btn planner-primary" type="button">Send</button>
+      </div>
+    </div>
+  </div>
+  <div id="inbox-modal" class="planner-modal" hidden>
+    <div class="planner-modal-card planner-modal-wide" role="dialog" aria-modal="true" aria-labelledby="inbox-title">
+      <div class="inbox-head">
+        <h2 id="inbox-title" class="planner-modal-title">Inbox</h2>
+        <button id="inbox-mark-all" class="planner-btn" type="button">Mark all read</button>
+      </div>
+      <div id="inbox-digest" class="inbox-digest" aria-live="polite"></div>
+      <div id="inbox-filters" class="inbox-filters" role="group" aria-label="Filter messages">
+        <button class="inbox-filter is-active" type="button" data-inbox-filter="all">All</button>
+        <button class="inbox-filter" type="button" data-inbox-filter="broadcast">Announcements</button>
+        <button class="inbox-filter" type="button" data-inbox-filter="message">Messages</button>
+        <button class="inbox-filter" type="button" data-inbox-filter="report">Reports</button>
+        <button class="inbox-filter" type="button" data-inbox-filter="alert">Alerts</button>
+        <button class="inbox-filter" type="button" data-inbox-filter="unread">Unread</button>
+      </div>
+      <div class="inbox-quiet">
+        <label class="planner-check"><input id="inbox-quiet-enabled" type="checkbox"> Quiet hours</label>
+        <input id="inbox-quiet-start" type="time" class="inbox-quiet-time" aria-label="Quiet hours start">
+        <span class="settings-field-hint">to</span>
+        <input id="inbox-quiet-end" type="time" class="inbox-quiet-time" aria-label="Quiet hours end">
+        <button id="inbox-quiet-save" class="planner-btn" type="button">Save</button>
+        <span id="inbox-quiet-status" class="settings-field-hint" aria-live="polite"></span>
+      </div>
+      <div id="inbox-status" class="planner-status" aria-live="polite"></div>
+      <div id="inbox-list" class="inbox-list"></div>
+      <div class="planner-modal-actions">
+        <button id="inbox-close" class="planner-btn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
   <section id="tarot-section" hidden>
     <div id="tarot-browse-view">
     <div class="browse-layout">
@@ -2441,6 +2561,16 @@
       <label class="planner-field">Notes
         <textarea id="planner-field-notes" maxlength="20000" rows="3"></textarea>
       </label>
+      <div class="planner-field planner-attachments-field">
+        <span>Attachments</span>
+        <label id="planner-attach-scope" class="planner-check planner-attach-scope" hidden>
+          <input id="planner-attach-occurrence" type="checkbox"> This date only
+        </label>
+        <div id="planner-attachments" class="planner-attachments"></div>
+        <label id="planner-attach-add" class="planner-btn planner-attach-add" for="planner-attach-input">Add file</label>
+        <button id="planner-attach-reset" class="planner-btn planner-attach-reset" type="button" hidden>Reset this date to the series</button>
+        <input id="planner-attach-input" class="planner-attach-input" type="file" accept="image/*,application/pdf,text/plain" multiple>
+      </div>
       <div id="planner-modal-status" class="planner-status" aria-live="polite"></div>
       <div class="planner-modal-actions">
         <button id="planner-delete" class="planner-btn planner-danger" type="button" hidden>Delete</button>
@@ -2454,6 +2584,18 @@
     <div class="planner-modal-card" role="dialog" aria-modal="true" aria-labelledby="planner-feed-title">
       <h2 id="planner-feed-title" class="planner-modal-title">Subscribe in your calendar app</h2>
       <p class="planner-feed-copy">A read-only feed. Your events show up in Apple Calendar, Google Calendar, Outlook and others, and refresh on their schedule. This does not sync changes back.</p>
+      <div class="planner-field">
+        <span>Include</span>
+        <label class="planner-check"><input id="planner-feed-layer-moon" type="checkbox" checked> Moon phases</label>
+        <label class="planner-check"><input id="planner-feed-layer-holidays" type="checkbox" checked> Holidays</label>
+        <label class="planner-check"><input id="planner-feed-layer-notes" type="checkbox"> Notes &amp; journals</label>
+      </div>
+      <label class="planner-field" id="planner-feed-notes-format-wrap" hidden>Notes format
+        <select id="planner-feed-notes-format">
+          <option value="events">Calendar events (works everywhere)</option>
+          <option value="journal">Journal entries (VJOURNAL)</option>
+        </select>
+      </label>
       <label class="planner-field">Feed URL
         <input id="planner-feed-url" type="text" readonly>
       </label>
@@ -2478,7 +2620,7 @@
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
   <script src="app/app-config.js?v=20260911-tarot-admin"></script>
-  <script src="app/data-service.js?v=20260915-planner"></script>
+  <script src="app/data-service.js?v=20260915-visibility"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-library-marks.js?v=20260830-library"></script>
   <script src="app/plugins-host.js?v=20260911-preauth-widgets"></script>
@@ -2498,7 +2640,8 @@
   <script src="app/ui-calendar-visuals.js?v=20260307b"></script>
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
   <script src="app/ui-section-state.js?v=20260915-planner"></script>
-  <script src="app/ui-planner.js?v=20260915-theme-live"></script>
+  <script src="app/ui-planner.js?v=20260915-notes"></script>
+  <script src="app/ui-inbox.js?v=20260915-visibility"></script>
   <script src="app/app-runtime.js?v=20260915-planner"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
   <script src="app.js?v=20260915-theme-live"></script>

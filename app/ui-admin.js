@@ -429,17 +429,379 @@
       tab.classList.toggle("is-active", active);
       tab.setAttribute("aria-selected", active ? "true" : "false");
     });
-    const panelIds = ["overview", "clients", "tiers", "plugins", "server"];
+    const panelIds = ["overview", "clients", "tiers", "plugins", "messages", "server"];
+    const selectedPanel = tabId.split("-").pop();
     panelIds.forEach((panelId) => {
       const panel = document.getElementById(`admin-panel-${panelId}`);
       if (panel) {
-        panel.hidden = panelId !== tabId.split("-").pop();
+        panel.hidden = panelId !== selectedPanel;
       }
+    });
+    if (selectedPanel === "messages") {
+      void renderAdminMessages();
+    }
+  }
+
+  // --- Actions (send message) ------------------------------------------------
+
+  const MAX_ADMIN_MESSAGE_FILES = 6;
+  const MAX_ADMIN_MESSAGE_FILE_BYTES = 5 * 1024 * 1024;
+  let messageAttachments = [];
+
+  function setMessageStatus(text, isError = false) {
+    const node = document.getElementById("admin-message-status");
+    if (node) {
+      node.textContent = text || "";
+      node.dataset.tone = isError ? "error" : "";
+    }
+  }
+
+  function renderMessageAttachments() {
+    const container = document.getElementById("admin-message-attachments");
+    const addLabel = document.getElementById("admin-message-attach-add");
+    if (!container) return;
+    container.textContent = "";
+    if (!messageAttachments.length) {
+      const empty = document.createElement("span");
+      empty.className = "planner-attach-empty";
+      empty.textContent = "No files attached.";
+      container.appendChild(empty);
+    }
+    messageAttachments.forEach((att, index) => {
+      const item = document.createElement("span");
+      item.className = "planner-attach-item";
+      if (String(att.type || "").startsWith("image/") && att.data) {
+        const img = document.createElement("img");
+        img.className = "planner-attach-thumb";
+        img.alt = att.name || "attachment";
+        img.src = att.data;
+        item.appendChild(img);
+      } else {
+        const icon = document.createElement("span");
+        icon.className = "planner-attach-icon";
+        icon.textContent = "file";
+        item.appendChild(icon);
+      }
+      const name = document.createElement("span");
+      name.className = "planner-attach-name";
+      name.textContent = att.name || "attachment";
+      item.appendChild(name);
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "planner-icon-btn planner-attach-remove";
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", `Remove ${att.name || "attachment"}`);
+      remove.addEventListener("click", () => {
+        messageAttachments.splice(index, 1);
+        renderMessageAttachments();
+      });
+      item.appendChild(remove);
+      container.appendChild(item);
+    });
+    if (addLabel) {
+      addLabel.hidden = messageAttachments.length >= MAX_ADMIN_MESSAGE_FILES;
+    }
+  }
+
+  function addMessageFiles(fileList) {
+    Array.from(fileList || []).forEach((file) => {
+      if (messageAttachments.length >= MAX_ADMIN_MESSAGE_FILES) return;
+      if (file.size > MAX_ADMIN_MESSAGE_FILE_BYTES) {
+        setMessageStatus(`${file.name} is too large (max 5MB per file).`, true);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        messageAttachments.push({
+          id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          name: file.name,
+          type: file.type || "application/octet-stream",
+          size: file.size,
+          data: String(event?.target?.result || "")
+        });
+        renderMessageAttachments();
+      };
+      reader.readAsDataURL(file);
     });
   }
 
+  function openMessageModal() {
+    messageAttachments = [];
+    renderMessageAttachments();
+    const titleEl = document.getElementById("admin-message-title-input");
+    const bodyEl = document.getElementById("admin-message-body");
+    const kindEl = document.getElementById("admin-message-kind");
+    const urlEl = document.getElementById("admin-message-url");
+    if (titleEl) titleEl.value = "";
+    if (bodyEl) bodyEl.value = "";
+    if (kindEl) kindEl.value = "message";
+    if (urlEl) urlEl.value = "";
+    const visibilityEl = document.getElementById("admin-message-visibility");
+    if (visibilityEl) visibilityEl.value = "internal";
+    const publishEl = document.getElementById("admin-message-publish");
+    if (publishEl) publishEl.value = "";
+    const expiresEl = document.getElementById("admin-message-expires");
+    if (expiresEl) expiresEl.value = "";
+    const ackEl = document.getElementById("admin-message-ack");
+    if (ackEl) ackEl.checked = false;
+    const result = document.getElementById("admin-message-result");
+    if (result) result.hidden = true;
+    const copyBtn = document.getElementById("admin-message-copy");
+    if (copyBtn) copyBtn.hidden = true;
+    const openBtn = document.getElementById("admin-message-open");
+    if (openBtn) openBtn.hidden = true;
+    const sendBtn = document.getElementById("admin-message-send");
+    if (sendBtn) sendBtn.disabled = false;
+    setMessageStatus("");
+    const modal = document.getElementById("admin-message-modal");
+    if (modal) modal.hidden = false;
+    titleEl?.focus?.();
+  }
+
+  function closeMessageModal() {
+    const modal = document.getElementById("admin-message-modal");
+    if (modal) modal.hidden = true;
+  }
+
+  async function sendAdminMessage() {
+    const title = String(document.getElementById("admin-message-title-input")?.value || "").trim();
+    const description = String(document.getElementById("admin-message-body")?.value || "");
+    const kind = String(document.getElementById("admin-message-kind")?.value || "message");
+    if (!title) {
+      setMessageStatus("Give the message a title.", true);
+      return;
+    }
+    const toIsoOrEmpty = (id) => {
+      const raw = String(document.getElementById(id)?.value || "").trim();
+      if (!raw) return "";
+      const parsed = new Date(raw);
+      return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString();
+    };
+    const publishAt = toIsoOrEmpty("admin-message-publish");
+    const expiresAt = toIsoOrEmpty("admin-message-expires");
+    const requiresAck = document.getElementById("admin-message-ack")?.checked === true;
+    const visibility = String(document.getElementById("admin-message-visibility")?.value || "internal") === "public"
+      ? "public"
+      : "internal";
+    setMessageStatus("Sending…");
+    const sendBtn = document.getElementById("admin-message-send");
+    if (sendBtn) sendBtn.disabled = true;
+    try {
+      const created = await window.TarotDataService.createBroadcast({
+        kind,
+        title,
+        description,
+        attachments: messageAttachments,
+        visibility,
+        publishAt,
+        expiresAt,
+        requiresAck
+      });
+      const path = String(created?.path || "");
+      const url = path
+        ? window.TarotDataService.buildApiUrl(path)
+        : window.TarotDataService.buildApiUrl(`/api/v1/share/${created?.token || ""}`);
+      const urlEl = document.getElementById("admin-message-url");
+      if (urlEl) urlEl.value = url;
+      const result = document.getElementById("admin-message-result");
+      if (result) result.hidden = false;
+      const copyBtn = document.getElementById("admin-message-copy");
+      if (copyBtn) copyBtn.hidden = false;
+      const openBtn = document.getElementById("admin-message-open");
+      if (openBtn) openBtn.hidden = false;
+      setMessageStatus("Sent to every user's inbox. The URL below is a public page you can also share.");
+      setStatus("Broadcast sent to all users.");
+      void renderAdminMessages();
+    } catch (error) {
+      setMessageStatus(error?.message || "Could not create the link.", true);
+    } finally {
+      if (sendBtn) sendBtn.disabled = false;
+    }
+  }
+
+  function bindActions() {
+    const toggle = document.getElementById("admin-actions-toggle");
+    const menu = document.getElementById("admin-actions-menu");
+    if (toggle && menu) {
+      toggle.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const willOpen = menu.hidden;
+        menu.hidden = !willOpen;
+        toggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      });
+      document.addEventListener("click", (event) => {
+        if (menu.hidden) return;
+        if (!menu.contains(event.target) && event.target !== toggle) {
+          menu.hidden = true;
+          toggle.setAttribute("aria-expanded", "false");
+        }
+      });
+    }
+
+    document.getElementById("admin-action-send-message")?.addEventListener("click", () => {
+      if (menu) {
+        menu.hidden = true;
+      }
+      toggle?.setAttribute("aria-expanded", "false");
+      openMessageModal();
+    });
+
+    document.getElementById("admin-message-close")?.addEventListener("click", closeMessageModal);
+    document.getElementById("admin-message-send")?.addEventListener("click", () => {
+      void sendAdminMessage();
+    });
+    document.getElementById("admin-message-attach-input")?.addEventListener("change", (event) => {
+      addMessageFiles(event.target?.files);
+      if (event.target) {
+        event.target.value = "";
+      }
+    });
+    document.getElementById("admin-message-copy")?.addEventListener("click", () => {
+      copyText(document.getElementById("admin-message-url")?.value || "", "Share URL");
+    });
+    document.getElementById("admin-message-open")?.addEventListener("click", () => {
+      const url = document.getElementById("admin-message-url")?.value || "";
+      if (url) {
+        window.open(url, "_blank", "noopener");
+      }
+    });
+    document.getElementById("admin-message-modal")?.addEventListener("mousedown", (event) => {
+      if (event.target?.id === "admin-message-modal") {
+        closeMessageModal();
+      }
+    });
+    document.getElementById("admin-messages-refresh")?.addEventListener("click", () => {
+      void renderAdminMessages();
+    });
+    document.getElementById("admin-messages-compose")?.addEventListener("click", openMessageModal);
+    document.getElementById("admin-digest-save")?.addEventListener("click", () => {
+      void saveDigestSettings();
+    });
+  }
+
+  async function loadDigestSettings() {
+    try {
+      const settings = await requestJson("GET", "/api/v1/admin/settings");
+      const enabled = document.getElementById("admin-digest-enabled");
+      const hour = document.getElementById("admin-digest-hour");
+      if (enabled) enabled.checked = settings?.digestEnabled === true;
+      if (hour) hour.value = String(Number(settings?.digestHour ?? 8));
+    } catch (_error) {
+      // Digest settings are optional; ignore load failures.
+    }
+  }
+
+  async function saveDigestSettings() {
+    const status = document.getElementById("admin-digest-status");
+    try {
+      await requestJson("PATCH", "/api/v1/admin/settings", {
+        digestEnabled: document.getElementById("admin-digest-enabled")?.checked === true,
+        digestHour: Number(document.getElementById("admin-digest-hour")?.value || 8)
+      });
+      if (status) status.textContent = "Saved.";
+    } catch (error) {
+      if (status) status.textContent = error?.message || "Could not save.";
+    }
+  }
+
+  function buildAdminMessageRow(message) {
+    const row = document.createElement("div");
+    row.className = "admin-message-row";
+
+    const info = document.createElement("div");
+    info.className = "admin-message-info";
+    const title = document.createElement("strong");
+    title.textContent = message.title || "(untitled)";
+    const meta = document.createElement("span");
+    meta.className = "settings-field-hint";
+    const parts = [String(message.kind || "message")];
+    if (message.sender) parts.push(message.sender);
+    if (message.createdAt) parts.push(new Date(message.createdAt).toLocaleString());
+    parts.push(message.visibility === "public" ? "public" : "internal");
+    if (message.attachmentCount) parts.push(`${message.attachmentCount} file${message.attachmentCount === 1 ? "" : "s"}`);
+    if (message.requiresAck) parts.push("ack required");
+    if (message.publishAt && Date.parse(message.publishAt) > Date.now()) parts.push(`scheduled ${new Date(message.publishAt).toLocaleString()}`);
+    if (message.expiresAt) parts.push(`expires ${new Date(message.expiresAt).toLocaleString()}`);
+    parts.push(`seen by ${Number(message.seenCount) || 0}`);
+    meta.textContent = parts.join(" · ");
+    info.appendChild(title);
+    info.appendChild(meta);
+
+    const actions = document.createElement("div");
+    actions.className = "admin-message-actions";
+    const url = message.path ? window.TarotDataService.buildApiUrl(message.path) : "";
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "dlc-shop-btn";
+    copyBtn.textContent = "Copy link";
+    copyBtn.addEventListener("click", () => copyText(url, "Message link"));
+
+    const openBtn = document.createElement("button");
+    openBtn.type = "button";
+    openBtn.className = "dlc-shop-btn";
+    openBtn.textContent = "Open";
+    openBtn.addEventListener("click", () => {
+      if (url) window.open(url, "_blank", "noopener");
+    });
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "dlc-shop-btn";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.addEventListener("click", async () => {
+      if (!window.confirm(`Delete broadcast "${message.title}"? It will disappear from every inbox.`)) {
+        return;
+      }
+      try {
+        await window.TarotDataService.deleteAdminMessage(message.id);
+        setStatus("Message deleted.");
+        void renderAdminMessages();
+      } catch (error) {
+        setStatus(error?.message || "Could not delete message.", true);
+      }
+    });
+
+    actions.appendChild(copyBtn);
+    actions.appendChild(openBtn);
+    actions.appendChild(deleteBtn);
+    row.appendChild(info);
+    row.appendChild(actions);
+    return row;
+  }
+
+  async function renderAdminMessages() {
+    const list = document.getElementById("admin-messages-list");
+    if (!list) return;
+    void loadDigestSettings();
+    list.textContent = "";
+    const loading = document.createElement("p");
+    loading.className = "settings-field-hint";
+    loading.textContent = "Loading messages…";
+    list.appendChild(loading);
+    try {
+      const result = await window.TarotDataService.fetchAdminMessages();
+      const messages = Array.isArray(result?.messages) ? result.messages : [];
+      list.textContent = "";
+      if (!messages.length) {
+        const empty = document.createElement("p");
+        empty.className = "settings-field-hint";
+        empty.textContent = "No messages sent yet.";
+        list.appendChild(empty);
+        return;
+      }
+      messages.forEach((message) => list.appendChild(buildAdminMessageRow(message)));
+    } catch (error) {
+      list.textContent = "";
+      const err = document.createElement("p");
+      err.className = "settings-field-hint";
+      err.textContent = error?.message || "Could not load messages.";
+      list.appendChild(err);
+    }
+  }
+
   function bindTabs() {
-    ["overview", "clients", "tiers", "plugins", "server"].forEach((panelId) => {
+    ["overview", "clients", "tiers", "plugins", "messages", "server"].forEach((panelId) => {
       const tab = document.getElementById(`admin-tab-${panelId}`);
       if (tab) {
         tab.addEventListener("click", () => activateTab(`admin-tab-${panelId}`));
@@ -2676,6 +3038,7 @@
 
   function init() {
     bindTabs();
+    bindActions();
     bindClientCreate();
     bindRoleCreate();
     bindServerControls();
