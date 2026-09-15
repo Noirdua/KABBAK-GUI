@@ -81,7 +81,10 @@
       locationStatusEl: document.getElementById("profile-location-status"),
       displayNameEl: document.getElementById("profile-display-name"),
       displayNameSaveBtn: document.getElementById("profile-display-name-save"),
-      displayNameStatusEl: document.getElementById("profile-display-name-status")
+      displayNameStatusEl: document.getElementById("profile-display-name-status"),
+      directoryPublicEl: document.getElementById("profile-directory-public"),
+      directoryStatusEl: document.getElementById("profile-directory-status"),
+      directoryListEl: document.getElementById("profile-directory-list")
     };
   }
 
@@ -3565,6 +3568,9 @@
       state.displayName = String(summary?.displayName || "").trim();
       syncDisplayNameUi();
       updateClientLabel();
+      state.directoryVisibility = String(summary?.directoryVisibility || "private");
+      syncDirectoryUi();
+      void renderPublicDirectory();
 
       state.notes = Array.isArray(notesPayload?.notes) ? notesPayload.notes : [];
       state.quickNotes = Array.isArray(quickNotesPayload?.quickNotes) ? quickNotesPayload.quickNotes : [];
@@ -3802,6 +3808,81 @@
       if (displayNameSaveBtn) {
         displayNameSaveBtn.disabled = false;
       }
+    }
+  }
+
+  function syncDirectoryUi() {
+    const { directoryPublicEl } = getElements();
+    if (directoryPublicEl) {
+      directoryPublicEl.checked = state.directoryVisibility === "public";
+    }
+  }
+
+  function setDirectoryStatus(text, isError = false) {
+    const { directoryStatusEl } = getElements();
+    if (!directoryStatusEl) return;
+    directoryStatusEl.textContent = text;
+    directoryStatusEl.classList.toggle("is-error", isError);
+  }
+
+  async function saveDirectoryVisibility() {
+    const { directoryPublicEl } = getElements();
+    const visibility = directoryPublicEl?.checked ? "public" : "private";
+    try {
+      const service = window.TarotDataService;
+      const result = await service.requestJson(
+        "PATCH",
+        service.buildApiUrl("/api/v1/profile/directory"),
+        { visibility }
+      );
+      state.directoryVisibility = String(result?.visibility || visibility);
+      syncDirectoryUi();
+      setDirectoryStatus(state.directoryVisibility === "public" ? "You are listed publicly." : "You are private.");
+      void renderPublicDirectory();
+    } catch (error) {
+      setDirectoryStatus(`Could not save. ${error?.message || ""}`, true);
+    }
+  }
+
+  async function renderPublicDirectory() {
+    const { directoryListEl } = getElements();
+    if (!directoryListEl) return;
+    directoryListEl.textContent = "";
+    const loading = document.createElement("span");
+    loading.className = "profile-directory-empty";
+    loading.textContent = "Loading directory…";
+    directoryListEl.appendChild(loading);
+    try {
+      const result = await window.TarotDataService.fetchDirectory();
+      const users = Array.isArray(result?.users) ? result.users : [];
+      directoryListEl.textContent = "";
+      if (!users.length) {
+        const empty = document.createElement("span");
+        empty.className = "profile-directory-empty";
+        empty.textContent = "No public profiles yet.";
+        directoryListEl.appendChild(empty);
+        return;
+      }
+      users.slice(0, 50).forEach((user) => {
+        const row = document.createElement("div");
+        row.className = "profile-directory-row";
+        const name = document.createElement("strong");
+        name.textContent = user.displayName || "Anonymous";
+        row.appendChild(name);
+        if (user.bio) {
+          const bio = document.createElement("span");
+          bio.className = "profile-directory-bio";
+          bio.textContent = user.bio;
+          row.appendChild(bio);
+        }
+        directoryListEl.appendChild(row);
+      });
+    } catch (error) {
+      directoryListEl.textContent = "";
+      const err = document.createElement("span");
+      err.className = "profile-directory-empty";
+      err.textContent = error?.message || "Could not load the directory.";
+      directoryListEl.appendChild(err);
     }
   }
 
@@ -4054,6 +4135,9 @@
     });
     elements.displayNameSaveBtn?.addEventListener("click", () => {
       void saveDisplayName();
+    });
+    elements.directoryPublicEl?.addEventListener("change", () => {
+      void saveDirectoryVisibility();
     });
     elements.quickNoteSaveBtn?.addEventListener("click", () => {
       void saveQuickNote();

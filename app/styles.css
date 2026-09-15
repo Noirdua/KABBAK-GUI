@@ -16198,6 +16198,44 @@
       border-color: color-mix(in srgb, #f59e0b 60%, var(--tt-border));
       color: #fbbf24;
     }
+    .profile-directory-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--tt-text-soft);
+    }
+    .profile-directory-card {
+      grid-column: 1 / -1;
+    }
+    .profile-directory-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .profile-directory-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deep);
+    }
+    .profile-directory-row strong {
+      font-size: 13px;
+      color: var(--tt-text-bright);
+    }
+    .profile-directory-bio {
+      font-size: 12px;
+      color: var(--tt-text-muted);
+    }
+    .profile-directory-empty {
+      font-size: 12px;
+      color: var(--tt-text-muted);
+    }
     .inbox-item-files {
       display: flex;
       flex-wrap: wrap;

@@ -1076,6 +1076,26 @@
     return requestJson("GET", buildApiUrl("/api/v1/profile/quiet-hours"));
   }
 
+  async function fetchProfileDirectory() {
+    return requestJson("GET", buildApiUrl("/api/v1/profile/directory"));
+  }
+
+  async function updateProfileDirectory(visibility) {
+    return requestJson("PATCH", buildApiUrl("/api/v1/profile/directory"), { visibility });
+  }
+
+  async function fetchDirectory() {
+    return requestJson("GET", buildApiUrl("/api/v1/directory"));
+  }
+
+  async function sendAdminDirectMessage(clientId, message) {
+    return requestJson(
+      "POST",
+      buildApiUrl(`/api/v1/admin/users/${encodeURIComponent(clientId)}/messages`),
+      message
+    );
+  }
+
   async function updateQuietHours(settings) {
     return requestJson("PATCH", buildApiUrl("/api/v1/profile/quiet-hours"), settings);
   }
@@ -1114,8 +1134,10 @@
     deleteAdminMessage,
     deleteProfileEvent,
     fetchAdminMessages,
+    fetchDirectory,
     fetchInbox,
     fetchJson,
+    fetchProfileDirectory,
     fetchQuietHours,
     fetchNowSnapshot,
     fetchProfileCalendarFeed,
@@ -1153,8 +1175,10 @@
     pullTarotSpread,
     requestBlob,
     requestJson,
+    sendAdminDirectMessage,
     toApiAssetUrl,
     updateProfileCalendarFeed,
+    updateProfileDirectory,
     updateProfileEvent,
     updateQuietHours
   };

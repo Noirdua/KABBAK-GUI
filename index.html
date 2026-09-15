@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260915-visibility">
+  <link rel="stylesheet" href="app/styles.css?v=20260915-directory">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -210,6 +210,10 @@
             <button id="profile-display-name-save" class="profile-btn profile-btn-primary" type="button">Save Name</button>
             <span id="profile-display-name-status" class="profile-location-status" aria-live="polite"></span>
           </div>
+          <label class="profile-directory-toggle">
+            <input id="profile-directory-public" type="checkbox"> Show me in the public directory
+          </label>
+          <span id="profile-directory-status" class="profile-location-status" aria-live="polite"></span>
         </div>
       </header>
       <div id="profile-hub" class="profile-hub">
@@ -234,6 +238,12 @@
               <div id="profile-library-notes" class="profile-library-list"></div>
             </div>
           </div>
+        </div>
+        <div class="profile-hub-card profile-directory-card">
+          <span class="profile-hub-card-kicker">Community</span>
+          <span class="profile-hub-card-title">Public Directory</span>
+          <span class="profile-hub-card-copy">People who chose to be listed publicly.</span>
+          <div id="profile-directory-list" class="profile-directory-list"></div>
         </div>
         <div class="profile-location-card">
           <div class="profile-location-head">
@@ -842,7 +852,8 @@
   <div id="admin-message-modal" class="planner-modal" hidden>
     <div class="planner-modal-card" role="dialog" aria-modal="true" aria-labelledby="admin-message-title">
       <h2 id="admin-message-title" class="planner-modal-title">Send message</h2>
-      <p class="planner-feed-copy">Delivered to every user's inbox. The generated link is also a public page you can share directly.</p>
+      <p id="admin-message-hint" class="planner-feed-copy">Delivered to every user's inbox. The generated link is also a public page you can share directly.</p>
+      <p id="admin-message-to" class="planner-feed-copy" hidden></p>
       <label class="planner-field">Title
         <input id="admin-message-title-input" type="text" maxlength="200" autocomplete="off">
       </label>
@@ -2620,7 +2631,7 @@
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
   <script src="app/app-config.js?v=20260911-tarot-admin"></script>
-  <script src="app/data-service.js?v=20260915-visibility"></script>
+  <script src="app/data-service.js?v=20260915-directory"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-library-marks.js?v=20260830-library"></script>
   <script src="app/plugins-host.js?v=20260911-preauth-widgets"></script>

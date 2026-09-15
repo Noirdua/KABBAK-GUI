@@ -447,6 +447,7 @@
   const MAX_ADMIN_MESSAGE_FILES = 6;
   const MAX_ADMIN_MESSAGE_FILE_BYTES = 5 * 1024 * 1024;
   let messageAttachments = [];
+  let messageTargetClientId = "";
 
   function setMessageStatus(text, isError = false) {
     const node = document.getElementById("admin-message-status");
@@ -525,9 +526,31 @@
     });
   }
 
-  function openMessageModal() {
+  function openMessageModal(options = {}) {
+    messageTargetClientId = String(options.clientId || "").trim();
+    const targetName = String(options.displayName || options.clientId || "").trim();
     messageAttachments = [];
     renderMessageAttachments();
+
+    const heading = document.getElementById("admin-message-title");
+    if (heading) {
+      heading.textContent = messageTargetClientId ? `Message ${targetName}` : "Send message";
+    }
+    const toLine = document.getElementById("admin-message-to");
+    if (toLine) {
+      toLine.hidden = !messageTargetClientId;
+      toLine.textContent = messageTargetClientId
+        ? `Direct message to ${targetName} (${messageTargetClientId}) — only they see it.`
+        : "";
+    }
+    const hint = document.getElementById("admin-message-hint");
+    if (hint) {
+      hint.hidden = Boolean(messageTargetClientId);
+    }
+    const visibilityField = document.getElementById("admin-message-visibility")?.closest(".planner-field");
+    if (visibilityField) {
+      visibilityField.hidden = Boolean(messageTargetClientId);
+    }
     const titleEl = document.getElementById("admin-message-title-input");
     const bodyEl = document.getElementById("admin-message-body");
     const kindEl = document.getElementById("admin-message-kind");
@@ -587,30 +610,49 @@
     const sendBtn = document.getElementById("admin-message-send");
     if (sendBtn) sendBtn.disabled = true;
     try {
-      const created = await window.TarotDataService.createBroadcast({
+      const payload = {
         kind,
         title,
         description,
         attachments: messageAttachments,
-        visibility,
         publishAt,
         expiresAt,
         requiresAck
-      });
-      const path = String(created?.path || "");
-      const url = path
-        ? window.TarotDataService.buildApiUrl(path)
-        : window.TarotDataService.buildApiUrl(`/api/v1/share/${created?.token || ""}`);
+      };
+      const created = messageTargetClientId
+        ? await window.TarotDataService.sendAdminDirectMessage(messageTargetClientId, { ...payload, visibility: "internal" })
+        : await window.TarotDataService.createBroadcast({ ...payload, visibility });
+
+      // Only a public broadcast has a shareable page; direct/internal messages
+      // are inbox-only.
+      const isPublic = !messageTargetClientId && visibility === "public";
       const urlEl = document.getElementById("admin-message-url");
-      if (urlEl) urlEl.value = url;
       const result = document.getElementById("admin-message-result");
-      if (result) result.hidden = false;
       const copyBtn = document.getElementById("admin-message-copy");
-      if (copyBtn) copyBtn.hidden = false;
       const openBtn = document.getElementById("admin-message-open");
-      if (openBtn) openBtn.hidden = false;
-      setMessageStatus("Sent to every user's inbox. The URL below is a public page you can also share.");
-      setStatus("Broadcast sent to all users.");
+      if (isPublic) {
+        const path = String(created?.path || "");
+        const url = path
+          ? window.TarotDataService.buildApiUrl(path)
+          : window.TarotDataService.buildApiUrl(`/api/v1/share/${created?.token || ""}`);
+        if (urlEl) urlEl.value = url;
+      } else if (urlEl) {
+        urlEl.value = "";
+      }
+      if (result) result.hidden = !isPublic;
+      if (copyBtn) copyBtn.hidden = !isPublic;
+      if (openBtn) openBtn.hidden = !isPublic;
+
+      if (messageTargetClientId) {
+        setMessageStatus("Direct message delivered to their inbox.");
+        setStatus("Direct message sent.");
+      } else if (isPublic) {
+        setMessageStatus("Sent to every user's inbox. The URL below is a public page you can also share.");
+        setStatus("Broadcast sent to all users.");
+      } else {
+        setMessageStatus("Sent to every user's inbox (internal — no public link).");
+        setStatus("Broadcast sent to all users.");
+      }
       void renderAdminMessages();
     } catch (error) {
       setMessageStatus(error?.message || "Could not create the link.", true);
@@ -950,11 +992,15 @@
           <span class="admin-client-key-preview">${escapeHtml(client.keyPreview || (client.hasKey ? "•••" : "no key"))}</span>
           <span class="admin-user-last-seen">${escapeHtml(lastSeen)}</span>
           <div class="admin-client-actions">
+            <button type="button" class="dlc-shop-btn" data-action="message">Message</button>
             <button type="button" class="dlc-shop-btn" data-action="edit">Edit</button>
             <button type="button" class="dlc-shop-btn" data-action="reset">Reset Key</button>
             <button type="button" class="dlc-shop-btn" data-action="delete">Delete</button>
           </div>
         `;
+        row.querySelector('[data-action="message"]').addEventListener("click", () => {
+          openMessageModal({ clientId: client.id, displayName });
+        });
         row.querySelector('[data-action="reset"]').addEventListener("click", async () => {
           if (!window.confirm(`Reset the API key for ${client.id}? The old key stops working immediately and the new key is shown only once.`)) return;
           try {
