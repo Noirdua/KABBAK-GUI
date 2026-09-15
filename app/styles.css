@@ -2859,6 +2859,87 @@
       display: block;
       margin: 12px auto 0;
     }
+    .admin-dlc-publish-bar {
+      margin-top: 8px;
+      align-items: center;
+    }
+    .dlc-select-box {
+      display: inline-flex;
+      align-items: center;
+      margin-right: 6px;
+      cursor: pointer;
+    }
+    .dlc-merge-panel {
+      width: min(680px, 96vw);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .dlc-merge-panel .dlc-settings-overlay-head {
+      flex: 0 0 auto;
+    }
+    .dlc-merge-panel .dlc-install-overlay-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+    .dlc-merge-list {
+      display: grid;
+      gap: 2px;
+      max-height: 40vh;
+      overflow: auto;
+      padding: 6px;
+      border: 1px solid var(--tt-border);
+      border-radius: 8px;
+      background: var(--tt-bg-deep);
+    }
+    .dlc-merge-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 8px;
+      font-size: 14px;
+      line-height: 1.35;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .dlc-merge-list {
+      max-height: 50vh;
+    }
+    .dlc-merge-row:hover {
+      background: color-mix(in srgb, var(--tt-accent) 12%, transparent);
+    }
+    .dlc-text-outline-search-row {
+      margin-bottom: 6px;
+    }
+    .dlc-text-outline-menu {
+      position: fixed;
+      z-index: 400;
+    }
+    .dlc-text-merge-naming {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: var(--tt-bg-deep);
+    }
+    .dlc-merge-preview {
+      white-space: pre-wrap;
+      max-height: 150px;
+      overflow: auto;
+      padding: 6px 8px;
+      border: 1px dashed var(--tt-border);
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    .dlc-select-box input {
+      cursor: pointer;
+    }
     .dlc-repos-body {
       display: grid;
       gap: 12px;

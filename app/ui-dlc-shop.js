@@ -2487,6 +2487,95 @@
     }
     if (!outlineEl || !sampleEl) return;
 
+    // Section-title filter + right-click actions for the outline. The filter
+    // lives inside the outline column (kept across re-renders) so the editor
+    // layout stays intact.
+    if (!outlineEl.querySelector(".dlc-text-outline-search")) {
+      const row = document.createElement("div");
+      row.className = "dlc-text-outline-search-row";
+      const input = document.createElement("input");
+      input.type = "search";
+      input.className = "admin-dlc-search dlc-text-outline-search";
+      input.placeholder = "Filter sections…";
+      input.autocomplete = "off";
+      input.value = String(preview._sectionQuery || "");
+      input.addEventListener("input", () => {
+        preview._sectionQuery = input.value;
+        renderOutline();
+      });
+      row.appendChild(input);
+      outlineEl.insertBefore(row, outlineEl.firstChild);
+    }
+
+    let outlineMenu = form.querySelector(".dlc-text-outline-menu");
+    if (!outlineMenu) {
+      outlineMenu = document.createElement("div");
+      outlineMenu.className = "dlc-ctx-menu dlc-text-outline-menu";
+      outlineMenu.hidden = true;
+      form.appendChild(outlineMenu);
+    }
+    const hideOutlineMenu = () => {
+      outlineMenu.hidden = true;
+    };
+    if (!form._outlineMenuBound) {
+      form._outlineMenuBound = true;
+      document.addEventListener("pointerdown", (event) => {
+        if (outlineMenu && !outlineMenu.hidden && !event.target.closest(".dlc-text-outline-menu")) {
+          hideOutlineMenu();
+        }
+      }, true);
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") hideOutlineMenu();
+      });
+    }
+
+    const removeSection = (workIndex, sectionIndex) => {
+      const work = preview.document?.works?.[workIndex];
+      if (!work?.sections?.[sectionIndex]) return;
+      work.sections.splice(sectionIndex, 1);
+      if (!work.sections.length) {
+        work.sections.push({
+          id: `section-${Date.now()}`,
+          number: 1,
+          title: `${sectionLabel} 1`,
+          verses: [{ number: 1, text: "" }]
+        });
+      }
+      if (selected.workIndex === workIndex) {
+        selected.sectionIndex = Math.max(0, Math.min(sectionIndex, work.sections.length - 1));
+      }
+      refreshStats();
+      renderOutline();
+      renderSample();
+    };
+
+    const showOutlineMenu = (event, workIndex, sectionIndex) => {
+      event.preventDefault();
+      selected.workIndex = workIndex;
+      selected.sectionIndex = sectionIndex;
+      const actions = [
+        { label: "Rename section", action: () => sampleHeadEl?.focus() },
+        { label: "Move up", action: () => moveSection(sectionIndex, sectionIndex - 1) },
+        { label: "Move down", action: () => moveSection(sectionIndex, sectionIndex + 1) },
+        { label: "Move to shelf", action: () => shelfSection(sectionIndex) },
+        { label: "Delete section", action: () => removeSection(workIndex, sectionIndex) }
+      ];
+      outlineMenu.replaceChildren();
+      actions.forEach((entry) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = entry.label;
+        button.addEventListener("click", () => {
+          hideOutlineMenu();
+          entry.action();
+        });
+        outlineMenu.appendChild(button);
+      });
+      outlineMenu.hidden = false;
+      outlineMenu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - 180))}px`;
+      outlineMenu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - 8 - actions.length * 34))}px`;
+    };
+
     if (!preview._selected) {
       preview._selected = { workIndex: 0, sectionIndex: 0 };
     }
@@ -2641,7 +2730,7 @@
       }
       if (sampleMetaEl) {
         sampleMetaEl.textContent = [
-          preview.title || work?.title || "",
+          work?.title || preview.title || "",
           preview.format,
           `${sectionLabel} ${selected.sectionIndex + 1} of ${workList().length}`,
           `${section?.verses?.length || 0} ${String(verseLabel).toLowerCase()}(s)`
@@ -2754,13 +2843,25 @@
     };
 
     const renderOutline = () => {
-      outlineEl.replaceChildren();
+      const query = String(preview._sectionQuery || "").trim().toLowerCase();
+      // Keep the filter row; replace only the section/work entries.
+      [...outlineEl.children].forEach((child) => {
+        if (!child.classList.contains("dlc-text-outline-search-row")) child.remove();
+      });
+      let shown = 0;
       (preview.document?.works || []).forEach((work, workIndex) => {
+        const matching = (work.sections || [])
+          .map((section, sectionIndex) => ({ section, sectionIndex }))
+          .filter(({ section, sectionIndex }) => !query
+            || String(section.title || "").toLowerCase().includes(query)
+            || `${sectionLabel} ${sectionIndex + 1}`.toLowerCase().includes(query));
+        if (query && !matching.length) return;
         const workHead = document.createElement("div");
         workHead.className = "dlc-text-outline-work";
-        workHead.textContent = preview.title || work.title || `${workLabel} ${workIndex + 1}`;
+        workHead.textContent = work.title || preview.title || `${workLabel} ${workIndex + 1}`;
         outlineEl.appendChild(workHead);
-        (work.sections || []).forEach((section, sectionIndex) => {
+        matching.forEach(({ section, sectionIndex }) => {
+          shown += 1;
           const item = document.createElement("button");
           item.type = "button";
           item.className = "dlc-text-outline-item";
@@ -2778,6 +2879,7 @@
             renderOutline();
             renderSample();
           });
+          item.addEventListener("contextmenu", (event) => showOutlineMenu(event, workIndex, sectionIndex));
           item.addEventListener("dragover", (event) => {
             event.preventDefault();
             item.classList.add("is-drop");
@@ -2792,6 +2894,12 @@
           outlineEl.appendChild(item);
         });
       });
+      if (query && !shown) {
+        const empty = document.createElement("span");
+        empty.className = "settings-field-hint";
+        empty.textContent = "No sections match.";
+        outlineEl.appendChild(empty);
+      }
     };
 
     if (sampleHeadEl) {
@@ -3440,7 +3548,7 @@
 
   window.TaroDlcCardPeek = { open: openCardPeek, close: closeCardPeek };
 
-  function openCreateDlc(hostEl, { onCreated, editItem } = {}) {
+  function openCreateDlc(hostEl, { onCreated, editItem, mergeDraft, mergeContext } = {}) {
     if (!isAdmin()) {
       setStatus("Admin key required to create DLC.", true);
       return;
@@ -4595,12 +4703,13 @@
         setFormStatus("Auto-section the text first.", true);
         return;
       }
+      const merging = Boolean(mergeContext && Array.isArray(mergeContext.sourceNames) && mergeContext.sourceNames.length);
       button.disabled = true;
-      setFormStatus("Saving DLC text…");
+      setFormStatus(merging ? "Merging texts…" : "Saving DLC text…");
       try {
         const result = await window.TarotDataService.requestJson(
           "POST",
-          window.TarotDataService.buildApiUrl("/api/v1/dlc/texts"),
+          window.TarotDataService.buildApiUrl(merging ? "/api/v1/admin/dlc/texts/merge" : "/api/v1/dlc/texts"),
           {
             id: String(overlay.querySelector(".dlc-create-text-id")?.value || previewState.id || "").trim(),
             title: String(overlay.querySelector(".dlc-create-text-title")?.value || previewState.title || "").trim(),
@@ -4613,15 +4722,22 @@
             sectionLabel: String(overlay.querySelector(".dlc-create-text-section-label")?.value || "").trim(),
             verseLabel: String(overlay.querySelector(".dlc-create-text-verse-label")?.value || "").trim(),
             format: String(overlay.querySelector(".dlc-create-text-format")?.value || previewState.format || "").trim(),
-            text: sourceText,
             document: collectEditedDocument(overlay, previewState),
-            ...(editing ? { overwrite: true, renameFrom: editItem.name } : {})
+            ...(merging
+              ? {
+                items: mergeContext.sourceNames.map((name) => ({ name })),
+                removeSources: mergeContext.removeSources === true
+              }
+              : {
+                text: sourceText,
+                ...(editing ? { overwrite: true, renameFrom: editItem.name } : {})
+              })
           }
         );
-        setFormStatus(`${editing ? "Updated" : "Saved"} '${result?.text?.title || result?.text?.id}'. Install or Publish it from Admin → DLC when ready.`);
-        setStatus(`${editing ? "Updated" : "Created"} text '${result?.text?.id}'.`);
+        setFormStatus(`${merging ? "Merged" : editing ? "Updated" : "Saved"} '${result?.text?.title || result?.text?.id || result?.title || result?.name}'. Install or Publish it from Admin → DLC when ready.`);
+        setStatus(`${merging ? "Merged" : editing ? "Updated" : "Created"} text '${result?.text?.id || result?.name}'.`);
         if (typeof onCreated === "function") {
-          await onCreated(result?.text);
+          await onCreated(result?.text || result);
         }
         window.setTimeout(() => overlay.remove(), 1600);
       } catch (error) {
@@ -5882,6 +5998,85 @@
 
     if (editing) {
       void prefillEdit();
+    }
+
+    // Merge mode: show the merged draft in the normal text editor so the admin
+    // can read it, delete/shelve passages, then "Merge & save".
+    if (mergeDraft) {
+      previewState = mergeDraft;
+      sourceText = "";
+      overlay.querySelector('.dlc-create-kind[data-kind="text"]')?.click();
+      const setField = (selector, value) => {
+        const el = overlay.querySelector(selector);
+        if (el) el.value = value == null ? "" : String(value);
+      };
+      setField(".dlc-create-text-title", mergeDraft.title);
+      setField(".dlc-create-text-id", mergeDraft.id);
+      setField(".dlc-create-text-description", mergeDraft.description);
+      setField(".dlc-create-text-work-label", mergeDraft.workLabel);
+      setField(".dlc-create-text-section-label", mergeDraft.sectionLabel);
+      setField(".dlc-create-text-verse-label", mergeDraft.verseLabel);
+      fillFormatOptions(mergeDraft.formats, mergeDraft.format);
+      renderTextPreview(overlay, previewState, { syncFields: false });
+
+      // Source naming lives in the editor: rename the merged works from their
+      // original titles with a regex, then review the (re-rendered) preview.
+      const fieldsHost = overlay.querySelector("[data-role='text-fields']");
+      if (fieldsHost && !fieldsHost.querySelector(".dlc-text-merge-naming")) {
+        const panel = document.createElement("div");
+        panel.className = "dlc-text-merge-naming";
+        panel.innerHTML = `
+          <strong>Source naming</strong>
+          <p class="settings-field-hint">Rename the merged sources from their original titles.</p>
+          <label class="settings-field">Pattern (regex)
+            <input type="text" class="dlc-text-merge-pattern" placeholder="e.g. part\\s*\\d+">
+          </label>
+          <label class="settings-field">Replace with (optional)
+            <input type="text" class="dlc-text-merge-replace" placeholder="blank uses capture $1">
+          </label>
+          <label class="dlc-menu-hide-label"><input type="checkbox" class="dlc-text-merge-ignorecase" checked> Ignore case</label>
+          <div class="dlc-shop-actions">
+            <button type="button" class="dlc-shop-btn" data-action="apply-merge-naming">Rename sources</button>
+            <span class="settings-field-hint" data-role="merge-naming-status"></span>
+          </div>`;
+        fieldsHost.prepend(panel);
+        const namingPattern = panel.querySelector(".dlc-text-merge-pattern");
+        const namingReplace = panel.querySelector(".dlc-text-merge-replace");
+        const namingIgnore = panel.querySelector(".dlc-text-merge-ignorecase");
+        const namingStatus = panel.querySelector('[data-role="merge-naming-status"]');
+        panel.querySelector('[data-action="apply-merge-naming"]').addEventListener("click", () => {
+          const pattern = String(namingPattern.value || "").trim();
+          if (!pattern) {
+            namingStatus.textContent = "Enter a pattern.";
+            return;
+          }
+          let regex;
+          try {
+            regex = new RegExp(pattern, namingIgnore.checked ? "i" : "");
+          } catch (error) {
+            namingStatus.textContent = `Pattern error: ${error.message}`;
+            return;
+          }
+          const template = String(namingReplace.value || "").trim();
+          let renamed = 0;
+          (previewState.document?.works || []).forEach((work, index) => {
+            const source = String(previewState.workSources?.[index] || work.title || "").trim();
+            const match = regex.exec(source);
+            if (!match) return;
+            const next = template ? source.replace(regex, template) : (match[1] !== undefined ? match[1] : match[0]);
+            const clean = String(next || source).trim();
+            if (!clean) return;
+            work.title = clean.slice(0, 160);
+            work.shortTitle = clean.slice(0, 80);
+            renamed += 1;
+          });
+          renderTextPreview(overlay, previewState, { syncFields: false });
+          namingStatus.textContent = `Renamed ${renamed} source(s).`;
+        });
+      }
+
+      setFormStatus(`Merged ${mergeContext?.sourceNames?.length || 0} source(s). Edit, delete, or shelve passages, rename sources, then “Merge &amp; save”.`);
+      overlay.querySelector('[data-action="save-text"]')?.scrollIntoView({ block: "nearest" });
     }
   }
 

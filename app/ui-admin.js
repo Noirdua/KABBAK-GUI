@@ -1676,6 +1676,239 @@
   const DLC_RENDER_STEP = 60;
   let dlcRenderLimit = DLC_RENDER_STEP;
   let dlcLoadObserver = null;
+  const dlcSelected = new Set();
+
+  function dlcItemKey(item) {
+    return `${item?.kind || ""}:${item?.name || ""}`;
+  }
+
+  function syncPublishBar() {
+    const button = document.getElementById("admin-dlc-publish-selected");
+    if (!button) return;
+    button.disabled = dlcSelected.size === 0;
+    button.textContent = `Publish selected (${dlcSelected.size})`;
+  }
+
+  function pruneDlcSelection() {
+    const present = new Set(allDlcItems.map((item) => dlcItemKey(item)));
+    [...dlcSelected].forEach((key) => {
+      if (!present.has(key)) dlcSelected.delete(key);
+    });
+  }
+
+  // The current view = kind filter + search text. Selections and bulk actions
+  // operate on what the admin can actually see.
+  function getVisibleDlcItems() {
+    const searched = mergeCatalogItems(activeDlcFilter === "all"
+      ? allDlcItems
+      : allDlcItems.filter((item) => item?.kind === activeDlcFilter));
+    return dlcSearchQuery.trim()
+      ? searched.filter((item) => matchesDlcSearch(item, dlcSearchQuery))
+      : searched;
+  }
+
+  function selectAllShown() {
+    getVisibleDlcItems()
+      .filter((item) => item?.downloaded === true && item?.kind !== "pack")
+      .forEach((item) => dlcSelected.add(dlcItemKey(item)));
+    renderDlcCatalog();
+  }
+
+  function clearDlcSelection() {
+    dlcSelected.clear();
+    renderDlcCatalog();
+  }
+
+  function slugifyAdminId(value) {
+    return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+  }
+
+  function commonTitlePrefix(titles) {
+    const lists = (Array.isArray(titles) ? titles : []).map((title) => String(title || "").trim().split(/\s+/));
+    if (!lists.length) return "";
+    const prefix = [];
+    for (let index = 0; ; index += 1) {
+      const word = lists[0][index];
+      if (word === undefined) break;
+      const lower = word.toLowerCase();
+      if (!lists.every((list) => String(list[index] || "").toLowerCase() === lower)) break;
+      prefix.push(word);
+    }
+    while (prefix.length) {
+      const last = prefix[prefix.length - 1].replace(/[.,:;\-–—]+$/, "");
+      if (!last || /^(part|pt|vol|volume|book|bk|chapter|ch|no|number)$/i.test(last)) prefix.pop();
+      else break;
+    }
+    return prefix.join(" ").replace(/[.,:;\-–—\s]+$/, "");
+  }
+
+  // Two steps: pick the parts, then a live-preview creation view where the regex
+  // names each work (source) before saving.
+  function openMergeTextsDialog() {
+    const candidates = allDlcItems.filter((item) => item?.kind === "text" && item?.downloaded === true);
+    if (candidates.length < 2) {
+      setStatus("Need at least two local text items to merge.", true);
+      return;
+    }
+    document.querySelector(".dlc-merge-overlay")?.remove();
+    const overlay = document.createElement("div");
+    overlay.className = "dlc-settings-overlay dlc-merge-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.innerHTML = `
+      <div class="dlc-settings-overlay-panel dlc-merge-panel">
+        <div class="dlc-settings-overlay-head">
+          <strong class="dlc-merge-heading">Merge texts</strong>
+          <button type="button" class="dlc-shop-btn" data-action="close">Close</button>
+        </div>
+        <div class="dlc-install-overlay-body" data-role="merge-body"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const headingEl = overlay.querySelector(".dlc-merge-heading");
+    const bodyEl = overlay.querySelector('[data-role="merge-body"]');
+    const checked = new Set();
+
+    const close = () => overlay.remove();
+    overlay.querySelector('[data-action="close"]').addEventListener("click", close);
+    overlay.addEventListener("mousedown", (event) => {
+      if (event.target === overlay) close();
+    });
+
+    const selectedItems = () => candidates.filter((item) => checked.has(item.name));
+
+    const renderSelectStep = () => {
+      headingEl.textContent = "Merge texts — select";
+      bodyEl.innerHTML = `
+        <p class="settings-field-hint">Pick the text parts to merge; the editor opens with each part as its own title so you can rename them with regex.</p>
+        <input type="search" class="admin-dlc-search dlc-merge-search" placeholder="Filter texts…" autocomplete="off">
+        <div class="dlc-shop-actions">
+          <button type="button" class="dlc-shop-btn" data-action="select-shown">Select all shown</button>
+          <button type="button" class="dlc-shop-btn" data-action="clear-shown">Clear</button>
+          <span class="settings-field-hint" data-role="merge-count"></span>
+        </div>
+        <div class="dlc-merge-list" data-role="merge-list"></div>
+        <div class="dlc-shop-actions">
+          <label class="dlc-menu-hide-label"><input type="checkbox" class="dlc-merge-remove" checked> Remove originals after merging</label>
+          <button type="button" class="settings-button-primary" data-action="continue" disabled>Continue to editor…</button>
+        </div>`;
+      const searchEl = bodyEl.querySelector(".dlc-merge-search");
+      const listEl = bodyEl.querySelector('[data-role="merge-list"]');
+      const countEl = bodyEl.querySelector('[data-role="merge-count"]');
+      const continueBtn = bodyEl.querySelector('[data-action="continue"]');
+
+      const refreshContinue = () => {
+        continueBtn.disabled = checked.size < 2;
+        if (countEl) countEl.textContent = `${checked.size} selected`;
+      };
+      const renderList = () => {
+        const query = String(searchEl.value || "").trim().toLowerCase();
+        listEl.replaceChildren();
+        candidates
+          .filter((item) => !query || matchesDlcSearch(item, query))
+          .forEach((item) => {
+            const row = document.createElement("label");
+            row.className = "dlc-merge-row";
+            const box = document.createElement("input");
+            box.type = "checkbox";
+            box.checked = checked.has(item.name);
+            box.addEventListener("change", () => {
+              if (box.checked) checked.add(item.name);
+              else checked.delete(item.name);
+              refreshContinue();
+            });
+            const text = document.createElement("span");
+            text.textContent = `${item.title || item.name}${item.status === "installed" ? " · installed" : ""}`;
+            row.append(box, text);
+            listEl.appendChild(row);
+          });
+        if (!listEl.childElementCount) {
+          const empty = document.createElement("span");
+          empty.className = "settings-field-hint";
+          empty.textContent = "No matching texts.";
+          listEl.appendChild(empty);
+        }
+        refreshContinue();
+      };
+      searchEl.addEventListener("input", renderList);
+      bodyEl.querySelector('[data-action="select-shown"]').addEventListener("click", () => {
+        const query = String(searchEl.value || "").trim().toLowerCase();
+        candidates
+          .filter((item) => !query || matchesDlcSearch(item, query))
+          .forEach((item) => checked.add(item.name));
+        renderList();
+      });
+      bodyEl.querySelector('[data-action="clear-shown"]').addEventListener("click", () => {
+        checked.clear();
+        renderList();
+      });
+      // Continue goes straight into the text editor with each source kept as its
+      // own title, so the regex renaming and cleanup happen there.
+      continueBtn.addEventListener("click", async () => {
+        const selected = selectedItems();
+        if (selected.length < 2) return;
+        const removeEl = bodyEl.querySelector(".dlc-merge-remove");
+        continueBtn.disabled = true;
+        continueBtn.textContent = "Opening editor…";
+        try {
+          const draft = await requestJson("POST", "/api/v1/admin/dlc/texts/merge-draft", {
+            items: selected.map((item) => ({ name: item.name, sourceId: item.sourceId || "" }))
+          });
+          close();
+          window.TaroTimeDlcShop?.openCreateDlc?.(document.getElementById("admin-dlc-catalog") || document.body, {
+            mergeDraft: draft,
+            mergeContext: {
+              sourceNames: selected.map((item) => item.name),
+              removeSources: removeEl ? removeEl.checked : false
+            },
+            onCreated: () => { void loadPlugins(); }
+          });
+        } catch (error) {
+          continueBtn.disabled = false;
+          continueBtn.textContent = "Continue to editor…";
+          setStatus(`Could not build the merge draft. ${error?.message || ""}`, true);
+        }
+      });
+      renderList();
+      searchEl.focus();
+    };
+
+
+    renderSelectStep();
+  }
+
+  async function publishSelectedDlc() {
+    const items = allDlcItems.filter((item) => dlcSelected.has(dlcItemKey(item)));
+    if (!items.length) return;
+    const button = document.getElementById("admin-dlc-publish-selected");
+    const statusEl = document.getElementById("admin-dlc-publish-status");
+    if (button) button.disabled = true;
+    let published = 0;
+    const failed = [];
+    for (let index = 0; index < items.length; index += 1) {
+      const item = items[index];
+      if (statusEl) statusEl.textContent = `Publishing ${index + 1}/${items.length}: ${item.name}…`;
+      try {
+        await requestJson("POST", "/api/v1/admin/dlc/publish", {
+          kind: item.kind,
+          name: item.name,
+          sourceId: item.sourceId || "",
+          message: `Update ${item.kind}: ${item.name}`
+        });
+        published += 1;
+      } catch (error) {
+        failed.push(`${item.name}: ${error?.message || "failed"}`);
+      }
+    }
+    dlcSelected.clear();
+    if (statusEl) {
+      statusEl.textContent = failed.length
+        ? `Published ${published}; ${failed.length} failed — ${failed[0]}`
+        : `Published ${published} item(s).`;
+    }
+    setStatus(failed.length ? `Published ${published}; ${failed.length} failed.` : `Published ${published} item(s).`, failed.length > 0);
+    await loadPlugins();
+  }
 
   function matchesDlcSearch(item, query) {
     const q = String(query || "").trim().toLowerCase();
@@ -1722,12 +1955,9 @@
     if (!dlcCatalogEl) return;
     dlcCatalogEl.innerHTML = "";
 
-    const searched = mergeCatalogItems(activeDlcFilter === "all"
-      ? allDlcItems
-      : allDlcItems.filter((item) => item?.kind === activeDlcFilter));
-    const visibleItems = dlcSearchQuery.trim()
-      ? searched.filter((item) => matchesDlcSearch(item, dlcSearchQuery))
-      : searched;
+    pruneDlcSelection();
+    syncPublishBar();
+    const visibleItems = getVisibleDlcItems();
 
     if (!visibleItems.length) {
       const empty = document.createElement("span");
@@ -1822,6 +2052,25 @@
         }
 
         const actionRow = card.querySelector(".dlc-plugin-actions");
+
+        if (item?.downloaded === true && kind !== "pack") {
+          const nameRow = card.querySelector(".dlc-plugin-name-row");
+          const selectWrap = document.createElement("label");
+          selectWrap.className = "dlc-select-box";
+          selectWrap.title = "Select for batch publish";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = dlcSelected.has(dlcItemKey(item));
+          checkbox.addEventListener("change", () => {
+            const key = dlcItemKey(item);
+            if (checkbox.checked) dlcSelected.add(key);
+            else dlcSelected.delete(key);
+            syncPublishBar();
+          });
+          selectWrap.appendChild(checkbox);
+          if (nameRow) nameRow.prepend(selectWrap);
+          else card.prepend(selectWrap);
+        }
 
         if (kind === "deck" && item?.status !== "installed") {
           const previewBtn = document.createElement("button");
@@ -2341,8 +2590,12 @@
     }
   }
 
+  const DLC_PUBLISH_STATUS_LIMIT = 300;
+
   async function annotatePublishPending() {
-    const candidates = allDlcItems.filter((item) => item?.downloaded === true && item?.kind !== "pack");
+    const candidates = allDlcItems
+      .filter((item) => item?.downloaded === true && item?.kind !== "pack")
+      .slice(0, DLC_PUBLISH_STATUS_LIMIT);
     if (!candidates.length) return;
     try {
       const result = await requestJson("POST", "/api/v1/admin/dlc/publish/status", {
@@ -2351,13 +2604,10 @@
       const map = new Map((result?.statuses || []).map((entry) => [`${entry.kind}:${entry.name}`, entry]));
       allDlcItems.forEach((item) => {
         const status = map.get(`${item.kind}:${item.name}`);
-        item.publishPending = status ? status.pending === true : false;
+        if (status) item.publishPending = status.pending === true;
       });
     } catch (_error) {
-      // Never hide Publish entirely if the status check fails.
-      allDlcItems.forEach((item) => {
-        item.publishPending = true;
-      });
+      // Leave publishPending undefined (Publish stays hidden) on failure.
     }
   }
 
@@ -2365,10 +2615,11 @@
     const { dlcCatalogEl } = getElements();
     if (!dlcCatalogEl) return;
     try {
-      const catalog = await requestJson("GET", "/api/v1/dlc/catalog?refresh=1");
+      const catalog = await requestJson("GET", "/api/v1/dlc/catalog?refresh=1", null, { timeoutMs: 120000 });
       allDlcItems = Array.isArray(catalog?.items) ? catalog.items : [];
-      await annotatePublishPending();
       renderDlcCatalog();
+      // Publish status is a follow-up pass; never block first paint on it.
+      void annotatePublishPending().then(() => renderDlcCatalog()).catch(() => {});
       const baseUrl = window.TarotDataService?.getApiBaseUrl?.() || "";
       const pluginCount = allDlcItems.filter((item) => item?.kind === "plugin").length;
       setStatus(`DLC loaded (server: ${baseUrl || "?"}, source: ${catalog?.origin || "none"}, plugins: ${pluginCount}).`);
@@ -2531,6 +2782,13 @@
       dlcRenderLimit = DLC_RENDER_STEP;
       renderDlcCatalog();
     });
+    document.getElementById("admin-dlc-select-changes")?.addEventListener("click", selectAllShown);
+    document.getElementById("admin-dlc-clear-selection")?.addEventListener("click", clearDlcSelection);
+    document.getElementById("admin-dlc-publish-selected")?.addEventListener("click", () => {
+      void publishSelectedDlc();
+    });
+    document.getElementById("admin-dlc-merge-texts")?.addEventListener("click", openMergeTextsDialog);
+    syncPublishBar();
 
     const refreshPanel = (panelId) => {
       if (panelId === "overview") void loadOverview();

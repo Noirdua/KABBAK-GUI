@@ -933,13 +933,13 @@
     }
   }
 
-  async function requestJson(method, path, body = null) {
+  async function requestJson(method, path, body = null, { timeoutMs = 30000 } = {}) {
     if (!path) {
       throw new Error("API connection is not configured.");
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(path, {

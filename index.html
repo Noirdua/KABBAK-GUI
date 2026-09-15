@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260914-dlc-search">
+  <link rel="stylesheet" href="app/styles.css?v=20260914-outline-menu">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -689,6 +689,13 @@
             <button type="button" class="dlc-shop-btn" data-dlc-filter="text">Texts</button>
             <button type="button" class="dlc-shop-btn" data-dlc-filter="reference">References</button>
             <button type="button" class="dlc-shop-btn" data-dlc-filter="pack">Packs</button>
+          </div>
+          <div class="dlc-shop-actions admin-dlc-publish-bar">
+            <button type="button" class="dlc-shop-btn" id="admin-dlc-select-changes" title="Select every local item in the current filter/search">Select all shown</button>
+            <button type="button" class="dlc-shop-btn" id="admin-dlc-clear-selection" title="Clear the selection">Clear</button>
+            <button type="button" class="settings-button-primary" id="admin-dlc-publish-selected" disabled>Publish selected (0)</button>
+            <button type="button" class="dlc-shop-btn" id="admin-dlc-merge-texts">Merge texts…</button>
+            <span class="settings-field-hint" id="admin-dlc-publish-status"></span>
           </div>
           <div id="admin-dlc-catalog" class="dlc-plugin-list"></div>
           <div class="dlc-shop-actions" style="margin-top:10px;">
@@ -2447,7 +2454,7 @@
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
   <script src="app/app-config.js?v=20260911-tarot-admin"></script>
-  <script src="app/data-service.js?v=20260907-network-lost"></script>
+  <script src="app/data-service.js?v=20260914-dlc-batch"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-library-marks.js?v=20260830-library"></script>
   <script src="app/plugins-host.js?v=20260911-preauth-widgets"></script>
@@ -2460,7 +2467,7 @@
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260911-profile-timing-fix"></script>
-  <script src="app/ui-dlc-shop.js?v=20260914-iching-simple"></script>
+  <script src="app/ui-dlc-shop.js?v=20260914-outline-filter"></script>
   <script src="app/ui-chrome.js?v=20260911-export-marks"></script>
   <script src="app/ui-navigation.js?v=20260902-syn"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>
