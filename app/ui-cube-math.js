@@ -68,6 +68,8 @@
 
       const centerX = CUBE_VIEW_CENTER.x;
       const centerY = CUBE_VIEW_CENTER.y;
+      // Zoom is applied by the SVG viewBox (see chassis), so the projection
+      // stays fixed and nothing clips.
       const scale = 54;
       const camera = 4.6;
 
@@ -194,62 +196,9 @@
       return name;
     }
 
+    // Shared with the Tree of Life labels via app/astro-symbols.js.
     function getAstrologySymbol(type, name) {
-      const normalizedType = normalizeId(type);
-      const normalizedName = normalizeId(name);
-
-      const planetSymbols = {
-        mercury: "☿︎",
-        venus: "♀︎",
-        mars: "♂︎",
-        jupiter: "♃︎",
-        saturn: "♄︎",
-        sol: "☉︎",
-        sun: "☉︎",
-        luna: "☾︎",
-        moon: "☾︎",
-        earth: "⊕",
-        uranus: "♅︎",
-        neptune: "♆︎",
-        pluto: "♇︎"
-      };
-
-      const zodiacSymbols = {
-        aries: "♈︎",
-        taurus: "♉︎",
-        gemini: "♊︎",
-        cancer: "♋︎",
-        leo: "♌︎",
-        virgo: "♍︎",
-        libra: "♎︎",
-        scorpio: "♏︎",
-        sagittarius: "♐︎",
-        capricorn: "♑︎",
-        aquarius: "♒︎",
-        pisces: "♓︎"
-      };
-
-      const elementSymbols = {
-        fire: "🜂",
-        water: "🜄",
-        air: "🜁",
-        earth: "🜃",
-        spirit: "🜀"
-      };
-
-      if (normalizedType === "planet") {
-        return planetSymbols[normalizedName] || "";
-      }
-
-      if (normalizedType === "zodiac") {
-        return zodiacSymbols[normalizedName] || "";
-      }
-
-      if (normalizedType === "element") {
-        return elementSymbols[normalizedName] || "";
-      }
-
-      return "";
+      return window.AstroSymbols?.get?.(type, name) || "";
     }
 
     function getCenterLetterId(center = null) {

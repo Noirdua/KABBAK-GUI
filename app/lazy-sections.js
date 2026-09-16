@@ -67,15 +67,15 @@
     kabbalah: [
       "app/ui-rosicrucian-cross.js",
       "app/ui-kabbalah-detail.js?v=20260820-template",
-      "app/ui-kabbalah-views.js?v=20260828-tree-orbit",
-      "app/ui-kabbalah.js?v=20260828-tree-orbit"
+      "app/ui-kabbalah-views.js?v=20260915-spin-astro",
+      "app/ui-kabbalah.js?v=20260915-spin-astro"
     ],
     cube: [
-      "app/ui-cube-detail.js?v=20260820-template",
-      "app/ui-cube-chassis.js?v=20260424-cube-fixes-01",
-      "app/ui-cube-math.js",
-      "app/ui-cube-selection.js?v=20260424-cube-fixes-01",
-      "app/ui-cube.js?v=20260424-association-web-01"
+      "app/ui-cube-detail.js?v=20260915-cube-ux",
+      "app/ui-cube-chassis.js?v=20260915-no-hidden-hits",
+      "app/ui-cube-math.js?v=20260915-spin-astro",
+      "app/ui-cube-selection.js?v=20260915-cube-ux",
+      "app/ui-cube.js?v=20260915-spin-astro"
     ],
     alphabet: [
       "app/ui-alphabet-gematria.js?v=20260323-word-meta-01",
@@ -120,7 +120,7 @@
     numPad: [
       "app/ui-num-pad-grid.js?v=20260826-num-pad",
       "app/ui-num-pad-model.js?v=20260902-grid-degree",
-      "app/ui-num-pad.js?v=20260902-grid-degree"
+      "app/ui-num-pad.js?v=20260915-numpad-actions"
     ],
     natal: [
       "app/ui-natal.js"
@@ -154,6 +154,7 @@
     "kabbalah-cross": ["kabbalah"],
     "kabbalah-tree": ["kabbalah"],
     cube: ["kabbalah", "cube"],
+    "kabbalah-tandem": ["kabbalah", "cube"],
     alphabet: ["alphabet"],
     "alphabet-letters": ["alphabet"],
     "alphabet-text": ["alphabet"],

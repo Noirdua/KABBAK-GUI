@@ -74,6 +74,7 @@ const kabbalahPathsSectionEl = document.getElementById("kabbalah-paths-section")
 const kabbalahCrossSectionEl = document.getElementById("kabbalah-cross-section");
 const kabbalahTreeSectionEl = document.getElementById("kabbalah-tree-section");
 const cubeSectionEl = document.getElementById("cube-section");
+const kabbalahTandemSectionEl = document.getElementById("kabbalah-tandem-section");
 const alphabetSectionEl = document.getElementById("alphabet-section");
 const alphabetLettersSectionEl = document.getElementById("alphabet-letters-section");
 const alphabetTextSectionEl = document.getElementById("alphabet-text-section");
@@ -117,6 +118,7 @@ const openKabbalahPathsEl = document.getElementById("open-kabbalah-paths");
 const openKabbalahCrossEl = document.getElementById("open-kabbalah-cross");
 const openKabbalahTreeEl = document.getElementById("open-kabbalah-tree");
 const openKabbalahCubeEl = document.getElementById("open-kabbalah-cube");
+const openKabbalahTandemEl = document.getElementById("open-kabbalah-tandem");
 const openAlphabetEl = document.getElementById("open-alphabet");
 const openAlphabetWordEl = document.getElementById("open-alphabet-word");
 const openAlphabetLettersEl = document.getElementById("open-alphabet-letters");
@@ -1092,6 +1094,7 @@ sectionStateUi.init?.({
     kabbalahCrossSectionEl,
     kabbalahTreeSectionEl,
     cubeSectionEl,
+    kabbalahTandemSectionEl,
     alphabetSectionEl,
     alphabetLettersSectionEl,
     alphabetTextSectionEl,
@@ -1135,6 +1138,7 @@ sectionStateUi.init?.({
     openKabbalahCrossEl,
     openKabbalahTreeEl,
     openKabbalahCubeEl,
+    openKabbalahTandemEl,
     openAlphabetEl,
     openAlphabetWordEl,
     openAlphabetLettersEl,
@@ -1335,6 +1339,7 @@ navigationUi.init?.({
     openKabbalahCrossEl,
     openKabbalahTreeEl,
     openKabbalahCubeEl,
+    openKabbalahTandemEl,
     openAlphabetEl,
     openAlphabetWordEl,
     openAlphabetLettersEl,

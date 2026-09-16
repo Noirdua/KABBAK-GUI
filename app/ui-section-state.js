@@ -28,6 +28,7 @@
     "kabbalah-cross",
     "kabbalah-tree",
     "cube",
+    "kabbalah-tandem",
     "alphabet",
     "alphabet-letters",
     "alphabet-text",
@@ -78,6 +79,7 @@
     "kabbalah-cross": "Cross",
     "kabbalah-tree": "Tree",
     cube: "Cube",
+    "kabbalah-tandem": "Tree + Cube",
     alphabet: "Word",
     "alphabet-letters": "Letter",
     "alphabet-text": "Text",
@@ -300,8 +302,11 @@
     const isKabbalahWorldsOpen = activeSection === "kabbalah-worlds";
     const isKabbalahPathsOpen = activeSection === "kabbalah-paths";
     const isKabbalahCrossOpen = activeSection === "kabbalah-cross";
-    const isKabbalahTreeOpen = activeSection === "kabbalah-tree";
-    const isCubeOpen = activeSection === "cube";
+    // The tandem view keeps the Tree and Cube sections themselves on screen,
+    // side by side, so both count as open while it is active.
+    const isKabbalahTandemOpen = activeSection === "kabbalah-tandem";
+    const isKabbalahTreeOpen = activeSection === "kabbalah-tree" || isKabbalahTandemOpen;
+    const isCubeOpen = activeSection === "cube" || isKabbalahTandemOpen;
     const isKabbalahMenuOpen = isKabbalahOpen || isKabbalahWorldsOpen || isKabbalahPathsOpen || isKabbalahCrossOpen || isKabbalahTreeOpen || isCubeOpen;
     const isAlphabetOpen = activeSection === "alphabet";
     const isAlphabetLettersOpen = activeSection === "alphabet-letters";
@@ -318,6 +323,13 @@
     const isEnochianOpen = activeSection === "enochian";
     const isProfileOpen = activeSection === "profile";
     const isAdminOpen = activeSection === "admin";
+
+    // Park or restore the paired sections before their visibility is applied.
+    if (isKabbalahTandemOpen) {
+      window.UiTandem?.enter?.();
+    } else {
+      window.UiTandem?.leave?.();
+    }
 
     setHidden(elements.plannerSectionEl, !isPlannerOpen);
     setHidden(elements.settingsSectionEl, !isSettingsOpen);
@@ -344,6 +356,7 @@
     setHidden(elements.kabbalahCrossSectionEl, !isKabbalahCrossOpen);
     setHidden(elements.kabbalahTreeSectionEl, !isKabbalahTreeOpen);
     setHidden(elements.cubeSectionEl, !isCubeOpen);
+    setHidden(elements.kabbalahTandemSectionEl, !isKabbalahTandemOpen);
     setHidden(elements.alphabetSectionEl, !isAlphabetOpen);
     setHidden(elements.alphabetLettersSectionEl, !isAlphabetLettersOpen);
     setHidden(elements.alphabetTextSectionEl, !isAlphabetTextOpen);
@@ -395,6 +408,7 @@
     toggleActive(elements.openKabbalahCrossEl, isKabbalahCrossOpen);
     toggleActive(elements.openKabbalahTreeEl, isKabbalahTreeOpen);
     toggleActive(elements.openKabbalahCubeEl, isCubeOpen);
+    toggleActive(elements.openKabbalahTandemEl, isKabbalahTandemOpen);
     setPressed(elements.openAlphabetEl, isAlphabetMenuOpen);
     toggleActive(elements.openAlphabetWordEl, isAlphabetOpen);
     toggleActive(elements.openAlphabetLettersEl, isAlphabetLettersOpen);
@@ -448,6 +462,7 @@
     "kabbalah-cross",
     "kabbalah-tree",
     "cube",
+    "kabbalah-tandem",
     "alphabet",
     "alphabet-letters",
     "alphabet-text",
@@ -581,6 +596,11 @@
       return;
     }
     if (sectionId === "cube") {
+      ensure.ensureCubeSection?.(latestMagickDataset, latestReferenceData);
+      return;
+    }
+    if (sectionId === "kabbalah-tandem") {
+      ensure.ensureKabbalahSection?.(latestMagickDataset);
       ensure.ensureCubeSection?.(latestMagickDataset, latestReferenceData);
       return;
     }

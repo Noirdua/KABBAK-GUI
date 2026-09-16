@@ -10,13 +10,19 @@
     markerDisplayMode: "both",
     rotationX: 18,
     rotationY: -28,
+    zoom: 1,
     selectedNodeType: "wall",
     showConnectorLines: true,
     showPrimalPoint: true,
+    showWallFaces: true,
+    showCubeEdges: true,
+    transparentSides: true,
     selectedConnectorId: null,
     selectedWallId: null,
     selectedEdgeId: null,
     focusMode: false,
+    spin: false,
+    viewDragging: false,
     exportInProgress: false,
     exportFormat: ""
   };
@@ -142,17 +148,27 @@
     return {
       cubeSectionEl: document.getElementById("cube-section"),
       cubeLayoutEl: document.getElementById("cube-layout"),
+      toolbarEl: document.getElementById("cube-toolbar"),
       viewContainerEl: document.getElementById("cube-view-container"),
       rotateLeftEl: document.getElementById("cube-rotate-left"),
       rotateRightEl: document.getElementById("cube-rotate-right"),
       rotateUpEl: document.getElementById("cube-rotate-up"),
       rotateDownEl: document.getElementById("cube-rotate-down"),
       rotateResetEl: document.getElementById("cube-rotate-reset"),
+      viewIsoEl: document.getElementById("cube-view-iso"),
+      viewFrontEl: document.getElementById("cube-view-front"),
+      viewTopEl: document.getElementById("cube-view-top"),
+      zoomInEl: document.getElementById("cube-zoom-in"),
+      zoomOutEl: document.getElementById("cube-zoom-out"),
       focusToggleEl: document.getElementById("cube-focus-toggle"),
       exportWebpEl: document.getElementById("cube-export-webp"),
       markerModeEl: document.getElementById("cube-marker-mode"),
       connectorToggleEl: document.getElementById("cube-connector-toggle"),
       primalToggleEl: document.getElementById("cube-primal-toggle"),
+      facesToggleEl: document.getElementById("cube-faces-toggle"),
+      edgesToggleEl: document.getElementById("cube-edges-toggle"),
+      sidesToggleEl: document.getElementById("cube-sides-toggle"),
+      spinToggleEl: document.getElementById("cube-spin-toggle"),
       rotationReadoutEl: document.getElementById("cube-rotation-readout"),
       detailNameEl: document.getElementById("cube-detail-name"),
       detailSubEl: document.getElementById("cube-detail-sub"),
@@ -330,7 +346,117 @@
 
   function resetRotationAndRender() {
     setRotation(18, -28);
+    setZoom(1);
     render(getElements());
+  }
+
+  function setZoom(value) {
+    const next = Number(value);
+    state.zoom = Math.min(2, Math.max(0.6, Number.isFinite(next) ? next : 1));
+  }
+
+  function zoomAndRender(factor) {
+    setZoom(state.zoom * factor);
+    render(getElements());
+  }
+
+  function applyViewPreset(name) {
+    if (name === "iso") {
+      setRotation(18, -28);
+    } else {
+      snapRotationToWall(name);
+    }
+    render(getElements());
+  }
+
+  // Pointer drag to rotate, wheel or pinch to zoom. A short drag still lets a
+  // click through so walls and edges stay selectable.
+  function bindViewportInteractions(elements) {
+    const host = elements?.viewContainerEl;
+    if (!(host instanceof HTMLElement) || host.dataset.cubeInteractionsBound === "true") {
+      return;
+    }
+    host.dataset.cubeInteractionsBound = "true";
+
+    const pointers = new Map();
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    let travelled = 0;
+    let pinchStart = 0;
+    let pinchZoomStart = 1;
+
+    const pointerList = () => [...pointers.values()];
+
+    host.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pointers.size === 1) {
+        dragging = true;
+        travelled = 0;
+        lastX = event.clientX;
+        lastY = event.clientY;
+        host.setPointerCapture?.(event.pointerId);
+      } else if (pointers.size === 2) {
+        const [a, b] = pointerList();
+        pinchStart = Math.hypot(a.x - b.x, a.y - b.y);
+        pinchZoomStart = state.zoom;
+        dragging = false;
+      }
+      state.viewDragging = dragging;
+    });
+
+    host.addEventListener("pointermove", (event) => {
+      if (!pointers.has(event.pointerId)) {
+        return;
+      }
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+      if (pointers.size === 2 && pinchStart > 0) {
+        const [a, b] = pointerList();
+        const distance = Math.hypot(a.x - b.x, a.y - b.y);
+        setZoom(pinchZoomStart * (distance / pinchStart));
+        render(getElements());
+        event.preventDefault();
+        return;
+      }
+
+      if (!dragging) {
+        return;
+      }
+      const dx = event.clientX - lastX;
+      const dy = event.clientY - lastY;
+      lastX = event.clientX;
+      lastY = event.clientY;
+      travelled += Math.abs(dx) + Math.abs(dy);
+      if (travelled < 3) {
+        return;
+      }
+      setRotation(state.rotationX + dy * 0.45, state.rotationY + dx * 0.45);
+      render(getElements());
+      event.preventDefault();
+    });
+
+    const endPointer = (event) => {
+      pointers.delete(event.pointerId);
+      if (pointers.size === 0) {
+        dragging = false;
+      }
+      state.viewDragging = dragging;
+      if (pointers.size < 2) {
+        pinchStart = 0;
+      }
+    };
+    host.addEventListener("pointerup", endPointer);
+    host.addEventListener("pointercancel", endPointer);
+    host.addEventListener("lostpointercapture", endPointer);
+
+    host.addEventListener("wheel", (event) => {
+      zoomAndRender(event.deltaY > 0 ? 0.92 : 1.08);
+      event.preventDefault();
+    }, { passive: false });
   }
 
   function isKeyboardEditableTarget(target) {
@@ -343,12 +469,6 @@
     }
 
     return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
-  }
-
-  function isCubeFocusKeyboardModeActive(elements = getElements()) {
-    return Boolean(state.focusMode)
-      && elements?.cubeSectionEl instanceof HTMLElement
-      && !elements.cubeSectionEl.hidden;
   }
 
   function syncFocusControls(elements) {
@@ -449,7 +569,70 @@
     });
   }
 
-  function prepareSvgMarkupForExport(svgEl) {
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Could not read the image data."));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function buildImageRequestHeaders(url) {
+    const apiBase = String(window.TarotDataService?.getApiBaseUrl?.() || "")
+      .trim()
+      .replace(/\/+$/, "");
+    const apiKey = String(window.TarotDataService?.getApiKey?.() || "").trim();
+    if (!apiBase || !apiKey || !String(url).startsWith(apiBase)) {
+      return {};
+    }
+    return { "x-api-key": apiKey };
+  }
+
+  // An SVG rendered through <img> cannot fetch external images, so card art has
+  // to be embedded as data URLs or the export shows broken-image icons.
+  async function inlineSvgImagesAsDataUrls(svgEl) {
+    const images = Array.from(svgEl.querySelectorAll("image"));
+    const cache = new Map();
+
+    for (const imageEl of images) {
+      const href = imageEl.getAttribute("href")
+        || imageEl.getAttributeNS("http://www.w3.org/1999/xlink", "href");
+      if (!href || String(href).startsWith("data:")) {
+        continue;
+      }
+
+      let absolute;
+      try {
+        absolute = new URL(href, document.baseURI).href;
+      } catch (_error) {
+        continue;
+      }
+
+      if (!cache.has(absolute)) {
+        try {
+          const response = await fetch(absolute, {
+            headers: buildImageRequestHeaders(absolute),
+            cache: "force-cache"
+          });
+          if (!response.ok) {
+            throw new Error(`Image request failed (${response.status}).`);
+          }
+          cache.set(absolute, await blobToDataUrl(await response.blob()));
+        } catch (_error) {
+          cache.set(absolute, "");
+        }
+      }
+
+      const dataUrl = cache.get(absolute);
+      if (dataUrl) {
+        imageEl.setAttribute("href", dataUrl);
+        imageEl.setAttributeNS("http://www.w3.org/1999/xlink", "href", dataUrl);
+      }
+    }
+  }
+
+  async function prepareSvgMarkupForExport(svgEl) {
     if (!(svgEl instanceof SVGSVGElement)) {
       throw new Error("Cube view is not ready to export yet.");
     }
@@ -480,6 +663,7 @@
 
     inlineSvgStyles(svgEl, clone);
     absolutizeSvgImageLinks(clone);
+    await inlineSvgImagesAsDataUrls(clone);
 
     const backgroundRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     backgroundRect.setAttribute("x", "0");
@@ -551,7 +735,7 @@
     syncExportControls(elements);
 
     try {
-      const { width, height, markup } = prepareSvgMarkupForExport(svgEl);
+      const { width, height, markup } = await prepareSvgMarkupForExport(svgEl);
       const image = await loadSvgImage(markup);
       const scale = Math.max(2, Math.min(4, Number(window.devicePixelRatio) || 1));
       const canvas = document.createElement("canvas");
@@ -589,6 +773,11 @@
     }
   }
 
+  // "Move / View / Display" popovers keep the toolbar compact (shared helper).
+  function bindCubePopovers(elements) {
+    window.UiPopoverMenu?.bind(elements?.toolbarEl);
+  }
+
   function bindRotationControls(elements) {
     if (state.controlsBound) {
       return;
@@ -599,6 +788,13 @@
     elements.rotateUpEl?.addEventListener("click", () => rotateAndRender(-9, 0));
     elements.rotateDownEl?.addEventListener("click", () => rotateAndRender(9, 0));
     elements.rotateResetEl?.addEventListener("click", resetRotationAndRender);
+    elements.viewIsoEl?.addEventListener("click", () => applyViewPreset("iso"));
+    elements.viewFrontEl?.addEventListener("click", () => applyViewPreset("north"));
+    elements.viewTopEl?.addEventListener("click", () => applyViewPreset("above"));
+    elements.zoomInEl?.addEventListener("click", () => zoomAndRender(1.12));
+    elements.zoomOutEl?.addEventListener("click", () => zoomAndRender(0.9));
+    bindViewportInteractions(elements);
+    bindCubePopovers(elements);
     elements.focusToggleEl?.addEventListener("click", () => {
       state.focusMode = !state.focusMode;
       syncFocusControls(getElements());
@@ -606,6 +802,16 @@
     elements.exportWebpEl?.addEventListener("click", () => {
       void exportCubeView("webp");
     });
+
+    if (elements.spinToggleEl) {
+      elements.spinToggleEl.checked = state.spin === true;
+      elements.spinToggleEl.addEventListener("change", (event) => {
+        state.spin = Boolean(event?.target?.checked);
+        if (state.spin) {
+          ensureCubeSpin(getElements());
+        }
+      });
+    }
 
     elements.markerModeEl?.addEventListener("change", (event) => {
       const nextMode = normalizeId(event?.target?.value);
@@ -638,12 +844,42 @@
       });
     }
 
+    if (elements.facesToggleEl) {
+      elements.facesToggleEl.checked = state.showWallFaces;
+      elements.facesToggleEl.addEventListener("change", () => {
+        state.showWallFaces = Boolean(elements.facesToggleEl.checked);
+        render(getElements());
+      });
+    }
+
+    if (elements.edgesToggleEl) {
+      elements.edgesToggleEl.checked = state.showCubeEdges;
+      elements.edgesToggleEl.addEventListener("change", () => {
+        state.showCubeEdges = Boolean(elements.edgesToggleEl.checked);
+        if (!state.showCubeEdges && state.selectedNodeType === "edge") {
+          state.selectedNodeType = "wall";
+        }
+        render(getElements());
+      });
+    }
+
+    if (elements.sidesToggleEl) {
+      elements.sidesToggleEl.checked = state.transparentSides;
+      elements.sidesToggleEl.addEventListener("change", () => {
+        state.transparentSides = Boolean(elements.sidesToggleEl.checked);
+        render(getElements());
+      });
+    }
+
     document.addEventListener("keydown", (event) => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) {
         return;
       }
 
-      if (!isCubeFocusKeyboardModeActive(getElements())) {
+      // Keyboard shortcuts work whenever the Cube section is on screen, not
+      // only in focus mode.
+      const cubeSection = getElements().cubeSectionEl;
+      if (!(cubeSection instanceof HTMLElement) || cubeSection.hidden) {
         return;
       }
 
@@ -653,20 +889,38 @@
 
       switch (String(event.key || "").toLowerCase()) {
         case "a":
+        case "arrowleft":
           event.preventDefault();
           rotateAndRender(0, -9);
           break;
         case "d":
+        case "arrowright":
           event.preventDefault();
           rotateAndRender(0, 9);
           break;
         case "w":
+        case "arrowup":
           event.preventDefault();
           rotateAndRender(-9, 0);
           break;
         case "s":
+        case "arrowdown":
           event.preventDefault();
           rotateAndRender(9, 0);
+          break;
+        case "+":
+        case "=":
+          event.preventDefault();
+          zoomAndRender(1.12);
+          break;
+        case "-":
+          event.preventDefault();
+          zoomAndRender(0.9);
+          break;
+        case "0":
+          event.preventDefault();
+          setZoom(1);
+          resetRotationAndRender();
           break;
         default:
           break;
@@ -1101,14 +1355,50 @@
       elements.primalToggleEl.checked = state.showPrimalPoint;
     }
 
+    if (elements?.spinToggleEl) {
+      elements.spinToggleEl.checked = state.spin === true;
+    }
+
     if (elements?.rotationReadoutEl) {
-      elements.rotationReadoutEl.textContent = `X ${Math.round(state.rotationX)}° · Y ${Math.round(state.rotationY)}°`;
+      elements.rotationReadoutEl.textContent = `X ${Math.round(state.rotationX)}° · Y ${Math.round(state.rotationY)}° · ${state.zoom.toFixed(2)}×`;
     }
 
     const walls = getWalls();
     renderFaceSvg(elements.viewContainerEl, walls);
     renderDetail(elements, walls);
     syncDetailNavigation(elements);
+  }
+
+  const cubeSpin = { frame: 0, last: 0 };
+  const CUBE_SPIN_STEP_MS = 33;
+
+  // Re-rendering the chassis is the expensive part of a frame, so the spin steps
+  // at ~30fps instead of once per frame, and pauses while the user is dragging
+  // so the two inputs don't fight.
+  function ensureCubeSpin(elements) {
+    if (cubeSpin.frame) {
+      return;
+    }
+
+    const step = (timestamp) => {
+      cubeSpin.frame = 0;
+      const section = elements?.cubeSectionEl || getElements().cubeSectionEl;
+      if (!section || section.hidden || state.spin !== true || document.hidden) {
+        return;
+      }
+
+      if (Number(timestamp) - cubeSpin.last >= CUBE_SPIN_STEP_MS) {
+        cubeSpin.last = Number(timestamp);
+        if (state.viewDragging !== true) {
+          setRotation(state.rotationX, Number(state.rotationY || 0) + 0.7);
+          render(getElements());
+        }
+      }
+
+      cubeSpin.frame = window.requestAnimationFrame(step);
+    };
+
+    cubeSpin.frame = window.requestAnimationFrame(step);
   }
 
   function ensureCubeSection(magickDataset) {
@@ -1159,6 +1449,7 @@
 
     render(elements);
     state.initialized = true;
+    ensureCubeSpin(elements);
   }
 
   function selectWallById(wallId) {

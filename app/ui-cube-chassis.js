@@ -43,7 +43,18 @@
 
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 240 220");
+    // Zoom shrinks the viewBox around the cube center, so geometry magnifies
+    // without clipping and labels grow with it.
+    const zoomRaw = Number(state?.zoom);
+    const cubeZoom = Number.isFinite(zoomRaw) && zoomRaw > 0 ? Math.min(2, Math.max(0.6, zoomRaw)) : 1;
+    const viewWidth = 240 / cubeZoom;
+    const viewHeight = 220 / cubeZoom;
+    const centerX = Number(CUBE_VIEW_CENTER?.x) || 110;
+    const centerY = Number(CUBE_VIEW_CENTER?.y) || 108;
+    svg.setAttribute(
+      "viewBox",
+      `${(centerX - viewWidth / 2).toFixed(2)} ${(centerY - viewHeight / 2).toFixed(2)} ${viewWidth.toFixed(2)} ${viewHeight.toFixed(2)}`
+    );
     svg.setAttribute("width", "100%");
     svg.setAttribute("class", "cube-svg");
     svg.setAttribute("role", "img");
@@ -59,6 +70,19 @@
       }
 
       return false;
+    }
+
+    // Screen-space winding tells which walls face the viewer: a positive signed
+    // area means the outward side of the quad is turned toward the camera, which
+    // is what makes occlusion culling possible for the solid (non-transparent)
+    // rendering below.
+    function quadSignedArea(quad) {
+      let total = 0;
+      quad.forEach((point, index) => {
+        const next = quad[(index + 1) % quad.length];
+        total += (point.x * next.y) - (next.x * point.y);
+      });
+      return total / 2;
     }
 
     const wallById = new Map(walls.map((wall) => [normalizeId(wall?.id), wall]));
@@ -78,21 +102,38 @@
           wall,
           quad,
           depth: avgDepth,
+          isFrontFacing: quadSignedArea(quad) > 0,
           pointsText: quad.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ")
         };
       })
       .filter(Boolean)
       .sort((left, right) => left.depth - right.depth);
 
-    faces.forEach((faceData) => {
+    // With "Transparent sides" off the cube is solid: walls turned away from the
+    // viewer, and every marker on them, are dropped instead of showing through.
+    const solidSides = state?.transparentSides === false;
+    const frontFacingWallIds = new Set(
+      faces.filter((faceData) => faceData.isFrontFacing).map((faceData) => faceData.wallId)
+    );
+    const visibleFaces = solidSides
+      ? faces.filter((faceData) => faceData.isFrontFacing)
+      : faces;
+
+    visibleFaces.forEach((faceData) => {
       const { wallId, wall, quad, pointsText } = faceData;
+
+      // Hiding the wall faces hides everything attached to them: the polygon,
+      // the face letter, the tarot card, and the wall name label.
+      if (state.showWallFaces === false) {
+        return;
+      }
 
       const isActive = wallId === normalizeId(state.selectedWallId);
       const polygon = document.createElementNS(svgNS, "polygon");
       polygon.setAttribute("points", pointsText);
       polygon.setAttribute("class", `cube-face${isActive ? " is-active" : ""}`);
-      polygon.setAttribute("fill", "#000");
-      polygon.setAttribute("fill-opacity", isActive ? "0.78" : "0.62");
+      // Fill comes from .cube-face in CSS so it follows the active theme.
+      polygon.setAttribute("fill-opacity", solidSides ? "1" : (isActive ? "0.78" : "0.62"));
       polygon.setAttribute("stroke", "currentColor");
       polygon.setAttribute("stroke-opacity", isActive ? "0.92" : "0.68");
       polygon.setAttribute("stroke-width", isActive ? "2.5" : "1");
@@ -200,7 +241,8 @@
       faces.map((faceData) => [faceData.wallId, facePoint(faceData.quad, 0, 0)])
     );
 
-    if (state.showConnectorLines) {
+    // Mother connectors run through the interior, so a solid cube hides them.
+    if (state.showConnectorLines && !solidSides) {
       MOTHER_CONNECTORS.forEach((connector, connectorIndex) => {
         const fromWallId = normalizeId(connector?.fromWallId);
         const toWallId = normalizeId(connector?.toWallId);
@@ -328,11 +370,33 @@
       const markerDisplay = getEdgeMarkerDisplay(edge);
       const edgeWalls = getEdgeWalls(edge);
 
+      // An edge stays visible while at least one of its walls faces the viewer.
+      const edgeWallIds = [...new Set([...edgeId.split("-"), ...edgeWalls].map((value) => normalizeId(value)).filter(Boolean))];
+      if (solidSides && !edgeWallIds.some((wallId) => frontFacingWallIds.has(wallId))) {
+        return;
+      }
+
+      // Hiding the edges hides each edge line together with its marker.
+      if (state.showCubeEdges === false) {
+        return;
+      }
+
       const wallIsActive = edgeWalls.includes(normalizeId(state.selectedWallId));
       const edgeIsActive = normalizeEdgeId(state.selectedEdgeId) === edgeId;
 
       const from = projectedVertices[fromIndex];
       const to = projectedVertices[toIndex];
+
+      const selectEdge = () => {
+        state.selectedEdgeId = edgeId;
+        state.selectedNodeType = "edge";
+        state.selectedConnectorId = null;
+        if (!edgeWalls.includes(normalizeId(state.selectedWallId)) && edgeWalls[0]) {
+          state.selectedWallId = edgeWalls[0];
+          snapRotationToWall(state.selectedWallId);
+        }
+        render(getElements());
+      };
 
       const line = document.createElementNS(svgNS, "line");
       line.setAttribute("x1", from.x.toFixed(2));
@@ -346,17 +410,6 @@
       line.setAttribute("role", "button");
       line.setAttribute("tabindex", "0");
       line.setAttribute("aria-label", `Cube edge ${toDisplayText(edge?.name) || formatEdgeName(edgeId)}`);
-
-      const selectEdge = () => {
-        state.selectedEdgeId = edgeId;
-        state.selectedNodeType = "edge";
-        state.selectedConnectorId = null;
-        if (!edgeWalls.includes(normalizeId(state.selectedWallId)) && edgeWalls[0]) {
-          state.selectedWallId = edgeWalls[0];
-          snapRotationToWall(state.selectedWallId);
-        }
-        render(getElements());
-      };
 
       line.addEventListener("click", selectEdge);
       line.addEventListener("keydown", (event) => {
@@ -459,7 +512,8 @@
     });
 
     const center = getCubeCenterData();
-    if (center && state.showPrimalPoint) {
+    // The primal point sits inside the cube, so a solid cube hides it too.
+    if (center && state.showPrimalPoint && !solidSides) {
       const centerLetter = getCenterLetterSymbol(center);
       const centerCardUrl = state.markerDisplayMode === "tarot"
         ? resolveCardImageUrl(getCenterTarotCard(center))

@@ -34,7 +34,7 @@
     "form",
     ".dataset-search-wrap",
     ".alpha-text-search-controls",
-    ".cube-rotation-controls",
+    ".cube-toolbar",
     ".cube-rotation-btn",
     ".tarot-house-action-btn"
   ].join(", ");

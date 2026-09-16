@@ -40,9 +40,8 @@
 
   // Da'at – phantom sephira drawn as a dashed circle, not clickable
   const DAAT = [120, 148];
-  const PATH_MARKER_SCALE = 1.85;
-  const PATH_LABEL_RADIUS = 9 * PATH_MARKER_SCALE;
-  const PATH_LABEL_FONT_SIZE = 8.8 * PATH_MARKER_SCALE;
+    const PATH_MARKER_SCALE = 1.85;
+    const PATH_LABEL_FONT_SIZE = 8.8 * PATH_MARKER_SCALE;
   const PATH_TAROT_WIDTH = 16 * PATH_MARKER_SCALE;
   const PATH_TAROT_HEIGHT = 24 * PATH_MARKER_SCALE;
   const PATH_LABEL_OFFSET_WITH_TAROT = 11 * PATH_MARKER_SCALE;
@@ -56,10 +55,14 @@
     godsData: {},
     hebrewLetterIdByToken: {},
     fourWorldLayers: [],
+    showSephirot: true,
+    showPaths: true,
     showPathLetters: true,
     showPathNumbers: true,
+    showPathAstrology: false,
     showPathTarotCards: false,
     treeSpin: true,
+    treeZoom: 1,
     treeRotX: 12,
     treeRotY: -18,
     selectedWorldLayerIndex: 0,
@@ -323,8 +326,12 @@
       detailPrevEl:    document.getElementById("kab-detail-prev"),
       detailPositionEl: document.getElementById("kab-detail-position"),
       detailNextEl:    document.getElementById("kab-detail-next"),
+      treeToolbarEl: document.getElementById("kab-tree-toolbar"),
+      treeSephiraToggleEl: document.getElementById("kab-tree-sephirot-toggle"),
+      treePathsToggleEl: document.getElementById("kab-tree-paths-toggle"),
       pathLetterToggleEl: document.getElementById("kab-path-letter-toggle"),
       pathNumberToggleEl: document.getElementById("kab-path-number-toggle"),
+      pathAstrologyToggleEl: document.getElementById("kab-path-astrology-toggle"),
       pathTarotToggleEl: document.getElementById("kab-path-tarot-toggle"),
       treeSpinToggleEl: document.getElementById("kab-tree-spin-toggle"),
       treeExportWebpEl: document.getElementById("kab-tree-export-webp"),
@@ -1346,11 +1353,18 @@
     }
   }
 
+  // Path labels can show the same astrology glyphs the cube's edges use.
+  function getPathAstrologySymbol(path) {
+    const astrology = path?.astrology || {};
+    return window.AstroSymbols?.get?.(astrology.type, astrology.name) || "";
+  }
+
   function getViewRenderContext(elements) {
     return {
       state,
       tree: state.tree,
       elements,
+      getPathAstrologySymbol,
       getRoseDetailElements,
       renderSephiraDetail,
       renderPathDetail,
@@ -1363,7 +1377,6 @@
       DARK_TEXT,
       DAAT,
       PATH_MARKER_SCALE,
-      PATH_LABEL_RADIUS,
       PATH_LABEL_FONT_SIZE,
       PATH_TAROT_WIDTH,
       PATH_TAROT_HEIGHT,
@@ -1742,10 +1755,14 @@
       toggleEl.dataset.bound = "true";
     };
 
+    bindPathDisplayToggle(elements.treeSephiraToggleEl, "showSephirot");
+    bindPathDisplayToggle(elements.treePathsToggleEl, "showPaths");
     bindPathDisplayToggle(elements.pathLetterToggleEl, "showPathLetters");
     bindPathDisplayToggle(elements.pathNumberToggleEl, "showPathNumbers");
+    bindPathDisplayToggle(elements.pathAstrologyToggleEl, "showPathAstrology");
     bindPathDisplayToggle(elements.pathTarotToggleEl, "showPathTarotCards");
     bindPathDisplayToggle(elements.treeSpinToggleEl, "treeSpin");
+    window.UiPopoverMenu?.bind(elements.treeToolbarEl);
     bindDetailNavigation(elements);
     bindBrowserDetailNavigation(elements);
     bindPathsDetailNavigation(elements);

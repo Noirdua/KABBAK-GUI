@@ -61,7 +61,9 @@
       mobileFiltersEl: document.getElementById("num-pad-mobile-filters"),
       mobileChainsEl: document.getElementById("num-pad-mobile-chains"),
       mobileActionsEl: document.getElementById("num-pad-mobile-actions"),
+      chainsBackdropEl: document.getElementById("num-pad-chains-backdrop"),
       actionSheetEl: document.getElementById("num-pad-action-sheet"),
+      actionFactorsEl: document.getElementById("num-pad-action-factors"),
       actionBackdropEl: document.getElementById("num-pad-action-backdrop"),
       actionCloseEl: document.getElementById("num-pad-action-close"),
       actionTargetEl: document.getElementById("num-pad-action-target"),
@@ -898,7 +900,7 @@
     if (mobileFiltersEl) {
       mobileFiltersEl.setAttribute("aria-expanded", state.filtersOpen ? "true" : "false");
     }
-    dockFilterToolbars(state.filtersOpen && isCompactNumPad());
+    dockFilterToolbars(state.filtersOpen);
     applyMobileChrome();
   }
 
@@ -928,8 +930,36 @@
     }
   }
 
+  // The Actions overlay picks its own chain, so it works without reaching the
+  // Chains overlay (which it covers).
+  function renderActionFactors() {
+    const { actionFactorsEl } = getElements();
+    if (!actionFactorsEl || actionFactorsEl.dataset.built === "true") {
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    model.buildAllChains(model.MIN_DEGREE).forEach((chain) => {
+      const factor = model.normalizeFactor(chain?.factor);
+      if (factor === null) {
+        return;
+      }
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "num-pad-toggle";
+      button.dataset.actionFactor = String(factor);
+      button.setAttribute("aria-pressed", "false");
+      button.textContent = String(factor);
+      fragment.appendChild(button);
+    });
+
+    actionFactorsEl.replaceChildren(fragment);
+    actionFactorsEl.dataset.built = "true";
+  }
+
   function applyMobileChrome() {
-    const { mobileChainsEl, actionTargetEl, actionFillEl, actionDrawEl } = getElements();
+    const { mobileChainsEl, actionTargetEl, actionFillEl, actionDrawEl, actionFactorsEl } = getElements();
     const picked = state.pickedChainFactor || state.pad.factor || state.drawnChainFactor;
     if (mobileChainsEl) {
       mobileChainsEl.textContent = picked ? `Chain ${picked}` : "Chains";
@@ -944,6 +974,13 @@
     if (actionDrawEl) {
       actionDrawEl.disabled = !picked;
       actionDrawEl.classList.toggle("is-active", Boolean(picked && state.drawnChainFactor === picked));
+    }
+    if (actionFactorsEl) {
+      actionFactorsEl.querySelectorAll("[data-action-factor]").forEach((button) => {
+        const isPicked = picked !== null && Number(button.dataset.actionFactor) === picked;
+        button.classList.toggle("is-active", isPicked);
+        button.setAttribute("aria-pressed", isPicked ? "true" : "false");
+      });
     }
   }
 
@@ -1152,6 +1189,8 @@
         mobileActionsEl,
         filterBackdropEl,
         filterCloseEl,
+        chainsBackdropEl,
+        actionFactorsEl,
         actionBackdropEl,
         actionCloseEl,
         actionFillEl,
@@ -1173,6 +1212,11 @@
           setActionsOpen(!state.actionsOpen);
         });
       }
+      if (chainsBackdropEl) {
+        chainsBackdropEl.addEventListener("click", () => {
+          setChainsOpen(false);
+        });
+      }
       if (filterBackdropEl) {
         filterBackdropEl.addEventListener("click", () => {
           setFiltersOpen(false);
@@ -1191,6 +1235,26 @@
       if (actionCloseEl) {
         actionCloseEl.addEventListener("click", () => {
           setActionsOpen(false);
+        });
+      }
+      if (actionFactorsEl) {
+        renderActionFactors();
+        actionFactorsEl.addEventListener("click", (event) => {
+          const button = event.target instanceof Element
+            ? event.target.closest("[data-action-factor]")
+            : null;
+          if (!(button instanceof HTMLElement)) {
+            return;
+          }
+
+          const factor = model.normalizeFactor(button.dataset.actionFactor);
+          if (factor === null) {
+            return;
+          }
+
+          state.pickedChainFactor = factor;
+          renderChains();
+          applyMobileChrome();
         });
       }
       if (actionFillEl) {
@@ -1229,9 +1293,6 @@
 
     if (!state.resizeBound) {
       const redrawPath = () => {
-        if (!isCompactNumPad() && (state.filtersOpen || state.chainsOpen || state.actionsOpen)) {
-          closeMobileOverlays();
-        }
         if (state.drawnChainFactor === null || state.pathAnimTimer) {
           return;
         }

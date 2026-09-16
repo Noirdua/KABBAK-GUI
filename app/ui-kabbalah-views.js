@@ -50,6 +50,13 @@
       parts.push(glyph);
     }
 
+    if (context.state.showPathAstrology) {
+      const astrologySymbol = context.getPathAstrologySymbol?.(path) || "";
+      if (astrologySymbol) {
+        parts.push(astrologySymbol);
+      }
+    }
+
     if (context.state.showPathNumbers && Number.isFinite(pathNumber)) {
       parts.push(String(pathNumber));
     }
@@ -69,12 +76,101 @@
   }
 
   const treeOrbit = { dragging: false, lastX: 0, lastY: 0, raf: 0, moved: false };
+  const treePointers = new Map();
+  const treePinch = { distance: 0 };
+
+  const TREE_ZOOM_MIN = 0.35;
+  const TREE_ZOOM_MAX = 2.4;
+  let lastZoomReadout = "";
+
+  function normalizeTreeZoom(value) {
+    const zoom = Number(value);
+    if (!Number.isFinite(zoom) || zoom <= 0) {
+      return 1;
+    }
+    return Math.min(TREE_ZOOM_MAX, Math.max(TREE_ZOOM_MIN, zoom));
+  }
+
+  function syncTreeZoomReadout(state) {
+    const label = `${Math.round(normalizeTreeZoom(state?.treeZoom) * 100)}%`;
+    if (label === lastZoomReadout) {
+      return;
+    }
+
+    lastZoomReadout = label;
+    const readout = document.getElementById("kab-tree-zoom-readout");
+    if (readout) {
+      readout.textContent = label;
+    }
+  }
+
+  // Zoom lives in the SVG viewBox rather than in a CSS scale, so every step
+  // re-renders vectors instead of magnifying a rasterised layer.
+  let treeZoomFrame = 0;
+  const TREE_VIEWBOX_WIDTH = 240;
+  const TREE_VIEWBOX_HEIGHT = 470;
+
+  function scheduleTreeRender(context) {
+    if (treeZoomFrame) {
+      return;
+    }
+    treeZoomFrame = window.requestAnimationFrame(() => {
+      treeZoomFrame = 0;
+      renderTree(context);
+    });
+  }
+
+  function setTreeZoom(context, nextZoom, options = {}) {
+    const state = context?.state;
+    if (!state) {
+      return;
+    }
+
+    const zoom = normalizeTreeZoom(nextZoom);
+    if (zoom === normalizeTreeZoom(state.treeZoom)) {
+      return;
+    }
+    state.treeZoom = zoom;
+
+    if (options.immediate) {
+      renderTree(context);
+    } else {
+      scheduleTreeRender(context);
+    }
+  }
+
+  function zoomTreeBy(context, factor) {
+    setTreeZoom(context, normalizeTreeZoom(context?.state?.treeZoom) * factor);
+  }
+
+  // Fits the diagram against the viewport it is currently sitting in, which is
+  // half the screen in the Tree + Cube pairing.
+  function fitTreeZoom(context) {
+    const container = document.getElementById("kab-tree-container");
+    const viewport = container?.closest(".kab-tree-viewport") || container;
+    const svg = container?.querySelector("svg.kab-svg");
+    const boxWidth = Number(svg?.clientWidth) || 0;
+    const boxHeight = Number(svg?.clientHeight) || 0;
+    const available = Number(viewport?.clientHeight) || 0;
+    // Height of the diagram at 100% once preserveAspectRatio has fitted it.
+    const contentHeight = Math.min(boxWidth * (TREE_VIEWBOX_HEIGHT / TREE_VIEWBOX_WIDTH), boxHeight);
+    if (!(contentHeight > 0) || !(available > 0)) {
+      setTreeZoom(context, 1, { immediate: true });
+      return;
+    }
+
+    setTreeZoom(context, (available - 12) / contentHeight, { immediate: true });
+  }
 
   function treeSignature(context) {
     return [
+      Boolean(context.state.showSephirot),
+      Boolean(context.state.showPaths),
       Boolean(context.state.showPathLetters),
       Boolean(context.state.showPathNumbers),
+      Boolean(context.state.showPathAstrology),
       Boolean(context.state.showPathTarotCards),
+      normalizeTreeZoom(context.state.treeZoom),
       context.tree?.paths?.length || 0
     ].join(":");
   }
@@ -87,6 +183,7 @@
     const rotX = Number.isFinite(Number(state?.treeRotX)) ? Number(state.treeRotX) : 12;
     const rotY = Number.isFinite(Number(state?.treeRotY)) ? Number(state.treeRotY) : -18;
     world.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+    syncTreeZoomReadout(state);
   }
 
   function buildTreeSVG(context) {
@@ -97,7 +194,6 @@
       SEPH_FILL,
       DARK_TEXT,
       DAAT,
-      PATH_LABEL_RADIUS,
       PATH_LABEL_FONT_SIZE,
       PATH_TAROT_WIDTH,
       PATH_TAROT_HEIGHT,
@@ -106,8 +202,18 @@
       PATH_TAROT_OFFSET_NO_LABEL,
       R
     } = context;
+    // Zoom is a viewBox change, so the browser re-renders the vectors at the new
+    // scale instead of upscaling a cached bitmap.
+    const zoom = normalizeTreeZoom(state?.treeZoom);
+    const viewWidth = TREE_VIEWBOX_WIDTH / zoom;
+    const viewHeight = TREE_VIEWBOX_HEIGHT / zoom;
     const svg = svgEl(context, "svg", {
-      viewBox: "0 0 240 470",
+      viewBox: [
+        (TREE_VIEWBOX_WIDTH / 2 - viewWidth / 2).toFixed(2),
+        (TREE_VIEWBOX_HEIGHT / 2 - viewHeight / 2).toFixed(2),
+        viewWidth.toFixed(2),
+        viewHeight.toFixed(2)
+      ].join(" "),
       width: "100%",
       role: "img",
       "aria-label": "Kabbalah Tree of Life diagram",
@@ -128,6 +234,12 @@
     }));
 
     tree.paths.forEach((path) => {
+      // Hiding the paths hides everything attached to them: the line, the hit
+      // area, the letter/number label, and the tarot card.
+      if (state.showPaths === false) {
+        return;
+      }
+
       const [x1, y1] = NODE_POS[path.connects.from];
       const [x2, y2] = NODE_POS[path.connects.to];
       const mx = (x1 + x2) / 2;
@@ -157,19 +269,15 @@
         "aria-label": `Path ${path.pathNumber}: ${path.hebrewLetter?.transliteration || ""} — ${path.tarot?.card || ""}`,
         style: "cursor:pointer"
       }));
+      // Labels are plain coloured text, like the cube's edge markers, with the
+      // colour doing the work instead of a backing disc.
       if (hasLabel) {
-        svg.appendChild(svgEl(context, "circle", {
-          cx: mx, cy: labelY, r: PATH_LABEL_RADIUS.toFixed(2),
-          fill: "#0d0d1c", opacity: "0.82",
-          "pointer-events": "none"
-        }));
         svg.appendChild(svgEl(context, "text", {
           x: mx, y: labelY + 1,
           "text-anchor": "middle",
           "dominant-baseline": "middle",
           class: "kab-path-lbl",
           "data-path": path.pathNumber,
-          fill: "#a8a8e0",
           "font-size": PATH_LABEL_FONT_SIZE.toFixed(2),
           "pointer-events": "none"
         }, pathLabel));
@@ -195,19 +303,27 @@
       }
     });
 
-    svg.appendChild(svgEl(context, "circle", {
-      cx: DAAT[0], cy: DAAT[1], r: "9",
-      fill: "none", stroke: "#8b7ec8",
-      "stroke-dasharray": "3 2", "stroke-width": "1",
-      "pointer-events": "none"
-    }));
-    svg.appendChild(svgEl(context, "text", {
-      x: DAAT[0] + 13, y: DAAT[1] + 1,
-      "text-anchor": "start", "dominant-baseline": "middle",
-      fill: "#9b8fd4", "font-size": "6.5", "pointer-events": "none"
-    }, "Da'at"));
+    // Da'at and the ten sephirot share the node layer, so hiding the sephirot
+    // hides the node circles, their numbers, and their name labels with them.
+    if (state.showSephirot !== false) {
+      svg.appendChild(svgEl(context, "circle", {
+        cx: DAAT[0], cy: DAAT[1], r: "9",
+        fill: "none", stroke: "#8b7ec8",
+        "stroke-dasharray": "3 2", "stroke-width": "1",
+        "pointer-events": "none"
+      }));
+      svg.appendChild(svgEl(context, "text", {
+        x: DAAT[0] + 13, y: DAAT[1] + 1,
+        "text-anchor": "start", "dominant-baseline": "middle",
+        fill: "#9b8fd4", "font-size": "6.5", "pointer-events": "none"
+      }, "Da'at"));
+    }
 
     tree.sephiroth.forEach((seph) => {
+      if (state.showSephirot === false) {
+        return;
+      }
+
       const [cx, cy] = NODE_POS[seph.number];
       const fill = SEPH_FILL[seph.number] || "#555";
       const isLeft = cx < 80;
@@ -259,7 +375,30 @@
     }
     viewport.dataset.orbitBound = "true";
 
+    const pointerDistance = () => {
+      const points = [...treePointers.values()];
+      if (points.length < 2) {
+        return 0;
+      }
+      return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+    };
+
     const onMove = (event) => {
+      if (treePointers.has(event.pointerId)) {
+        treePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      }
+
+      // Two pointers pinch to zoom instead of orbiting.
+      const distance = pointerDistance();
+      if (distance > 0) {
+        if (treePinch.distance > 0) {
+          zoomTreeBy(context, distance / treePinch.distance);
+        }
+        treePinch.distance = distance;
+        treeOrbit.moved = true;
+        return;
+      }
+
       if (!treeOrbit.dragging) {
         return;
       }
@@ -274,6 +413,9 @@
     };
 
     const onUp = (event) => {
+      treePointers.delete(event.pointerId);
+      treePinch.distance = pointerDistance();
+
       if (!treeOrbit.dragging) {
         return;
       }
@@ -290,6 +432,7 @@
       if (event.button != null && event.button !== 0) {
         return;
       }
+      treePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       treeOrbit.dragging = true;
       treeOrbit.moved = false;
       treeOrbit.lastX = event.clientX;
@@ -297,9 +440,39 @@
       viewport.classList.add("is-dragging");
       viewport.setPointerCapture(event.pointerId);
     });
+
+    viewport.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      const delta = event.deltaMode === 1 ? Number(event.deltaY || 0) * 16 : Number(event.deltaY || 0);
+      zoomTreeBy(context, Math.exp(-delta * 0.0016));
+    }, { passive: false });
+
     viewport.addEventListener("pointermove", onMove);
     viewport.addEventListener("pointerup", onUp);
     viewport.addEventListener("pointercancel", onUp);
+  }
+
+  // Zoom / fit / reset live in the toolbar's View menu.
+  function bindTreeViewControls(context) {
+    const controls = [
+      ["kab-tree-zoom-out", () => zoomTreeBy(context, 0.85)],
+      ["kab-tree-zoom-in", () => zoomTreeBy(context, 1.18)],
+      ["kab-tree-fit", () => fitTreeZoom(context)],
+      ["kab-tree-view-reset", () => {
+        context.state.treeRotX = 12;
+        context.state.treeRotY = -18;
+        setTreeZoom(context, 1, { immediate: true });
+      }]
+    ];
+
+    controls.forEach(([id, handler]) => {
+      const button = document.getElementById(id);
+      if (!(button instanceof HTMLButtonElement) || button.dataset.bound === "true") {
+        return;
+      }
+      button.dataset.bound = "true";
+      button.addEventListener("click", handler);
+    });
   }
 
   function ensureTreeSpin(context) {
@@ -439,6 +612,7 @@
     applyTreeTransform(state);
     bindTreeInteractions(context, elements.treeContainerEl);
     bindTreeOrbit(context);
+    bindTreeViewControls(context);
     ensureTreeSpin(context);
   }
 

@@ -258,6 +258,10 @@
       setActiveSection("cube");
     });
 
+    bindClick(elements.openKabbalahTandemEl, () => {
+      setActiveSection("kabbalah-tandem");
+    });
+
     bindClick(elements.openAlphabetWordEl, () => {
       setActiveSection(getActiveSection() === "alphabet" ? "home" : "alphabet");
     });

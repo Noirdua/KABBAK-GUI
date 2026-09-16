@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260915-community">
+  <link rel="stylesheet" href="app/styles.css?v=20260915-numpad-sheets">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -152,6 +152,7 @@
           <button id="open-kabbalah-cross" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Rosicrucian Cross</button>
           <button id="open-kabbalah-tree" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Tree</button>
           <button id="open-kabbalah-cube" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Cube</button>
+          <button id="open-kabbalah-tandem" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Tree + Cube</button>
         </div>
       </div>
       <div class="topbar-dropdown" aria-label="Numbers menu">
@@ -186,11 +187,9 @@
       <h1 id="connection-gate-title" class="connection-gate-title">Connect KABBAK to its API</h1>
       <p class="connection-gate-copy">This client stays in shell mode until it has a reachable API URL and, if required by the server, a valid API key.</p>
       <div class="connection-gate-fields">
-        <label class="settings-field settings-field-full" for="connection-gate-base-url">API Base URL
-          <input id="connection-gate-base-url" type="url" inputmode="url" placeholder="http://localhost:3100">
+        <label class="settings-field settings-field-full" for="connection-gate-base-url">API Base URL          <input id="connection-gate-base-url" type="url" inputmode="url" placeholder="http://localhost:3100">
         </label>
-        <label class="settings-field settings-field-full" for="connection-gate-api-key">API Key
-          <input id="connection-gate-api-key" type="password" autocomplete="off" placeholder="Leave blank only if your API does not require a key">
+        <label class="settings-field settings-field-full" for="connection-gate-api-key">API Key          <input id="connection-gate-api-key" type="password" autocomplete="off" placeholder="Leave blank only if your API does not require a key">
         </label>
       </div>
       <div id="connection-gate-status" class="connection-gate-status" aria-live="polite">Enter your API details to continue.</div>
@@ -212,8 +211,7 @@
             <span id="profile-display-name-status" class="profile-location-status" aria-live="polite"></span>
           </div>
           <label class="profile-directory-toggle">
-            <input id="profile-directory-public" type="checkbox"> Show me in the public directory
-          </label>
+            <input id="profile-directory-public" type="checkbox"> Show me in the public directory          </label>
           <span id="profile-directory-status" class="profile-location-status" aria-live="polite"></span>
         </div>
       </header>
@@ -252,29 +250,23 @@
             <h2>Your Location</h2>
           </div>
           <p class="profile-location-copy">Pick a place (United States → California → Los Angeles) or enter coordinates. Used for planetary hours and sky cards.</p>
-          <label class="profile-field" for="profile-location-country">Country
-            <select id="profile-location-country">
+          <label class="profile-field" for="profile-location-country">Country            <select id="profile-location-country">
               <option value="">Select a country…</option>
             </select>
           </label>
-          <label class="profile-field" for="profile-location-region">State / region
-            <select id="profile-location-region" disabled>
+          <label class="profile-field" for="profile-location-region">State / region            <select id="profile-location-region" disabled>
               <option value="">Select a region…</option>
             </select>
           </label>
-          <label class="profile-field" for="profile-location-city">City
-            <select id="profile-location-city" disabled>
+          <label class="profile-field" for="profile-location-city">City            <select id="profile-location-city" disabled>
               <option value="">Select a city…</option>
             </select>
           </label>
-          <label class="profile-field" for="profile-location-lat">Latitude
-            <input id="profile-location-lat" type="number" step="any" min="-90" max="90" placeholder="e.g. 51.5074">
+          <label class="profile-field" for="profile-location-lat">Latitude            <input id="profile-location-lat" type="number" step="any" min="-90" max="90" placeholder="e.g. 51.5074">
           </label>
-          <label class="profile-field" for="profile-location-lng">Longitude
-            <input id="profile-location-lng" type="number" step="any" min="-180" max="180" placeholder="e.g. -0.1278">
+          <label class="profile-field" for="profile-location-lng">Longitude            <input id="profile-location-lng" type="number" step="any" min="-180" max="180" placeholder="e.g. -0.1278">
           </label>
-          <label class="profile-field" for="profile-location-label">Label (optional)
-            <input id="profile-location-label" type="text" maxlength="200" placeholder="e.g. Home, London">
+          <label class="profile-field" for="profile-location-label">Label (optional)            <input id="profile-location-label" type="text" maxlength="200" placeholder="e.g. Home, London">
           </label>
           <div class="profile-location-actions">
             <button id="profile-location-detect" class="profile-btn" type="button">Use My Location</button>
@@ -288,15 +280,13 @@
             <h2>Time And Birth Date</h2>
           </div>
           <p class="profile-location-copy">Controls calendar rendering, the Now panel, and optional sky background.</p>
-          <label class="profile-field" for="time-format">Time Format
-            <select id="time-format">
+          <label class="profile-field" for="time-format">Time Format            <select id="time-format">
               <option value="minutes" selected>Minutes (default)</option>
               <option value="hours">Hours</option>
               <option value="seconds">Seconds</option>
             </select>
           </label>
-          <label class="profile-field" for="birth-date">Birth Date
-            <input id="birth-date" type="date">
+          <label class="profile-field" for="birth-date">Birth Date            <input id="birth-date" type="date">
           </label>
           <div id="profile-timing-status" class="profile-location-status" aria-live="polite"></div>
         </div>
@@ -306,8 +296,7 @@
             <h2>Preferred Deck</h2>
           </div>
           <p class="profile-location-copy">Used for mood cards, hour cards, frame defaults, and PDF exports across the app.</p>
-          <label class="profile-field" for="profile-deck-select">Deck
-            <select id="profile-deck-select" title="Preferred deck for card images"></select>
+          <label class="profile-field" for="profile-deck-select">Deck            <select id="profile-deck-select" title="Preferred deck for card images"></select>
           </label>
           <div id="profile-deck-status" class="profile-location-status" aria-live="polite"></div>
         </div>
@@ -367,22 +356,18 @@
               <button id="profile-kind-dream" class="profile-kind-btn" type="button" data-kind="dream">Dream</button>
               <button id="profile-kind-waking" class="profile-kind-btn" type="button" data-kind="waking">Waking</button>
             </div>
-            <label class="profile-field" for="profile-note-date">Date
-              <input id="profile-note-date" type="date" required>
+            <label class="profile-field" for="profile-note-date">Date              <input id="profile-note-date" type="date" required>
             </label>
             <div id="profile-sleep-row" class="profile-sleep-row" hidden>
-              <label class="profile-field" for="profile-slept-at">Slept
-                <input id="profile-slept-at" type="time">
+              <label class="profile-field" for="profile-slept-at">Slept                <input id="profile-slept-at" type="time">
               </label>
-              <label class="profile-field" for="profile-awoke-at">Awoke
-                <input id="profile-awoke-at" type="time">
+              <label class="profile-field" for="profile-awoke-at">Awoke                <input id="profile-awoke-at" type="time">
               </label>
               <span id="profile-sleep-hours" class="profile-sleep-hours"></span>
             </div>
             <div id="profile-day-cards" class="profile-day-cards" title="Date tarot cards for occurredOn (court + active decan). Click to use as mood."></div>
           </div>
-          <label class="profile-field" for="profile-note-title">Title
-            <input id="profile-note-title" type="text" maxlength="300" placeholder="Filled in for you">
+          <label class="profile-field" for="profile-note-title">Title            <input id="profile-note-title" type="text" maxlength="300" placeholder="Filled in for you">
           </label>
           <div id="profile-dream-prompts" class="profile-dream-prompts" hidden>
             <span class="profile-dream-prompts-label">Dream journaling prompts</span>
@@ -425,15 +410,13 @@
             <span>Choose how the top navigation menu opens.</span>
           </div>
           <div class="settings-grid">
-            <label class="settings-field settings-field-full">Menu Style
-              <select id="menu-layout">
+            <label class="settings-field settings-field-full">Menu Style              <select id="menu-layout">
                 <option value="drawer" selected>Side drawer (slides in from the left)</option>
                 <option value="panel">Drop-down panel</option>
               </select>
               <small class="settings-field-hint">The side drawer overlays the page from the left edge, like a phone menu. Tap outside it or press Escape to close.</small>
             </label>
-            <label class="settings-field settings-field-full">UI Overhaul
-              <select id="ui-skin">
+            <label class="settings-field settings-field-full">UI Overhaul              <select id="ui-skin">
                 <option value="" selected>Default layout</option>
               </select>
               <small class="settings-field-hint">Installed layout plugins. Default Layout is the built-in top bar; only one is active.</small>
@@ -482,8 +465,7 @@
             <span>Adjust the font size used by tarot detail panes and alphabet readers.</span>
           </div>
           <div class="settings-grid">
-            <label class="settings-field settings-field-full settings-range-field">Font Size
-              <div class="settings-range-row">
+            <label class="settings-field settings-field-full settings-range-field">Font Size              <div class="settings-range-row">
                 <input id="detail-text-scale" class="settings-range-input" type="range" min="85" max="135" step="5" value="100">
                 <span id="detail-text-scale-value" class="settings-range-value">100%</span>
               </div>
@@ -497,11 +479,9 @@
             <span>Set the API base URL and key used by this client shell.</span>
           </div>
           <div class="settings-grid">
-            <label class="settings-field settings-field-full">API Base URL
-              <input id="api-base-url" type="url" inputmode="url" placeholder="http://localhost:3100">
+            <label class="settings-field settings-field-full">API Base URL              <input id="api-base-url" type="url" inputmode="url" placeholder="http://localhost:3100">
             </label>
-            <label class="settings-field settings-field-full">API Key
-              <input id="api-key" type="password" autocomplete="off" placeholder="Optional unless the API requires one">
+            <label class="settings-field settings-field-full">API Key              <input id="api-key" type="password" autocomplete="off" placeholder="Optional unless the API requires one">
             </label>
           </div>
           <div id="api-connection-summary" class="settings-connection-summary" data-tone="neutral" aria-live="polite">
@@ -520,24 +500,8 @@
             <div class="settings-connection-summary-row">
               <span class="settings-connection-summary-label">Permissions</span>
               <span id="api-connection-summary-permissions" class="settings-connection-summary-value">Save settings to validate this API key.</span>
-      </div>
-      <div id="num-pad-action-sheet" class="num-pad-sheet" hidden>
-        <button id="num-pad-action-backdrop" class="num-pad-sheet-backdrop" type="button" aria-label="Close actions"></button>
-        <div class="num-pad-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="num-pad-action-title">
-          <div class="num-pad-sheet-head">
-            <strong id="num-pad-action-title">Actions</strong>
-            <button id="num-pad-action-close" class="num-pad-toggle" type="button">Done</button>
+            </div>
           </div>
-          <p id="num-pad-action-target" class="num-pad-sheet-label">Pick a chain first</p>
-          <div class="num-pad-action-buttons">
-            <button id="num-pad-action-fill" class="num-pad-toggle" type="button">Fill</button>
-            <button id="num-pad-action-draw" class="num-pad-toggle" type="button">Draw</button>
-            <button id="num-pad-action-keypad" class="num-pad-reset" type="button">Keypad</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
         <section class="settings-panel settings-panel-wide">
           <div class="settings-panel-head">
             <strong>DLC</strong>
@@ -594,24 +558,19 @@
             <span>Omit id and key to have them generated. The full key is shown once after creation.</span>
           </div>
           <div class="settings-grid admin-client-create-grid">
-            <label class="settings-field">Name
-              <input id="admin-client-name" type="text" maxlength="100" placeholder="e.g. Mystic Maya">
+            <label class="settings-field">Name              <input id="admin-client-name" type="text" maxlength="100" placeholder="e.g. Mystic Maya">
             </label>
-            <label class="settings-field">Client Id (optional)
-              <input id="admin-client-id" type="text" maxlength="100" placeholder="auto-generated">
+            <label class="settings-field">Client Id (optional)              <input id="admin-client-id" type="text" maxlength="100" placeholder="auto-generated">
             </label>
-            <label class="settings-field">Access Level
-              <select id="admin-client-access">
+            <label class="settings-field">Access Level              <select id="admin-client-access">
                 <option value="basic">basic</option>
                 <option value="premium" selected>premium</option>
                 <option value="pro+">pro+</option>
               </select>
             </label>
-            <label class="settings-field">Tiers (comma separated)
-              <input id="admin-client-roles" type="text" maxlength="300" placeholder="e.g. mystic-moon, admin">
+            <label class="settings-field">Tiers (comma separated)              <input id="admin-client-roles" type="text" maxlength="300" placeholder="e.g. mystic-moon, admin">
             </label>
-            <label class="settings-field settings-field-full">API Key (optional)
-              <input id="admin-client-key" type="text" maxlength="200" placeholder="auto-generated">
+            <label class="settings-field settings-field-full">API Key (optional)              <input id="admin-client-key" type="text" maxlength="200" placeholder="auto-generated">
             </label>
           </div>
           <button id="admin-client-create" class="settings-button-primary" type="button">Create Client</button>
@@ -638,25 +597,20 @@
             <span>Custom subscriber tiers bundle an access rank, capabilities, limits, and pricing. Pricing is stored now and plugs into a payment provider later. Assign tiers to clients in the API Clients tab.</span>
           </div>
           <div class="settings-grid admin-client-create-grid">
-            <label class="settings-field">Tier Id
-              <input id="admin-role-id" type="text" maxlength="40" placeholder="e.g. mystic-moon">
+            <label class="settings-field">Tier Id              <input id="admin-role-id" type="text" maxlength="40" placeholder="e.g. mystic-moon">
             </label>
-            <label class="settings-field">Label
-              <input id="admin-role-label" type="text" maxlength="80" placeholder="Mystic Moon">
+            <label class="settings-field">Label              <input id="admin-role-label" type="text" maxlength="80" placeholder="Mystic Moon">
             </label>
-            <label class="settings-field">Access Rank
-              <select id="admin-role-access">
+            <label class="settings-field">Access Rank              <select id="admin-role-access">
                 <option value="" selected>(inherit from assigned client)</option>
                 <option value="basic">basic</option>
                 <option value="premium">premium</option>
                 <option value="pro+">pro+</option>
               </select>
             </label>
-            <label class="settings-field">Price
-              <input id="admin-role-price" type="number" min="0" step="0.01" placeholder="0.00">
+            <label class="settings-field">Price              <input id="admin-role-price" type="number" min="0" step="0.01" placeholder="0.00">
             </label>
-            <label class="settings-field">Currency
-              <select id="admin-role-currency">
+            <label class="settings-field">Currency              <select id="admin-role-currency">
                 <option value="USD" selected>USD</option>
                 <option value="EUR">EUR</option>
                 <option value="GBP">GBP</option>
@@ -664,11 +618,9 @@
                 <option value="CAD">CAD</option>
               </select>
             </label>
-            <label class="settings-field">Provider Plan Id (future billing)
-              <input id="admin-role-provider-plan" type="text" maxlength="120" placeholder="e.g. price_123 from Stripe">
+            <label class="settings-field">Provider Plan Id (future billing)              <input id="admin-role-provider-plan" type="text" maxlength="120" placeholder="e.g. price_123 from Stripe">
             </label>
-            <label class="settings-field settings-field-full">Description
-              <input id="admin-role-description" type="text" maxlength="400" placeholder="What subscribers get">
+            <label class="settings-field settings-field-full">Description              <input id="admin-role-description" type="text" maxlength="400" placeholder="What subscribers get">
             </label>
           </div>
           <div id="admin-role-capabilities" class="admin-role-flags"></div>
@@ -733,8 +685,7 @@
           </div>
           <div class="admin-digest-row">
             <label class="planner-check"><input id="admin-digest-enabled" type="checkbox"> Nightly digest</label>
-            <label class="planner-field admin-digest-hour">Hour
-              <input id="admin-digest-hour" type="number" min="0" max="23" step="1" value="8">
+            <label class="planner-field admin-digest-hour">Hour              <input id="admin-digest-hour" type="number" min="0" max="23" step="1" value="8">
             </label>
             <button id="admin-digest-save" class="dlc-shop-btn" type="button">Save digest</button>
             <span id="admin-digest-status" class="settings-field-hint" aria-live="polite"></span>
@@ -764,57 +715,46 @@
             <span>Editable values apply immediately and persist across restarts. Only port and host require a restart.</span>
           </div>
           <div class="settings-grid admin-client-create-grid">
-            <label class="settings-field">Request Log Mode
-              <select id="admin-setting-log-mode">
+            <label class="settings-field">Request Log Mode              <select id="admin-setting-log-mode">
                 <option value="errors">errors (default)</option>
                 <option value="all">all</option>
                 <option value="none">none</option>
               </select>
               <span class="settings-field-hint">Env: KABBAK_REQUEST_LOG</span>
             </label>
-            <label class="settings-field">Allow Null Origin
-              <select id="admin-setting-allow-null">
+            <label class="settings-field">Allow Null Origin              <select id="admin-setting-allow-null">
                 <option value="false">off</option>
                 <option value="true">on</option>
               </select>
               <span class="settings-field-hint">Env: KABBAK_ALLOW_NULL_ORIGIN</span>
             </label>
-            <label class="settings-field settings-field-full">Allowed CORS Origins (one per line)
-              <textarea id="admin-setting-origins" rows="4" placeholder="https://gui.typhon.dev"></textarea>
+            <label class="settings-field settings-field-full">Allowed CORS Origins (one per line)              <textarea id="admin-setting-origins" rows="4" placeholder="https://gui.typhon.dev"></textarea>
               <span class="settings-field-hint">Env: KABBAK_ALLOWED_ORIGINS — leave empty to fall back to the environment value</span>
             </label>
-            <label class="settings-field">Request body limit
-              <input id="admin-setting-body-limit" type="text" placeholder="64mb">
+            <label class="settings-field">Request body limit              <input id="admin-setting-body-limit" type="text" placeholder="64mb">
               <span class="settings-field-hint">Env: KABBAK_JSON_BODY_LIMIT — e.g. 10mb, 500kb, 1gb</span>
             </label>
-            <label class="settings-field">Plugin upload limit (MB)
-              <input id="admin-setting-plugin-limit-mb" type="number" min="1" max="1024" step="1" placeholder="25">
+            <label class="settings-field">Plugin upload limit (MB)              <input id="admin-setting-plugin-limit-mb" type="number" min="1" max="1024" step="1" placeholder="25">
               <span class="settings-field-hint">Env: KABBAK_MAX_PLUGIN_UPLOAD_MB</span>
             </label>
-            <label class="settings-field">Auto migrate
-              <select id="admin-setting-auto-migrate">
+            <label class="settings-field">Auto migrate              <select id="admin-setting-auto-migrate">
                 <option value="true">on</option>
                 <option value="false">off</option>
               </select>
               <span class="settings-field-hint">Env: KABBAK_AUTO_MIGRATE — applies at the next startup/storage check</span>
             </label>
-            <div class="settings-field">Profile encryption secret
-              <input id="admin-setting-encryption-secret" type="password" placeholder="(leave blank to keep current)" autocomplete="new-password">
+            <div class="settings-field">Profile encryption secret              <input id="admin-setting-encryption-secret" type="password" placeholder="(leave blank to keep current)" autocomplete="new-password">
               <span id="admin-setting-secret-state" class="settings-field-hint">not set</span>
               <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
-                <input id="admin-setting-secret-clear" type="checkbox"> Clear saved secret
-              </label>
+                <input id="admin-setting-secret-clear" type="checkbox"> Clear saved secret              </label>
             </div>
-            <label class="settings-field">Browser tab title
-              <input id="admin-setting-browser-title" type="text" maxlength="100" placeholder="KABBAK">
+            <label class="settings-field">Browser tab title              <input id="admin-setting-browser-title" type="text" maxlength="100" placeholder="KABBAK">
               <span class="settings-field-hint">Env: KABBAK_BROWSER_TITLE — blank uses the app default</span>
             </label>
-            <label class="settings-field settings-field-full">Tarot card viewer background
-              <input id="admin-setting-overlay-url" type="url" maxlength="500" placeholder="https://… or leave blank for the look’s backdrop">
+            <label class="settings-field settings-field-full">Tarot card viewer background              <input id="admin-setting-overlay-url" type="url" maxlength="500" placeholder="https://… or leave blank for the look’s backdrop">
               <span class="settings-field-hint">Background behind the enlarged tarot card. Upload an image or paste a URL.</span>
               <div class="dlc-shop-actions" style="margin-top:8px;">
-                <label class="mp-upload-btn">Upload overlay
-                  <input id="admin-setting-overlay-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+                <label class="mp-upload-btn">Upload overlay                  <input id="admin-setting-overlay-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
                 </label>
                 <button id="admin-setting-overlay-clear" class="dlc-shop-btn" type="button">Clear overlay</button>
               </div>
@@ -853,9 +793,7 @@
             </select>
             <input id="admin-log-search" type="search" placeholder="Search path, event, message" maxlength="120">
             <label class="dlc-menu-hide-label">
-              <input id="admin-log-autorefresh" type="checkbox" checked>
-              Auto-refresh (3s)
-            </label>
+              <input id="admin-log-autorefresh" type="checkbox" checked>              Auto-refresh (3s)            </label>
             <button id="admin-log-refresh" class="dlc-shop-btn" type="button">Refresh</button>
             <button id="admin-log-clear" class="dlc-shop-btn" type="button">Clear Buffer</button>
           </div>
@@ -864,17 +802,14 @@
       </section>
     </div>
   </section>
-
   <div id="admin-message-modal" class="planner-modal" hidden>
     <div class="planner-modal-card" role="dialog" aria-modal="true" aria-labelledby="admin-message-title">
       <h2 id="admin-message-title" class="planner-modal-title">Send message</h2>
       <p id="admin-message-hint" class="planner-feed-copy">Delivered to every user's inbox. The generated link is also a public page you can share directly.</p>
       <p id="admin-message-to" class="planner-feed-copy" hidden></p>
-      <label class="planner-field">Title
-        <input id="admin-message-title-input" type="text" maxlength="200" autocomplete="off">
+      <label class="planner-field">Title        <input id="admin-message-title-input" type="text" maxlength="200" autocomplete="off">
       </label>
-      <label class="planner-field">Message
-        <textarea id="admin-message-body" rows="5" maxlength="20000"></textarea>
+      <label class="planner-field">Message        <textarea id="admin-message-body" rows="5" maxlength="20000"></textarea>
       </label>
       <div class="planner-field planner-attachments-field">
         <span>Attachments</span>
@@ -893,8 +828,7 @@
         <div id="admin-message-audience-roles" class="planner-audience-list" hidden></div>
       </div>
       <div class="planner-row">
-        <label class="planner-field">Kind
-          <select id="admin-message-kind">
+        <label class="planner-field">Kind          <select id="admin-message-kind">
             <option value="message">Message</option>
             <option value="alert">Alert</option>
             <option value="report">Report</option>
@@ -904,26 +838,22 @@
             <option value="other">Other</option>
           </select>
         </label>
-        <label class="planner-field">Visibility
-          <select id="admin-message-visibility">
+        <label class="planner-field">Visibility          <select id="admin-message-visibility">
             <option value="internal">Internal (sign-in required)</option>
             <option value="public">Public (anyone with the link)</option>
           </select>
         </label>
       </div>
       <div class="planner-row">
-        <label class="planner-field">Publish at (optional)
-          <input id="admin-message-publish" type="datetime-local">
+        <label class="planner-field">Publish at (optional)          <input id="admin-message-publish" type="datetime-local">
         </label>
-        <label class="planner-field">Expires (optional)
-          <input id="admin-message-expires" type="datetime-local">
+        <label class="planner-field">Expires (optional)          <input id="admin-message-expires" type="datetime-local">
         </label>
       </div>
       <label class="planner-check"><input id="admin-message-ack" type="checkbox"> Requires acknowledgement (stays unread until opened)</label>
       <div id="admin-message-status" class="planner-status" aria-live="polite"></div>
       <div id="admin-message-result" class="admin-message-result" hidden>
-        <label class="planner-field">Share URL
-          <input id="admin-message-url" type="text" readonly>
+        <label class="planner-field">Share URL          <input id="admin-message-url" type="text" readonly>
         </label>
       </div>
       <div class="planner-modal-actions">
@@ -968,8 +898,7 @@
         <div id="inbox-detail-meta" class="inbox-item-meta"></div>
         <div id="inbox-detail-body" class="inbox-detail-body"></div>
         <div id="inbox-detail-files" class="inbox-item-files"></div>
-        <label class="planner-field">Reply
-          <textarea id="inbox-reply-body" rows="3" maxlength="4000"></textarea>
+        <label class="planner-field">Reply          <textarea id="inbox-reply-body" rows="3" maxlength="4000"></textarea>
         </label>
         <div class="planner-modal-actions">
           <span id="inbox-reply-status" class="planner-status" aria-live="polite"></span>
@@ -1518,7 +1447,6 @@
       </section>
     </div>
   </section>
-
   <section id="iching-trigram-section" hidden>
     <div class="browse-layout">
       <aside class="list-panel">
@@ -1556,7 +1484,6 @@
       </section>
     </div>
   </section>
-
   <section id="iching-bigram-section" hidden>
     <div class="browse-layout">
       <aside class="list-panel">
@@ -1590,7 +1517,6 @@
       </section>
     </div>
   </section>
-
   <section id="iching-phase-section" hidden>
     <div class="browse-layout">
       <aside class="list-panel">
@@ -1623,7 +1549,6 @@
       </section>
     </div>
   </section>
-
   <section id="sky-section" hidden>
     <div id="now-panel">
     <iframe id="now-sky-layer" aria-hidden="true" scrolling="no" allow="geolocation"></iframe>
@@ -1640,22 +1565,18 @@
         <span>Location, live background, and card deck for this page.</span>
       </div>
       <div class="now-settings-row">
-        <label class="settings-field">Latitude
-          <input id="now-lat" type="number" step="0.0001" value="51.5074">
+        <label class="settings-field">Latitude          <input id="now-lat" type="number" step="0.0001" value="51.5074">
         </label>
-        <label class="settings-field">Longitude
-          <input id="now-lng" type="number" step="0.0001" value="-0.1278">
+        <label class="settings-field">Longitude          <input id="now-lng" type="number" step="0.0001" value="-0.1278">
         </label>
         <button id="now-use-location" type="button" class="settings-action-btn">Use My Location</button>
         <label class="settings-field now-settings-check" for="now-stellarium-toggle">
           <span>Sky Background</span>
           <input id="now-stellarium-toggle" type="checkbox" />
         </label>
-        <label id="now-deck-field" class="settings-field settings-field-full">Tarot Deck
-          <select id="now-tarot-deck" aria-label="Tarot deck for Sky cards"></select>
+        <label id="now-deck-field" class="settings-field settings-field-full">Tarot Deck          <select id="now-tarot-deck" aria-label="Tarot deck for Sky cards"></select>
         </label>
-        <label class="settings-field settings-field-full">Countdown Format
-          <select id="now-time-format" aria-label="Countdown time format">
+        <label class="settings-field settings-field-full">Countdown Format          <select id="now-time-format" aria-label="Countdown time format">
             <option value="minutes" selected>Minutes</option>
             <option value="hours">Hours</option>
             <option value="seconds">Seconds</option>
@@ -1706,7 +1627,6 @@
     </div>
     </div>
   </section>
-
   <section id="astronomy-section" hidden>
     <div class="kabbalah-placeholder">
       <div class="kabbalah-placeholder-card">
@@ -1715,7 +1635,6 @@
       </div>
     </div>
   </section>
-
   <section id="natal-section" hidden>
     <div class="kabbalah-placeholder">
       <div class="kabbalah-placeholder-card">
@@ -1725,7 +1644,6 @@
       </div>
     </div>
   </section>
-
   <section id="quiz-section" hidden>
     <div class="quiz-layout">
       <div class="quiz-card">
@@ -1766,7 +1684,6 @@
           <div id="quiz-leaderboard-list" class="quiz-leaderboard-list"></div>
         </div>
       </div>
-
       <div class="quiz-card" aria-live="polite">
         <div id="quiz-question-type" class="detail-type">--</div>
         <p id="quiz-question" class="quiz-question">Loading question…</p>
@@ -1778,7 +1695,6 @@
       </div>
     </div>
   </section>
-
   <section id="community-section" hidden>
     <div class="community-layout">
       <aside class="community-list-panel">
@@ -1794,11 +1710,9 @@
       </aside>
       <section class="community-detail-panel" aria-live="polite">
         <div id="community-compose" class="community-compose" hidden>
-          <label class="community-field">Title
-            <input id="community-title" type="text" maxlength="200" autocomplete="off">
+          <label class="community-field">Title            <input id="community-title" type="text" maxlength="200" autocomplete="off">
           </label>
-          <label class="community-field">Body
-            <textarea id="community-body" rows="5" maxlength="10000"></textarea>
+          <label class="community-field">Body            <textarea id="community-body" rows="5" maxlength="10000"></textarea>
           </label>
           <div class="community-actions">
             <button id="community-post" class="settings-button-primary" type="button">Post topic</button>
@@ -1819,11 +1733,9 @@
             </div>
           </div>
           <div id="community-topic-editor" class="community-topic-editor" hidden>
-            <label class="community-field">Title
-              <input id="community-edit-title" type="text" maxlength="200" autocomplete="off">
+            <label class="community-field">Title              <input id="community-edit-title" type="text" maxlength="200" autocomplete="off">
             </label>
-            <label class="community-field">Body
-              <textarea id="community-edit-body" rows="5" maxlength="10000"></textarea>
+            <label class="community-field">Body              <textarea id="community-edit-body" rows="5" maxlength="10000"></textarea>
             </label>
             <div class="community-actions">
               <button id="community-edit-save" class="settings-button-primary" type="button">Save</button>
@@ -1832,15 +1744,13 @@
           </div>
           <div id="community-topic-body" class="community-topic-body"></div>
           <div id="community-replies" class="community-replies"></div>
-          <label class="community-field">Reply
-            <textarea id="community-reply-body" rows="3" maxlength="5000"></textarea>
+          <label class="community-field">Reply            <textarea id="community-reply-body" rows="3" maxlength="5000"></textarea>
           </label>
           <div class="community-actions">
             <button id="community-reply-post" class="settings-button-primary" type="button">Post reply</button>
           </div>
           <div id="community-report-box" class="community-report-box" hidden>
-            <label class="community-field">Report reason
-              <textarea id="community-report-reason" rows="2" maxlength="500"></textarea>
+            <label class="community-field">Report reason              <textarea id="community-report-reason" rows="2" maxlength="500"></textarea>
             </label>
             <div class="community-actions">
               <button id="community-report-send" class="settings-button-primary" type="button">Send report</button>
@@ -1853,7 +1763,6 @@
       </section>
     </div>
   </section>
-
   <section id="scriber-section" hidden>
     <div class="scriber-layout">
       <aside class="scriber-sidebar">
@@ -1934,7 +1843,6 @@
       </aside>
     </div>
   </section>
-
   <section id="kabbalah-section" hidden>
     <div class="browse-layout">
       <aside class="list-panel">
@@ -1959,7 +1867,6 @@
       </section>
     </div>
   </section>
-
   <section id="kabbalah-worlds-section" hidden>
     <div class="browse-layout">
       <aside class="list-panel">
@@ -1984,7 +1891,6 @@
       </section>
     </div>
   </section>
-
   <section id="kabbalah-paths-section" hidden>
     <div class="browse-layout">
       <aside class="list-panel">
@@ -2009,7 +1915,6 @@
       </section>
     </div>
   </section>
-
   <section id="kabbalah-cross-section" hidden>
     <div class="kab-rose-layout">
       <aside class="kab-rose-panel">
@@ -2034,31 +1939,54 @@
       </section>
     </div>
   </section>
-
   <section id="kabbalah-tree-section" hidden>
     <div class="kab-tree-stage">
       <header class="kab-tree-stage-header">
-        <div>
-          <h2 class="kab-tree-stage-title">Tree of Life</h2>
-          <p class="kab-tree-stage-copy">Drag to orbit. Sephira opens Sefirot, a path opens Paths, a card enlarges.</p>
-        </div>
-        <div class="kab-tree-stage-actions">
+        <p class="kab-tree-facts">10 Sephirot · 22 Paths · 1 Da'at · 3 Pillars · 4 Worlds</p>
+        <div id="kab-tree-toolbar" class="kab-tree-stage-actions" aria-label="Tree controls" data-popover-toolbar>
           <label class="kab-tree-chip" for="kab-tree-spin-toggle">
             <input id="kab-tree-spin-toggle" type="checkbox" checked>
             <span>Spin</span>
           </label>
-          <label class="kab-tree-chip" for="kab-path-letter-toggle">
-            <input id="kab-path-letter-toggle" type="checkbox" checked>
-            <span>Letters</span>
-          </label>
-          <label class="kab-tree-chip" for="kab-path-number-toggle">
-            <input id="kab-path-number-toggle" type="checkbox" checked>
-            <span>Numbers</span>
-          </label>
-          <label class="kab-tree-chip" for="kab-path-tarot-toggle">
-            <input id="kab-path-tarot-toggle" type="checkbox">
-            <span>Tarot</span>
-          </label>
+          <div class="kab-tree-menu" data-popover>
+            <button id="kab-tree-view-toggle" class="kab-tree-chip kab-tree-menu-toggle" type="button" aria-haspopup="true" aria-expanded="false" data-popover-toggle>View ▾</button>
+            <div id="kab-tree-view-panel" class="kab-tree-popover" hidden data-popover-panel>
+              <button id="kab-tree-zoom-out" class="kab-tree-chip kab-tree-popover-item kab-tree-popover-action" type="button" data-popover-keep-open>Zoom out</button>
+              <button id="kab-tree-zoom-in" class="kab-tree-chip kab-tree-popover-item kab-tree-popover-action" type="button" data-popover-keep-open>Zoom in</button>
+              <button id="kab-tree-fit" class="kab-tree-chip kab-tree-popover-item kab-tree-popover-action" type="button" data-popover-keep-open>Fit to pane</button>
+              <button id="kab-tree-view-reset" class="kab-tree-chip kab-tree-popover-item kab-tree-popover-action" type="button" data-popover-keep-open>Reset view</button>
+              <div id="kab-tree-zoom-readout" class="kab-tree-zoom-readout">100%</div>
+            </div>
+          </div>
+          <div class="kab-tree-menu" data-popover>
+            <button id="kab-tree-display-toggle" class="kab-tree-chip kab-tree-menu-toggle" type="button" aria-haspopup="true" aria-expanded="false" data-popover-toggle>Display ▾</button>
+            <div id="kab-tree-display-panel" class="kab-tree-popover" hidden data-popover-panel>
+              <label class="kab-tree-chip kab-tree-popover-item" for="kab-tree-sephirot-toggle">
+                <input id="kab-tree-sephirot-toggle" type="checkbox" checked>
+                <span>Show sephirot</span>
+              </label>
+              <label class="kab-tree-chip kab-tree-popover-item" for="kab-tree-paths-toggle">
+                <input id="kab-tree-paths-toggle" type="checkbox" checked>
+                <span>Show paths</span>
+              </label>
+              <label class="kab-tree-chip kab-tree-popover-item" for="kab-path-letter-toggle">
+                <input id="kab-path-letter-toggle" type="checkbox" checked>
+                <span>Path letters</span>
+              </label>
+              <label class="kab-tree-chip kab-tree-popover-item" for="kab-path-number-toggle">
+                <input id="kab-path-number-toggle" type="checkbox" checked>
+                <span>Path numbers</span>
+              </label>
+              <label class="kab-tree-chip kab-tree-popover-item" for="kab-path-astrology-toggle">
+                <input id="kab-path-astrology-toggle" type="checkbox">
+                <span>Path astrology</span>
+              </label>
+              <label class="kab-tree-chip kab-tree-popover-item" for="kab-path-tarot-toggle">
+                <input id="kab-path-tarot-toggle" type="checkbox">
+                <span>Path tarot cards</span>
+              </label>
+            </div>
+          </div>
           <button id="kab-tree-export-webp" class="kab-export-btn" type="button">Export WebP</button>
         </div>
       </header>
@@ -2069,7 +1997,10 @@
       </div>
     </div>
   </section>
-
+  <section id="kabbalah-tandem-section" class="kab-tandem" hidden>
+    <div id="kab-tandem-pane-tree" class="kab-tandem-pane" aria-label="Tree of Life pane"></div>
+    <div id="kab-tandem-pane-cube" class="kab-tandem-pane" aria-label="Cube of Space pane"></div>
+  </section>
   <section id="alphabet-section" hidden>
     <div class="alpha-lookup-shell">
       <section class="alpha-special-top" aria-label="Alphabet special tools">
@@ -2136,7 +2067,6 @@
       </section>
     </div>
   </section>
-
   <section id="alphabet-letters-section" hidden>
     <div class="browse-layout">
       <aside class="list-panel">
@@ -2183,7 +2113,6 @@
       </section>
     </div>
   </section>
-
   <section id="alphabet-text-section" hidden>
     <div class="browse-layout">
       <aside class="list-panel">
@@ -2303,7 +2232,6 @@
       </section>
     </div>
   </section>
-
   <section id="alphabet-reference-section" hidden>
     <div class="browse-layout">
       <aside class="list-panel">
@@ -2364,40 +2292,79 @@
       </section>
     </div>
   </section>
-
   <section id="cube-section" hidden>
     <div id="cube-layout" class="kab-layout">
       <aside class="kab-tree-panel">
         <div class="list-header">
-          <strong>Cube of Space</strong>
-          <span class="list-count">6 Walls · 12 Edges</span>
+          <span class="list-count">6 Walls · 12 Edges · 8 Corners · 1 Center · 3 Mothers</span>
         </div>
-        <div id="cube-rotation-controls" class="cube-rotation-controls" aria-label="Rotate cube">
-          <button id="cube-rotate-left" class="cube-rotation-btn" type="button" title="Rotate left">←</button>
-          <button id="cube-rotate-right" class="cube-rotation-btn" type="button" title="Rotate right">→</button>
-          <button id="cube-rotate-up" class="cube-rotation-btn" type="button" title="Rotate up">↑</button>
-          <button id="cube-rotate-down" class="cube-rotation-btn" type="button" title="Rotate down">↓</button>
-          <button id="cube-rotate-reset" class="cube-rotation-btn" type="button" title="Reset rotation">Reset</button>
-          <button id="cube-focus-toggle" class="cube-rotation-btn cube-focus-toggle" type="button" aria-pressed="false">Focus Cube</button>
-          <button id="cube-export-webp" class="cube-rotation-btn cube-export-btn" type="button">Export WebP</button>
-          <div class="cube-marker-mode-control">
-            <label for="cube-marker-mode" class="cube-marker-mode-label">Marker display</label>
-            <select id="cube-marker-mode" class="cube-marker-mode-select" aria-label="Cube marker display mode">
-              <option value="both" selected>Letter + Astrology</option>
-              <option value="letter">Letter only</option>
-              <option value="astro">Astrology only</option>
-              <option value="tarot">Tarot Cards</option>
-            </select>
+        <div id="cube-toolbar" class="cube-toolbar" aria-label="Cube controls" data-popover-toolbar>
+          <div class="cube-menu" data-popover>
+            <button id="cube-menu-move-toggle" class="cube-toolbar-btn cube-menu-toggle" type="button" aria-haspopup="true" aria-expanded="false" data-popover-toggle>Move ▾</button>
+            <div id="cube-menu-move" class="cube-popover" hidden data-popover-panel>
+              <div class="cube-popover-grid">
+                <button id="cube-rotate-left" class="cube-rotation-btn" type="button" title="Rotate left">←</button>
+                <button id="cube-rotate-right" class="cube-rotation-btn" type="button" title="Rotate right">→</button>
+                <button id="cube-rotate-up" class="cube-rotation-btn" type="button" title="Rotate up">↑</button>
+                <button id="cube-rotate-down" class="cube-rotation-btn" type="button" title="Rotate down">↓</button>
+              </div>
+              <button id="cube-rotate-reset" class="cube-rotation-btn" type="button" title="Reset view">Reset view</button>
+            </div>
           </div>
-          <label class="cube-connector-toggle-control" for="cube-connector-toggle">
-            <input id="cube-connector-toggle" type="checkbox" checked>
-            <span>Show mother connector lines</span>
-          </label>
-          <label class="cube-primal-toggle-control" for="cube-primal-toggle">
-            <input id="cube-primal-toggle" type="checkbox" checked>
-            <span>Show primal point</span>
-          </label>
-          <div id="cube-rotation-readout" class="cube-rotation-readout">X 0° · Y 0°</div>
+          <div class="cube-menu" data-popover>
+            <button id="cube-menu-view-toggle" class="cube-toolbar-btn cube-menu-toggle" type="button" aria-haspopup="true" aria-expanded="false" data-popover-toggle>View ▾</button>
+            <div id="cube-menu-view" class="cube-popover" hidden data-popover-panel>
+              <label class="cube-spin-toggle-control" for="cube-spin-toggle">
+                <input id="cube-spin-toggle" type="checkbox">
+                <span>Spin</span>
+              </label>
+              <div class="cube-popover-grid">
+                <button id="cube-view-iso" class="cube-rotation-btn" type="button" title="Isometric view">Iso</button>
+                <button id="cube-view-front" class="cube-rotation-btn" type="button" title="Face the north wall">Front</button>
+                <button id="cube-view-top" class="cube-rotation-btn" type="button" title="Look down from above">Top</button>
+                <button id="cube-zoom-out" class="cube-rotation-btn" type="button" title="Zoom out">−</button>
+                <button id="cube-zoom-in" class="cube-rotation-btn" type="button" title="Zoom in">+</button>
+              </div>
+              <div id="cube-rotation-readout" class="cube-rotation-readout">X 0° · Y 0° · 1.00×</div>
+            </div>
+          </div>
+          <button id="cube-focus-toggle" class="cube-toolbar-btn cube-focus-toggle" type="button" aria-pressed="false">Focus Cube</button>
+          <button id="cube-export-webp" class="cube-toolbar-btn cube-export-btn" type="button">Export WebP</button>
+          <div class="cube-menu" data-popover>
+            <button id="cube-menu-display-toggle" class="cube-toolbar-btn cube-menu-toggle" type="button" aria-haspopup="true" aria-expanded="false" data-popover-toggle>Display ▾</button>
+            <div id="cube-menu-display" class="cube-popover" hidden data-popover-panel>
+              <div class="cube-marker-mode-control">
+                <label for="cube-marker-mode" class="cube-marker-mode-label">Markers</label>
+                <select id="cube-marker-mode" class="cube-marker-mode-select" aria-label="Cube marker display mode">
+                  <option value="both" selected>Letter + Astrology</option>
+                  <option value="letter">Letter only</option>
+                  <option value="astro">Astrology only</option>
+                  <option value="tarot">Tarot Cards</option>
+                </select>
+              </div>
+              <label class="cube-faces-toggle-control" for="cube-faces-toggle">
+                <input id="cube-faces-toggle" type="checkbox" checked>
+                <span>Show wall faces</span>
+              </label>
+              <label class="cube-edges-toggle-control" for="cube-edges-toggle">
+                <input id="cube-edges-toggle" type="checkbox" checked>
+                <span>Show cube edges</span>
+              </label>
+              <label class="cube-connector-toggle-control" for="cube-connector-toggle">
+                <input id="cube-connector-toggle" type="checkbox" checked>
+                <span>Show mother connector lines</span>
+              </label>
+              <label class="cube-primal-toggle-control" for="cube-primal-toggle">
+                <input id="cube-primal-toggle" type="checkbox" checked>
+                <span>Show primal point</span>
+              </label>
+              <label class="cube-sides-toggle-control" for="cube-sides-toggle">
+                <input id="cube-sides-toggle" type="checkbox" checked>
+                <span>Transparent sides</span>
+              </label>
+              <div class="cube-legend">Drag to rotate · scroll or pinch to zoom · click a wall or edge</div>
+            </div>
+          </div>
         </div>
         <div id="cube-view-container" class="kab-tree-container"></div>
       </aside>
@@ -2415,7 +2382,6 @@
       </section>
     </div>
   </section>
-
   <section id="zodiac-section" hidden>
     <div class="browse-layout">
       <aside class="list-panel">
@@ -2443,9 +2409,7 @@
       </section>
     </div>
   </section>
-
   </section>
-
   <section id="gods-section" hidden>
     <div class="browse-layout">
       <aside class="list-panel">
@@ -2469,7 +2433,6 @@
       </section>
     </div>
   </section>
-
   <section id="enochian-section" hidden>
     <div class="browse-layout">
       <aside class="list-panel">
@@ -2492,7 +2455,6 @@
       </section>
     </div>
   </section>
-
   <section id="num-pad-section" hidden>
     <div class="num-pad-layout">
       <header class="num-pad-header">
@@ -2500,7 +2462,7 @@
           <strong>Num Pad</strong>
           <span id="num-pad-status" class="list-count">Keys 1–9</span>
         </div>
-        <div class="num-pad-mobile-chrome">
+        <div class="num-pad-chrome">
           <button id="num-pad-mobile-filters" class="num-pad-toggle" type="button" aria-expanded="false" aria-controls="num-pad-filter-sheet">Filters</button>
           <button id="num-pad-mobile-chains" class="num-pad-toggle" type="button" aria-expanded="false" aria-controls="num-pad-chains">Chains</button>
           <button id="num-pad-mobile-actions" class="num-pad-toggle" type="button" aria-expanded="false" aria-controls="num-pad-action-sheet">Actions</button>
@@ -2533,6 +2495,7 @@
             <div id="num-pad-path-note" class="num-pad-path-note" hidden></div>
           </div>
         </div>
+        <button id="num-pad-chains-backdrop" class="num-pad-overlay-backdrop" type="button" aria-label="Close chains"></button>
         <div class="num-pad-chain-panel">
           <div class="num-pad-panel-toolbar" aria-label="Chain settings">
             <div class="num-pad-display-toggles" role="group" aria-label="Chain number display">
@@ -2572,6 +2535,7 @@
             <button id="num-pad-action-close" class="num-pad-toggle" type="button">Done</button>
           </div>
           <p id="num-pad-action-target" class="num-pad-sheet-label">Pick a chain first</p>
+          <div id="num-pad-action-factors" class="num-pad-action-factors" role="group" aria-label="Pick a chain"></div>
           <div class="num-pad-action-buttons">
             <button id="num-pad-action-fill" class="num-pad-toggle" type="button">Fill</button>
             <button id="num-pad-action-draw" class="num-pad-toggle" type="button">Draw</button>
@@ -2581,7 +2545,6 @@
       </div>
     </div>
   </section>
-
   <section id="numbers-section" hidden>
     <div class="kab-layout numbers-layout">
       <aside id="numbers-special-panel" class="numbers-special-panel" aria-label="4 card arrangement"></aside>
@@ -2604,7 +2567,6 @@
       </div>
     </div>
   </section>
-
   <section id="planner-section" hidden>
     <div class="planner-shell">
       <header class="planner-toolbar">
@@ -2640,15 +2602,12 @@
       <div id="planner-status" class="planner-status" aria-live="polite"></div>
     </div>
   </section>
-
   <div id="planner-modal" class="planner-modal" hidden>
     <div class="planner-modal-card" role="dialog" aria-modal="true" aria-labelledby="planner-modal-title">
       <h2 id="planner-modal-title" class="planner-modal-title">New event</h2>
-      <label class="planner-field">Title
-        <input id="planner-field-title" type="text" maxlength="300" autocomplete="off">
+      <label class="planner-field">Title        <input id="planner-field-title" type="text" maxlength="300" autocomplete="off">
       </label>
-      <label class="planner-field">Date
-        <input id="planner-field-date" type="date">
+      <label class="planner-field">Date        <input id="planner-field-date" type="date">
       </label>
       <label class="planner-check"><input id="planner-field-allday" type="checkbox"> All day</label>
       <div class="planner-field planner-segments-field">
@@ -2656,12 +2615,10 @@
         <div id="planner-segments" class="planner-segments"></div>
         <button id="planner-add-segment" class="planner-btn planner-add-segment" type="button">Add time block</button>
       </div>
-      <label class="planner-field">Location
-        <input id="planner-field-location" type="text" maxlength="200" autocomplete="off">
+      <label class="planner-field">Location        <input id="planner-field-location" type="text" maxlength="200" autocomplete="off">
       </label>
       <div class="planner-row">
-        <label class="planner-field">Category
-          <select id="planner-field-category">
+        <label class="planner-field">Category          <select id="planner-field-category">
             <option value="personal">Personal</option>
             <option value="ritual">Ritual</option>
             <option value="study">Study</option>
@@ -2671,12 +2628,10 @@
             <option value="other">Other</option>
           </select>
         </label>
-        <label class="planner-field">Colour
-          <input id="planner-field-color" type="color" value="#6366f1">
+        <label class="planner-field">Colour          <input id="planner-field-color" type="color" value="#6366f1">
         </label>
       </div>
-      <label class="planner-field">Repeat
-        <select id="planner-field-freq">
+      <label class="planner-field">Repeat        <select id="planner-field-freq">
           <option value="none">Does not repeat</option>
           <option value="daily">Daily</option>
           <option value="weekly">Weekly</option>
@@ -2685,21 +2640,17 @@
         </select>
       </label>
       <div class="planner-row">
-        <label class="planner-field">Every
-          <input id="planner-field-interval" type="number" min="1" max="365" step="1" value="1">
+        <label class="planner-field">Every          <input id="planner-field-interval" type="number" min="1" max="365" step="1" value="1">
         </label>
-        <label class="planner-field">Until
-          <input id="planner-field-until" type="date">
+        <label class="planner-field">Until          <input id="planner-field-until" type="date">
         </label>
       </div>
-      <label class="planner-field">Notes
-        <textarea id="planner-field-notes" maxlength="20000" rows="3"></textarea>
+      <label class="planner-field">Notes        <textarea id="planner-field-notes" maxlength="20000" rows="3"></textarea>
       </label>
       <div class="planner-field planner-attachments-field">
         <span>Attachments</span>
         <label id="planner-attach-scope" class="planner-check planner-attach-scope" hidden>
-          <input id="planner-attach-occurrence" type="checkbox"> This date only
-        </label>
+          <input id="planner-attach-occurrence" type="checkbox"> This date only        </label>
         <div id="planner-attachments" class="planner-attachments"></div>
         <label id="planner-attach-add" class="planner-btn planner-attach-add" for="planner-attach-input">Add file</label>
         <button id="planner-attach-reset" class="planner-btn planner-attach-reset" type="button" hidden>Reset this date to the series</button>
@@ -2713,7 +2664,6 @@
       </div>
     </div>
   </div>
-
   <div id="planner-feed" class="planner-modal" hidden>
     <div class="planner-modal-card" role="dialog" aria-modal="true" aria-labelledby="planner-feed-title">
       <h2 id="planner-feed-title" class="planner-modal-title">Subscribe in your calendar app</h2>
@@ -2724,14 +2674,12 @@
         <label class="planner-check"><input id="planner-feed-layer-holidays" type="checkbox" checked> Holidays</label>
         <label class="planner-check"><input id="planner-feed-layer-notes" type="checkbox"> Notes &amp; journals</label>
       </div>
-      <label class="planner-field" id="planner-feed-notes-format-wrap" hidden>Notes format
-        <select id="planner-feed-notes-format">
+      <label class="planner-field" id="planner-feed-notes-format-wrap" hidden>Notes format        <select id="planner-feed-notes-format">
           <option value="events">Calendar events (works everywhere)</option>
           <option value="journal">Journal entries (VJOURNAL)</option>
         </select>
       </label>
-      <label class="planner-field">Feed URL
-        <input id="planner-feed-url" type="text" readonly>
+      <label class="planner-field">Feed URL        <input id="planner-feed-url" type="text" readonly>
       </label>
       <div id="planner-feed-status" class="planner-status" aria-live="polite"></div>
       <div class="planner-modal-actions">
@@ -2743,19 +2691,21 @@
       </div>
     </div>
   </div>
-
   <div id="home-welcome"></div>
   <!-- Core runtime: home/sky/settings/nav only. Heavy sections load on demand. -->
   <script src="node_modules/@toast-ui/calendar/dist/toastui-calendar.min.js"></script>
   <script src="node_modules/suncalc/suncalc.js"></script>
   <script src="node_modules/astronomy-engine/astronomy.browser.min.js"></script>
   <script src="app/html-safe.js?v=20260803-html-safe"></script>
+  <script src="app/astro-symbols.js?v=20260915-astro-symbols"></script>
   <script src="app/ui-theme.js?v=20260911-scroll-perf"></script>
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
   <script src="app/app-config.js?v=20260911-tarot-admin"></script>
   <script src="app/data-service.js?v=20260915-watch"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
+  <script src="app/ui-popover-menu.js?v=20260915-tree-3d"></script>
+  <script src="app/ui-tandem.js?v=20260915-tandem"></script>
   <script src="app/ui-library-marks.js?v=20260830-library"></script>
   <script src="app/plugins-host.js?v=20260911-preauth-widgets"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
@@ -2763,23 +2713,22 @@
   <script src="app/card-images.js?v=20260914-iching-num"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260807-perf-01"></script>
-  <script src="app/lazy-sections.js?v=20260915-board"></script>
+  <script src="app/lazy-sections.js?v=20260915-tandem"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260911-profile-timing-fix"></script>
   <script src="app/ui-dlc-shop.js?v=20260914-outline-filter"></script>
-  <script src="app/ui-chrome.js?v=20260911-export-marks"></script>
-  <script src="app/ui-navigation.js?v=20260915-planner"></script>
+  <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
+  <script src="app/ui-navigation.js?v=20260915-tandem"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>
   <script src="app/ui-calendar-visuals.js?v=20260307b"></script>
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
-  <script src="app/ui-section-state.js?v=20260915-planner"></script>
+  <script src="app/ui-section-state.js?v=20260915-tandem"></script>
   <script src="app/ui-planner.js?v=20260915-notes"></script>
   <script src="app/ui-inbox.js?v=20260915-reply"></script>
   <script src="app/app-runtime.js?v=20260915-planner"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20260915-theme-live"></script>
-
+  <script src="app.js?v=20260915-tandem"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>
@@ -2789,6 +2738,4 @@
         <span id="cache-loader-progress-label">0%</span>
       </div>
     </div>
-  </div>
-</body>
-</html>
+  </div></body></html>
