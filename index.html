@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>KABBAK</title>
-  <link rel="icon" href="favicon.ico">
+  <link id="app-favicon" rel="icon" href="favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="node_modules/@toast-ui/calendar/dist/toastui-calendar.min.css?v=20260309-home-calendar-fix">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-sans-hebrew/hebrew-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-sans-hebrew/hebrew-700.css">
@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260915-numpad-sheets">
+  <link rel="stylesheet" href="app/styles.css?v=20260916-folder-pick">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -751,6 +751,14 @@
             <label class="settings-field">Browser tab title              <input id="admin-setting-browser-title" type="text" maxlength="100" placeholder="KABBAK">
               <span class="settings-field-hint">Env: KABBAK_BROWSER_TITLE — blank uses the app default</span>
             </label>
+            <label class="settings-field settings-field-full">Favicon              <input id="admin-setting-favicon-url" type="url" maxlength="500" placeholder="https://… or leave blank for the default icon">
+              <span class="settings-field-hint">Browser tab icon. Upload a .ico or image, or paste a URL.</span>
+              <div class="dlc-shop-actions" style="margin-top:8px;">
+                <label class="mp-upload-btn">Upload favicon                  <input id="admin-setting-favicon-file" type="file" accept=".ico,image/x-icon,image/vnd.microsoft.icon,image/png,image/svg+xml,image/webp,image/gif,image/jpeg" hidden>
+                </label>
+                <button id="admin-setting-favicon-clear" class="dlc-shop-btn" type="button">Clear favicon</button>
+              </div>
+            </label>
             <label class="settings-field settings-field-full">Tarot card viewer background              <input id="admin-setting-overlay-url" type="url" maxlength="500" placeholder="https://… or leave blank for the look’s backdrop">
               <span class="settings-field-hint">Background behind the enlarged tarot card. Upload an image or paste a URL.</span>
               <div class="dlc-shop-actions" style="margin-top:8px;">
@@ -1074,6 +1082,7 @@
                 <select id="tarot-frame-system">
                   <option value="tarot">Tarot (78 + back)</option>
                   <option value="iching">I Ching (64 + back)</option>
+                  <option value="playing-cards">Playing cards (52 + back)</option>
                 </select>
               </label>
               <label class="tarot-frame-field" for="tarot-frame-deck-select">
@@ -2701,7 +2710,7 @@
   <script src="app/ui-theme.js?v=20260911-scroll-perf"></script>
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
-  <script src="app/app-config.js?v=20260911-tarot-admin"></script>
+  <script src="app/app-config.js?v=20260916-favicon-upload"></script>
   <script src="app/data-service.js?v=20260915-watch"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-popover-menu.js?v=20260915-tree-3d"></script>
@@ -2710,14 +2719,14 @@
   <script src="app/plugins-host.js?v=20260911-preauth-widgets"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
-  <script src="app/card-images.js?v=20260914-iching-num"></script>
+  <script src="app/card-images.js?v=20260916-zio-codes"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260807-perf-01"></script>
   <script src="app/lazy-sections.js?v=20260915-tandem"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260911-profile-timing-fix"></script>
-  <script src="app/ui-dlc-shop.js?v=20260914-outline-filter"></script>
+  <script src="app/ui-dlc-shop.js?v=20260916-folder-pick"></script>
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
   <script src="app/ui-navigation.js?v=20260915-tandem"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>

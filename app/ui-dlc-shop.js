@@ -3066,6 +3066,27 @@
   ];
   // Court ranks get deck-wide name overrides (Page → Princess, Knight → Prince…).
   const COURT_RANKS = ["page", "knight", "queen", "king"];
+  const PLAYING_SUITS = [
+    { id: "spades", label: "Spades", aliases: ["spade", "spades", "pique"] },
+    { id: "hearts", label: "Hearts", aliases: ["heart", "hearts", "coeur"] },
+    { id: "diamonds", label: "Diamonds", aliases: ["diamond", "diamonds", "carreau"] },
+    { id: "clubs", label: "Clovers", aliases: ["club", "clubs", "clover", "clovers", "trefle"] }
+  ];
+  const PLAYING_RANKS = [
+    { id: "ace", label: "Ace", aliases: ["ace", "a", "1"] },
+    { id: "two", label: "Two", aliases: ["two", "2"] },
+    { id: "three", label: "Three", aliases: ["three", "3"] },
+    { id: "four", label: "Four", aliases: ["four", "4"] },
+    { id: "five", label: "Five", aliases: ["five", "5"] },
+    { id: "six", label: "Six", aliases: ["six", "6"] },
+    { id: "seven", label: "Seven", aliases: ["seven", "7"] },
+    { id: "eight", label: "Eight", aliases: ["eight", "8"] },
+    { id: "nine", label: "Nine", aliases: ["nine", "9"] },
+    { id: "ten", label: "Ten", aliases: ["ten", "10"] },
+    { id: "jack", label: "Jack", aliases: ["jack", "j", "knave"] },
+    { id: "queen", label: "Queen", aliases: ["queen", "q"] },
+    { id: "king", label: "King", aliases: ["king", "k"] }
+  ];
 
   const ICHING_HEXAGRAM_COUNT = 64;
   let ichingHexagramNames = null;
@@ -3137,9 +3158,29 @@
     return slots;
   }
 
+  function playingCardSlotList() {
+    const slots = [];
+    PLAYING_SUITS.forEach((suit, suitIndex) => {
+      PLAYING_RANKS.forEach((rank, rankIndex) => {
+        const number = (suitIndex * 13) + rankIndex;
+        slots.push({
+          key: `pc-${suit.id}-${rank.id}`,
+          group: suit.id.charAt(0).toUpperCase() + suit.id.slice(1),
+          label: `${rank.label} of ${suit.label}`,
+          file: `${String(number).padStart(2, "0")}.png`
+        });
+      });
+    });
+    slots.push({ key: "back", group: "Back", label: "Card back", file: "back.png" });
+    return slots;
+  }
+
   function deckSlotList(system = "tarot") {
     if (system === "iching") {
       return iChingSlotList();
+    }
+    if (system === "playing-cards") {
+      return playingCardSlotList();
     }
     const slots = DECK_MAJORS.map((name, trump) => ({
       key: `major-${trump}`,
@@ -3231,6 +3272,17 @@
           start: group.min
         };
       });
+    patterns.playingSuits = {};
+    ranked.filter((group) => group.count >= 12 && group.count <= 14)
+      .sort((left, right) => left.prefix.localeCompare(right.prefix, undefined, { sensitivity: "base" }))
+      .forEach((group, index) => {
+        const suit = PLAYING_SUITS[index];
+        if (!suit) return;
+        patterns.playingSuits[suit.id] = {
+          pattern: `${group.prefix}${"#".repeat(group.pad)}`,
+          start: group.min
+        };
+      });
     return patterns;
   }
 
@@ -3267,6 +3319,69 @@
     if (Number.isInteger(number) && number >= 0 && number <= 21) {
       return `major-${number}`;
     }
+    return "";
+  }
+
+  const PLAYING_CODE_RANKS = {
+    a: "ace", ace: "ace", 1: "ace",
+    2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+    7: "seven", 8: "eight", 9: "nine", 10: "ten",
+    j: "jack", jack: "jack", knave: "jack",
+    q: "queen", queen: "queen",
+    k: "king", king: "king"
+  };
+  const PLAYING_CODE_SUITS = {
+    s: "spades", spade: "spades", spades: "spades",
+    h: "hearts", heart: "hearts", hearts: "hearts",
+    d: "diamonds", diamond: "diamonds", diamonds: "diamonds",
+    c: "clubs", club: "clubs", clubs: "clubs", clover: "clubs", clovers: "clubs"
+  };
+
+  function parsePlayingCode(value) {
+    const raw = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    const match = raw.match(/^(10|[2-9]|a|j|q|k|ace|jack|queen|king)(s|h|d|c|spades?|hearts?|diamonds?|clubs?|clovers?)$/);
+    if (!match) return null;
+    const rankId = PLAYING_CODE_RANKS[match[1]];
+    const suitToken = match[2] === "s" || match[2] === "h" || match[2] === "d" || match[2] === "c"
+      ? match[2]
+      : match[2].replace(/s$/, "");
+    const suitId = PLAYING_CODE_SUITS[match[2]] || PLAYING_CODE_SUITS[suitToken];
+    return rankId && suitId ? { rankId, suitId, key: `pc-${suitId}-${rankId}` } : null;
+  }
+
+  function playingCodeFromBase(base) {
+    const cleaned = String(base || "").toLowerCase();
+    if (/(^|[-_])(back|cardback|verso)$/.test(cleaned)) return { key: "back" };
+    const match = cleaned.match(/(?:^|[-_])(10|[2-9]|a|j|q|k)(s|h|d|c)$/);
+    if (match) return parsePlayingCode(match[1] + match[2]);
+    return parsePlayingCode(cleaned.replace(/^\d+[-_]?/, ""));
+  }
+
+  function guessPlayingSlot(relativePath, suitOrder, zeroBased) {
+    const orderedSuits = (Array.isArray(suitOrder) ? suitOrder : [])
+      .map((id) => PLAYING_SUITS.find((suit) => suit.id === id))
+      .filter(Boolean);
+    const suits = orderedSuits.length === 4 ? orderedSuits : PLAYING_SUITS;
+    const rel = String(relativePath || "").replace(/\\/g, "/").toLowerCase();
+    const base = rel.split("/").pop().replace(/\.[^.]+$/, "");
+    if (/(^|\/)(back|card-back|cardback|verso)(\.|$)/.test(rel) || /^back$/i.test(base)) {
+      return "back";
+    }
+    const coded = playingCodeFromBase(base);
+    if (coded?.key) return coded.key;
+    const suit = PLAYING_SUITS.find((entry) => entry.aliases.some((alias) => rel.includes(alias)));
+    const rank = PLAYING_RANKS.find((entry) => entry.aliases.some((alias) => new RegExp(`(?:^|[^a-z])${alias}(?:$|[^a-z])`).test(base) || rel.includes(`/${alias}`)));
+    if (suit && rank) {
+      return `pc-${suit.id}-${rank.id}`;
+    }
+    const numMatch = base.match(/^(?:card[_-]?)?(\d{1,3})$/);
+    const number = numMatch ? Number(numMatch[1]) : NaN;
+    if (!Number.isInteger(number)) return "";
+    const offset = zeroBased ? number : number - 1;
+    if (offset < 0 || offset > 51) return "";
+    const suitEntry = suits[Math.floor(offset / 13)];
+    const rankEntry = PLAYING_RANKS[offset % 13];
+    if (suitEntry && rankEntry) return `pc-${suitEntry.id}-${rankEntry.id}`;
     return "";
   }
 
@@ -3686,10 +3801,11 @@
                 <span class="settings-field-hint">Deck system</span>
                 <button type="button" class="dlc-shop-btn is-active" data-deck-mode="tarot">Tarot (78 + back)</button>
                 <button type="button" class="dlc-shop-btn" data-deck-mode="iching">I Ching (64 + back)</button>
+                <button type="button" class="dlc-shop-btn" data-deck-mode="playing-cards">Playing cards (52 + back)</button>
               </div>
               <div class="settings-field">Deck folder
-                <label class="dlc-shop-btn dlc-file-btn">Choose folder
-                  <input type="file" class="dlc-create-deck-folder" webkitdirectory multiple accept="image/*" hidden>
+                <label class="dlc-shop-btn dlc-file-btn dlc-dir-label" data-role="deck-folder-label">Choose folder
+                  <input type="file" class="dlc-create-deck-folder dlc-dir-input" webkitdirectory multiple>
                 </label>
               </div>
             </div>
@@ -3715,8 +3831,15 @@
                 <label>50–63 <select data-suit-block="2"></select></label>
                 <label>64–77 <select data-suit-block="3"></select></label>
               </div>
+              <div class="dlc-deck-suit-order" data-role="playing-suit-order" hidden>
+                <strong>File order</strong>
+                <label>00–12 <select data-playing-suit-block="0"></select></label>
+                <label>13–25 <select data-playing-suit-block="1"></select></label>
+                <label>26–38 <select data-playing-suit-block="2"></select></label>
+                <label>39–51 <select data-playing-suit-block="3"></select></label>
+              </div>
               <div class="dlc-deck-pattern-groups">
-                <section class="dlc-deck-pattern-card">
+                <section class="dlc-deck-pattern-card" data-role="deck-majors-section">
                   <h3 data-role="deck-majors-heading">Trumps</h3>
                   <div class="dlc-deck-pattern-row" data-role="deck-majors-pattern-row">
                     <label class="settings-field">Pattern
@@ -3787,6 +3910,66 @@
                     </label>
                   </div>
                   <div class="dlc-deck-grid" data-role="deck-grid-pentacles"></div>
+                </section>
+                <section class="dlc-deck-pattern-card" data-role="playing-suit-section" hidden>
+                  <h3 data-role="playing-head-spades">Spades</h3>
+                  <div class="dlc-deck-pattern-row">
+                    <label class="settings-field">Pattern
+                      <input type="text" class="dlc-deck-pat-spades" placeholder="##-as">
+                    </label>
+                    <label class="settings-field">Start
+                      <input type="number" class="dlc-deck-start-spades" value="1" min="0" max="13">
+                    </label>
+                    <label class="settings-field">Shown as
+                      <input type="text" class="dlc-deck-alias-spades" placeholder="Spades">
+                    </label>
+                  </div>
+                  <div class="dlc-deck-grid" data-role="deck-grid-spades"></div>
+                </section>
+                <section class="dlc-deck-pattern-card" data-role="playing-suit-section" hidden>
+                  <h3 data-role="playing-head-hearts">Hearts</h3>
+                  <div class="dlc-deck-pattern-row">
+                    <label class="settings-field">Pattern
+                      <input type="text" class="dlc-deck-pat-hearts" placeholder="##-ah">
+                    </label>
+                    <label class="settings-field">Start
+                      <input type="number" class="dlc-deck-start-hearts" value="1" min="0" max="13">
+                    </label>
+                    <label class="settings-field">Shown as
+                      <input type="text" class="dlc-deck-alias-hearts" placeholder="Hearts">
+                    </label>
+                  </div>
+                  <div class="dlc-deck-grid" data-role="deck-grid-hearts"></div>
+                </section>
+                <section class="dlc-deck-pattern-card" data-role="playing-suit-section" hidden>
+                  <h3 data-role="playing-head-diamonds">Diamonds</h3>
+                  <div class="dlc-deck-pattern-row">
+                    <label class="settings-field">Pattern
+                      <input type="text" class="dlc-deck-pat-diamonds" placeholder="##-ad">
+                    </label>
+                    <label class="settings-field">Start
+                      <input type="number" class="dlc-deck-start-diamonds" value="1" min="0" max="13">
+                    </label>
+                    <label class="settings-field">Shown as
+                      <input type="text" class="dlc-deck-alias-diamonds" placeholder="Diamonds">
+                    </label>
+                  </div>
+                  <div class="dlc-deck-grid" data-role="deck-grid-diamonds"></div>
+                </section>
+                <section class="dlc-deck-pattern-card" data-role="playing-suit-section" hidden>
+                  <h3 data-role="playing-head-clubs">Clovers</h3>
+                  <div class="dlc-deck-pattern-row">
+                    <label class="settings-field">Pattern
+                      <input type="text" class="dlc-deck-pat-clubs" placeholder="##-ac">
+                    </label>
+                    <label class="settings-field">Start
+                      <input type="number" class="dlc-deck-start-clubs" value="1" min="0" max="13">
+                    </label>
+                    <label class="settings-field">Shown as
+                      <input type="text" class="dlc-deck-alias-clubs" placeholder="Clovers">
+                    </label>
+                  </div>
+                  <div class="dlc-deck-grid" data-role="deck-grid-clubs"></div>
                 </section>
                 <section class="dlc-deck-pattern-card" data-role="deck-court-section">
                   <h3>Court names</h3>
@@ -4751,6 +4934,7 @@
     const deckState = {
       system: "tarot",
       files: [],
+      scanManifest: null,
       assigned: {},
       back: "",
       pendingLoose: "",
@@ -4758,7 +4942,8 @@
       cardNames: {},
       suitNames: {},
       courtNames: {},
-      suitOrder: DECK_SUITS.map((suit) => suit.id)
+      suitOrder: DECK_SUITS.map((suit) => suit.id),
+      playingSuitOrder: PLAYING_SUITS.map((suit) => suit.id)
     };
 
     overlay.querySelectorAll("[data-suit-block]").forEach((select) => {
@@ -4769,6 +4954,15 @@
         select.appendChild(option);
       });
       select.value = deckState.suitOrder[Number(select.getAttribute("data-suit-block"))] || DECK_SUITS[0].id;
+    });
+    overlay.querySelectorAll("[data-playing-suit-block]").forEach((select) => {
+      PLAYING_SUITS.forEach((suit) => {
+        const option = document.createElement("option");
+        option.value = suit.id;
+        option.textContent = suit.label;
+        select.appendChild(option);
+      });
+      select.value = deckState.playingSuitOrder[Number(select.getAttribute("data-playing-suit-block"))] || PLAYING_SUITS[0].id;
     });
 
     const revokeFaceUrls = () => {
@@ -4796,8 +4990,12 @@
     const suitLabel = (suitId) => {
       const custom = String(deckState.suitNames[suitId] || overlay.querySelector(`.dlc-deck-alias-${suitId}`)?.value || "").trim();
       if (custom) return custom;
-      return DECK_SUITS.find((suit) => suit.id === suitId)?.label || suitId;
+      return DECK_SUITS.find((suit) => suit.id === suitId)?.label
+        || PLAYING_SUITS.find((suit) => suit.id === suitId)?.label
+        || suitId;
     };
+
+    const playingRankLabel = (rankId) => PLAYING_RANKS.find((entry) => entry.id === rankId)?.label || rankId;
 
     const courtLabel = (rankId) => {
       const custom = String(deckState.courtNames[rankId] || overlay.querySelector(`.dlc-deck-court-${rankId}`)?.value || "").trim();
@@ -4822,6 +5020,12 @@
         const rankId = parts.slice(2).join("-");
         const rank = COURT_RANKS.includes(rankId) ? courtLabel(rankId) : (DECK_RANKS.find((entry) => entry.id === rankId)?.label || rankId);
         return `${rank} of ${suitLabel(suitId)}`;
+      }
+      if (String(slot.key).startsWith("pc-")) {
+        const parts = String(slot.key).split("-");
+        const suitId = parts[1];
+        const rankId = parts.slice(2).join("-");
+        return `${playingRankLabel(rankId)} of ${suitLabel(suitId)}`;
       }
       return slot.label;
     };
@@ -5061,6 +5265,10 @@
         Cups: overlay.querySelector("[data-role='deck-grid-cups']"),
         Swords: overlay.querySelector("[data-role='deck-grid-swords']"),
         Disks: overlay.querySelector("[data-role='deck-grid-pentacles']"),
+        Hearts: overlay.querySelector("[data-role='deck-grid-hearts']"),
+        Diamonds: overlay.querySelector("[data-role='deck-grid-diamonds']"),
+        Clubs: overlay.querySelector("[data-role='deck-grid-clubs']"),
+        Spades: overlay.querySelector("[data-role='deck-grid-spades']"),
         Back: overlay.querySelector("[data-role='deck-grid-back']")
       };
       DECK_SUITS.forEach((suit) => {
@@ -5069,8 +5277,18 @@
           head.textContent = suitLabel(suit.id);
         }
       });
+      PLAYING_SUITS.forEach((suit) => {
+        const head = overlay.querySelector(`[data-role="playing-head-${suit.id}"]`);
+        if (head) {
+          head.textContent = suitLabel(suit.id);
+        }
+      });
       const assignedCount = Object.keys(deckState.assigned).filter((key) => key !== "back" && deckState.assigned[key]).length;
-      const totalLabel = deckState.system === "iching" ? "64 hexagrams" : "78 cards";
+      const totalLabel = deckState.system === "iching"
+        ? "64 hexagrams"
+        : deckState.system === "playing-cards"
+          ? "52 cards"
+          : "78 cards";
       if (statsEl) {
         statsEl.innerHTML = "";
         [`${assignedCount} / ${totalLabel}`, deckState.assigned.back ? "back set" : "no back", `${deckState.files.length} files`].forEach((label) => {
@@ -5211,6 +5429,12 @@
         overlay.querySelector(`.dlc-deck-pat-${suit.id}`).value = patterns.suits?.[suit.id]?.pattern || "";
         overlay.querySelector(`.dlc-deck-start-${suit.id}`).value = String(patterns.suits?.[suit.id]?.start ?? 1);
       });
+      PLAYING_SUITS.forEach((suit) => {
+        const patEl = overlay.querySelector(`.dlc-deck-pat-${suit.id}`);
+        const startEl = overlay.querySelector(`.dlc-deck-start-${suit.id}`);
+        if (patEl) patEl.value = patterns.playingSuits?.[suit.id]?.pattern || "";
+        if (startEl) startEl.value = String(patterns.playingSuits?.[suit.id]?.start ?? 1);
+      });
     };
 
     const applyDeckPatterns = (overwrite) => {
@@ -5231,6 +5455,29 @@
           }
         });
         return hexMapped;
+      }
+      if (deckState.system === "playing-cards") {
+        let mapped = 0;
+        deckState.files.forEach((entry) => {
+          const base = deckFileBase(entry.path);
+          let slot = "";
+          PLAYING_SUITS.some((suit) => {
+            const pattern = String(overlay.querySelector(`.dlc-deck-pat-${suit.id}`)?.value || "").trim();
+            const start = Number(overlay.querySelector(`.dlc-deck-start-${suit.id}`)?.value);
+            const number = matchDeckPattern(base, pattern);
+            if (number == null) return false;
+            const rankIndex = number - (Number.isInteger(start) ? start : 1);
+            const rank = PLAYING_RANKS[rankIndex];
+            if (!rank) return false;
+            slot = `pc-${suit.id}-${rank.id}`;
+            return true;
+          });
+          if (slot && (overwrite || !deckState.assigned[slot])) {
+            deckState.assigned[slot] = entry.path;
+            mapped += 1;
+          }
+        });
+        return mapped;
       }
       let mapped = 0;
       deckState.files.forEach((entry) => {
@@ -5357,8 +5604,77 @@
       });
     });
 
-    const applyDeckEntries = (entries) => {
+    const remapNumberedPlaying = () => {
+      const order = [0, 1, 2, 3].map((index) => (
+        String(overlay.querySelector(`[data-playing-suit-block="${index}"]`)?.value || PLAYING_SUITS[index].id)
+      ));
+      deckState.playingSuitOrder = order;
+      const zeroBased = deckState.files.some((entry) => /(^|\D)0{1,2}$/.test(deckFileBase(entry.path)));
+      const numberedPaths = new Set();
+      deckState.files.forEach((entry) => {
+        const number = numberedFileIndex(entry.path);
+        if (number >= 0 && number <= 52) numberedPaths.add(entry.path);
+      });
+      Object.keys(deckState.assigned).forEach((key) => {
+        if (key.startsWith("pc-") && numberedPaths.has(deckState.assigned[key])) {
+          delete deckState.assigned[key];
+        }
+      });
+      deckState.files.forEach((entry) => {
+        const slot = guessPlayingSlot(entry.path, order, zeroBased);
+        if (slot && slot.startsWith("pc-") && numberedPaths.has(entry.path)) {
+          deckState.assigned[slot] = entry.path;
+        }
+      });
+    };
+
+    overlay.querySelectorAll("[data-playing-suit-block]").forEach((select) => {
+      select.addEventListener("change", () => {
+        const index = Number(select.getAttribute("data-playing-suit-block"));
+        const nextId = String(select.value || "");
+        const other = deckState.playingSuitOrder.indexOf(nextId);
+        if (other >= 0 && other !== index) {
+          const swapped = [...deckState.playingSuitOrder];
+          swapped[other] = deckState.playingSuitOrder[index];
+          swapped[index] = nextId;
+          deckState.playingSuitOrder = swapped;
+        } else {
+          deckState.playingSuitOrder[index] = nextId;
+        }
+        overlay.querySelectorAll("[data-playing-suit-block]").forEach((entry, block) => {
+          entry.value = deckState.playingSuitOrder[block];
+        });
+        remapNumberedPlaying();
+        renderDeckEditor();
+        setFormStatus("Playing-card suit order updated for 00–51 files.");
+      });
+    });
+
+    const assignPlayingFiles = () => {
+      const byBase = new Map(deckState.files.map((entry) => [entry.path.split("/").pop().toLowerCase(), entry.path]));
+      const cards = Array.isArray(deckState.scanManifest?.cards) ? deckState.scanManifest.cards : [];
+      cards.forEach((card) => {
+        const path = byBase.get(String(card.file || "").toLowerCase());
+        if (!path) return;
+        if (card.back === true) {
+          if (!deckState.assigned.back) deckState.assigned.back = path;
+          return;
+        }
+        const coded = parsePlayingCode(card.name) || playingCodeFromBase(String(card.file || "").replace(/\.[^.]+$/, ""));
+        if (coded?.key && coded.key !== "back" && !deckState.assigned[coded.key]) {
+          deckState.assigned[coded.key] = path;
+        }
+      });
+      const usesZeroBased = deckState.files.some((entry) => /(^|\D)0{1,2}$/.test(deckFileBase(entry.path)));
+      deckState.files.forEach((entry) => {
+        const guessed = guessPlayingSlot(entry.path, deckState.playingSuitOrder, usesZeroBased);
+        if (guessed && !deckState.assigned[guessed]) deckState.assigned[guessed] = entry.path;
+      });
+    };
+
+    const applyDeckEntries = (entries, scanManifest = null) => {
       revokeFaceUrls();
+      deckState.scanManifest = scanManifest;
       deckState.files = entries;
       deckState.assigned = {};
       deckState.pendingLoose = "";
@@ -5366,11 +5682,19 @@
       deckState.suitNames = {};
       deckState.courtNames = {};
       deckState.suitOrder = DECK_SUITS.map((suit) => suit.id);
+      deckState.playingSuitOrder = PLAYING_SUITS.map((suit) => suit.id);
       overlay.querySelectorAll("[data-suit-block]").forEach((select, index) => {
         select.value = deckState.suitOrder[index];
       });
+      overlay.querySelectorAll("[data-playing-suit-block]").forEach((select, index) => {
+        select.value = deckState.playingSuitOrder[index];
+      });
+      if (deckState.system === "playing-cards") {
+        assignPlayingFiles();
+      }
       const usesZeroBased = deckState.files.some((entry) => /(^|\D)0{1,2}$/.test(deckFileBase(entry.path)));
       deckState.files.forEach((entry) => {
+        if (deckState.system === "playing-cards") return;
         const guessed = guessDeckSlot(entry.path, deckState.suitOrder);
         if (guessed === "back") {
           if (!deckState.assigned.back) deckState.assigned.back = entry.path;
@@ -5397,6 +5721,10 @@
         const aliasEl = overlay.querySelector(`.dlc-deck-alias-${suit.id}`);
         if (aliasEl) aliasEl.value = "";
       });
+      PLAYING_SUITS.forEach((suit) => {
+        const aliasEl = overlay.querySelector(`.dlc-deck-alias-${suit.id}`);
+        if (aliasEl) aliasEl.value = "";
+      });
       COURT_RANKS.forEach((rankId) => {
         const courtEl = overlay.querySelector(`.dlc-deck-court-${rankId}`);
         if (courtEl) courtEl.value = "";
@@ -5420,6 +5748,7 @@
 
     const applyDeckModeUi = () => {
       const isIChing = deckState.system === "iching";
+      const isPlaying = deckState.system === "playing-cards";
       overlay.querySelectorAll("[data-deck-mode]").forEach((button) => {
         const active = button.getAttribute("data-deck-mode") === deckState.system;
         button.classList.toggle("is-active", active);
@@ -5427,20 +5756,27 @@
       });
       const majorsHeading = overlay.querySelector("[data-role='deck-majors-heading']");
       if (majorsHeading) majorsHeading.textContent = isIChing ? "Hexagrams" : "Trumps";
+      const majorsSection = overlay.querySelector("[data-role='deck-majors-section']");
+      if (majorsSection) majorsSection.style.display = isPlaying ? "none" : "";
       const majorsPatternRow = overlay.querySelector("[data-role='deck-majors-pattern-row']");
-      if (majorsPatternRow) majorsPatternRow.style.display = isIChing ? "none" : "";
+      if (majorsPatternRow) majorsPatternRow.style.display = isIChing || isPlaying ? "none" : "";
       const suitOrder = overlay.querySelector(".dlc-deck-suit-order");
-      if (suitOrder) suitOrder.style.display = isIChing ? "none" : "";
+      if (suitOrder) suitOrder.style.display = isIChing || isPlaying ? "none" : "";
+      const playingOrder = overlay.querySelector("[data-role='playing-suit-order']");
+      if (playingOrder) playingOrder.hidden = !isPlaying;
       overlay.querySelectorAll("[data-role^='suit-head-']").forEach((heading) => {
         const section = heading.closest(".dlc-deck-pattern-card");
-        if (section) section.style.display = isIChing ? "none" : "";
+        if (section) section.style.display = isIChing || isPlaying ? "none" : "";
+      });
+      overlay.querySelectorAll("[data-role='playing-suit-section']").forEach((section) => {
+        section.hidden = !isPlaying;
       });
       const courtSection = overlay.querySelector("[data-role='deck-court-section']");
-      if (courtSection) courtSection.style.display = isIChing ? "none" : "";
+      if (courtSection) courtSection.style.display = isIChing || isPlaying ? "none" : "";
     };
 
     const setDeckMode = async (system) => {
-      const next = system === "iching" ? "iching" : "tarot";
+      const next = system === "iching" || system === "playing-cards" ? system : "tarot";
       deckState.system = next;
       if (next === "iching") {
         await ensureIChingNames();
@@ -5449,10 +5785,16 @@
       deckState.assigned = {};
       deckState.pendingLoose = "";
       applyDeckModeUi();
+      if (deckState.files.length && next === "playing-cards") {
+        assignPlayingFiles();
+        applyDeckPatterns(false);
+      }
       renderDeckEditor();
       setFormStatus(next === "iching"
         ? "I Ching mode: 64 hexagram slots + back. Map the images, then save."
-        : "Tarot mode: 78 cards + back.");
+        : next === "playing-cards"
+          ? "Playing cards: 52 cards + back (AS, 2S… order Spades, Hearts, Diamonds, Clovers)."
+          : "Tarot mode: 78 cards + back.");
     };
 
     overlay.querySelectorAll("[data-deck-mode]").forEach((button) => {
@@ -5462,12 +5804,26 @@
     });
     applyDeckModeUi();
 
-    overlay.querySelector(".dlc-create-deck-folder").addEventListener("change", (event) => {
-      const files = [...(event.currentTarget.files || [])].filter((file) => DECK_IMAGE_EXT.test(file.name));
+    const deckFolderInput = overlay.querySelector(".dlc-create-deck-folder");
+    const deckFolderLabel = overlay.querySelector("[data-role='deck-folder-label']");
+    if (deckFolderInput && deckFolderLabel) {
+      // Directory pickers are unreliable when the input is display:none, so we
+      // open the chooser from the label and keep the input rendered/invisible.
+      deckFolderLabel.addEventListener("click", (event) => {
+        event.preventDefault();
+        // Clearing the value lets the same folder be re-picked and re-fires change.
+        deckFolderInput.value = "";
+        deckFolderInput.click();
+      });
+    }
+    deckFolderInput.addEventListener("change", (event) => {
+      const picked = [...(event.currentTarget.files || [])];
+      const files = picked.filter((file) => DECK_IMAGE_EXT.test(file.name));
       if (!files.length) {
         setFormStatus("No images found in that folder.", true);
         return;
       }
+      const scanFile = picked.find((file) => /(^|\/)scan\.json$/i.test(String(file.webkitRelativePath || file.name).replace(/\\/g, "/")));
       const entries = files.map((file) => {
         const path = String(file.webkitRelativePath || file.name).replace(/\\/g, "/");
         return {
@@ -5476,7 +5832,30 @@
           url: URL.createObjectURL(file)
         };
       });
-      applyDeckEntries(entries);
+      const apply = (scanManifest) => {
+        const codedFiles = entries.filter((entry) => String(playingCodeFromBase(deckFileBase(entry.path))?.key || "").startsWith("pc-"));
+        const scanLooksPlaying = (scanManifest?.cards || []).some((card) => parsePlayingCode(card.name));
+        if ((scanLooksPlaying || codedFiles.length >= 13) && deckState.system !== "playing-cards") {
+          deckState.system = "playing-cards";
+          deckSlots = deckSlotList("playing-cards");
+        }
+        applyDeckEntries(entries, scanManifest);
+        applyDeckModeUi();
+        if (scanManifest?.cards?.length && deckState.system === "playing-cards") {
+          setFormStatus(`Mapped from scan.json (${scanManifest.cards.length} faces). Check the grid, then save.`);
+        }
+      };
+      if (!scanFile) {
+        apply(null);
+        return;
+      }
+      scanFile.text().then((text) => {
+        try {
+          apply(JSON.parse(text));
+        } catch (_error) {
+          apply(null);
+        }
+      }).catch(() => apply(null));
     });
 
     overlay.querySelector('[data-action="deck-help"]').addEventListener("click", () => {
@@ -5494,7 +5873,8 @@
             <p class="settings-field-hint">Pattern <code>a##</code> is a prefix plus number. Start is the first index in those files (0 or 1). Detect reads letter groups like a/b/c from the folder.</p>
             <p class="settings-field-hint">Left-click a card to view it larger. Right-click to rename, unmap, or assign a selected leftover. Shown as maps a suit (Wands → Batons) onto the standard deck, and Court names renames Page/Knight/Queen/King across every suit.</p>
             <p class="settings-field-hint">For 00–77 files, After trumps sets which suit owns 22–35, 36–49, 50–63, and 64–77. Right-click a suit heading to swap its cards with another suit.</p>
-            <p class="settings-field-hint">Unmapped leftovers can be assigned or skipped. All 78 slots are required unless you allow an incomplete deck.</p>
+            <p class="settings-field-hint">Unmapped leftovers can be assigned or skipped. All 78 tarot, 64 I Ching, or 52 playing-card slots are required unless you allow an incomplete deck. Playing cards also take a back.</p>
+            <p class="settings-field-hint">Playing-card files named like <code>01-as.webp</code> (AS, 2S, KH…) map automatically, Spades → Hearts → Diamonds → Clovers. A folder <code>scan.json</code> from the ZIO scraper is used when present.</p>
           </div>
         </div>
       `;
@@ -5550,6 +5930,17 @@
           }))
         ]);
       });
+      overlay.querySelector(`.dlc-deck-alias-${suit.id}`)?.addEventListener("input", (event) => {
+        const value = String(event.currentTarget.value || "").trim();
+        if (value && value !== suit.label) {
+          deckState.suitNames[suit.id] = value;
+        } else {
+          delete deckState.suitNames[suit.id];
+        }
+        renderDeckEditor();
+      });
+    });
+    PLAYING_SUITS.forEach((suit) => {
       overlay.querySelector(`.dlc-deck-alias-${suit.id}`)?.addEventListener("input", (event) => {
         const value = String(event.currentTarget.value || "").trim();
         if (value && value !== suit.label) {
@@ -5642,10 +6033,17 @@
         const minorNameOverrides = {};
         const suitNameOverrides = {};
         const courtNameOverrides = {};
+        const playingNameOverrides = {};
         DECK_SUITS.forEach((suit) => {
           const custom = String(deckState.suitNames[suit.id] || overlay.querySelector(`.dlc-deck-alias-${suit.id}`)?.value || "").trim();
           if (custom && custom !== suit.label) {
             suitNameOverrides[suit.id === "pentacles" ? "disks" : suit.id] = custom;
+          }
+        });
+        PLAYING_SUITS.forEach((suit) => {
+          const custom = String(deckState.suitNames[suit.id] || overlay.querySelector(`.dlc-deck-alias-${suit.id}`)?.value || "").trim();
+          if (custom && custom !== suit.label) {
+            suitNameOverrides[suit.id] = custom;
           }
         });
         COURT_RANKS.forEach((rankId) => {
@@ -5665,6 +6063,16 @@
             }
             return;
           }
+          if (slot.key.startsWith("pc-")) {
+            const parts = slot.key.split("-");
+            const suitId = parts[1];
+            const rankId = parts.slice(2).join("-");
+            const defaultName = `${playingRankLabel(rankId)} of ${suitLabel(suitId)}`;
+            if (custom !== defaultName) {
+              playingNameOverrides[`${rankId} of ${suitId}`] = custom;
+            }
+            return;
+          }
           const parts = slot.key.split("-");
           const suitId = parts[1] === "pentacles" ? "disks" : parts[1];
           const rankId = parts.slice(2).join("-");
@@ -5679,6 +6087,7 @@
         const hexagramCards = {};
         const hexagramNames = {};
         const hexagramLines = {};
+        const playingCards = {};
         const addFile = async (slotFile, zipName) => {
           const entry = fileByPath.get(slotFile);
           if (!entry) return;
@@ -5701,6 +6110,11 @@
           }
           if (slot.key.startsWith("major-")) {
             majorCards[String(slot.key.slice(6))] = zipName;
+          } else if (slot.key.startsWith("pc-")) {
+            const parts = slot.key.split("-");
+            const suitId = parts[1];
+            const rankId = parts.slice(2).join("-");
+            playingCards[`${rankId} of ${suitId}`] = zipName;
           } else {
             const parts = slot.key.split("-");
             const suitId = parts[1] === "pentacles" ? "disks" : parts[1];
@@ -5726,6 +6140,20 @@
             hexagramNames,
             hexagramLines
           };
+        } else if (deckState.system === "playing-cards") {
+          manifest = {
+            id,
+            name: title,
+            system: "playing-cards",
+            thumbnails,
+            cards: playingCards
+          };
+          if (Object.keys(playingNameOverrides).length) {
+            manifest.cardNameOverrides = playingNameOverrides;
+          }
+          if (Object.keys(suitNameOverrides).length) {
+            manifest.suitNameOverrides = suitNameOverrides;
+          }
         } else {
           manifest = {
             id,
@@ -5898,7 +6326,9 @@
           // Editing keeps the deck's id stable: renaming the title must not
           // change identity or the runtime/installed deck would look new.
           deckState.idManual = true;
-          const isIChing = String(manifest.system || "").toLowerCase() === "iching";
+          const savedSystem = String(manifest.system || "").toLowerCase();
+          const isIChing = savedSystem === "iching";
+          const isPlaying = savedSystem === "playing-cards";
           if (isIChing) {
             deckState.system = "iching";
             await ensureIChingNames();
@@ -5921,6 +6351,33 @@
             });
             if (manifest.cardBack) {
               const backPath = byBaseHex.get(String(manifest.cardBack).toLowerCase());
+              if (backPath) deckState.assigned.back = backPath;
+            }
+          } else if (isPlaying) {
+            deckState.system = "playing-cards";
+            deckSlots = deckSlotList("playing-cards");
+            applyDeckModeUi();
+            applyDeckEntries(entries);
+            const byBasePlay = new Map(entries.map((entry) => [entry.path.split("/").pop().toLowerCase(), entry.path]));
+            Object.entries(manifest.cards || {}).forEach(([key, fileName]) => {
+              const path = byBasePlay.get(String(fileName).toLowerCase());
+              if (!path) return;
+              const match = String(key).toLowerCase().match(/^(.+?)\s+of\s+(.+)$/);
+              if (!match) return;
+              const slotKey = `pc-${match[2]}-${match[1]}`;
+              if (deckSlots.some((slot) => slot.key === slotKey)) deckState.assigned[slotKey] = path;
+            });
+            Object.entries(manifest.cardNameOverrides || {}).forEach(([key, name]) => {
+              const match = String(key).toLowerCase().match(/^(.+?)\s+of\s+(.+)$/);
+              if (match && String(name || "").trim()) {
+                deckState.cardNames[`pc-${match[2]}-${match[1]}`] = String(name).trim();
+              }
+            });
+            Object.entries(manifest.suitNameOverrides || {}).forEach(([suitId, name]) => {
+              if (PLAYING_SUITS.some((suit) => suit.id === suitId)) deckState.suitNames[suitId] = name;
+            });
+            if (manifest.cardBack) {
+              const backPath = byBasePlay.get(String(manifest.cardBack).toLowerCase());
               if (backPath) deckState.assigned.back = backPath;
             }
           } else {
@@ -5979,6 +6436,10 @@
           if (titleEl) titleEl.value = manifest.name || manifest.label || manifest.title || editItem.title || titleEl.value;
           if (idEl) idEl.value = manifest.id || editItem.name;
           DECK_SUITS.forEach((suit) => {
+            const aliasEl = overlay.querySelector(`.dlc-deck-alias-${suit.id}`);
+            if (aliasEl) aliasEl.value = deckState.suitNames[suit.id] || "";
+          });
+          PLAYING_SUITS.forEach((suit) => {
             const aliasEl = overlay.querySelector(`.dlc-deck-alias-${suit.id}`);
             if (aliasEl) aliasEl.value = deckState.suitNames[suit.id] || "";
           });

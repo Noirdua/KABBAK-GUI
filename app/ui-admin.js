@@ -39,6 +39,9 @@
       settingOverlayUrlEl: document.getElementById("admin-setting-overlay-url"),
       settingOverlayFileEl: document.getElementById("admin-setting-overlay-file"),
       settingOverlayClearEl: document.getElementById("admin-setting-overlay-clear"),
+      settingFaviconUrlEl: document.getElementById("admin-setting-favicon-url"),
+      settingFaviconFileEl: document.getElementById("admin-setting-favicon-file"),
+      settingFaviconClearEl: document.getElementById("admin-setting-favicon-clear"),
       settingsSaveBtn: document.getElementById("admin-settings-save"),
       envReadonlyEl: document.getElementById("admin-env-readonly"),
       logLevelEl: document.getElementById("admin-log-level"),
@@ -1862,6 +1865,7 @@
       settingSecretClearEl,
       settingBrowserTitleEl,
       settingOverlayUrlEl,
+      settingFaviconUrlEl,
       envReadonlyEl
     } = getElements();
     if (!settingLogModeEl) return;
@@ -1901,6 +1905,9 @@
       if (settingOverlayUrlEl) {
         settingOverlayUrlEl.value = String(settings?.overlayBackgroundUrl || "");
       }
+      if (settingFaviconUrlEl) {
+        settingFaviconUrlEl.value = String(settings?.faviconUrl || "");
+      }
       if (envReadonlyEl) {
         const env = settings?.envOnly || {};
         envReadonlyEl.innerHTML = "";
@@ -1933,6 +1940,7 @@
       settingSecretClearEl,
       settingBrowserTitleEl,
       settingOverlayUrlEl,
+      settingFaviconUrlEl,
       settingsSaveBtn
     } = getElements();
     if (!settingsSaveBtn) return;
@@ -1947,7 +1955,8 @@
           .filter(Boolean),
         autoMigrateEnabled: settingAutoMigrateEl?.value === "true",
         browserTitle: String(settingBrowserTitleEl?.value || "").trim(),
-        overlayBackgroundUrl: String(settingOverlayUrlEl?.value || "").trim()
+        overlayBackgroundUrl: String(settingOverlayUrlEl?.value || "").trim(),
+        faviconUrl: String(settingFaviconUrlEl?.value || "").trim()
       };
       const bodyLimit = String(settingBodyLimitEl?.value || "").trim();
       if (bodyLimit) {
@@ -1976,6 +1985,10 @@
       }
       window.TarotAppConfig?.applyOverlayBackground?.(
         body.overlayBackgroundUrl,
+        window.TarotDataService?.getApiBaseUrl?.() || window.TarotAppConfig?.apiBaseUrl
+      );
+      window.TarotAppConfig?.applyFavicon?.(
+        body.faviconUrl,
         window.TarotDataService?.getApiBaseUrl?.() || window.TarotAppConfig?.apiBaseUrl
       );
       await loadServerSettings();
@@ -2119,6 +2132,43 @@
           setStatus("Overlay background cleared.");
         } catch (error) {
           setStatus(`Could not clear overlay. ${error?.message || ""}`, true);
+        }
+      });
+    }
+    const { settingFaviconFileEl, settingFaviconClearEl, settingFaviconUrlEl } = getElements();
+    if (settingFaviconFileEl) {
+      settingFaviconFileEl.addEventListener("change", async () => {
+        const file = settingFaviconFileEl.files?.[0];
+        settingFaviconFileEl.value = "";
+        if (!file) return;
+        try {
+          const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error("Could not read image."));
+            reader.readAsDataURL(file);
+          });
+          const payload = await requestJson("POST", "/api/v1/admin/favicon", { data: dataUrl, fileName: file.name });
+          if (settingFaviconUrlEl) settingFaviconUrlEl.value = String(payload?.faviconUrl || "");
+          window.TarotAppConfig?.applyFavicon?.(
+            payload?.faviconUrl,
+            window.TarotDataService?.getApiBaseUrl?.() || window.TarotAppConfig?.apiBaseUrl
+          );
+          setStatus("Favicon uploaded.");
+        } catch (error) {
+          setStatus(`Could not upload favicon. ${error?.message || ""}`, true);
+        }
+      });
+    }
+    if (settingFaviconClearEl) {
+      settingFaviconClearEl.addEventListener("click", async () => {
+        try {
+          await requestJson("DELETE", "/api/v1/admin/favicon");
+          if (settingFaviconUrlEl) settingFaviconUrlEl.value = "";
+          window.TarotAppConfig?.applyFavicon?.("");
+          setStatus("Favicon cleared.");
+        } catch (error) {
+          setStatus(`Could not clear favicon. ${error?.message || ""}`, true);
         }
       });
     }
@@ -2650,7 +2700,9 @@
             ? "Tarot Decks"
             : system === "iching"
               ? "I Ching Decks"
-              : `${system.charAt(0).toUpperCase()}${system.slice(1)} Decks`;
+              : system === "playing-cards"
+                ? "Playing Card Decks"
+                : `${system.charAt(0).toUpperCase()}${system.slice(1)} Decks`;
           groups.push({ kind: "deck", headingLabel, items: deckItems });
         });
     });

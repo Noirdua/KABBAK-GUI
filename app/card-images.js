@@ -859,6 +859,7 @@
       minors: rawManifest.minors || {},
       hexagrams: rawManifest.hexagrams && typeof rawManifest.hexagrams === "object" ? rawManifest.hexagrams : {},
       hexagramNames: rawManifest.hexagramNames && typeof rawManifest.hexagramNames === "object" ? rawManifest.hexagramNames : {},
+      cards: rawManifest.cards && typeof rawManifest.cards === "object" ? rawManifest.cards : {},
       minorNameOverrides,
       majorNameOverridesByTrump,
       suitNameOverrides
@@ -1092,13 +1093,46 @@
     return file ? normalizeCardFiles(file) : [];
   }
 
+  function resolvePlayingCardFiles(manifest, cardName) {
+    const cards = manifest?.cards && typeof manifest.cards === "object" ? manifest.cards : {};
+    const match = String(cardName || "")
+      .trim()
+      .toLowerCase()
+      .match(/^(ace|two|three|four|five|six|seven|eight|nine|ten|jack|queen|king|knave|[2-9]|10|a|j|q|k)\s+of\s+(hearts?|diamonds?|clubs?|clovers?|spades?)$/);
+    if (!match) return [];
+    const rankMap = {
+      ace: "ace", a: "ace", 1: "ace",
+      two: "two", 2: "two", three: "three", 3: "three",
+      four: "four", 4: "four", five: "five", 5: "five",
+      six: "six", 6: "six", seven: "seven", 7: "seven",
+      eight: "eight", 8: "eight", nine: "nine", 9: "nine",
+      ten: "ten", 10: "ten",
+      jack: "jack", j: "jack", knave: "jack",
+      queen: "queen", q: "queen",
+      king: "king", k: "king"
+    };
+    const suitMap = {
+      heart: "hearts", hearts: "hearts",
+      diamond: "diamonds", diamonds: "diamonds",
+      club: "clubs", clubs: "clubs", clover: "clubs", clovers: "clubs",
+      spade: "spades", spades: "spades"
+    };
+    const key = `${rankMap[match[1]] || ""} of ${suitMap[match[2]] || ""}`;
+    const file = cards[key] || Object.entries(cards).find(([name]) => String(name).trim().toLowerCase() === key)?.[1];
+    return file ? normalizeCardFiles(file) : [];
+  }
+
   function resolveCardRelativePaths(manifest, cardName) {
     if (!manifest) {
       return [];
     }
 
-    if (String(manifest.system || "").trim().toLowerCase() === "iching") {
+    const system = String(manifest.system || "").trim().toLowerCase();
+    if (system === "iching") {
       return resolveIChingCardFiles(manifest, cardName);
+    }
+    if (system === "playing-cards") {
+      return resolvePlayingCardFiles(manifest, cardName);
     }
 
     const canonical = canonicalMajorName(cardName);

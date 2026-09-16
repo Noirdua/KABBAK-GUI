@@ -60,7 +60,42 @@
   const FRAME_LAYOUT_NOTES_STORAGE_KEY = "tarot-frame-layout-notes-v1";
   const FRAME_SYSTEM_STORAGE_KEY = "tarot-frame-system-v1";
   const FRAME_EXPORT_COUNTS_STORAGE_KEY = "tarot-frame-export-counts-v1";
-  const FRAME_SYSTEM_LABELS = { tarot: "Tarot", iching: "I Ching" };
+  const FRAME_SYSTEM_LABELS = { tarot: "Tarot", iching: "I Ching", "playing-cards": "Playing cards" };
+  const PLAYING_CARD_SUITS = [
+    { id: "spades", label: "Spades" },
+    { id: "hearts", label: "Hearts" },
+    { id: "diamonds", label: "Diamonds" },
+    { id: "clubs", label: "Clovers" }
+  ];
+  const PLAYING_CARD_RANKS = [
+    { id: "ace", label: "Ace" },
+    { id: "two", label: "Two" },
+    { id: "three", label: "Three" },
+    { id: "four", label: "Four" },
+    { id: "five", label: "Five" },
+    { id: "six", label: "Six" },
+    { id: "seven", label: "Seven" },
+    { id: "eight", label: "Eight" },
+    { id: "nine", label: "Nine" },
+    { id: "ten", label: "Ten" },
+    { id: "jack", label: "Jack" },
+    { id: "queen", label: "Queen" },
+    { id: "king", label: "King" }
+  ];
+  const PLAYING_CARDS = PLAYING_CARD_SUITS.flatMap((suit, suitIndex) => PLAYING_CARD_RANKS.map((rank, rankIndex) => ({
+    id: `pc-${suit.id}-${rank.id}`,
+    name: `${rank.label} of ${suit.label}`,
+    arcana: "Playing",
+    number: (suitIndex * 13) + rankIndex + 1,
+    suit: suit.label,
+    rank: rank.label
+  })));
+
+  function normalizeFrameSystem(system) {
+    const value = String(system || "").trim().toLowerCase();
+    if (value === "iching" || value === "playing-cards") return value;
+    return "tarot";
+  }
   const HOUSE_TOP_INFO_MODE_IDS = ["hebrew", "planet", "zodiac", "trump", "path", "date"];
   const HOUSE_BOTTOM_INFO_MODE_IDS = ["zodiac", "decan", "month", "ruler", "date"];
   const FRAME_LONG_PRESS_DELAY_MS = 460;
@@ -304,7 +339,7 @@
     gridZoomScale: FRAME_GRID_ZOOM_STEPS[0],
     system: "tarot"
   };
-  state.system = String(readStorageValue(FRAME_SYSTEM_STORAGE_KEY) || "").trim().toLowerCase() === "iching" ? "iching" : "tarot";
+  state.system = normalizeFrameSystem(readStorageValue(FRAME_SYSTEM_STORAGE_KEY));
 
   let config = {
     ensureTarotSection: null,
@@ -682,7 +717,7 @@
   }
 
   function getDeckOptionsList() {
-    const wantedSystem = state.system === "iching" ? "iching" : "tarot";
+    const wantedSystem = normalizeFrameSystem(state.system);
     const options = (Array.isArray(tarotCardImages.getDeckOptions?.())
       ? tarotCardImages.getDeckOptions()
       : []
@@ -735,30 +770,30 @@
     if (tarotFrameSystemEl) {
       tarotFrameSystemEl.value = state.system;
     }
-    const isIChing = state.system === "iching";
+    const hideTarotChrome = state.system !== "tarot";
     [[tarotFrameLayoutOptionsEl, "tarot-frame-layout-options"], [tarotFrameFramesPanelEl, "tarot-frame-frames-panel"]]
       .forEach(([element]) => {
         if (!(element instanceof HTMLElement)) return;
-        element.style.display = isIChing ? "none" : "";
+        element.style.display = hideTarotChrome ? "none" : "";
         const heading = element.previousElementSibling;
         if (heading && heading.classList?.contains("tarot-frame-settings-heading")) {
-          heading.style.display = isIChing ? "none" : "";
+          heading.style.display = hideTarotChrome ? "none" : "";
         }
       });
     // Tarot-only display info (Hebrew, planet, zodiac, trump, path, date…) does
-    // not apply to hexagram cards.
+    // not apply to hexagram or playing cards.
     const showInfoLabel = document.getElementById("tarot-frame-show-info")?.closest("label");
     if (showInfoLabel) {
-      showInfoLabel.style.display = isIChing ? "none" : "";
+      showInfoLabel.style.display = hideTarotChrome ? "none" : "";
     }
     const houseSettings = document.getElementById("tarot-frame-house-settings");
     if (houseSettings) {
-      houseSettings.style.display = isIChing ? "none" : "";
+      houseSettings.style.display = hideTarotChrome ? "none" : "";
     }
   }
 
   function setFrameSystem(system) {
-    const next = system === "iching" ? "iching" : "tarot";
+    const next = normalizeFrameSystem(system);
     if (state.system === next) {
       syncSystemUi();
       return;
@@ -2455,6 +2490,17 @@
         .filter((section) => section.groups.some((group) => group.items.length));
     }
 
+    if (state.system === "playing-cards") {
+      const groups = PLAYING_CARD_SUITS.map((suit) => {
+        const items = cards
+          .filter((card) => card?.suit === suit.label && matchesQuery(card))
+          .sort((left, right) => Number(left?.number) - Number(right?.number));
+        return { title: suit.label, items };
+      }).filter((group) => group.items.length);
+      return [{ title: "Playing cards", groups }]
+        .filter((section) => section.groups.some((group) => group.items.length));
+    }
+
     const majorCards = cards
       .filter((card) => card?.arcana === "Major" && matchesQuery(card))
       .sort((left, right) => Number(left?.number) - Number(right?.number));
@@ -3188,6 +3234,9 @@
   function getCards() {
     if (state.system === "iching") {
       return Array.isArray(frameIChingCards) ? frameIChingCards : [];
+    }
+    if (state.system === "playing-cards") {
+      return PLAYING_CARDS;
     }
     const cards = config.getCards?.();
     return Array.isArray(cards) ? cards : [];

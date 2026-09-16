@@ -420,6 +420,25 @@
     document.documentElement.style.setProperty("--tt-lightbox-overlay-image", safe ? `url("${safe}")` : "none");
   }
 
+  function applyFavicon(rawUrl, apiBaseUrl) {
+    const href = String(resolvePublicApiUrl(rawUrl, apiBaseUrl) || "").trim();
+    const link = document.createElement("link");
+    link.id = "app-favicon";
+    link.rel = "icon";
+    if (href) {
+      link.setAttribute("href", href);
+    } else {
+      link.setAttribute("href", "favicon.ico");
+      link.setAttribute("type", "image/x-icon");
+    }
+    const existing = document.getElementById("app-favicon");
+    if (existing && existing.parentNode) {
+      existing.parentNode.replaceChild(link, existing);
+    } else {
+      document.head.appendChild(link);
+    }
+  }
+
   function applyBranding(branding, logoUrl = "") {
     const title = String(branding?.title || "KABBAK").trim() || "KABBAK";
     const homeLabel = String(branding?.homeLabel || title).trim() || title;
@@ -475,6 +494,7 @@
               document.title = remoteTitle;
             }
             applyOverlayBackground(brandingPayload?.overlayBackgroundUrl, remoteBrandingApiBaseUrl);
+            applyFavicon(brandingPayload?.faviconUrl, remoteBrandingApiBaseUrl);
           }
         } catch (_error) {
           // Optional enhancement; the static branding title stays in place.
@@ -619,6 +639,7 @@
       return { ...(this.branding || brandingConfig || {}) };
     },
     applyOverlayBackground,
+    applyFavicon,
     hasUserSavedSettings
   };
 })();

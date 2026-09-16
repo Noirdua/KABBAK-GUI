@@ -2189,6 +2189,17 @@
     .dlc-file-btn input[type="file"] {
       display: none;
     }
+    /* Chromium will not open a directory chooser for a display:none
+       webkitdirectory input, so keep this one rendered but invisible. */
+    .dlc-file-btn input.dlc-dir-input {
+      display: block;
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      margin: 0;
+      pointer-events: none;
+    }
     .dlc-create-kinds {
       display: flex;
       flex-wrap: wrap;

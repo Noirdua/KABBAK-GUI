@@ -31,7 +31,7 @@
     ],
     tarotFrame: [
       "node_modules/html2canvas/dist/html2canvas.min.js",
-      "app/ui-tarot-frame.js?v=20260914-frame-export-name"
+      "app/ui-tarot-frame.js?v=20260916-zio-codes"
     ],
     tarotHouse: [
       "app/ui-tarot-house.js?v=20260401-house-top-date-01"
@@ -126,7 +126,7 @@
       "app/ui-natal.js"
     ],
     admin: [
-      "app/ui-admin.js?v=20260915-community"
+      "app/ui-admin.js?v=20260916-favicon-upload"
     ],
     profile: [
       "app/ui-profile.js?v=20260915-directory"
