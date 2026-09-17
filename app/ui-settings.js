@@ -27,6 +27,8 @@
   };
 
   let lastConnectionProbeResult = null;
+  let cachedProfileLocation = null;
+  let profileLocationPromise = null;
 
   let lastNonSettingsSection = "home";
 
@@ -34,8 +36,9 @@
     return {
       openSettingsEl: document.getElementById("open-settings"),
       closeSettingsEl: document.getElementById("close-settings"),
-      latEl: document.getElementById("now-lat") || document.getElementById("lat"),
-      lngEl: document.getElementById("now-lng") || document.getElementById("lng"),
+      nowLocationLabelEl: document.getElementById("now-location-label"),
+      nowLocationCoordsEl: document.getElementById("now-location-coords"),
+      nowLocationEditEl: document.getElementById("now-location-edit"),
       timeFormatEl: document.getElementById("time-format"),
       nowTimeFormatEl: document.getElementById("now-time-format"),
       birthDateEl: document.getElementById("birth-date"),
@@ -57,7 +60,6 @@
       saveSettingsEl: document.getElementById("save-settings"),
       nowSettingsSaveEl: document.getElementById("now-settings-save"),
       nowSettingsStatusEl: document.getElementById("now-settings-status"),
-      useLocationEl: document.getElementById("now-use-location") || document.getElementById("use-location"),
       stellariumBackgroundEl: document.getElementById("now-stellarium-toggle")
         || document.getElementById("stellarium-background")
     };
@@ -138,32 +140,72 @@
     saveSettingsEl.textContent = isBusy ? "Saving..." : saveSettingsEl.dataset.defaultLabel;
   }
 
-  function setLocationEntryState(isExplicit) {
-    const { latEl, lngEl } = getElements();
-    const normalizedValue = isExplicit ? "true" : "false";
-
-    if (latEl) {
-      latEl.dataset.explicitLocation = normalizedValue;
+  // The Sky page now follows the Profile location instead of local lat/long.
+  function resolveProfileGeo() {
+    const location = window.ProfileUi?.getLocation?.() || cachedProfileLocation;
+    const latitude = Number(location?.latitude);
+    const longitude = Number(location?.longitude);
+    if (
+      Number.isFinite(latitude)
+      && Number.isFinite(longitude)
+      && Math.abs(latitude) <= 90
+      && Math.abs(longitude) <= 180
+    ) {
+      return { latitude, longitude, label: String(location?.label || "").trim() };
     }
+    return null;
+  }
 
-    if (lngEl) {
-      lngEl.dataset.explicitLocation = normalizedValue;
+  // Profile module is lazy-loaded, so fetch the saved location once the API
+  // connection is up and cache it for the Sky page.
+  async function loadProfileLocation() {
+    if (window.ProfileUi?.getLocation?.()) {
+      return cachedProfileLocation;
+    }
+    if (profileLocationPromise) {
+      return profileLocationPromise;
+    }
+    profileLocationPromise = (async () => {
+      try {
+        const service = window.TarotDataService;
+        const summary = await service?.requestJson?.("GET", service.buildApiUrl("/api/v1/profile"));
+        const location = summary?.location && typeof summary.location === "object"
+          ? summary.location
+          : null;
+        if (!location) {
+          return null;
+        }
+        cachedProfileLocation = location;
+        document.dispatchEvent(new CustomEvent("profile:location-updated", { detail: { location } }));
+        return location;
+      } catch (_error) {
+        return null;
+      } finally {
+        profileLocationPromise = null;
+      }
+    })();
+    return profileLocationPromise;
+  }
+
+  function renderProfileLocation() {
+    const { nowLocationLabelEl, nowLocationCoordsEl } = getElements();
+    const geo = resolveProfileGeo();
+    if (nowLocationLabelEl) {
+      nowLocationLabelEl.textContent = geo?.label || (geo ? "Profile location" : "Not set");
+    }
+    if (nowLocationCoordsEl) {
+      nowLocationCoordsEl.textContent = geo
+        ? `${geo.latitude.toFixed(4)}, ${geo.longitude.toFixed(4)}`
+        : "Set your location on the Profile page; Sky uses it automatically.";
     }
   }
 
   function hasExplicitLocationEntry() {
-    const { latEl } = getElements();
-    return latEl?.dataset.explicitLocation === "true";
+    return Boolean(resolveProfileGeo());
   }
 
   function hasValidLocationInputs() {
-    const { latEl, lngEl } = getElements();
-    const latitude = Number(latEl?.value);
-    const longitude = Number(lngEl?.value);
-    return Number.isFinite(latitude)
-      && Number.isFinite(longitude)
-      && Math.abs(latitude) <= 90
-      && Math.abs(longitude) <= 180;
+    return Boolean(resolveProfileGeo());
   }
 
   function syncStellariumBackgroundAvailability() {
@@ -181,13 +223,13 @@
 
     if (stellariumBackgroundHintEl) {
       stellariumBackgroundHintEl.textContent = hasValidLocation
-        ? "Uses the Sky page location to load the live sky background."
-        : "Enter a valid latitude/longitude on the Sky page before enabling the live sky background.";
+        ? "Uses your Profile location to load the live sky background."
+        : "Set your location on the Profile page before enabling the live sky background.";
     }
   }
 
   function markLocationAsExplicit() {
-    setLocationEntryState(true);
+    renderProfileLocation();
     syncStellariumBackgroundAvailability();
   }
   function getConnectionSettings() {
@@ -563,17 +605,25 @@
   }
 
   function loadSavedSettings() {
+    let normalized;
     try {
       const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
-      if (!raw) {
-        return { ...config.defaultSettings };
-      }
-
-      const parsed = JSON.parse(raw);
-      return normalizeSettings(parsed);
+      normalized = raw ? normalizeSettings(JSON.parse(raw)) : { ...config.defaultSettings };
     } catch {
-      return { ...config.defaultSettings };
+      normalized = { ...config.defaultSettings };
     }
+
+    // Profile location overrides any locally stored coordinates.
+    const profileGeo = resolveProfileGeo();
+    if (profileGeo) {
+      normalized = normalizeSettings({
+        ...normalized,
+        latitude: profileGeo.latitude,
+        longitude: profileGeo.longitude,
+        hasExplicitLocation: true
+      });
+    }
+    return normalized;
   }
 
   function saveSettings(settings) {
@@ -695,8 +745,6 @@
 
   function applySettingsToInputs(settings) {
     const {
-      latEl,
-      lngEl,
       timeFormatEl,
       nowTimeFormatEl,
       birthDateEl,
@@ -708,8 +756,6 @@
     } = getElements();
     syncConnectionInputs();
     const normalized = normalizeSettings(settings);
-    if (latEl) latEl.value = String(normalized.latitude);
-    if (lngEl) lngEl.value = String(normalized.longitude);
     if (timeFormatEl) {
       timeFormatEl.value = normalized.timeFormat;
     }
@@ -727,7 +773,7 @@
       menuLayoutEl.value = normalized.menuLayout;
     }
     applyMenuLayout(normalized.menuLayout);
-    setLocationEntryState(normalized.hasExplicitLocation);
+    renderProfileLocation();
     if (stellariumBackgroundEl) {
       stellariumBackgroundEl.checked = normalized.stellariumBackgroundEnabled;
     }
@@ -746,8 +792,6 @@
 
   function getSettingsFromInputs() {
     const {
-      latEl,
-      lngEl,
       timeFormatEl,
       nowTimeFormatEl,
       birthDateEl,
@@ -756,18 +800,12 @@
       stellariumBackgroundEl
     } = getElements();
     const saved = loadSavedSettings();
-    const latitudeText = latEl ? String(latEl.value || "").trim() : "";
-    const longitudeText = lngEl ? String(lngEl.value || "").trim() : "";
-
-    if (latEl && lngEl && (!latitudeText || !longitudeText)) {
-      throw new Error("Latitude/Longitude must be entered before saving settings.");
-    }
-
-    const latitude = latitudeText ? Number(latitudeText) : Number(saved.latitude);
-    const longitude = longitudeText ? Number(longitudeText) : Number(saved.longitude);
+    const profileGeo = resolveProfileGeo();
+    const latitude = profileGeo ? profileGeo.latitude : Number(saved.latitude);
+    const longitude = profileGeo ? profileGeo.longitude : Number(saved.longitude);
 
     if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
-      throw new Error("Latitude/Longitude must be valid numbers.");
+      throw new Error("Set your location on the Profile page before saving settings.");
     }
     const timeFormatValue = nowTimeFormatEl?.value || timeFormatEl?.value || saved.timeFormat;
 
@@ -783,9 +821,9 @@
       detailTextScale: normalizeDetailTextScale(Number(detailTextScaleEl?.value || Math.round((saved.detailTextScale || 1) * 100)) / 100),
       menuLayout: normalizeMenuLayout(menuLayoutEl?.value || saved.menuLayout),
       stellariumBackgroundEnabled: Boolean(stellariumBackgroundEl?.checked),
-      hasExplicitLocation: hasExplicitLocationEntry()
+      hasExplicitLocation: Boolean(profileGeo)
+        || hasExplicitLocationEntry()
         || Boolean(saved.hasExplicitLocation)
-        || Boolean(stellariumBackgroundEl?.checked)
     });
   }
 
@@ -943,18 +981,11 @@
   }
 
   function persistLocationAndRefresh(latitude, longitude, options = {}) {
-    const { latEl, lngEl, stellariumBackgroundEl, nowTimeFormatEl } = getElements();
+    const { stellariumBackgroundEl, nowTimeFormatEl } = getElements();
     const nextLatitude = Number(latitude);
     const nextLongitude = Number(longitude);
     if (!Number.isFinite(nextLatitude) || !Number.isFinite(nextLongitude)) {
       return null;
-    }
-
-    if (latEl) {
-      latEl.value = nextLatitude.toFixed(4);
-    }
-    if (lngEl) {
-      lngEl.value = nextLongitude.toFixed(4);
     }
 
     markLocationAsExplicit();
@@ -994,60 +1025,31 @@
     return normalized;
   }
 
-  function requestGeoLocation() {
-    const { latEl, lngEl } = getElements();
-    if (!navigator.geolocation) {
-      setNowSettingsStatus("Geolocation not available in this browser.", "error");
-      setSettingsPageStatus("Geolocation not available in this browser.", "warning", {
-        savedAt: loadLastSavedAt()
-      });
-      setStatus("Geolocation not available in this browser.");
-      return;
+  function openProfileLocation() {
+    const sectionState = window.TarotSectionStateUi;
+    if (typeof sectionState?.setActiveSection === "function") {
+      sectionState.setActiveSection("profile");
+    } else {
+      document.dispatchEvent(new CustomEvent("nav:profile"));
     }
-
-    setNowSettingsStatus("Getting your location...", "info");
-    setSettingsPageStatus("Getting your location...", "info", {
-      savedAt: loadLastSavedAt()
-    });
-    setStatus("Getting your location...");
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        if (latEl) latEl.value = coords.latitude.toFixed(4);
-        if (lngEl) lngEl.value = coords.longitude.toFixed(4);
-        markLocationAsExplicit();
-        setNowSettingsStatus("Location filled. Press Save to apply.", "info");
-        setSettingsPageStatus("Location captured. Save Settings to keep it.", "info", {
-          savedAt: loadLastSavedAt()
-        });
-        setStatus("Location captured. Save to apply.");
-      },
-      (err) => {
-        const detail = err?.message || `code ${err?.code ?? "unknown"}`;
-        setNowSettingsStatus(`Could not get location (${detail}).`, "error");
-        setSettingsPageStatus(`Could not get location (${detail}).`, "error", {
-          savedAt: loadLastSavedAt()
-        });
-        setStatus(`Could not get location (${detail}).`);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    window.setTimeout(() => {
+      document.getElementById("profile-location-lat")?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+    }, 120);
   }
 
   function bindInteractions() {
     const {
       saveSettingsEl,
       nowSettingsSaveEl,
-      useLocationEl,
       openSettingsEl,
       closeSettingsEl,
       detailTextScaleEl,
       menuLayoutEl,
-      latEl,
-      lngEl,
       nowTimeFormatEl,
       timeFormatEl,
       birthDateEl,
       nowTarotDeckEl,
+      nowLocationEditEl,
       stellariumBackgroundEl
     } = getElements();
 
@@ -1065,15 +1067,15 @@
       });
     }
 
-    if (useLocationEl) {
-      useLocationEl.addEventListener("click", requestGeoLocation);
+    if (nowLocationEditEl) {
+      nowLocationEditEl.addEventListener("click", openProfileLocation);
     }
 
     const markSkyDirty = () => {
       setNowSettingsStatus("Unsaved changes.", "info");
     };
 
-    [latEl, lngEl, nowTimeFormatEl, stellariumBackgroundEl].forEach((inputEl) => {
+    [nowTimeFormatEl, stellariumBackgroundEl].forEach((inputEl) => {
       if (!inputEl) {
         return;
       }
@@ -1119,15 +1121,6 @@
     document.addEventListener("taro-skin-changed", syncUiSkinSelect);
     syncUiSkinSelect();
 
-    [latEl, lngEl].forEach((inputEl) => {
-      if (!inputEl) {
-        return;
-      }
-
-      inputEl.addEventListener("input", markLocationAsExplicit);
-      inputEl.addEventListener("change", markLocationAsExplicit);
-    });
-
     if (openSettingsEl) {
       openSettingsEl.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -1152,12 +1145,31 @@
     document.addEventListener("connection:updated", () => {
       syncConnectionInputs();
       void refreshConnectionSummary(getConnectionSettings());
+      void loadProfileLocation();
     });
 
     document.addEventListener("connection:access-updated", () => {
       syncTarotDeckInputOptions();
       syncActiveTarotDeck(getElements().nowTarotDeckEl?.value || loadSavedSettings().tarotDeck);
       void refreshConnectionSummary(getConnectionSettings());
+    });
+
+    document.addEventListener("profile:location-updated", () => {
+      const normalized = applySettingsToInputs(loadSavedSettings());
+      emitSettingsUpdated(normalized);
+      const geo = resolveProfileGeo();
+      if (geo) {
+        syncSky(geo, {
+          force: true,
+          hasExplicitLocation: true,
+          backgroundEnabled: Boolean(normalized.stellariumBackgroundEnabled)
+        });
+      }
+      if (typeof config.onRenderWeek === "function") {
+        void config.onRenderWeek();
+      } else if ((window.TarotSectionStateUi?.getActiveSection?.() || "home") === "sky") {
+        window.TarotAppRuntime?.refreshNowPanel?.({ forceSky: true });
+      }
     });
 
     const onDeckSelectChange = (event) => {
@@ -1197,6 +1209,7 @@
     syncSavedSettingsStatus();
     setConnectionSummary(lastConnectionProbeResult);
     bindInteractions();
+    void loadProfileLocation();
   }
 
   function loadInitialSettingsAndApply() {
@@ -1256,6 +1269,8 @@
     buildNatalContext,
     normalizeSettings,
     persistLocationAndRefresh,
+    getProfileLocation: resolveProfileGeo,
+    syncProfileLocationDisplay: renderProfileLocation,
     saveSkySettingsFromPanel,
     syncTarotDeckInputOptions,
     syncActiveTarotDeck,

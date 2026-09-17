@@ -555,14 +555,30 @@
     }));
   }
 
+  async function loadGematriaMethods() {
+    return fetchJson(buildApiUrl("/api/v1/gematria/methods"));
+  }
+
+  async function calculateGematriaValue(text, options = {}) {
+    const language = String(options?.language || "").trim().toLowerCase();
+    return fetchJson(buildApiUrl("/api/v1/gematria/calculate", {
+      text,
+      language: language && language !== "english" ? language : null,
+      method: language && language !== "english" ? String(options?.method || "").trim() || null : null
+    }));
+  }
+
   async function loadGematriaWordsByValue(value, options = {}) {
     const ciphers = Array.isArray(options?.ciphers)
       ? options.ciphers.map((cipherId) => String(cipherId || "").trim()).filter(Boolean).join(",")
       : String(options?.ciphers || "").trim();
+    const language = String(options?.language || "").trim().toLowerCase();
 
     return fetchJson(buildApiUrl("/api/v1/gematria/words", {
       value,
-      ciphers
+      ciphers,
+      language: language && language !== "english" ? language : null,
+      method: language && language !== "english" ? String(options?.method || "").trim() || null : null
     }));
   }
 
@@ -1205,6 +1221,10 @@
     return requestJson("GET", buildApiUrl("/api/v1/quiz/leaderboard", { limit }));
   }
 
+  async function fetchPlayingCards() {
+    return requestJson("GET", buildApiUrl("/api/v1/playing-cards"));
+  }
+
   async function fetchProfileDirectory() {
     return requestJson("GET", buildApiUrl("/api/v1/profile/directory"));
   }
@@ -1303,6 +1323,8 @@
     loadDeckManifest,
     loadDeckOptions,
     loadGematriaWordsByValue,
+    loadGematriaMethods,
+    calculateGematriaValue,
     loadWordAnagrams,
     loadWordLookup,
     loadWordsByPrefix,
@@ -1315,6 +1337,7 @@
     loadMagickDataset,
     loadTextLibrary,
     loadTextSource,
+    fetchPlayingCards,
     searchTextLibrary,
     loadTextSection,
     loadTextReferenceEntry,

@@ -230,6 +230,10 @@
       setActiveSection("iching-phase");
     });
 
+    bindClick(elements.openPlayingCardsEl, () => {
+      setActiveSection(getActiveSection() === "playing-cards" ? "home" : "playing-cards");
+    });
+
     bindClick(elements.openKabbalahEl, () => {
       setActiveSection(getActiveSection() === "kabbalah" ? "home" : "kabbalah");
     });

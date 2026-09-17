@@ -15,6 +15,14 @@
       cipherLabelEl: null,
       reverseCiphersEl: null,
       reverseCipherHintEl: null,
+      reverseLanguageFieldEl: null,
+      reverseLanguageEl: null,
+      methodFieldEl: null,
+      methodEl: null,
+      optionsButtonEl: null,
+      optionsSummaryEl: null,
+      optionsAnchorEl: null,
+      optionsPanelEl: null,
       keyboardEl: null,
       keyboardScriptEl: null,
       keyboardGridEl: null,
@@ -30,6 +38,10 @@
     forwardInputText: "",
     reverseInputText: "",
     reverseSelectedCipherIds: null,
+    reverseLanguage: "english",
+    reverseMethod: "",
+    methodOptions: null,
+    forwardRequestId: 0,
     anagramInputText: "",
     dictionaryInputText: "",
     activeMode: "forward",
@@ -93,6 +105,14 @@
       cipherLabelEl: null,
       reverseCiphersEl: null,
       reverseCipherHintEl: null,
+      reverseLanguageFieldEl: null,
+      reverseLanguageEl: null,
+      methodFieldEl: null,
+      methodEl: null,
+      optionsButtonEl: null,
+      optionsSummaryEl: null,
+      optionsAnchorEl: null,
+      optionsPanelEl: null,
       keyboardEl: null,
       keyboardScriptEl: null,
       keyboardGridEl: null,
@@ -782,6 +802,97 @@
       : [];
   }
 
+  function getMethodOptions(language) {
+    const options = state.methodOptions?.[language];
+    return Array.isArray(options) ? options : [];
+  }
+
+  function getSelectedMethod() {
+    const options = getMethodOptions(state.reverseLanguage);
+    if (!options.length) return state.reverseMethod || "";
+    if (options.some((option) => option.id === state.reverseMethod)) {
+      return state.reverseMethod;
+    }
+    return options[0].id;
+  }
+
+  function populateMethodSelect() {
+    const { methodFieldEl, methodEl } = getElements();
+    if (methodFieldEl) {
+      methodFieldEl.hidden = state.reverseLanguage === "english";
+    }
+    if (!methodEl) return;
+    const options = getMethodOptions(state.reverseLanguage);
+    methodEl.replaceChildren();
+    options.forEach((option) => {
+      const optionEl = document.createElement("option");
+      optionEl.value = option.id;
+      optionEl.textContent = option.label || option.id;
+      if (option.description) optionEl.title = option.description;
+      methodEl.appendChild(optionEl);
+    });
+    const nextMethod = getSelectedMethod();
+    if (nextMethod) {
+      state.reverseMethod = nextMethod;
+      methodEl.value = nextMethod;
+    }
+  }
+
+  async function loadMethodOptions() {
+    if (state.methodOptions) return state.methodOptions;
+    let payload = null;
+    try {
+      payload = await window.TarotDataService?.loadGematriaMethods?.();
+    } catch (_error) {
+      payload = null;
+    }
+    state.methodOptions = {
+      hebrew: Array.isArray(payload?.hebrew) ? payload.hebrew : [],
+      greek: Array.isArray(payload?.greek) ? payload.greek : []
+    };
+    populateMethodSelect();
+    renderOptionsSummary();
+    return state.methodOptions;
+  }
+
+  function renderOptionsSummary() {
+    const { optionsSummaryEl, cipherEl } = getElements();
+    if (!optionsSummaryEl) return;
+    if (state.reverseLanguage === "english") {
+      const cipherName = cipherEl?.selectedOptions?.[0]?.textContent || "Cipher";
+      const count = getSelectedReverseCipherIds().length;
+      optionsSummaryEl.textContent = `English · ${cipherName}${count ? ` · ${count} cipher${count === 1 ? "" : "s"}` : ""}`;
+      return;
+    }
+    const options = getMethodOptions(state.reverseLanguage);
+    const method = options.find((option) => option.id === getSelectedMethod());
+    const languageLabel = state.reverseLanguage === "hebrew" ? "Hebrew (Strong's)" : "Greek (Strong's)";
+    optionsSummaryEl.textContent = `${languageLabel} · ${method?.label || "Method"}`;
+  }
+
+  function openOptionsOverlay() {
+    const { optionsPanelEl, optionsAnchorEl, optionsButtonEl } = getElements();
+    if (!optionsPanelEl) return;
+    if (!window.TaroOverlay?.open) {
+      optionsPanelEl.hidden = !optionsPanelEl.hidden;
+      return;
+    }
+    optionsPanelEl.hidden = false;
+    const controller = window.TaroOverlay.open({
+      title: "Word Lookup Options",
+      size: "small",
+      body: optionsPanelEl,
+      actions: [{ label: "Done", primary: true }],
+      onClose: () => {
+        optionsAnchorEl?.appendChild(optionsPanelEl);
+        optionsPanelEl.hidden = true;
+        optionsButtonEl?.setAttribute("aria-expanded", "false");
+        renderOptionsSummary();
+      }
+    });
+    optionsButtonEl?.setAttribute("aria-expanded", controller ? "true" : "false");
+  }
+
   function updateModeUi() {
     const {
       cipherEl,
@@ -792,6 +903,8 @@
       cipherLabelEl,
       reverseCiphersEl,
       reverseCipherHintEl,
+      reverseLanguageFieldEl,
+      reverseLanguageEl,
       keyboardEl,
       keyboardScriptEl,
       keyboardGridEl,
@@ -813,33 +926,45 @@
         : (anagramMode ? "Letters" : (dictionaryMode ? "Pattern" : "Text"));
     }
 
+    const scriptLanguage = state.reverseLanguage !== "english";
+    const languageLabel = state.reverseLanguage === "hebrew"
+      ? "Hebrew (Strong's)"
+      : (state.reverseLanguage === "greek" ? "Greek (Strong's)" : "English");
+
     if (cipherLabelEl) {
-      cipherLabelEl.textContent = reverseMode
+      cipherLabelEl.textContent = reverseMode && !scriptLanguage
         ? "Ciphers"
         : ((anagramMode || dictionaryMode) ? "Cipher (not used in this mode)" : "Cipher");
     }
 
     if (cipherEl) {
-      const disableCipher = reverseMode || anagramMode || dictionaryMode;
-      const hideCipherField = anagramMode || dictionaryMode;
-      cipherEl.disabled = disableCipher;
-      cipherEl.hidden = reverseMode;
-      const cipherFieldEl = cipherEl.closest(".alpha-gematria-field");
-      const controlsEl = cipherEl.closest(".alpha-gematria-controls");
-      cipherFieldEl?.classList.toggle("is-disabled", hideCipherField);
-      controlsEl?.classList.toggle("is-input-priority-mode", hideCipherField);
-      controlsEl?.classList.toggle("is-reverse-cipher-mode", reverseMode);
+      const hideCipherField = anagramMode || dictionaryMode || scriptLanguage;
+      cipherEl.disabled = reverseMode || anagramMode || dictionaryMode || scriptLanguage;
+      cipherEl.hidden = scriptLanguage || reverseMode;
+      cipherEl.closest(".alpha-gematria-field")?.classList.toggle("is-disabled", hideCipherField);
     }
 
+    if (reverseLanguageFieldEl) {
+      reverseLanguageFieldEl.hidden = false;
+    }
+    if (reverseLanguageEl && reverseLanguageEl.value !== state.reverseLanguage) {
+      reverseLanguageEl.value = state.reverseLanguage;
+    }
+    populateMethodSelect();
+    renderOptionsSummary();
+
     if (reverseCiphersEl) {
-      if (reverseMode) {
+      if (reverseMode && !scriptLanguage) {
         renderReverseCipherOptions();
       }
-      reverseCiphersEl.hidden = !reverseMode;
+      reverseCiphersEl.hidden = !reverseMode || scriptLanguage;
     }
 
     if (reverseCipherHintEl) {
-      reverseCipherHintEl.hidden = !reverseMode;
+      reverseCipherHintEl.hidden = !reverseMode || scriptLanguage;
+      reverseCipherHintEl.textContent = scriptLanguage
+        ? `${languageLabel} words are matched with the selected method; ciphers are not used.`
+        : "Select one or more ciphers to narrow reverse lookup results.";
     }
 
     if (inputEl) {
@@ -899,14 +1024,18 @@
   }
 
   async function loadReverseLookup(value) {
-    const selectedCipherIds = getSelectedReverseCipherIds();
-    const cacheKey = `${String(value)}::${selectedCipherIds.join(",")}`;
+    const language = state.reverseLanguage;
+    const method = language === "english" ? "" : getSelectedMethod();
+    const selectedCipherIds = language === "english" ? getSelectedReverseCipherIds() : [];
+    const cacheKey = `${language}::${method}::${String(value)}::${selectedCipherIds.join(",")}`;
     if (state.reverseLookupCache.has(cacheKey)) {
       return state.reverseLookupCache.get(cacheKey);
     }
 
     const payload = await window.TarotDataService?.loadGematriaWordsByValue?.(value, {
-      ciphers: selectedCipherIds
+      ciphers: selectedCipherIds,
+      language,
+      method
     });
     state.reverseLookupCache.set(cacheKey, payload);
     return payload;
@@ -967,9 +1096,94 @@
     }
   }
 
+  function renderDictionaryReverseMatches(payload, numericValue, language) {
+    const { resultEl, breakdownEl, matchesEl } = getElements();
+    if (!resultEl || !breakdownEl || !matchesEl) {
+      return;
+    }
+
+    const matches = Array.isArray(payload?.matches) ? payload.matches : [];
+    const count = Number(payload?.count);
+    const displayCount = Number.isFinite(count) ? count : matches.length;
+    const visibleMatches = matches.slice(0, 120);
+    const label = language === "hebrew" ? "Hebrew (Strong's)" : "Greek (Strong's)";
+    const valueLabel = language === "hebrew" ? "Hebrew gematria" : "Greek isopsephy";
+    const source = String(payload?.meta?.source || "").trim();
+    const methodId = String(payload?.method || payload?.meta?.method || "").trim();
+    const methodInfo = getMethodOptions(language).find((option) => option.id === methodId);
+    const methodLabel = methodInfo?.label || methodId;
+
+    resultEl.textContent = `Value: ${formatCount(numericValue)}`;
+
+    if (!displayCount) {
+      breakdownEl.textContent = `No ${label} dictionary words matched this value${methodLabel ? ` under ${methodLabel}` : ""}.`;
+      matchesEl.hidden = false;
+      setMatchesMessage(matchesEl, `No matches in ${source || `the ${label} dictionary`}.`);
+      return;
+    }
+
+    breakdownEl.textContent = `Found ${formatCount(displayCount)} ${label} ${displayCount === 1 ? "word" : "words"} with ${methodLabel ? `${methodLabel} ` : `${valueLabel} `}${formatCount(numericValue)}${source ? ` in ${source}` : ""}.${displayCount > visibleMatches.length ? ` Showing first ${formatCount(visibleMatches.length)}.` : ""}`;
+
+    const fragment = document.createDocumentFragment();
+    visibleMatches.forEach((match) => {
+      const cardEl = document.createElement("article");
+      cardEl.className = "alpha-gematria-match";
+
+      const wordEl = document.createElement("div");
+      wordEl.className = "alpha-gematria-match-word";
+      wordEl.textContent = String(match?.word || "--");
+      if (language === "hebrew") {
+        wordEl.setAttribute("dir", "rtl");
+        wordEl.setAttribute("lang", "he");
+      }
+      cardEl.appendChild(wordEl);
+
+      const transliteration = String(match?.transliteration || "").trim();
+      const lemma = String(match?.lemma || "").trim();
+      const grammar = String(match?.grammar || "").trim();
+      const subParts = [transliteration, lemma && lemma !== match?.word ? lemma : "", grammar].filter(Boolean);
+      if (subParts.length) {
+        const subEl = document.createElement("div");
+        subEl.className = "alpha-gematria-match-meta";
+        const chipEl = document.createElement("span");
+        chipEl.className = "alpha-gematria-match-meta-chip";
+        chipEl.textContent = subParts.join(" · ");
+        subEl.appendChild(chipEl);
+        cardEl.appendChild(subEl);
+      }
+
+      const definition = String(match?.definition || "").trim();
+      if (definition) {
+        const definitionEl = document.createElement("div");
+        definitionEl.className = "alpha-gematria-match-definition";
+        definitionEl.textContent = definition;
+        cardEl.appendChild(definitionEl);
+      }
+
+      const metaEl = document.createElement("div");
+      metaEl.className = "alpha-gematria-match-meta";
+      const valueChip = document.createElement("span");
+      valueChip.className = "alpha-gematria-match-meta-chip";
+      valueChip.textContent = `${methodLabel || valueLabel} ${formatCount(Number(match?.gematriaValue) || numericValue)}`;
+      metaEl.appendChild(valueChip);
+      cardEl.appendChild(metaEl);
+
+      fragment.appendChild(cardEl);
+    });
+
+    matchesEl.replaceChildren(fragment);
+    matchesEl.hidden = false;
+  }
+
   function renderReverseLookupMatches(payload, numericValue) {
     const { resultEl, breakdownEl, matchesEl } = getElements();
     if (!resultEl || !breakdownEl || !matchesEl) {
+      return;
+    }
+
+    const language = String(payload?.language || "english").toLowerCase();
+    if (language === "hebrew" || language === "greek") {
+      renderDictionaryReverseMatches(payload, numericValue, language);
       return;
     }
 
@@ -1048,16 +1262,24 @@
     }
 
     const rawValue = state.reverseInputText;
-    const selectedCipherIds = getSelectedReverseCipherIds();
+    const language = state.reverseLanguage;
+    const dictionaryLanguage = language !== "english";
+    const selectedCipherIds = dictionaryLanguage ? [] : getSelectedReverseCipherIds();
+    const languageLabel = language === "hebrew" ? "Hebrew (Strong's)" : (language === "greek" ? "Greek (Strong's)" : "English");
+
     if (!String(rawValue || "").trim()) {
       resultEl.textContent = "Value: --";
-      breakdownEl.textContent = "Enter a whole number and choose one or more ciphers to narrow reverse matches.";
+      breakdownEl.textContent = dictionaryLanguage
+        ? `Enter a whole number to find ${languageLabel} dictionary words with that value.`
+        : "Enter a whole number and choose one or more ciphers to narrow reverse matches.";
       matchesEl.hidden = false;
-      setMatchesMessage(matchesEl, "Reverse lookup searches the API-backed gematria word index using the selected ciphers only.");
+      setMatchesMessage(matchesEl, dictionaryLanguage
+        ? `Reverse lookup values the installed ${languageLabel} dictionary with its own script values.`
+        : "Reverse lookup searches the API-backed gematria word index using the selected ciphers only.");
       return;
     }
 
-    if (!selectedCipherIds.length) {
+    if (!dictionaryLanguage && !selectedCipherIds.length) {
       resultEl.textContent = "Value: --";
       breakdownEl.textContent = "Choose at least one cipher before running reverse lookup.";
       matchesEl.hidden = false;
@@ -1359,9 +1581,42 @@
     };
   }
 
-  function renderForwardGematriaResult() {
+  async function renderForwardGematriaResult() {
     const { resultEl, breakdownEl } = getElements();
     if (!resultEl || !breakdownEl) {
+      return;
+    }
+
+    const language = state.reverseLanguage;
+    if (language !== "english") {
+      const languageLabel = language === "hebrew" ? "Hebrew" : "Greek";
+      const method = getSelectedMethod();
+      const text = state.forwardInputText;
+      if (!String(text || "").trim()) {
+        resultEl.textContent = "Total: --";
+        breakdownEl.textContent = `Using ${languageLabel} ${method || "method"}. Enter ${languageLabel} letters to calculate.`;
+        return;
+      }
+      const requestId = state.forwardRequestId + 1;
+      state.forwardRequestId = requestId;
+      resultEl.textContent = "Total: …";
+      breakdownEl.textContent = `Calculating ${languageLabel} ${method || "method"}…`;
+      try {
+        const payload = await window.TarotDataService?.calculateGematriaValue?.(text, { language, method });
+        if (requestId !== state.forwardRequestId || state.reverseLanguage !== language) {
+          return;
+        }
+        const value = Number(payload?.value);
+        const methodLabel = String(payload?.method || method || "");
+        resultEl.textContent = `Total: ${Number.isFinite(value) ? formatCount(value) : "--"}`;
+        breakdownEl.textContent = `${languageLabel} · ${methodLabel} · ${Number.isFinite(value) ? formatCount(value) : "—"}`;
+      } catch (_error) {
+        if (requestId !== state.forwardRequestId || state.reverseLanguage !== language) {
+          return;
+        }
+        resultEl.textContent = "Total: --";
+        breakdownEl.textContent = "Unable to calculate with the selected method.";
+      }
       return;
     }
 
@@ -1406,11 +1661,11 @@
       return;
     }
 
-    renderForwardGematriaResult();
+    void renderForwardGematriaResult();
   }
 
   function bindGematriaListeners() {
-    const { cipherEl, inputEl, modeEls, reverseCiphersEl, keyboardScriptEl, keyboardGridEl, keyboardActionsEl } = getElements();
+    const { cipherEl, inputEl, modeEls, reverseCiphersEl, reverseLanguageEl, methodEl, optionsButtonEl, keyboardScriptEl, keyboardGridEl, keyboardActionsEl } = getElements();
     if (state.listenersBound || !cipherEl || !inputEl) {
       return;
     }
@@ -1458,6 +1713,21 @@
       renderReverseCipherOptions();
       renderGematriaResult();
     });
+
+    reverseLanguageEl?.addEventListener("change", () => {
+      state.reverseLanguage = String(reverseLanguageEl.value || "english").trim() || "english";
+      state.reverseMethod = "";
+      updateModeUi();
+      renderGematriaResult();
+    });
+
+    methodEl?.addEventListener("change", () => {
+      state.reverseMethod = String(methodEl.value || "").trim();
+      renderOptionsSummary();
+      renderGematriaResult();
+    });
+
+    optionsButtonEl?.addEventListener("click", openOptionsOverlay);
 
     keyboardScriptEl?.addEventListener("change", () => {
       state.keyboardScriptId = String(keyboardScriptEl.value || "english").trim() || "english";
@@ -1510,6 +1780,7 @@
 
     bindGematriaListeners();
     updateModeUi();
+    void loadMethodOptions();
 
     void loadGematriaDb().then(() => {
       refreshScriptMap((state.db || getFallbackGematriaDb()).baseAlphabet);

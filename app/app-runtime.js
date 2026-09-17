@@ -60,8 +60,22 @@
     return magickDataset;
   }
 
+  function resolveProfileGeo() {
+    const shared = window.TarotSettingsUi?.getProfileLocation?.();
+    if (shared) {
+      return { latitude: shared.latitude, longitude: shared.longitude };
+    }
+    const location = window.ProfileUi?.getLocation?.();
+    const latitude = Number(location?.latitude);
+    const longitude = Number(location?.longitude);
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      return { latitude, longitude };
+    }
+    return null;
+  }
+
   function getCurrentGeo() {
-    return currentGeo;
+    return resolveProfileGeo() || currentGeo;
   }
 
   function getCurrentTimeFormat() {
@@ -73,6 +87,12 @@
   }
 
   function parseGeoInput() {
+    // Profile location is the source of truth; fall back to legacy inputs,
+    // then saved settings defaults.
+    const profileGeo = resolveProfileGeo();
+    if (profileGeo) {
+      return profileGeo;
+    }
     const inputLatitude = Number(config.latEl?.value);
     const inputLongitude = Number(config.lngEl?.value);
     const settingsLatitude = Number(currentSettings?.latitude);

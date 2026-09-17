@@ -3155,6 +3155,7 @@
       });
     }
     slots.push({ key: "back", group: "Back", label: "Card back", file: "back.png" });
+    slots.push({ key: "misc", group: "Misc", label: "Misc/Extra", file: "misc.png" });
     return slots;
   }
 
@@ -3171,7 +3172,10 @@
         });
       });
     });
+    slots.push({ key: "joker-1", group: "Jokers", label: "Joker 1", file: "joker-1.png" });
+    slots.push({ key: "joker-2", group: "Jokers", label: "Joker 2", file: "joker-2.png" });
     slots.push({ key: "back", group: "Back", label: "Card back", file: "back.png" });
+    slots.push({ key: "misc", group: "Misc", label: "Misc/Extra", file: "misc.png" });
     return slots;
   }
 
@@ -3200,6 +3204,7 @@
       });
     });
     slots.push({ key: "back", group: "Back", label: "Card back", file: "back.png" });
+    slots.push({ key: "misc", group: "Misc", label: "Misc/Extra", file: "misc.png" });
     return slots;
   }
 
@@ -3351,7 +3356,16 @@
 
   function playingCodeFromBase(base) {
     const cleaned = String(base || "").toLowerCase();
-    if (/(^|[-_])(back|cardback|verso)$/.test(cleaned)) return { key: "back" };
+    if (/(^|[-_])(back|cardback|card-back|verso)$/.test(cleaned)) {
+      return { key: "back" };
+    }
+    if (/(^|[-_])(misc|extra|box|boxart|box-art|cover|art)$/.test(cleaned)) {
+      return { key: "misc" };
+    }
+    if (/joker/.test(cleaned)) {
+      const number = Number((cleaned.match(/joker[-_ ]?(\d+)/) || [])[1] || 1);
+      return { key: Number.isFinite(number) && number >= 2 ? "joker-2" : "joker-1" };
+    }
     const match = cleaned.match(/(?:^|[-_])(10|[2-9]|a|j|q|k)(s|h|d|c)$/);
     if (match) return parsePlayingCode(match[1] + match[2]);
     return parsePlayingCode(cleaned.replace(/^\d+[-_]?/, ""));
@@ -3989,10 +4003,20 @@
                   </div>
                   <p class="settings-field-hint">Shown as applies to every suit (e.g. Page → Princess, Knight → Prince).</p>
                 </section>
+                <section class="dlc-deck-pattern-card" data-role="playing-suit-section" hidden>
+                  <h3>Jokers</h3>
+                  <div class="dlc-deck-grid" data-role="deck-grid-jokers"></div>
+                  <p class="settings-field-hint">Two Joker faces; in the app they switch as variants 1 / 2 on one Joker card.</p>
+                </section>
                 <section class="dlc-deck-pattern-card dlc-deck-pattern-card-back">
-                  <h3>Back</h3>
+                  <h3>Card back</h3>
                   <div class="dlc-deck-grid" data-role="deck-grid-back"></div>
-                  <p class="settings-field-hint">Assign the back card like any other slot (or leave it unmapped).</p>
+                  <p class="settings-field-hint">The face-down card back.</p>
+                </section>
+                <section class="dlc-deck-pattern-card dlc-deck-pattern-card-back">
+                  <h3>Misc/Extra</h3>
+                  <div class="dlc-deck-grid" data-role="deck-grid-misc"></div>
+                  <p class="settings-field-hint">Box art or any extra scan shipped with the deck.</p>
                 </section>
               </div>
               <details class="dlc-deck-loose" data-role="deck-loose" hidden>
@@ -5027,6 +5051,12 @@
         const rankId = parts.slice(2).join("-");
         return `${playingRankLabel(rankId)} of ${suitLabel(suitId)}`;
       }
+      if (String(slot.key).startsWith("joker-")) {
+        return String(slot.key) === "joker-2" ? "Joker 2" : "Joker 1";
+      }
+      if (String(slot.key) === "misc") {
+        return "Misc/Extra";
+      }
       return slot.label;
     };
 
@@ -5258,18 +5288,36 @@
       const looseHost = overlay.querySelector("[data-role='deck-loose']");
       const looseList = overlay.querySelector("[data-role='deck-loose-list']");
       const majorsGridEl = overlay.querySelector("[data-role='deck-grid-majors']");
-      const grids = {
-        Majors: majorsGridEl,
-        Hexagrams: majorsGridEl,
-        Wands: overlay.querySelector("[data-role='deck-grid-wands']"),
-        Cups: overlay.querySelector("[data-role='deck-grid-cups']"),
-        Swords: overlay.querySelector("[data-role='deck-grid-swords']"),
-        Disks: overlay.querySelector("[data-role='deck-grid-pentacles']"),
-        Hearts: overlay.querySelector("[data-role='deck-grid-hearts']"),
-        Diamonds: overlay.querySelector("[data-role='deck-grid-diamonds']"),
-        Clubs: overlay.querySelector("[data-role='deck-grid-clubs']"),
-        Spades: overlay.querySelector("[data-role='deck-grid-spades']"),
-        Back: overlay.querySelector("[data-role='deck-grid-back']")
+      // Group lookup is normalized to lower case so a display label (Clubs vs
+      // Clovers) can never misroute a suit's cards to a missing grid.
+      const gridLookup = new Map();
+      const registerGrid = (names, element) => {
+        if (!element) return;
+        names.forEach((name) => gridLookup.set(String(name).toLowerCase(), element));
+      };
+      registerGrid(["Majors", "Hexagrams"], majorsGridEl);
+      registerGrid(["Wands"], overlay.querySelector("[data-role='deck-grid-wands']"));
+      registerGrid(["Cups"], overlay.querySelector("[data-role='deck-grid-cups']"));
+      registerGrid(["Swords"], overlay.querySelector("[data-role='deck-grid-swords']"));
+      registerGrid(["Disks", "Pentacles"], overlay.querySelector("[data-role='deck-grid-pentacles']"));
+      registerGrid(["Spades"], overlay.querySelector("[data-role='deck-grid-spades']"));
+      registerGrid(["Hearts"], overlay.querySelector("[data-role='deck-grid-hearts']"));
+      registerGrid(["Diamonds"], overlay.querySelector("[data-role='deck-grid-diamonds']"));
+      registerGrid(["Clubs", "Clovers"], overlay.querySelector("[data-role='deck-grid-clubs']"));
+      const jokersGridEl = overlay.querySelector("[data-role='deck-grid-jokers']");
+      const backGridEl = overlay.querySelector("[data-role='deck-grid-back']");
+      const miscGridEl = overlay.querySelector("[data-role='deck-grid-misc']");
+      registerGrid(["Jokers"], jokersGridEl);
+      registerGrid(["Back"], backGridEl);
+      registerGrid(["Misc", "Extra"], miscGridEl);
+      // Slot keys are the source of truth for the fixed extra slots, so a
+      // renamed group can never leave the back/Misc or joker grids empty.
+      const gridForSlot = (slot) => {
+        const key = String(slot?.key || "");
+        if (key.startsWith("joker-")) return jokersGridEl;
+        if (key === "back") return backGridEl;
+        if (key === "misc") return miscGridEl;
+        return gridLookup.get(String(slot?.group || "").toLowerCase());
       };
       DECK_SUITS.forEach((suit) => {
         const head = overlay.querySelector(`[data-role="suit-head-${suit.id}"]`);
@@ -5283,7 +5331,7 @@
           head.textContent = suitLabel(suit.id);
         }
       });
-      const assignedCount = Object.keys(deckState.assigned).filter((key) => key !== "back" && deckState.assigned[key]).length;
+      const assignedCount = Object.keys(deckState.assigned).filter((key) => key !== "back" && key !== "misc" && !key.startsWith("joker-") && deckState.assigned[key]).length;
       const totalLabel = deckState.system === "iching"
         ? "64 hexagrams"
         : deckState.system === "playing-cards"
@@ -5299,9 +5347,9 @@
         });
       }
       const fileByPath = new Map(deckState.files.map((entry) => [entry.path, entry]));
-      Object.values(grids).forEach((grid) => grid?.replaceChildren());
+      new Set([...gridLookup.values(), jokersGridEl, backGridEl, miscGridEl].filter(Boolean)).forEach((grid) => grid.replaceChildren());
       deckSlots.forEach((slot) => {
-          const gridEl = grids[slot.group];
+          const gridEl = gridForSlot(slot);
           if (!gridEl) return;
           const card = document.createElement("button");
           card.type = "button";
@@ -5660,7 +5708,9 @@
           if (!deckState.assigned.back) deckState.assigned.back = path;
           return;
         }
-        const coded = parsePlayingCode(card.name) || playingCodeFromBase(String(card.file || "").replace(/\.[^.]+$/, ""));
+        const coded = parsePlayingCode(card.name)
+          || playingCodeFromBase(card.name)
+          || playingCodeFromBase(String(card.file || "").replace(/\.[^.]+$/, ""));
         if (coded?.key && coded.key !== "back" && !deckState.assigned[coded.key]) {
           deckState.assigned[coded.key] = path;
         }
@@ -5763,16 +5813,23 @@
       const suitOrder = overlay.querySelector(".dlc-deck-suit-order");
       if (suitOrder) suitOrder.style.display = isIChing || isPlaying ? "none" : "";
       const playingOrder = overlay.querySelector("[data-role='playing-suit-order']");
-      if (playingOrder) playingOrder.hidden = !isPlaying;
+      if (playingOrder) playingOrder.style.display = isPlaying ? "" : "none";
       overlay.querySelectorAll("[data-role^='suit-head-']").forEach((heading) => {
         const section = heading.closest(".dlc-deck-pattern-card");
         if (section) section.style.display = isIChing || isPlaying ? "none" : "";
       });
+      // .dlc-deck-pattern-card sets display:grid, which beats the [hidden]
+      // attribute, so toggle these with inline display instead.
       overlay.querySelectorAll("[data-role='playing-suit-section']").forEach((section) => {
-        section.hidden = !isPlaying;
+        section.style.display = isPlaying ? "" : "none";
       });
       const courtSection = overlay.querySelector("[data-role='deck-court-section']");
       if (courtSection) courtSection.style.display = isIChing || isPlaying ? "none" : "";
+      // The back and Misc/Extra slots are valid for every system; never hide them.
+      ["deck-grid-back", "deck-grid-misc"].forEach((role) => {
+        const section = overlay.querySelector(`[data-role='${role}']`)?.closest(".dlc-deck-pattern-card");
+        if (section) section.style.display = "";
+      });
     };
 
     const setDeckMode = async (system) => {
@@ -5806,12 +5863,17 @@
 
     const deckFolderInput = overlay.querySelector(".dlc-create-deck-folder");
     const deckFolderLabel = overlay.querySelector("[data-role='deck-folder-label']");
-    if (deckFolderInput && deckFolderLabel) {
-      // Directory pickers are unreliable when the input is display:none, so we
-      // open the chooser from the label and keep the input rendered/invisible.
+    // The input is stretched invisibly over its label, so the browser opens the
+    // directory chooser natively. Clearing first lets the same folder re-fire.
+    deckFolderInput.addEventListener("click", () => {
+      deckFolderInput.value = "";
+    });
+    if (deckFolderLabel) {
+      // Fallback for a stale stylesheet that still hides the input: activate it
+      // from the label, but only when the input itself was not the click target.
       deckFolderLabel.addEventListener("click", (event) => {
+        if (event.target === deckFolderInput) return;
         event.preventDefault();
-        // Clearing the value lets the same folder be re-picked and re-fires change.
         deckFolderInput.value = "";
         deckFolderInput.click();
       });
@@ -6013,10 +6075,15 @@
       const button = event.currentTarget;
       const title = String(overlay.querySelector(".dlc-create-deck-title")?.value || "").trim() || "Untitled deck";
       const id = slugifyId(overlay.querySelector(".dlc-create-deck-id")?.value || title);
-      const missing = deckSlots.filter((slot) => !deckState.assigned[slot.key]);
+      const optionalKeys = new Set(["back", "misc"]);
+      const missing = deckSlots.filter((slot) => (
+        !slot.key.startsWith("joker-") && !optionalKeys.has(slot.key) && !deckState.assigned[slot.key]
+      ));
       const allowIncomplete = Boolean(overlay.querySelector(".dlc-create-deck-incomplete")?.checked);
       if (missing.length && !allowIncomplete) {
-        setFormStatus(`${missing.length} card(s) still unmapped. Map them, or check “Allow incomplete deck”.`, true);
+        const names = missing.slice(0, 4).map((slot) => slotDefaultName(slot)).join(", ");
+        const suffix = missing.length > 4 ? ", …" : "";
+        setFormStatus(`${missing.length} card(s) still unmapped (${names}${suffix}). Map them, or check “Allow incomplete deck”.`, true);
         return;
       }
       const mapped = deckSlots.filter((slot) => deckState.assigned[slot.key]);
@@ -6073,6 +6140,7 @@
             }
             return;
           }
+          if (slot.key.startsWith("joker-") || slot.key === "back" || slot.key === "misc") return;
           const parts = slot.key.split("-");
           const suitId = parts[1] === "pentacles" ? "disks" : parts[1];
           const rankId = parts.slice(2).join("-");
@@ -6088,6 +6156,8 @@
         const hexagramNames = {};
         const hexagramLines = {};
         const playingCards = {};
+        const jokerCards = [];
+        const extraCards = [];
         const addFile = async (slotFile, zipName) => {
           const entry = fileByPath.get(slotFile);
           if (!entry) return;
@@ -6108,7 +6178,11 @@
             if (lineDiagram) hexagramLines[number] = lineDiagram;
             continue;
           }
-          if (slot.key.startsWith("major-")) {
+          if (slot.key === "misc") {
+            extraCards.push(zipName);
+          } else if (slot.key.startsWith("joker-")) {
+            jokerCards[slot.key === "joker-2" ? 1 : 0] = zipName;
+          } else if (slot.key.startsWith("major-")) {
             majorCards[String(slot.key.slice(6))] = zipName;
           } else if (slot.key.startsWith("pc-")) {
             const parts = slot.key.split("-");
@@ -6121,6 +6195,9 @@
             const rankId = parts.slice(2).join("-");
             minorCards[`${rankId} of ${suitId}`] = zipName;
           }
+        }
+        if (jokerCards.filter(Boolean).length) {
+          playingCards.joker = jokerCards.filter(Boolean);
         }
         let cardBack = "";
         const backPath = deckState.assigned.back;
@@ -6178,6 +6255,9 @@
         }
         if (cardBack) {
           manifest.cardBack = cardBack;
+        }
+        if (extraCards.length) {
+          manifest.extras = extraCards;
         }
         zipFiles.unshift({
           name: "deck.json",
@@ -6329,6 +6409,13 @@
           const savedSystem = String(manifest.system || "").toLowerCase();
           const isIChing = savedSystem === "iching";
           const isPlaying = savedSystem === "playing-cards";
+          const applyExtraFiles = (byBase) => {
+            const extras = Array.isArray(manifest.extras)
+              ? manifest.extras
+              : (manifest.extras ? [manifest.extras] : []);
+            const first = extras.map((fileName) => byBase.get(String(fileName).toLowerCase())).find(Boolean);
+            if (first) deckState.assigned.misc = first;
+          };
           if (isIChing) {
             deckState.system = "iching";
             await ensureIChingNames();
@@ -6353,19 +6440,27 @@
               const backPath = byBaseHex.get(String(manifest.cardBack).toLowerCase());
               if (backPath) deckState.assigned.back = backPath;
             }
+            applyExtraFiles(byBaseHex);
           } else if (isPlaying) {
             deckState.system = "playing-cards";
             deckSlots = deckSlotList("playing-cards");
             applyDeckModeUi();
             applyDeckEntries(entries);
             const byBasePlay = new Map(entries.map((entry) => [entry.path.split("/").pop().toLowerCase(), entry.path]));
-            Object.entries(manifest.cards || {}).forEach(([key, fileName]) => {
-              const path = byBasePlay.get(String(fileName).toLowerCase());
-              if (!path) return;
+            Object.entries(manifest.cards || {}).forEach(([key, value]) => {
+              const files = Array.isArray(value) ? value : [value];
+              if (String(key).toLowerCase() === "joker") {
+                files.forEach((fileName, index) => {
+                  const path = byBasePlay.get(String(fileName).toLowerCase());
+                  if (path) deckState.assigned[index === 0 ? "joker-1" : "joker-2"] = path;
+                });
+                return;
+              }
               const match = String(key).toLowerCase().match(/^(.+?)\s+of\s+(.+)$/);
               if (!match) return;
               const slotKey = `pc-${match[2]}-${match[1]}`;
-              if (deckSlots.some((slot) => slot.key === slotKey)) deckState.assigned[slotKey] = path;
+              const path = byBasePlay.get(String(files[0]).toLowerCase());
+              if (path && deckSlots.some((slot) => slot.key === slotKey)) deckState.assigned[slotKey] = path;
             });
             Object.entries(manifest.cardNameOverrides || {}).forEach(([key, name]) => {
               const match = String(key).toLowerCase().match(/^(.+?)\s+of\s+(.+)$/);
@@ -6380,6 +6475,7 @@
               const backPath = byBasePlay.get(String(manifest.cardBack).toLowerCase());
               if (backPath) deckState.assigned.back = backPath;
             }
+            applyExtraFiles(byBasePlay);
           } else {
             deckState.system = "tarot";
             applyDeckModeUi();
@@ -6430,6 +6526,7 @@
               const backPath = byBase.get(String(manifest.cardBack).toLowerCase());
               if (backPath) deckState.assigned.back = backPath;
             }
+            applyExtraFiles(byBase);
           }
           const titleEl = overlay.querySelector(".dlc-create-deck-title");
           const idEl = overlay.querySelector(".dlc-create-deck-id");

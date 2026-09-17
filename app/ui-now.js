@@ -309,14 +309,10 @@
 
       if (saved && typeof window.TarotSettingsUi?.normalizeSettings === "function") {
         // Re-apply known values into Sky controls without emitting a full save cycle.
-        const latEl = document.getElementById("now-lat");
-        const lngEl = document.getElementById("now-lng");
         const stellariumToggle = document.getElementById("now-stellarium-toggle");
         const timeFormatEl = document.getElementById("now-time-format");
         const deckEl = document.getElementById("now-tarot-deck");
 
-        if (latEl) latEl.value = String(saved.latitude);
-        if (lngEl) lngEl.value = String(saved.longitude);
         if (stellariumToggle) stellariumToggle.checked = Boolean(saved.stellariumBackgroundEnabled);
         if (timeFormatEl) timeFormatEl.value = saved.timeFormat || "minutes";
         try { window.TarotSettingsUi?.syncTarotDeckInputOptions?.(); } catch (_) {}
@@ -330,6 +326,7 @@
       if (nowDeckFieldEl) {
         nowDeckFieldEl.hidden = window.TarotAppConfig?.hasTarotAccess?.() !== true;
       }
+      try { window.TarotSettingsUi?.syncProfileLocationDisplay?.(); } catch (_) {}
       try { window.TarotSettingsUi?.syncStellariumBackgroundAvailability?.(); } catch (_) {}
       try { window.TarotSettingsUi?.setNowSettingsStatus?.(""); } catch (_) {}
     }
@@ -344,10 +341,6 @@
         nowSettingsToggle.textContent = willOpen ? "Hide Settings" : "Settings";
         if (willOpen) {
           hydrateSkySettingsPanel();
-          const focusTarget = document.getElementById("now-lat");
-          if (focusTarget && typeof focusTarget.focus === "function") {
-            focusTarget.focus();
-          }
         }
       });
     }

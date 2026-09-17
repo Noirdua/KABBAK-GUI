@@ -461,6 +461,10 @@
     const sectionId = String(plugin.section?.id || plugin.id || "").trim();
     const label = String(plugin.section?.label || plugin.name || plugin.id || sectionId).trim();
     if (!sectionId) return;
+    // Built-in sections win over a plugin claiming the same id.
+    if (window.TarotSectionStateUi?.isBuiltinSection?.(sectionId)) {
+      return;
+    }
     window.TarotSectionStateUi?.registerSection?.(sectionId);
 
     let sectionEl = document.getElementById(`${sectionId}-section`);

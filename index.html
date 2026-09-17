@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260916-folder-pick">
+  <link rel="stylesheet" href="app/styles.css?v=20260917-word-options">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -143,6 +143,7 @@
           <button id="open-iching-phases" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Phases</button>
         </div>
       </div>
+      <button id="open-playing-cards" class="settings-trigger" type="button" aria-pressed="false">Playing Cards</button>
       <div class="topbar-dropdown" aria-label="Kabbalah menu">
         <button id="open-kabbalah" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="kabbalah-subpages" aria-expanded="false">Kabbalah ▾</button>
         <div id="kabbalah-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Kabbalah subpages">
@@ -1558,6 +1559,42 @@
       </section>
     </div>
   </section>
+  <section id="playing-cards-section" hidden>
+    <div class="browse-layout">
+      <aside class="list-panel">
+        <div class="list-header">
+          <strong>Playing Cards</strong>
+          <span id="playing-cards-count" class="list-count">--</span>
+        </div>
+        <div class="dataset-search-wrap">
+          <input id="playing-cards-search-input" class="dataset-search-input" type="search" placeholder="Search cards, suits, ranks" aria-label="Search playing cards">
+          <button id="playing-cards-search-clear" class="dataset-search-clear" type="button" aria-label="Clear playing card search" disabled>×</button>
+        </div>
+        <div id="playing-cards-list" class="card-list" role="listbox" aria-label="Playing cards"></div>
+      </aside>
+      <section class="detail-panel" aria-live="polite">
+        <div class="detail-heading">
+          <h2 id="playing-cards-detail-name">--</h2>
+          <div id="playing-cards-detail-type" class="detail-type">--</div>
+          <div id="playing-cards-detail-summary" class="detail-summary">--</div>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-card">
+            <strong>Tarot Correspondence</strong>
+            <p id="playing-cards-detail-tarot" class="body-text">--</p>
+          </div>
+          <div class="meta-card">
+            <strong>Numerology</strong>
+            <p id="playing-cards-detail-numerology" class="body-text">--</p>
+          </div>
+          <div class="meta-card" id="playing-cards-meta-deck-card" hidden>
+            <strong>Decks</strong>
+            <div id="playing-cards-detail-deck-image" class="playing-cards-deck-gallery"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
   <section id="sky-section" hidden>
     <div id="now-panel">
     <iframe id="now-sky-layer" aria-hidden="true" scrolling="no" allow="geolocation"></iframe>
@@ -1574,11 +1611,12 @@
         <span>Location, live background, and card deck for this page.</span>
       </div>
       <div class="now-settings-row">
-        <label class="settings-field">Latitude          <input id="now-lat" type="number" step="0.0001" value="51.5074">
-        </label>
-        <label class="settings-field">Longitude          <input id="now-lng" type="number" step="0.0001" value="-0.1278">
-        </label>
-        <button id="now-use-location" type="button" class="settings-action-btn">Use My Location</button>
+        <div class="settings-field settings-field-full now-location-field">
+          <span>Location</span>
+          <strong id="now-location-label" class="now-location-label">Not set</strong>
+          <span id="now-location-coords" class="settings-field-hint">Set your location on the Profile page; Sky uses it automatically.</span>
+          <button id="now-location-edit" type="button" class="settings-action-btn">Edit in Profile</button>
+        </div>
         <label class="settings-field now-settings-check" for="now-stellarium-toggle">
           <span>Sky Background</span>
           <input id="now-stellarium-toggle" type="checkbox" />
@@ -2041,14 +2079,31 @@
                 <option value="rashi">Rashi</option>
               </select>
             </label>
+            <button id="alpha-gematria-options" type="button" class="alpha-gematria-options-btn" aria-haspopup="dialog" aria-expanded="false">Options</button>
           </div>
-          <div class="alpha-gematria-controls">
+          <div id="alpha-gematria-options-summary" class="alpha-gematria-options-summary" aria-live="polite"></div>
+          <div id="alpha-gematria-options-anchor" hidden></div>
+          <div id="alpha-gematria-options-panel" class="alpha-gematria-options-panel" hidden>
+            <div class="alpha-gematria-field alpha-gematria-field-language" id="alpha-gematria-language-field">
+              <span>Language</span>
+              <select id="alpha-gematria-language" class="alpha-gematria-language" aria-label="Word lookup language">
+                <option value="english" selected>English</option>
+                <option value="hebrew">Hebrew (Strong's)</option>
+                <option value="greek">Greek (Strong's)</option>
+              </select>
+            </div>
+            <div class="alpha-gematria-field alpha-gematria-field-method" id="alpha-gematria-method-field" hidden>
+              <span>Method</span>
+              <select id="alpha-gematria-method" class="alpha-gematria-method" aria-label="Gematria method"></select>
+            </div>
             <div class="alpha-gematria-field alpha-gematria-field-cipher">
               <span id="alpha-gematria-cipher-label">Cipher</span>
               <select id="alpha-gematria-cipher" class="alpha-gematria-cipher" aria-label="Gematria cipher"></select>
               <div id="alpha-gematria-reverse-ciphers" class="alpha-gematria-reverse-ciphers" role="group" aria-label="Reverse lookup ciphers" hidden></div>
               <div id="alpha-gematria-reverse-cipher-hint" class="alpha-gematria-reverse-cipher-hint" hidden>Select one or more ciphers to narrow reverse lookup results.</div>
             </div>
+          </div>
+          <div class="alpha-gematria-controls">
           <label class="alpha-gematria-field" for="alpha-gematria-input">
               <span id="alpha-gematria-input-label">Text</span>
             <textarea id="alpha-gematria-input" class="alpha-gematria-input" placeholder="Type or paste text"></textarea>
@@ -2711,33 +2766,34 @@
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
   <script src="app/app-config.js?v=20260916-favicon-upload"></script>
-  <script src="app/data-service.js?v=20260915-watch"></script>
+  <script src="app/data-service.js?v=20260917-word-options"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-popover-menu.js?v=20260915-tree-3d"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
   <script src="app/ui-library-marks.js?v=20260830-library"></script>
-  <script src="app/plugins-host.js?v=20260911-preauth-widgets"></script>
+  <script src="app/plugins-host.js?v=20260916-playing-section"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
-  <script src="app/card-images.js?v=20260916-zio-codes"></script>
+  <script src="app/card-images.js?v=20260916-jokers"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
-  <script src="app/ui-now.js?v=20260807-perf-01"></script>
-  <script src="app/lazy-sections.js?v=20260915-tandem"></script>
+  <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
+  <script src="app/lazy-sections.js?v=20260916-playing-section"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
-  <script src="app/ui-settings.js?v=20260911-profile-timing-fix"></script>
-  <script src="app/ui-dlc-shop.js?v=20260916-folder-pick"></script>
+  <script src="app/ui-settings.js?v=20260916-sky-revamp"></script>
+  <script src="app/ui-dlc-shop.js?v=20260916-back-optional"></script>
+
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
-  <script src="app/ui-navigation.js?v=20260915-tandem"></script>
+  <script src="app/ui-navigation.js?v=20260916-playing-section"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>
   <script src="app/ui-calendar-visuals.js?v=20260307b"></script>
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
-  <script src="app/ui-section-state.js?v=20260915-tandem"></script>
+  <script src="app/ui-section-state.js?v=20260916-playing-section"></script>
   <script src="app/ui-planner.js?v=20260915-notes"></script>
   <script src="app/ui-inbox.js?v=20260915-reply"></script>
-  <script src="app/app-runtime.js?v=20260915-planner"></script>
+  <script src="app/app-runtime.js?v=20260916-sky-revamp"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20260915-tandem"></script>
+  <script src="app.js?v=20260916-playing-section"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>

@@ -1053,6 +1053,12 @@
     #admin-section[hidden] {
       display: none;
     }
+    .plugin-api-section {
+      height: calc(100vh - 61px);
+      height: calc(100dvh - 61px);
+      box-sizing: border-box;
+      overflow: auto;
+    }
     .plugin-api-section[hidden] {
       display: none !important;
     }
@@ -2190,15 +2196,21 @@
       display: none;
     }
     /* Chromium will not open a directory chooser for a display:none
-       webkitdirectory input, so keep this one rendered but invisible. */
-    .dlc-file-btn input.dlc-dir-input {
+       webkitdirectory input. Stretch it invisibly over the label so a real
+       click lands on the input itself (no programmatic .click() needed). */
+    .dlc-file-btn.dlc-dir-label {
+      position: relative;
+      overflow: hidden;
+    }
+    .dlc-file-btn.dlc-dir-label input.dlc-dir-input {
       display: block;
       position: absolute;
-      width: 1px;
-      height: 1px;
+      inset: 0;
+      width: 100%;
+      height: 100%;
       opacity: 0;
       margin: 0;
-      pointer-events: none;
+      cursor: pointer;
     }
     .dlc-create-kinds {
       display: flex;
@@ -6766,6 +6778,57 @@
       font-size: 11px;
       color: var(--tt-text-muted);
     }
+    .list-group-title {
+      padding: 10px 12px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--tt-text-muted);
+    }
+    .list-item .list-thumb {
+      width: 26px;
+      height: 36px;
+      object-fit: contain;
+      border-radius: 3px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-surface);
+      flex: 0 0 auto;
+    }
+    .list-item .list-thumb.is-empty {
+      visibility: hidden;
+    }
+    .playing-cards-deck-gallery {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .playing-cards-deck-item {
+      display: grid;
+      gap: 4px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: zoom-in;
+    }
+    .playing-cards-deck-image {
+      max-width: 150px;
+      width: auto;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      display: block;
+    }
+    .playing-cards-deck-item:hover .playing-cards-deck-image {
+      border-color: var(--tt-accent);
+    }
+    .playing-cards-deck-label {
+      font-size: 11px;
+      color: var(--tt-text-muted);
+    }
     .iching-lines-trigram {
       width: min(100%, 110px);
       gap: 5px;
@@ -8277,6 +8340,32 @@
       font-size: 13px;
       font-family: inherit;
       cursor: pointer;
+    }
+    .alpha-gematria-options-btn {
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deepest);
+      color: var(--tt-text);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .alpha-gematria-options-btn:hover {
+      border-color: var(--tt-accent);
+    }
+    .alpha-gematria-options-summary {
+      margin: 6px 0 2px;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      color: var(--tt-text-muted);
+    }
+    .alpha-gematria-options-panel {
+      display: grid;
+      gap: 12px;
+    }
+    .alpha-gematria-options-panel .alpha-gematria-field {
+      min-width: 0;
     }
 
     /* Rashi script rendering for Hebrew glyphs. The same Unicode codepoints
@@ -16943,4 +17032,26 @@
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
+    }
+
+    /* Sky page: widen the board on desktop so card text has room to breathe. */
+    @media (min-width: 761px) {
+      #now-panel {
+        --now-square-size: min(80vw, 1180px, 84svh, 820px);
+      }
+      #now-panel .now-panel-square {
+        width: min(80vw, 1180px);
+        height: min(84svh, 820px);
+        max-width: none;
+        aspect-ratio: auto;
+      }
+    }
+    .now-location-field {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 12px;
+    }
+    .now-location-label {
+      font-weight: 600;
     }

@@ -31,7 +31,7 @@
     ],
     tarotFrame: [
       "node_modules/html2canvas/dist/html2canvas.min.js",
-      "app/ui-tarot-frame.js?v=20260916-zio-codes"
+      "app/ui-tarot-frame.js?v=20260916-deck-refresh"
     ],
     tarotHouse: [
       "app/ui-tarot-house.js?v=20260401-house-top-date-01"
@@ -64,6 +64,10 @@
       "app/ui-iching-bigram.js?v=20260820-template",
       "app/ui-iching-phase.js?v=20260820-template"
     ],
+    playingCards: [
+      "app/ui-tarot-lightbox.js?v=20260914-card-reader",
+      "app/ui-playing-cards.js?v=20260916-deck-cycle"
+    ],
     kabbalah: [
       "app/ui-rosicrucian-cross.js",
       "app/ui-kabbalah-detail.js?v=20260820-template",
@@ -78,12 +82,12 @@
       "app/ui-cube.js?v=20260915-spin-astro"
     ],
     alphabet: [
-      "app/ui-alphabet-gematria.js?v=20260323-word-meta-01",
+      "app/ui-alphabet-gematria.js?v=20260917-word-options",
       "app/ui-alphabet-browser.js?v=20260531-greek-gematria-04",
       "app/ui-alphabet-references.js",
       "app/ui-alphabet-detail.js?v=20260822-rashi",
       "app/ui-alphabet-kabbalah.js",
-      "app/ui-alphabet.js?v=20260822-rashi",
+      "app/ui-alphabet.js?v=20260917-word-options",
       "app/ui-alphabet-text.js?v=20260914-zen-raw",
       "app/ui-alphabet-reference.js?v=20260913-syn-cells"
     ],
@@ -129,7 +133,7 @@
       "app/ui-admin.js?v=20260916-favicon-upload"
     ],
     profile: [
-      "app/ui-profile.js?v=20260915-directory"
+      "app/ui-profile.js?v=20260916-sky-revamp"
     ]
   };
 
@@ -148,6 +152,7 @@
     "iching-trigram": ["iching"],
     "iching-bigram": ["iching"],
     "iching-phase": ["iching"],
+    "playing-cards": ["playingCards"],
     kabbalah: ["kabbalah"],
     "kabbalah-worlds": ["kabbalah"],
     "kabbalah-paths": ["kabbalah"],

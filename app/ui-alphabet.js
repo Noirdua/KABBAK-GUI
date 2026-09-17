@@ -59,6 +59,8 @@
   let gematriaCipherEl, gematriaInputEl, gematriaResultEl, gematriaBreakdownEl;
   let gematriaModeEls, gematriaMatchesEl, gematriaInputLabelEl, gematriaCipherLabelEl;
   let gematriaReverseCiphersEl, gematriaReverseCipherHintEl;
+  let gematriaLanguageFieldEl, gematriaLanguageEl, gematriaMethodFieldEl, gematriaMethodEl;
+  let gematriaOptionsBtnEl, gematriaOptionsSummaryEl, gematriaOptionsAnchorEl, gematriaOptionsPanelEl;
   let gematriaKeyboardEl, gematriaKeyboardScriptEl, gematriaKeyboardGridEl, gematriaKeyboardActionsEl;
 
   function getElements() {
@@ -91,6 +93,14 @@
     gematriaCipherLabelEl = document.getElementById("alpha-gematria-cipher-label");
     gematriaReverseCiphersEl = document.getElementById("alpha-gematria-reverse-ciphers");
     gematriaReverseCipherHintEl = document.getElementById("alpha-gematria-reverse-cipher-hint");
+    gematriaLanguageFieldEl = document.getElementById("alpha-gematria-language-field");
+    gematriaLanguageEl = document.getElementById("alpha-gematria-language");
+    gematriaMethodFieldEl = document.getElementById("alpha-gematria-method-field");
+    gematriaMethodEl = document.getElementById("alpha-gematria-method");
+    gematriaOptionsBtnEl = document.getElementById("alpha-gematria-options");
+    gematriaOptionsSummaryEl = document.getElementById("alpha-gematria-options-summary");
+    gematriaOptionsAnchorEl = document.getElementById("alpha-gematria-options-anchor");
+    gematriaOptionsPanelEl = document.getElementById("alpha-gematria-options-panel");
     gematriaKeyboardEl = document.getElementById("alpha-gematria-keyboard");
     gematriaKeyboardScriptEl = document.getElementById("alpha-gematria-keyboard-script");
     gematriaKeyboardGridEl = document.getElementById("alpha-gematria-keyboard-grid");
@@ -110,6 +120,14 @@
       cipherLabelEl: gematriaCipherLabelEl,
       reverseCiphersEl: gematriaReverseCiphersEl,
       reverseCipherHintEl: gematriaReverseCipherHintEl,
+      reverseLanguageFieldEl: gematriaLanguageFieldEl,
+      reverseLanguageEl: gematriaLanguageEl,
+      methodFieldEl: gematriaMethodFieldEl,
+      methodEl: gematriaMethodEl,
+      optionsButtonEl: gematriaOptionsBtnEl,
+      optionsSummaryEl: gematriaOptionsSummaryEl,
+      optionsAnchorEl: gematriaOptionsAnchorEl,
+      optionsPanelEl: gematriaOptionsPanelEl,
       keyboardEl: gematriaKeyboardEl,
       keyboardScriptEl: gematriaKeyboardScriptEl,
       keyboardGridEl: gematriaKeyboardGridEl,

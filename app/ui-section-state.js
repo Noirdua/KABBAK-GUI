@@ -22,6 +22,7 @@
     "iching-trigram",
     "iching-bigram",
     "iching-phase",
+    "playing-cards",
     "kabbalah",
     "kabbalah-worlds",
     "kabbalah-paths",
@@ -73,6 +74,7 @@
     "iching-trigram": "Trigrams",
     "iching-bigram": "Bigrams",
     "iching-phase": "Phases",
+    "playing-cards": "Playing Cards",
     kabbalah: "Kabbalah",
     "kabbalah-worlds": "Worlds",
     "kabbalah-paths": "Paths",
@@ -298,6 +300,7 @@
     const isIChingBigramOpen = activeSection === "iching-bigram";
     const isIChingPhaseOpen = activeSection === "iching-phase";
     const isIChingMenuOpen = isIChingOpen || isIChingTrigramOpen || isIChingBigramOpen || isIChingPhaseOpen;
+    const isPlayingCardsOpen = activeSection === "playing-cards";
     const isKabbalahOpen = activeSection === "kabbalah";
     const isKabbalahWorldsOpen = activeSection === "kabbalah-worlds";
     const isKabbalahPathsOpen = activeSection === "kabbalah-paths";
@@ -350,6 +353,7 @@
     setHidden(elements.ichingTrigramSectionEl, !isIChingTrigramOpen);
     setHidden(elements.ichingBigramSectionEl, !isIChingBigramOpen);
     setHidden(elements.ichingPhaseSectionEl, !isIChingPhaseOpen);
+    setHidden(elements.playingCardsSectionEl, !isPlayingCardsOpen);
     setHidden(elements.kabbalahSectionEl, !isKabbalahOpen);
     setHidden(elements.kabbalahWorldsSectionEl, !isKabbalahWorldsOpen);
     setHidden(elements.kabbalahPathsSectionEl, !isKabbalahPathsOpen);
@@ -397,6 +401,7 @@
     setPressed(elements.openElementsEl, isElementsOpen);
     setPressed(elements.openTattvasEl, isTattvasOpen);
     setPressed(elements.openIChingEl, isIChingMenuOpen);
+    toggleActive(elements.openPlayingCardsEl, isPlayingCardsOpen);
     toggleActive(elements.openIChingHexagramsEl, isIChingOpen);
     toggleActive(elements.openIChingTrigramsEl, isIChingTrigramOpen);
     toggleActive(elements.openIChingBigramsEl, isIChingBigramOpen);
@@ -585,6 +590,10 @@
       ensure.ensureIChingPhaseSection?.();
       return;
     }
+    if (sectionId === "playing-cards") {
+      ensure.ensurePlayingCardsSection?.(latestMagickDataset);
+      return;
+    }
     if (
       sectionId === "kabbalah"
       || sectionId === "kabbalah-worlds"
@@ -705,6 +714,10 @@
     return [...VALID_SECTIONS].map((id) => ({ id, label: sectionLabel(id) }));
   }
 
+  function isBuiltinSection(sectionId) {
+    return BUILTIN_SECTIONS.has(String(sectionId || "").trim());
+  }
+
   window.TarotSectionStateUi = {
     ...(window.TarotSectionStateUi || {}),
     init,
@@ -713,6 +726,7 @@
     goBack,
     registerSection,
     unregisterSection,
+    isBuiltinSection,
     sectionLabel,
     listSections
   };

@@ -82,14 +82,17 @@
     { id: "queen", label: "Queen" },
     { id: "king", label: "King" }
   ];
-  const PLAYING_CARDS = PLAYING_CARD_SUITS.flatMap((suit, suitIndex) => PLAYING_CARD_RANKS.map((rank, rankIndex) => ({
-    id: `pc-${suit.id}-${rank.id}`,
-    name: `${rank.label} of ${suit.label}`,
-    arcana: "Playing",
-    number: (suitIndex * 13) + rankIndex + 1,
-    suit: suit.label,
-    rank: rank.label
-  })));
+  const PLAYING_CARDS = [
+    ...PLAYING_CARD_SUITS.flatMap((suit, suitIndex) => PLAYING_CARD_RANKS.map((rank, rankIndex) => ({
+      id: `pc-${suit.id}-${rank.id}`,
+      name: `${rank.label} of ${suit.label}`,
+      arcana: "Playing",
+      number: (suitIndex * 13) + rankIndex + 1,
+      suit: suit.label,
+      rank: rank.label
+    }))),
+    { id: "pc-joker", name: "Joker", arcana: "Playing", number: 53, suit: "Jokers", rank: "Joker" }
+  ];
 
   function normalizeFrameSystem(system) {
     const value = String(system || "").trim().toLowerCase();
@@ -716,6 +719,14 @@
     return String(deckId || "").trim().toLowerCase();
   }
 
+  // Rebuild the deck list from the API so newly installed decks show up without
+  // a full page reload.
+  function refreshDeckSources() {
+    try {
+      tarotCardImages.resetConnectionCaches?.();
+    } catch (_error) {}
+  }
+
   function getDeckOptionsList() {
     const wantedSystem = normalizeFrameSystem(state.system);
     const options = (Array.isArray(tarotCardImages.getDeckOptions?.())
@@ -803,6 +814,7 @@
     }
     state.system = next;
     writeStorageValue(FRAME_SYSTEM_STORAGE_KEY, next);
+    refreshDeckSources();
     state.slotAssignments.clear();
     state.slotFlips.clear();
     state.slotDeckOverrides.clear();
@@ -2497,6 +2509,10 @@
           .sort((left, right) => Number(left?.number) - Number(right?.number));
         return { title: suit.label, items };
       }).filter((group) => group.items.length);
+      const jokers = cards.filter((card) => card?.suit === "Jokers" && matchesQuery(card));
+      if (jokers.length) {
+        groups.push({ title: "Jokers", items: jokers });
+      }
       return [{ title: "Playing cards", groups }]
         .filter((section) => section.groups.some((group) => group.items.length));
     }
@@ -5899,6 +5915,40 @@
       originCardEl?.classList.remove("is-lightbox-origin");
     };
 
+    if (state.system === "playing-cards") {
+      // Playing-card decks are not part of the tarot card state, so open the
+      // lightbox directly and feed it the deck's image variants (jokers 1/2…).
+      const deckOptions = resolveDeckOptions(card, slotId);
+      const variants = (tarotCardImages.resolveTarotCardVariants?.(card.name, deckOptions) || [])
+        .map((variant) => ({
+          src: String(variant?.assetPath || "").trim(),
+          previewSrc: String(variant?.thumbnailPath || variant?.assetPath || "").trim()
+        }))
+        .filter((variant) => variant.src);
+      const src = variants[0]?.src || String(
+        tarotCardImages.resolveTarotCardImage?.(card.name, deckOptions)
+        || tarotCardImages.resolveTarotCardThumbnail?.(card.name, deckOptions)
+        || ""
+      ).trim();
+      if (!src) {
+        restoreOriginCard();
+        return;
+      }
+      const label = getDisplayCardName(card, slotId);
+      window.TarotUiLightbox?.open?.({
+        src,
+        altText: label,
+        label,
+        cardId: getCardId(card),
+        deckId: getResolvedSlotDeckId(slotId),
+        rotated: isSlotFlipped(slotId),
+        originRect,
+        onClose: restoreOriginCard,
+        resolveCardVariants: () => variants
+      });
+      return;
+    }
+
     if (typeof config.openCardLightbox === "function") {
       config.openCardLightbox(getCardId(card), {
         onSelectCardId: () => {},
@@ -7199,6 +7249,7 @@
     }
 
     resetFrameSectionScroll();
+    refreshDeckSources();
 
     if (state.system === "iching") {
       await ensureFrameIChingCards();

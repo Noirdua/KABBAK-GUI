@@ -15,6 +15,7 @@ const ensureIChingSection = (...args) => window.IChingSectionUi?.ensureIChingSec
 const ensureIChingTrigramSection = (...args) => window.IChingTrigramSectionUi?.ensureIChingTrigramSection?.(...args);
 const ensureIChingBigramSection = (...args) => window.IChingBigramSectionUi?.ensureIChingBigramSection?.(...args);
 const ensureIChingPhaseSection = (...args) => window.IChingPhaseSectionUi?.ensureIChingPhaseSection?.(...args);
+const ensurePlayingCardsSection = (...args) => window.PlayingCardsSectionUi?.ensurePlayingCardsSection?.(...args);
 const ensureKabbalahSection = (...args) => window.KabbalahSectionUi?.ensureKabbalahSection?.(...args);
 const ensureCubeSection = (...args) => window.CubeSectionUi?.ensureCubeSection?.(...args);
 const ensureAlphabetSection = (...args) => window.AlphabetSectionUi?.ensureAlphabetSection?.(...args);
@@ -68,6 +69,7 @@ const ichingSectionEl = document.getElementById("iching-section");
 const ichingTrigramSectionEl = document.getElementById("iching-trigram-section");
 const ichingBigramSectionEl = document.getElementById("iching-bigram-section");
 const ichingPhaseSectionEl = document.getElementById("iching-phase-section");
+const playingCardsSectionEl = document.getElementById("playing-cards-section");
 const kabbalahSectionEl = document.getElementById("kabbalah-section");
 const kabbalahWorldsSectionEl = document.getElementById("kabbalah-worlds-section");
 const kabbalahPathsSectionEl = document.getElementById("kabbalah-paths-section");
@@ -111,6 +113,7 @@ const openIChingHexagramsEl = document.getElementById("open-iching-hexagrams");
 const openIChingTrigramsEl = document.getElementById("open-iching-trigrams");
 const openIChingBigramsEl = document.getElementById("open-iching-bigrams");
 const openIChingPhasesEl = document.getElementById("open-iching-phases");
+const openPlayingCardsEl = document.getElementById("open-playing-cards");
 const openKabbalahEl = document.getElementById("open-kabbalah");
 const openKabbalahSephirotEl = document.getElementById("open-kabbalah-sephirot");
 const openKabbalahWorldsEl = document.getElementById("open-kabbalah-worlds");
@@ -644,6 +647,7 @@ appRuntime.init?.({
     ensureIChingTrigramSection,
     ensureIChingBigramSection,
     ensureIChingPhaseSection,
+    ensurePlayingCardsSection,
     ensureKabbalahSection,
     ensureCubeSection,
     ensureAlphabetSection,
@@ -1088,6 +1092,7 @@ sectionStateUi.init?.({
     ichingTrigramSectionEl,
     ichingBigramSectionEl,
     ichingPhaseSectionEl,
+    playingCardsSectionEl,
     kabbalahSectionEl,
     kabbalahWorldsSectionEl,
     kabbalahPathsSectionEl,
@@ -1131,6 +1136,7 @@ sectionStateUi.init?.({
     openIChingTrigramsEl,
     openIChingBigramsEl,
     openIChingPhasesEl,
+    openPlayingCardsEl,
     openKabbalahEl,
     openKabbalahSephirotEl,
     openKabbalahWorldsEl,
@@ -1172,6 +1178,7 @@ sectionStateUi.init?.({
     ensureIChingTrigramSection,
     ensureIChingBigramSection,
     ensureIChingPhaseSection,
+    ensurePlayingCardsSection,
     ensureKabbalahSection,
     ensureCubeSection,
     ensureAlphabetSection,
@@ -1332,6 +1339,7 @@ navigationUi.init?.({
     openIChingTrigramsEl,
     openIChingBigramsEl,
     openIChingPhasesEl,
+    openPlayingCardsEl,
     openKabbalahEl,
     openKabbalahSephirotEl,
     openKabbalahWorldsEl,
@@ -1372,6 +1380,7 @@ navigationUi.init?.({
     ensureIChingTrigramSection,
     ensureIChingBigramSection,
     ensureIChingPhaseSection,
+    ensurePlayingCardsSection,
     ensureKabbalahSection,
     ensureCubeSection,
     ensureAlphabetSection,

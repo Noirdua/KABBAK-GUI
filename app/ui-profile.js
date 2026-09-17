@@ -3578,6 +3578,7 @@
       state.location = summary?.location && typeof summary.location === "object"
         ? { ...summary.location }
         : null;
+      document.dispatchEvent(new CustomEvent("profile:location-updated", { detail: { location: getLocation() } }));
       await loadLocationCountries();
       await syncLocationUi();
       state.preferredDeck = String(summary?.preferredDeck || "").trim();
@@ -3938,6 +3939,7 @@
       state.location = result?.location ? { ...result.location } : { latitude: input.latitude, longitude: input.longitude, label: input.label };
       syncLocationUi();
       setLocationStatus(state.location.label ? `Saved: ${state.location.label}` : "Location saved.");
+      document.dispatchEvent(new CustomEvent("profile:location-updated", { detail: { location: getLocation() } }));
       void updateSceneSkyCards();
     } catch (error) {
       setLocationStatus(`Could not save location. ${error?.message || "Please try again."}`, true);
@@ -4766,9 +4768,18 @@
     };
   }
 
+  function getLocation() {
+    const location = state.location;
+    if (!location || typeof location !== "object") {
+      return null;
+    }
+    return { ...location };
+  }
+
   window.ProfileUi = {
     ...(window.ProfileUi || {}),
     ensureProfileSection,
+    getLocation,
     mountJournal,
     recordQuizAttempt,
     refreshProfile
