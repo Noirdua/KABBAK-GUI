@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260917-natal-chart">
+  <link rel="stylesheet" href="app/styles.css?v=20260917-stargame">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -166,6 +166,7 @@
       </div>
       <button id="open-quiz" class="settings-trigger" type="button" aria-pressed="false">Quiz</button>
       <button id="open-community" class="settings-trigger" type="button" aria-pressed="false">Community</button>
+      <button id="open-games" class="settings-trigger" type="button" aria-pressed="false">Games</button>
       <button id="open-scriber" class="settings-trigger" type="button" aria-pressed="false">Scriber</button>
       <div class="topbar-dropdown" aria-label="Tarot menu">
         <button id="open-tarot" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="tarot-subpages" aria-expanded="false">Tarot ▾</button>
@@ -211,6 +212,14 @@
             <button id="profile-display-name-save" class="profile-btn profile-btn-primary" type="button">Save Name</button>
             <span id="profile-display-name-status" class="profile-location-status" aria-live="polite"></span>
           </div>
+          <div class="profile-bio-edit">
+            <label class="profile-field" for="profile-bio-input">Bio</label>
+            <textarea id="profile-bio-input" rows="3" maxlength="2000" placeholder="Tell people a little about yourself. Shown in the public directory."></textarea>
+            <div class="profile-bio-actions">
+              <button id="profile-bio-save" class="profile-btn profile-btn-primary" type="button">Save Bio</button>
+              <span id="profile-bio-status" class="profile-location-status" aria-live="polite"></span>
+            </div>
+          </div>
           <label class="profile-directory-toggle">
             <input id="profile-directory-public" type="checkbox"> Show me in the public directory          </label>
           <span id="profile-directory-status" class="profile-location-status" aria-live="polite"></span>
@@ -242,8 +251,23 @@
         <div class="profile-hub-card profile-directory-card">
           <span class="profile-hub-card-kicker">Community</span>
           <span class="profile-hub-card-title">Public Directory</span>
-          <span class="profile-hub-card-copy">People who chose to be listed publicly.</span>
+          <span class="profile-hub-card-copy">People who chose to be listed publicly. Click someone to message or add them.</span>
           <div id="profile-directory-list" class="profile-directory-list"></div>
+          <div id="profile-directory-detail" class="profile-directory-detail" hidden></div>
+          <div class="profile-directory-discussions">
+            <div class="profile-directory-discussions-head">
+              <strong>Bulletin Board</strong>
+              <button id="profile-directory-board-open" class="profile-btn" type="button">Open Community</button>
+            </div>
+            <div id="profile-directory-topics" class="profile-directory-topics"></div>
+          </div>
+        </div>
+        <div class="profile-hub-card profile-friends-card">
+          <span class="profile-hub-card-kicker">Community</span>
+          <span class="profile-hub-card-title">Friends</span>
+          <span class="profile-hub-card-copy">Requests and connections from the public directory.</span>
+          <div id="profile-friends-requests" class="profile-friends-requests"></div>
+          <div id="profile-friends-list" class="profile-friends-list"></div>
         </div>
         <div class="profile-location-card">
           <div class="profile-location-head">
@@ -1874,6 +1898,49 @@
       </section>
     </div>
   </section>
+  <section id="games-section" hidden>
+    <div class="games-layout">
+      <aside class="games-list-panel">
+        <div class="games-head">
+          <strong>Games</strong>
+          <button id="games-new" class="settings-trigger" type="button">New game</button>
+        </div>
+        <div id="games-session-list" class="games-session-list" role="listbox" aria-label="Your games"></div>
+      </aside>
+      <section class="games-detail-panel" aria-live="polite">
+        <div id="games-compose" class="games-compose" hidden>
+          <label class="games-field">Game            <select id="games-type"></select>
+          </label>
+          <label class="games-field">Opponent            <select id="games-opponent"></select>
+          </label>
+          <p class="body-text">Turn-based, no clock. Hangman is built in; extra games can come from plugins.</p>
+          <div class="games-actions">
+            <button id="games-challenge" class="settings-button-primary" type="button">Challenge</button>
+            <button id="games-cancel" class="settings-trigger" type="button">Cancel</button>
+          </div>
+          <div id="games-status" class="games-status" aria-live="polite"></div>
+        </div>
+        <div id="games-detail" class="games-detail" hidden>
+          <h2 id="games-detail-title">--</h2>
+          <div id="games-detail-meta" class="games-detail-meta"></div>
+          <div id="games-turn" class="games-turn"></div>
+          <div class="games-actions">
+            <button id="games-accept" class="settings-button-primary" type="button" hidden>Accept</button>
+            <button id="games-decline" class="settings-trigger" type="button" hidden>Decline</button>
+          </div>
+          <div id="games-hangman" class="games-hangman" hidden>
+            <pre id="games-hangman-gallows" class="games-hangman-gallows"></pre>
+            <div id="games-hangman-pattern" class="games-hangman-pattern"></div>
+            <div id="games-hangman-meta" class="games-hangman-meta"></div>
+            <div id="games-hangman-letters" class="games-hangman-letters"></div>
+          </div>
+          <div id="games-custom" class="games-custom" hidden></div>
+          <div id="games-detail-status" class="games-status" aria-live="polite"></div>
+        </div>
+        <p id="games-empty" class="body-text">Challenge a public-directory user or a friend. Turns wait as long as you need.</p>
+      </section>
+    </div>
+  </section>
   <section id="scriber-section" hidden>
     <div class="scriber-layout">
       <aside class="scriber-sidebar">
@@ -2827,7 +2894,7 @@
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
   <script src="app/app-config.js?v=20260916-favicon-upload"></script>
-  <script src="app/data-service.js?v=20260917-word-options"></script>
+  <script src="app/data-service.js?v=20260917-games"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-popover-menu.js?v=20260915-tree-3d"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
@@ -2838,23 +2905,23 @@
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260917-natal-place"></script>
+  <script src="app/lazy-sections.js?v=20260917-stargame2"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260917-natal-chart"></script>
   <script src="app/ui-dlc-shop.js?v=20260916-back-optional"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
-  <script src="app/ui-navigation.js?v=20260917-spread-first-click"></script>
+  <script src="app/ui-navigation.js?v=20260917-games"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>
   <script src="app/ui-calendar-visuals.js?v=20260307b"></script>
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
-  <script src="app/ui-section-state.js?v=20260916-playing-section"></script>
+  <script src="app/ui-section-state.js?v=20260917-games"></script>
   <script src="app/ui-planner.js?v=20260915-notes"></script>
   <script src="app/ui-inbox.js?v=20260915-reply"></script>
   <script src="app/app-runtime.js?v=20260916-sky-revamp"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20260916-playing-section"></script>
+  <script src="app.js?v=20260917-games"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>

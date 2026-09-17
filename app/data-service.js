@@ -807,6 +807,34 @@
     return requestJson("GET", buildApiUrl("/api/v1/board/topics"));
   }
 
+  async function fetchGames() {
+    return requestJson("GET", buildApiUrl("/api/v1/games"));
+  }
+
+  async function fetchGameSessions() {
+    return requestJson("GET", buildApiUrl("/api/v1/games/sessions"));
+  }
+
+  async function fetchGameSession(sessionId) {
+    return requestJson("GET", buildApiUrl(`/api/v1/games/sessions/${encodeURIComponent(sessionId)}`));
+  }
+
+  async function createGameSession(payload) {
+    return requestJson("POST", buildApiUrl("/api/v1/games/sessions"), payload);
+  }
+
+  async function acceptGameSession(sessionId) {
+    return requestJson("POST", buildApiUrl(`/api/v1/games/sessions/${encodeURIComponent(sessionId)}/accept`), {});
+  }
+
+  async function declineGameSession(sessionId) {
+    return requestJson("POST", buildApiUrl(`/api/v1/games/sessions/${encodeURIComponent(sessionId)}/decline`), {});
+  }
+
+  async function playGameMove(sessionId, move) {
+    return requestJson("POST", buildApiUrl(`/api/v1/games/sessions/${encodeURIComponent(sessionId)}/moves`), move);
+  }
+
   async function fetchBoardContributors(limit) {
     return requestJson("GET", buildApiUrl("/api/v1/board/contributors", { limit }));
   }
@@ -1301,6 +1329,13 @@
     fetchAdminMessages,
     fetchAdminRoles,
     fetchDirectory,
+    acceptGameSession,
+    createGameSession,
+    declineGameSession,
+    fetchGames,
+    fetchGameSession,
+    fetchGameSessions,
+    playGameMove,
     fetchInbox,
     fetchInboxMessage,
     fetchBoardContributors,

@@ -338,6 +338,10 @@
       setActiveSection(getActiveSection() === "community" ? "home" : "community");
     });
 
+    bindClick(elements.openGamesEl, () => {
+      setActiveSection(getActiveSection() === "games" ? "home" : "games");
+    });
+
     bindClick(elements.openScriberEl, () => {
       setActiveSection(getActiveSection() === "scriber" ? "home" : "scriber");
     });

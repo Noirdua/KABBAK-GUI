@@ -108,7 +108,10 @@
       "app/quiz-connections.js"
     ],
     community: [
-      "app/ui-board.js?v=20260915-watch"
+      "app/ui-board.js?v=20260917-format"
+    ],
+    games: [
+      "app/ui-games.js?v=20260917-stargame2"
     ],
     gods: [
       "app/ui-gods-references.js",
@@ -133,7 +136,7 @@
       "app/ui-admin.js?v=20260917-publish-queue"
     ],
     profile: [
-      "app/ui-profile.js?v=20260916-sky-revamp"
+      "app/ui-profile.js?v=20260917-games"
     ]
   };
 
@@ -168,6 +171,7 @@
     zodiac: ["zodiac"],
     quiz: ["quiz"],
     community: ["community"],
+    games: ["games"],
     gods: ["gods"],
     enochian: ["enochian"],
     numbers: ["numbers"],

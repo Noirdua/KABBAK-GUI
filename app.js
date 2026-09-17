@@ -25,6 +25,7 @@ const ensureScriberSection = (...args) => window.ScriberSectionUi?.ensureScriber
 const ensureZodiacSection = (...args) => window.ZodiacSectionUi?.ensureZodiacSection?.(...args);
 const ensureQuizSection = (...args) => window.QuizSectionUi?.ensureQuizSection?.(...args);
 const ensureCommunitySection = (...args) => window.CommunitySectionUi?.ensureCommunitySection?.(...args);
+const ensureGamesSection = (...args) => window.GamesSectionUi?.ensureGamesSection?.(...args);
 const ensureProfileSection = () => window.ProfileUi?.ensureProfileSection?.();
 const ensureGodsSection = (...args) => window.GodsSectionUi?.ensureGodsSection?.(...args);
 const ensureEnochianSection = (...args) => window.EnochianSectionUi?.ensureEnochianSection?.(...args);
@@ -87,6 +88,7 @@ const numPadSectionEl = document.getElementById("num-pad-section");
 const zodiacSectionEl = document.getElementById("zodiac-section");
 const quizSectionEl = document.getElementById("quiz-section");
 const communitySectionEl = document.getElementById("community-section");
+const gamesSectionEl = document.getElementById("games-section");
 const godsSectionEl = document.getElementById("gods-section");
 const enochianSectionEl = document.getElementById("enochian-section");
 const openHomeEl = document.getElementById("open-home");
@@ -137,6 +139,7 @@ const openSkyEl = document.getElementById("open-sky");
 const openNatalEl = document.getElementById("open-natal");
 const openQuizEl = document.getElementById("open-quiz");
 const openCommunityEl = document.getElementById("open-community");
+const openGamesEl = document.getElementById("open-games");
 const openGodsEl = document.getElementById("open-gods");
 const openEnochianEl = document.getElementById("open-enochian");
 const openProfileEl = document.getElementById("open-profile");
@@ -659,6 +662,7 @@ appRuntime.init?.({
     ensureNatalPanel,
     ensureQuizSection,
     ensureCommunitySection,
+    ensureGamesSection,
     ensureGodsSection,
     ensureEnochianSection,
     ensureNumbersSection,
@@ -1111,6 +1115,7 @@ sectionStateUi.init?.({
     zodiacSectionEl,
     quizSectionEl,
     communitySectionEl,
+    gamesSectionEl,
     godsSectionEl,
     enochianSectionEl,
     adminSectionEl,
@@ -1161,6 +1166,7 @@ sectionStateUi.init?.({
     openNatalEl,
     openQuizEl,
     openCommunityEl,
+    openGamesEl,
     openGodsEl,
     openEnochianEl,
     openProfileEl,
@@ -1189,6 +1195,7 @@ sectionStateUi.init?.({
     ensureZodiacSection,
     ensureQuizSection,
     ensureCommunitySection,
+    ensureGamesSection,
     ensureProfileSection,
     ensureGodsSection,
     ensureEnochianSection,
@@ -1364,6 +1371,7 @@ navigationUi.init?.({
     openNatalEl,
     openQuizEl,
     openCommunityEl,
+    openGamesEl,
     openGodsEl,
     openEnochianEl,
     openProfileEl,

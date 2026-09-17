@@ -34,6 +34,261 @@
     return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
   }
 
+  function appendInlines(parent, text) {
+    const src = String(text || "");
+    const pattern = /(`[^`]+`|\*\*[^*]+\*\*|~~[^~]+~~|\*[^*]+\*|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))/g;
+    let last = 0;
+    let match = pattern.exec(src);
+    while (match) {
+      if (match.index > last) {
+        parent.appendChild(document.createTextNode(src.slice(last, match.index)));
+      }
+      const token = match[0];
+      if (token.startsWith("`")) {
+        const code = document.createElement("code");
+        code.textContent = token.slice(1, -1);
+        parent.appendChild(code);
+      } else if (token.startsWith("**")) {
+        const strong = document.createElement("strong");
+        strong.textContent = token.slice(2, -2);
+        parent.appendChild(strong);
+      } else if (token.startsWith("~~")) {
+        const del = document.createElement("del");
+        del.textContent = token.slice(2, -2);
+        parent.appendChild(del);
+      } else if (token.startsWith("*")) {
+        const em = document.createElement("em");
+        em.textContent = token.slice(1, -1);
+        parent.appendChild(em);
+      } else if (match[2] && match[3]) {
+        const link = document.createElement("a");
+        link.href = match[3];
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = match[2];
+        parent.appendChild(link);
+      }
+      last = match.index + token.length;
+      match = pattern.exec(src);
+    }
+    if (last < src.length) {
+      parent.appendChild(document.createTextNode(src.slice(last)));
+    }
+  }
+
+  function renderMarkdown(source) {
+    const fragment = document.createDocumentFragment();
+    const lines = String(source || "").replace(/\r\n/g, "\n").split("\n");
+    let index = 0;
+    while (index < lines.length) {
+      const line = lines[index];
+      if (!line.trim()) {
+        index += 1;
+        continue;
+      }
+      if (line.trimStart().startsWith("```")) {
+        index += 1;
+        const buf = [];
+        while (index < lines.length && !lines[index].trimStart().startsWith("```")) {
+          buf.push(lines[index]);
+          index += 1;
+        }
+        if (index < lines.length) index += 1;
+        const pre = document.createElement("pre");
+        const code = document.createElement("code");
+        code.textContent = buf.join("\n");
+        pre.appendChild(code);
+        fragment.appendChild(pre);
+        continue;
+      }
+      const heading = /^(#{1,3})\s+(.*)$/.exec(line);
+      if (heading) {
+        const node = document.createElement(`h${heading[1].length + 2}`);
+        appendInlines(node, heading[2]);
+        fragment.appendChild(node);
+        index += 1;
+        continue;
+      }
+      if (/^>\s?/.test(line)) {
+        const quote = document.createElement("blockquote");
+        const buf = [];
+        while (index < lines.length && /^>\s?/.test(lines[index])) {
+          buf.push(lines[index].replace(/^>\s?/, ""));
+          index += 1;
+        }
+        appendInlines(quote, buf.join("\n"));
+        fragment.appendChild(quote);
+        continue;
+      }
+      if (/^\s*[-*]\s+/.test(line)) {
+        const list = document.createElement("ul");
+        while (index < lines.length && /^\s*[-*]\s+/.test(lines[index])) {
+          const item = document.createElement("li");
+          appendInlines(item, lines[index].replace(/^\s*[-*]\s+/, ""));
+          list.appendChild(item);
+          index += 1;
+        }
+        fragment.appendChild(list);
+        continue;
+      }
+      if (/^\s*\d+\.\s+/.test(line)) {
+        const list = document.createElement("ol");
+        while (index < lines.length && /^\s*\d+\.\s+/.test(lines[index])) {
+          const item = document.createElement("li");
+          appendInlines(item, lines[index].replace(/^\s*\d+\.\s+/, ""));
+          list.appendChild(item);
+          index += 1;
+        }
+        fragment.appendChild(list);
+        continue;
+      }
+      const para = [];
+      while (index < lines.length && lines[index].trim()
+        && !lines[index].trimStart().startsWith("```")
+        && !/^(#{1,3})\s+/.test(lines[index])
+        && !/^>\s?/.test(lines[index])
+        && !/^\s*[-*]\s+/.test(lines[index])
+        && !/^\s*\d+\.\s+/.test(lines[index])) {
+        para.push(lines[index]);
+        index += 1;
+      }
+      const paragraph = document.createElement("p");
+      appendInlines(paragraph, para.join("\n"));
+      fragment.appendChild(paragraph);
+    }
+    return fragment;
+  }
+
+  function setFormatted(node, text) {
+    if (!node) return;
+    node.textContent = "";
+    node.appendChild(renderMarkdown(text));
+  }
+
+  function applyFormat(area, format) {
+    if (!(area instanceof HTMLTextAreaElement)) return;
+    const start = area.selectionStart ?? 0;
+    const end = area.selectionEnd ?? 0;
+    const value = area.value;
+    const selected = value.slice(start, end);
+    const lineStart = value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+    const lineEndRaw = value.indexOf("\n", end);
+    const lineEnd = lineEndRaw === -1 ? value.length : lineEndRaw;
+
+    function replace(from, to, next, selFrom, selTo) {
+      area.value = value.slice(0, from) + next + value.slice(to);
+      area.focus();
+      area.setSelectionRange(selFrom, selTo);
+    }
+
+    if (format === "bold") {
+      const inner = selected || "bold";
+      replace(start, end, `**${inner}**`, start + 2, start + 2 + inner.length);
+      return;
+    }
+    if (format === "italic") {
+      const inner = selected || "italic";
+      replace(start, end, `*${inner}*`, start + 1, start + 1 + inner.length);
+      return;
+    }
+    if (format === "strike") {
+      const inner = selected || "text";
+      replace(start, end, `~~${inner}~~`, start + 2, start + 2 + inner.length);
+      return;
+    }
+    if (format === "code") {
+      const inner = selected || "code";
+      if (selected.includes("\n") || !selected) {
+        const block = `\`\`\`\n${inner}\n\`\`\``;
+        replace(start, end, block, start + 4, start + 4 + inner.length);
+        return;
+      }
+      replace(start, end, `\`${inner}\``, start + 1, start + 1 + inner.length);
+      return;
+    }
+    if (format === "link") {
+      const label = selected || "link text";
+      const inserted = `[${label}](https://)`;
+      replace(start, end, inserted, start + label.length + 3, start + inserted.length - 1);
+      return;
+    }
+
+    const from = selected ? start : lineStart;
+    const to = selected ? end : lineEnd;
+    const block = value.slice(from, to);
+    const mapped = (block || " ").split("\n").map((line, index) => {
+      const trimmed = line.replace(/^\s+/, "");
+      if (format === "heading") {
+        const text = trimmed.replace(/^#{1,3}\s+/, "") || "heading";
+        return `## ${text}`;
+      }
+      if (format === "quote") {
+        return trimmed.startsWith("> ") ? trimmed : `> ${trimmed || "quote"}`;
+      }
+      if (format === "ul") {
+        const text = trimmed.replace(/^[-*]\s+/, "") || "item";
+        return `- ${text}`;
+      }
+      if (format === "ol") {
+        const text = trimmed.replace(/^\d+\.\s+/, "") || "item";
+        return `${index + 1}. ${text}`;
+      }
+      return line;
+    }).join("\n");
+    replace(from, to, mapped, from, from + mapped.length);
+  }
+
+  function makeFormatBar(area) {
+    const bar = document.createElement("div");
+    bar.className = "community-format-bar";
+    const buttons = [
+      { format: "bold", label: "B", title: "Bold" },
+      { format: "italic", label: "I", title: "Italic" },
+      { format: "strike", label: "S", title: "Strikethrough" },
+      { format: "heading", label: "H", title: "Heading" },
+      { format: "quote", label: "“", title: "Quote" },
+      { format: "ul", label: "•", title: "Bullet list" },
+      { format: "ol", label: "1.", title: "Numbered list" },
+      { format: "link", label: "Link", title: "Link" },
+      { format: "code", label: "</>", title: "Code" }
+    ];
+    buttons.forEach((entry) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "community-format-btn";
+      button.dataset.format = entry.format;
+      button.title = entry.title;
+      button.setAttribute("aria-label", entry.title);
+      button.textContent = entry.label;
+      button.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        applyFormat(area, entry.format);
+      });
+      bar.appendChild(button);
+    });
+    area.addEventListener("keydown", (event) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = String(event.key || "").toLowerCase();
+      if (key === "b") {
+        event.preventDefault();
+        applyFormat(area, "bold");
+      } else if (key === "i") {
+        event.preventDefault();
+        applyFormat(area, "italic");
+      } else if (key === "k") {
+        event.preventDefault();
+        applyFormat(area, "link");
+      }
+    });
+    return bar;
+  }
+
+  function attachFormatBar(area) {
+    if (!(area instanceof HTMLTextAreaElement) || area.dataset.formatBar === "1") return;
+    area.dataset.formatBar = "1";
+    area.insertAdjacentElement("beforebegin", makeFormatBar(area));
+  }
+
   function renderTopicList() {
     const list = el("community-topic-list");
     if (!list) return;
@@ -118,7 +373,7 @@
     const meta = el("community-topic-meta");
     if (meta) meta.textContent = `${topic.authorName || "Someone"} · ${formatDate(topic.createdAt)}`;
     const body = el("community-topic-body");
-    if (body) body.textContent = topic.body || "";
+    if (body) setFormatted(body, topic.body || "");
 
     const replies = el("community-replies");
     if (replies) {
@@ -143,7 +398,7 @@
         head.append(name, when);
         const text = document.createElement("div");
         text.className = "community-reply-body";
-        text.textContent = reply.body || "";
+        setFormatted(text, reply.body || "");
         const quote = document.createElement("button");
         quote.type = "button";
         quote.className = "settings-trigger community-reply-quote";
@@ -440,7 +695,7 @@
       }
     });
     actions.append(save, cancel);
-    wrap.append(area, actions);
+    wrap.append(makeFormatBar(area), area, actions);
     bodyNode.replaceWith(wrap);
   }
 
@@ -477,6 +732,9 @@
       void sendReport();
     });
     el("community-report-cancel")?.addEventListener("click", closeReport);
+    attachFormatBar(el("community-body"));
+    attachFormatBar(el("community-edit-body"));
+    attachFormatBar(el("community-reply-body"));
   }
 
   async function ensureCommunitySection() {

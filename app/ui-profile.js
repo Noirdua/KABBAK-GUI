@@ -21,6 +21,10 @@
     clientId: "",
     authName: "",
     displayName: "",
+    bio: "",
+    friends: { friends: [], incoming: [], outgoing: [] },
+    selectedDirectoryUser: "",
+    selectedDirectoryUserData: null,
     journalPageMode: false,
     journalHelpers: null,
     journalView: "",
@@ -82,9 +86,17 @@
       displayNameEl: document.getElementById("profile-display-name"),
       displayNameSaveBtn: document.getElementById("profile-display-name-save"),
       displayNameStatusEl: document.getElementById("profile-display-name-status"),
+      bioInputEl: document.getElementById("profile-bio-input"),
+      bioSaveBtn: document.getElementById("profile-bio-save"),
+      bioStatusEl: document.getElementById("profile-bio-status"),
       directoryPublicEl: document.getElementById("profile-directory-public"),
       directoryStatusEl: document.getElementById("profile-directory-status"),
-      directoryListEl: document.getElementById("profile-directory-list")
+      directoryListEl: document.getElementById("profile-directory-list"),
+      directoryDetailEl: document.getElementById("profile-directory-detail"),
+      directoryTopicsEl: document.getElementById("profile-directory-topics"),
+      directoryBoardOpenEl: document.getElementById("profile-directory-board-open"),
+      friendsRequestsEl: document.getElementById("profile-friends-requests"),
+      friendsListEl: document.getElementById("profile-friends-list")
     };
   }
 
@@ -3568,9 +3580,12 @@
       state.displayName = String(summary?.displayName || "").trim();
       syncDisplayNameUi();
       updateClientLabel();
+      state.bio = String(summary?.bio || "");
+      syncBioUi();
       state.directoryVisibility = String(summary?.directoryVisibility || "private");
       syncDirectoryUi();
-      void renderPublicDirectory();
+      void refreshFriends();
+      void renderDirectoryDiscussions();
 
       state.notes = Array.isArray(notesPayload?.notes) ? notesPayload.notes : [];
       state.quickNotes = Array.isArray(quickNotesPayload?.quickNotes) ? quickNotesPayload.quickNotes : [];
@@ -3845,45 +3860,400 @@
     }
   }
 
+  function makeEl(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function syncBioUi() {
+    const { bioInputEl } = getElements();
+    if (bioInputEl) {
+      bioInputEl.value = String(state.bio || "");
+    }
+  }
+
+  function setBioStatus(text, isError = false) {
+    const { bioStatusEl } = getElements();
+    if (!bioStatusEl) return;
+    bioStatusEl.textContent = text || "";
+    bioStatusEl.classList.toggle("is-error", isError);
+  }
+
+  async function saveBio() {
+    const { bioInputEl, bioSaveBtn } = getElements();
+    const bio = String(bioInputEl?.value || "").trim().slice(0, 2000);
+    if (bioSaveBtn) bioSaveBtn.disabled = true;
+    try {
+      const service = window.TarotDataService;
+      const result = await service.requestJson("PATCH", service.buildApiUrl("/api/v1/profile/bio"), { bio });
+      state.bio = String(result?.bio ?? bio);
+      syncBioUi();
+      setBioStatus(state.bio ? "Bio saved." : "Bio cleared.");
+      void renderPublicDirectory();
+    } catch (error) {
+      setBioStatus(`Could not save bio. ${error?.message || ""}`.trim(), true);
+    } finally {
+      if (bioSaveBtn) bioSaveBtn.disabled = false;
+    }
+  }
+
+  function userRelationship(clientId) {
+    const id = String(clientId || "").trim();
+    if (!id) return "none";
+    const { friends = [], incoming = [], outgoing = [] } = state.friends || {};
+    if (friends.some((entry) => entry.clientId === id)) return "friends";
+    if (outgoing.some((entry) => entry.clientId === id)) return "outgoing";
+    if (incoming.some((entry) => entry.clientId === id)) return "incoming";
+    return "none";
+  }
+
+  async function refreshFriends() {
+    if (!isProfileAvailable()) return;
+    try {
+      const service = window.TarotDataService;
+      const result = await service.requestJson("GET", service.buildApiUrl("/api/v1/profile/friends"));
+      state.friends = {
+        friends: Array.isArray(result?.friends) ? result.friends : [],
+        incoming: Array.isArray(result?.incoming) ? result.incoming : [],
+        outgoing: Array.isArray(result?.outgoing) ? result.outgoing : []
+      };
+    } catch (_error) {
+      state.friends = { friends: [], incoming: [], outgoing: [] };
+    }
+    renderFriends();
+    renderPublicDirectory();
+  }
+
+  function friendActionButtons(relationship, clientId, { compact = false } = {}) {
+    const actions = [];
+    if (relationship === "friends") {
+      const remove = makeEl("button", "profile-btn", compact ? "Remove" : "Remove friend");
+      remove.type = "button";
+      remove.addEventListener("click", () => void removeFriendEntry(clientId));
+      actions.push(remove);
+    } else if (relationship === "outgoing") {
+      const cancel = makeEl("button", "profile-btn", compact ? "Cancel" : "Cancel request");
+      cancel.type = "button";
+      cancel.addEventListener("click", () => void cancelFriend(clientId));
+      actions.push(cancel);
+    } else if (relationship === "incoming") {
+      const accept = makeEl("button", "profile-btn profile-btn-primary", compact ? "Accept" : "Accept request");
+      accept.type = "button";
+      accept.addEventListener("click", () => void respondFriendRequest(clientId, "accept"));
+      const decline = makeEl("button", "profile-btn", "Decline");
+      decline.type = "button";
+      decline.addEventListener("click", () => void respondFriendRequest(clientId, "decline"));
+      actions.push(accept, decline);
+    } else {
+      const add = makeEl("button", "profile-btn profile-btn-primary", "Add friend");
+      add.type = "button";
+      add.addEventListener("click", () => void sendFriendRequestToUser(clientId));
+      actions.push(add);
+    }
+    if (clientId && clientId !== state.clientId) {
+      const play = makeEl("button", "profile-btn", compact ? "Play" : "Play hangman");
+      play.type = "button";
+      play.addEventListener("click", () => void challengeHangman(clientId));
+      actions.push(play);
+    }
+    return actions;
+  }
+
+  function renderFriends() {
+    const { friendsListEl, friendsRequestsEl } = getElements();
+    const { friends = [], incoming = [], outgoing = [] } = state.friends || {};
+
+    if (friendsRequestsEl) {
+      friendsRequestsEl.textContent = "";
+      const pending = [
+        ...incoming.map((entry) => ({ ...entry, direction: "incoming" })),
+        ...outgoing.map((entry) => ({ ...entry, direction: "outgoing" }))
+      ];
+      if (!pending.length) {
+        friendsRequestsEl.appendChild(makeEl("span", "profile-directory-empty", "No pending requests."));
+      }
+      pending.forEach((entry) => {
+        const row = makeEl("div", "profile-friend-row");
+        row.appendChild(makeEl("strong", "", entry.name || entry.clientId));
+        friendActionButtons(entry.direction === "incoming" ? "incoming" : "outgoing", entry.clientId, { compact: true })
+          .forEach((button) => row.appendChild(button));
+        friendsRequestsEl.appendChild(row);
+      });
+    }
+
+    if (friendsListEl) {
+      friendsListEl.textContent = "";
+      if (!friends.length) {
+        friendsListEl.appendChild(makeEl("span", "profile-directory-empty", "No friends yet."));
+      }
+      friends.forEach((entry) => {
+        const row = makeEl("div", "profile-friend-row");
+        row.appendChild(makeEl("strong", "", entry.name || entry.clientId));
+        friendActionButtons("friends", entry.clientId, { compact: true })
+          .forEach((button) => row.appendChild(button));
+        friendsListEl.appendChild(row);
+      });
+    }
+  }
+
+  function setDirectoryDetailStatus(text, isError = false) {
+    const status = document.getElementById("profile-directory-detail-status");
+    if (!status) return;
+    status.textContent = text || "";
+    status.classList.toggle("is-error", isError);
+  }
+
+  function refreshDirectoryDetail() {
+    const { directoryDetailEl } = getElements();
+    if (!directoryDetailEl || directoryDetailEl.hidden || !state.selectedDirectoryUserData) return;
+    openDirectoryUser(state.selectedDirectoryUserData);
+  }
+
+  async function challengeHangman(clientId) {
+    const id = String(clientId || "").trim();
+    if (!id) return;
+    try {
+      await window.TarotLazySections?.ensureSectionScripts?.("games");
+      if (typeof window.GamesSectionUi?.challenge === "function") {
+        await window.GamesSectionUi.challenge(id, "hangman");
+        return;
+      }
+      await window.TarotDataService.createGameSession({ gameId: "hangman", opponentClientId: id });
+      document.getElementById("open-games")?.click();
+    } catch (error) {
+      setDirectoryDetailStatus(`Could not start hangman. ${error?.message || ""}`.trim(), true);
+    }
+  }
+
+  async function sendFriendRequestToUser(clientId) {
+    const id = String(clientId || "").trim();
+    if (!id) return;
+    try {
+      const service = window.TarotDataService;
+      await service.requestJson("POST", service.buildApiUrl("/api/v1/profile/friends/requests"), { clientId: id });
+      await refreshFriends();
+      refreshDirectoryDetail();
+      setDirectoryDetailStatus("Friend request sent.");
+    } catch (error) {
+      setDirectoryDetailStatus(`Could not send the request. ${error?.message || ""}`.trim(), true);
+    }
+  }
+
+  async function respondFriendRequest(clientId, action) {
+    const id = String(clientId || "").trim();
+    if (!id) return;
+    try {
+      const service = window.TarotDataService;
+      await service.requestJson(
+        "POST",
+        service.buildApiUrl(`/api/v1/profile/friends/requests/${encodeURIComponent(id)}/${action === "decline" ? "decline" : "accept"}`)
+      );
+      await refreshFriends();
+      refreshDirectoryDetail();
+    } catch (error) {
+      setDirectoryDetailStatus(`Could not update the request. ${error?.message || ""}`.trim(), true);
+    }
+  }
+
+  async function cancelFriend(clientId) {
+    try {
+      const service = window.TarotDataService;
+      await service.requestJson(
+        "DELETE",
+        service.buildApiUrl(`/api/v1/profile/friends/requests/${encodeURIComponent(clientId)}`)
+      );
+      await refreshFriends();
+      refreshDirectoryDetail();
+    } catch (error) {
+      setDirectoryDetailStatus(`Could not cancel the request. ${error?.message || ""}`.trim(), true);
+    }
+  }
+
+  async function removeFriendEntry(clientId) {
+    try {
+      const service = window.TarotDataService;
+      await service.requestJson(
+        "DELETE",
+        service.buildApiUrl(`/api/v1/profile/friends/${encodeURIComponent(clientId)}`)
+      );
+      await refreshFriends();
+      closeDirectoryDetail();
+    } catch (error) {
+      setDirectoryDetailStatus(`Could not remove the friend. ${error?.message || ""}`.trim(), true);
+    }
+  }
+
+  async function sendUserMessage(clientId, area, button) {
+    const body = String(area?.value || "").trim();
+    if (!body) {
+      setDirectoryDetailStatus("Write a message first.", true);
+      return;
+    }
+    if (button) button.disabled = true;
+    try {
+      const service = window.TarotDataService;
+      await service.requestJson(
+        "POST",
+        service.buildApiUrl(`/api/v1/profile/directory/users/${encodeURIComponent(clientId)}/message`),
+        { body }
+      );
+      if (area) area.value = "";
+      setDirectoryDetailStatus("Message sent.");
+    } catch (error) {
+      setDirectoryDetailStatus(`Could not send the message. ${error?.message || ""}`.trim(), true);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  function closeDirectoryDetail() {
+    state.selectedDirectoryUser = "";
+    state.selectedDirectoryUserData = null;
+    const { directoryDetailEl } = getElements();
+    if (!directoryDetailEl) return;
+    directoryDetailEl.textContent = "";
+    directoryDetailEl.hidden = true;
+  }
+
+  function openDirectoryUser(user) {
+    const { directoryDetailEl } = getElements();
+    if (!directoryDetailEl || !user) return;
+    state.selectedDirectoryUser = String(user.clientId || "");
+    state.selectedDirectoryUserData = user;
+    directoryDetailEl.textContent = "";
+
+    const head = makeEl("div", "profile-directory-detail-head");
+    head.appendChild(makeEl("strong", "", user.displayName || "Anonymous"));
+    const close = makeEl("button", "profile-btn", "Close");
+    close.type = "button";
+    close.addEventListener("click", closeDirectoryDetail);
+    head.appendChild(close);
+    directoryDetailEl.appendChild(head);
+
+    if (user.bio) {
+      directoryDetailEl.appendChild(makeEl("p", "profile-directory-detail-bio", user.bio));
+    }
+    if (user.memberSince) {
+      const since = new Date(user.memberSince);
+      if (!Number.isNaN(since.getTime())) {
+        directoryDetailEl.appendChild(
+          makeEl("span", "profile-directory-detail-meta", `Member since ${since.toLocaleDateString()}`)
+        );
+      }
+    }
+
+    const relationship = userRelationship(user.clientId);
+    const actions = makeEl("div", "profile-directory-detail-actions");
+    friendActionButtons(relationship, user.clientId).forEach((button) => actions.appendChild(button));
+
+    const message = makeEl("button", "profile-btn", "Send message");
+    message.type = "button";
+    actions.appendChild(message);
+    directoryDetailEl.appendChild(actions);
+
+    const form = makeEl("div", "profile-directory-message-form");
+    form.hidden = true;
+    const area = makeEl("textarea", "profile-directory-message-input");
+    area.rows = 3;
+    area.maxLength = 5000;
+    area.placeholder = "Write a message…";
+    const send = makeEl("button", "profile-btn profile-btn-primary", "Send");
+    send.type = "button";
+    send.addEventListener("click", () => void sendUserMessage(user.clientId, area, send));
+    form.append(area, send);
+    directoryDetailEl.appendChild(form);
+    message.addEventListener("click", () => {
+      form.hidden = !form.hidden;
+      if (!form.hidden) area.focus();
+    });
+
+    const status = makeEl("span", "profile-directory-detail-status");
+    status.id = "profile-directory-detail-status";
+    status.setAttribute("aria-live", "polite");
+    directoryDetailEl.appendChild(status);
+
+    directoryDetailEl.hidden = false;
+  }
+
   async function renderPublicDirectory() {
     const { directoryListEl } = getElements();
     if (!directoryListEl) return;
     directoryListEl.textContent = "";
-    const loading = document.createElement("span");
-    loading.className = "profile-directory-empty";
-    loading.textContent = "Loading directory…";
-    directoryListEl.appendChild(loading);
+    directoryListEl.appendChild(makeEl("span", "profile-directory-empty", "Loading directory…"));
     try {
       const result = await window.TarotDataService.fetchDirectory();
       const users = Array.isArray(result?.users) ? result.users : [];
       directoryListEl.textContent = "";
       if (!users.length) {
-        const empty = document.createElement("span");
-        empty.className = "profile-directory-empty";
-        empty.textContent = "No public profiles yet.";
-        directoryListEl.appendChild(empty);
+        directoryListEl.appendChild(makeEl("span", "profile-directory-empty", "No public profiles yet."));
         return;
       }
       users.slice(0, 50).forEach((user) => {
-        const row = document.createElement("div");
-        row.className = "profile-directory-row";
-        const name = document.createElement("strong");
-        name.textContent = user.displayName || "Anonymous";
-        row.appendChild(name);
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = `profile-directory-row${state.selectedDirectoryUser === user.clientId ? " is-active" : ""}`;
+        row.appendChild(makeEl("strong", "", user.displayName || "Anonymous"));
         if (user.bio) {
-          const bio = document.createElement("span");
-          bio.className = "profile-directory-bio";
-          bio.textContent = user.bio;
-          row.appendChild(bio);
+          row.appendChild(makeEl("span", "profile-directory-bio", user.bio));
         }
+        const relationship = userRelationship(user.clientId);
+        if (relationship === "friends") {
+          row.appendChild(makeEl("span", "profile-friend-badge", "Friend"));
+        } else if (relationship === "outgoing") {
+          row.appendChild(makeEl("span", "profile-friend-badge", "Requested"));
+        } else if (relationship === "incoming") {
+          row.appendChild(makeEl("span", "profile-friend-badge", "Wants to connect"));
+        }
+        row.addEventListener("click", () => openDirectoryUser(user));
         directoryListEl.appendChild(row);
       });
     } catch (error) {
       directoryListEl.textContent = "";
-      const err = document.createElement("span");
-      err.className = "profile-directory-empty";
-      err.textContent = error?.message || "Could not load the directory.";
-      directoryListEl.appendChild(err);
+      directoryListEl.appendChild(makeEl("span", "profile-directory-empty", error?.message || "Could not load the directory."));
+    }
+  }
+
+  function openCommunitySection() {
+    const button = document.getElementById("open-community");
+    if (button) {
+      button.click();
+      return;
+    }
+    window.TarotSectionStateUi?.setActiveSection?.("community");
+  }
+
+  async function renderDirectoryDiscussions() {
+    const { directoryTopicsEl } = getElements();
+    if (!directoryTopicsEl) return;
+    directoryTopicsEl.textContent = "";
+    directoryTopicsEl.appendChild(makeEl("span", "profile-directory-empty", "Loading board…"));
+    if (typeof window.TarotDataService?.fetchBoardTopics !== "function") {
+      directoryTopicsEl.textContent = "";
+      directoryTopicsEl.appendChild(makeEl("span", "profile-directory-empty", "Board is unavailable."));
+      return;
+    }
+    try {
+      const result = await window.TarotDataService.fetchBoardTopics();
+      const topics = Array.isArray(result?.topics) ? result.topics.slice(0, 5) : [];
+      directoryTopicsEl.textContent = "";
+      if (!topics.length) {
+        directoryTopicsEl.appendChild(makeEl("span", "profile-directory-empty", "No topics yet. Open Community to start one."));
+        return;
+      }
+      topics.forEach((topic) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "profile-directory-topic";
+        row.appendChild(makeEl("strong", "profile-directory-topic-title", topic.title || "(untitled)"));
+        row.appendChild(makeEl("span", "profile-directory-topic-meta", `${topic.authorName || "Someone"} · ${topic.replyCount} repl${topic.replyCount === 1 ? "y" : "ies"}`));
+        row.addEventListener("click", openCommunitySection);
+        directoryTopicsEl.appendChild(row);
+      });
+    } catch (error) {
+      directoryTopicsEl.textContent = "";
+      directoryTopicsEl.appendChild(makeEl("span", "profile-directory-empty", error?.message || "Could not load the board."));
     }
   }
 
@@ -4138,6 +4508,10 @@
     elements.displayNameSaveBtn?.addEventListener("click", () => {
       void saveDisplayName();
     });
+    elements.bioSaveBtn?.addEventListener("click", () => {
+      void saveBio();
+    });
+    elements.directoryBoardOpenEl?.addEventListener("click", openCommunitySection);
     elements.directoryPublicEl?.addEventListener("change", () => {
       void saveDirectoryVisibility();
     });
