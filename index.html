@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260917-stargame">
+  <link rel="stylesheet" href="app/styles.css?v=20260917-profile-media">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -202,41 +202,89 @@
   </div>
   <section id="profile-section" hidden>
     <div class="profile-shell">
-      <header class="profile-head">
-        <div>
-          <div class="profile-eyebrow">Your Profile</div>
-          <h1 class="profile-title">Profile</h1>
-          <p class="profile-sub" id="profile-client-label">Signed in with your API key.</p>
-          <div class="profile-name-edit">
-            <input id="profile-display-name" type="text" maxlength="100" placeholder="Set a display name">
-            <button id="profile-display-name-save" class="profile-btn profile-btn-primary" type="button">Save Name</button>
-            <span id="profile-display-name-status" class="profile-location-status" aria-live="polite"></span>
+      <div id="profile-hub" class="profile-hub profile-social-hub">
+        <div class="profile-social">
+          <div class="profile-cover" id="profile-cover">
+            <label class="profile-media-btn" for="profile-banner-input">Change banner</label>
+            <input id="profile-banner-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
           </div>
-          <div class="profile-bio-edit">
-            <label class="profile-field" for="profile-bio-input">Bio</label>
-            <textarea id="profile-bio-input" rows="3" maxlength="2000" placeholder="Tell people a little about yourself. Shown in the public directory."></textarea>
-            <div class="profile-bio-actions">
-              <button id="profile-bio-save" class="profile-btn profile-btn-primary" type="button">Save Bio</button>
-              <span id="profile-bio-status" class="profile-location-status" aria-live="polite"></span>
+          <div class="profile-identity-row">
+            <div class="profile-avatar" id="profile-avatar">
+              <img id="profile-avatar-img" alt="" hidden>
+              <span id="profile-avatar-initials">?</span>
+              <label class="profile-media-btn profile-media-btn-avatar" for="profile-avatar-input">Photo</label>
+              <input id="profile-avatar-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+            </div>
+            <div class="profile-identity-copy">
+              <h1 class="profile-title" id="profile-title-name">Profile</h1>
+              <p class="profile-sub" id="profile-client-label">Signed in with your API key.</p>
+              <p class="profile-bio-line" id="profile-bio-preview"></p>
+              <div class="profile-identity-meta">
+                <span id="profile-member-since" class="profile-meta-chip"></span>
+                <label class="profile-directory-toggle">
+                  <input id="profile-directory-public" type="checkbox"> Listed publicly
+                </label>
+                <span id="profile-directory-status" class="profile-location-status" aria-live="polite"></span>
+              </div>
             </div>
           </div>
-          <label class="profile-directory-toggle">
-            <input id="profile-directory-public" type="checkbox"> Show me in the public directory          </label>
-          <span id="profile-directory-status" class="profile-location-status" aria-live="polite"></span>
+          <nav class="profile-tabs" id="profile-tabs" aria-label="Profile sections">
+            <button type="button" class="profile-tab is-active" data-profile-tab="page">Page</button>
+            <button type="button" class="profile-tab" data-profile-tab="inbox">Inbox</button>
+            <button type="button" class="profile-tab" data-profile-tab="bulletin">Bulletin</button>
+            <button type="button" class="profile-tab" data-profile-tab="friends">Friends</button>
+            <button type="button" class="profile-tab" data-profile-tab="directory">Directory</button>
+            <button type="button" class="profile-tab" data-profile-tab="library">Library</button>
+            <button type="button" class="profile-tab" data-profile-tab="settings">Settings</button>
+          </nav>
         </div>
-      </header>
-      <div id="profile-hub" class="profile-hub">
-        <button id="profile-open-notes" class="profile-hub-card" type="button">
-          <span class="profile-hub-card-kicker">Personal</span>
-          <span class="profile-hub-card-title">Journal</span>
-          <span class="profile-hub-card-copy">Dreams and waking entries, kept simple.</span>
-          <span class="profile-hub-card-meta" id="profile-notes-count">--</span>
-        </button>
-        <div class="profile-hub-card profile-library-card">
-          <span class="profile-hub-card-kicker">Library</span>
-          <span class="profile-hub-card-title">Bookmarks & Notes</span>
-          <span class="profile-hub-card-copy">Saved verses, cards, and other marks on this API key.</span>
-          <span class="profile-hub-card-meta" id="profile-library-count">--</span>
+        <div id="profile-tab-page" class="profile-tab-panel">
+          <div class="profile-page-toolbar">
+            <button id="profile-page-edit" class="profile-btn" type="button">Edit HTML</button>
+            <button id="profile-page-save" class="profile-btn profile-btn-primary" type="button" hidden>Save page</button>
+            <button id="profile-page-cancel" class="profile-btn" type="button" hidden>Cancel</button>
+            <span id="profile-page-status" class="profile-location-status" aria-live="polite"></span>
+          </div>
+          <div id="profile-page-view" class="profile-page-view">
+            <div id="profile-page-default" class="profile-page-default"></div>
+            <iframe id="profile-page-frame" class="profile-page-frame" sandbox="" hidden title="Your profile page"></iframe>
+          </div>
+          <label class="profile-field profile-page-editor-label" for="profile-page-html" hidden>Custom HTML
+            <textarea id="profile-page-html" rows="16" maxlength="100000" placeholder="Write HTML for your public-facing page. Scripts and forms are stripped. Leave empty to use the default layout."></textarea>
+          </label>
+        </div>
+        <div id="profile-tab-inbox" class="profile-tab-panel" hidden>
+          <div class="profile-tab-head">
+            <h2>Inbox</h2>
+            <button id="profile-inbox-open-full" class="profile-btn" type="button">Open full inbox</button>
+          </div>
+          <div id="profile-inbox-list" class="profile-inbox-list"></div>
+        </div>
+        <div id="profile-tab-bulletin" class="profile-tab-panel" hidden>
+          <div class="profile-tab-head">
+            <h2>Bulletin Board</h2>
+            <button id="profile-directory-board-open" class="profile-btn" type="button">Open Community</button>
+          </div>
+          <div id="profile-directory-topics" class="profile-directory-topics"></div>
+        </div>
+        <div id="profile-tab-friends" class="profile-tab-panel" hidden>
+          <h2>Friends</h2>
+          <p class="profile-location-copy">Requests and connections from the public directory.</p>
+          <div id="profile-friends-requests" class="profile-friends-requests"></div>
+          <div id="profile-friends-list" class="profile-friends-list"></div>
+        </div>
+        <div id="profile-tab-directory" class="profile-tab-panel" hidden>
+          <h2>Public Directory</h2>
+          <p class="profile-location-copy">People who chose to be listed publicly. Click someone to message or add them.</p>
+          <div id="profile-directory-list" class="profile-directory-list"></div>
+          <div id="profile-directory-detail" class="profile-directory-detail" hidden></div>
+        </div>
+        <div id="profile-tab-library" class="profile-tab-panel" hidden>
+          <div class="profile-tab-head">
+            <h2>Bookmarks & Notes</h2>
+            <span class="profile-hub-card-meta" id="profile-library-count">--</span>
+          </div>
+          <p class="profile-location-copy">Saved verses, cards, and other marks on this API key.</p>
           <div class="profile-library-columns">
             <div>
               <strong>Bookmarks</strong>
@@ -248,109 +296,87 @@
             </div>
           </div>
         </div>
-        <div class="profile-hub-card profile-directory-card">
-          <span class="profile-hub-card-kicker">Community</span>
-          <span class="profile-hub-card-title">Public Directory</span>
-          <span class="profile-hub-card-copy">People who chose to be listed publicly. Click someone to message or add them.</span>
-          <div id="profile-directory-list" class="profile-directory-list"></div>
-          <div id="profile-directory-detail" class="profile-directory-detail" hidden></div>
-          <div class="profile-directory-discussions">
-            <div class="profile-directory-discussions-head">
-              <strong>Bulletin Board</strong>
-              <button id="profile-directory-board-open" class="profile-btn" type="button">Open Community</button>
+        <div id="profile-tab-settings" class="profile-tab-panel" hidden>
+          <section class="profile-settings-group">
+            <h3>Account</h3>
+            <label class="profile-settings-row" for="profile-display-name">Display name
+              <input id="profile-display-name" type="text" maxlength="100" placeholder="Your name">
+            </label>
+            <div class="profile-settings-actions">
+              <button id="profile-display-name-save" class="profile-btn profile-btn-primary" type="button">Save name</button>
+              <span id="profile-display-name-status" class="profile-location-status" aria-live="polite"></span>
             </div>
-            <div id="profile-directory-topics" class="profile-directory-topics"></div>
-          </div>
-        </div>
-        <div class="profile-hub-card profile-friends-card">
-          <span class="profile-hub-card-kicker">Community</span>
-          <span class="profile-hub-card-title">Friends</span>
-          <span class="profile-hub-card-copy">Requests and connections from the public directory.</span>
-          <div id="profile-friends-requests" class="profile-friends-requests"></div>
-          <div id="profile-friends-list" class="profile-friends-list"></div>
-        </div>
-        <div class="profile-location-card">
-          <div class="profile-location-head">
-            <span class="profile-hub-card-kicker">Sky Accuracy</span>
-            <h2>Your Location</h2>
-          </div>
-          <p class="profile-location-copy">Pick a place (United States → California → Los Angeles) or enter coordinates. Used for planetary hours and sky cards.</p>
-          <label class="profile-field" for="profile-location-country">Country            <select id="profile-location-country">
-              <option value="">Select a country…</option>
-            </select>
-          </label>
-          <label class="profile-field" for="profile-location-region">State / region            <select id="profile-location-region" disabled>
-              <option value="">Select a region…</option>
-            </select>
-          </label>
-          <label class="profile-field" for="profile-location-city">City            <select id="profile-location-city" disabled>
-              <option value="">Select a city…</option>
-            </select>
-          </label>
-          <label class="profile-field" for="profile-location-lat">Latitude            <input id="profile-location-lat" type="number" step="any" min="-90" max="90" placeholder="e.g. 51.5074">
-          </label>
-          <label class="profile-field" for="profile-location-lng">Longitude            <input id="profile-location-lng" type="number" step="any" min="-180" max="180" placeholder="e.g. -0.1278">
-          </label>
-          <label class="profile-field" for="profile-location-label">Label (optional)            <input id="profile-location-label" type="text" maxlength="200" placeholder="e.g. Home, London">
-          </label>
-          <div class="profile-location-actions">
-            <button id="profile-location-detect" class="profile-btn" type="button">Use My Location</button>
-            <button id="profile-location-save" class="profile-btn profile-btn-primary" type="button">Save</button>
-          </div>
-          <div id="profile-location-status" class="profile-location-status" aria-live="polite"></div>
-        </div>
-        <div class="profile-deck-card">
-          <div class="profile-location-head">
-            <span class="profile-hub-card-kicker">Time</span>
-            <h2>Time And Birth Date</h2>
-          </div>
-          <p class="profile-location-copy">Controls calendar rendering, the Now panel, natal chart defaults, and optional sky background.</p>
-          <label class="profile-field" for="time-format">Time Format            <select id="time-format">
-              <option value="minutes" selected>Minutes (default)</option>
-              <option value="hours">Hours</option>
-              <option value="seconds">Seconds</option>
-            </select>
-          </label>
-          <label class="profile-field" for="birth-date">Birth Date            <input id="birth-date" type="date">
-          </label>
-          <label class="profile-field" for="birth-time">Birth Time            <input id="birth-time" type="time">
-          </label>
-          <div id="profile-timing-status" class="profile-location-status" aria-live="polite"></div>
-        </div>
-        <div class="profile-deck-card">
-          <div class="profile-location-head">
-            <span class="profile-hub-card-kicker">Tarot</span>
-            <h2>Preferred Deck</h2>
-          </div>
-          <p class="profile-location-copy">Used for mood cards, hour cards, frame defaults, and PDF exports across the app.</p>
-          <label class="profile-field" for="profile-deck-select">Deck            <select id="profile-deck-select" title="Preferred deck for card images"></select>
-          </label>
-          <div id="profile-deck-status" class="profile-location-status" aria-live="polite"></div>
-        </div>
-        <div class="profile-cache-card">
-          <div class="profile-location-head">
-            <span class="profile-hub-card-kicker">Offline</span>
-            <h2>App Cache</h2>
-          </div>
-          <p class="profile-location-copy">Cache App Now downloads missing files into the browser's site data (same store as other websites). Later visits reuse that disk cache — it does not redownload until a file changes or you clear site data. On HTTPS/localhost a dedicated offline cache is also used.</p>
-          <div id="profile-cache-status" class="profile-location-status" aria-live="polite">Loading cache status…</div>
-          <div class="profile-location-actions">
-            <button id="profile-cache-now" class="profile-btn profile-btn-primary" type="button">Cache App Now</button>
-            <button id="profile-cache-clear" class="profile-btn" type="button">Clear Cache</button>
-          </div>
-        </div>
-        <div class="profile-quiz">
-          <h2>Quiz Progress</h2>
-          <div class="profile-quiz-overall">
-            <div class="profile-quiz-accuracy"><span id="profile-quiz-accuracy">--</span><small>accuracy</small></div>
-            <div class="profile-quiz-counts">
-              <div><strong id="profile-quiz-attempts">--</strong><small>attempts</small></div>
-              <div><strong id="profile-quiz-correct">--</strong><small>correct</small></div>
-              <div><strong id="profile-quiz-questions">--</strong><small>questions</small></div>
+            <label class="profile-settings-row profile-settings-row-stack" for="profile-bio-input">Bio
+              <textarea id="profile-bio-input" rows="3" maxlength="2000" placeholder="A short bio for the directory"></textarea>
+            </label>
+            <div class="profile-settings-actions">
+              <button id="profile-bio-save" class="profile-btn profile-btn-primary" type="button">Save bio</button>
+              <span id="profile-bio-status" class="profile-location-status" aria-live="polite"></span>
             </div>
-          </div>
-          <div id="profile-quiz-categories" class="profile-quiz-categories"></div>
-          <div id="profile-quiz-empty" class="profile-quiz-empty">No quiz attempts recorded yet. Play a round of Quiz and your progress will appear here.</div>
+            <button id="profile-open-notes" class="profile-settings-link" type="button">
+              <span>Journal</span>
+              <span id="profile-notes-count">--</span>
+            </button>
+          </section>
+          <section class="profile-settings-group">
+            <h3>Location</h3>
+            <label class="profile-settings-row" for="profile-location-country">Country
+              <select id="profile-location-country"><option value="">Select…</option></select>
+            </label>
+            <label class="profile-settings-row" for="profile-location-region">State / region
+              <select id="profile-location-region" disabled><option value="">Select…</option></select>
+            </label>
+            <label class="profile-settings-row" for="profile-location-city">City
+              <select id="profile-location-city" disabled><option value="">Select…</option></select>
+            </label>
+            <label class="profile-settings-row" for="profile-location-lat">Latitude
+              <input id="profile-location-lat" type="number" step="any" min="-90" max="90" placeholder="51.5074">
+            </label>
+            <label class="profile-settings-row" for="profile-location-lng">Longitude
+              <input id="profile-location-lng" type="number" step="any" min="-180" max="180" placeholder="-0.1278">
+            </label>
+            <label class="profile-settings-row" for="profile-location-label">Label
+              <input id="profile-location-label" type="text" maxlength="200" placeholder="Home">
+            </label>
+            <div class="profile-settings-actions">
+              <button id="profile-location-detect" class="profile-btn" type="button">Use my location</button>
+              <button id="profile-location-save" class="profile-btn profile-btn-primary" type="button">Save</button>
+              <span id="profile-location-status" class="profile-location-status" aria-live="polite"></span>
+            </div>
+          </section>
+          <section class="profile-settings-group">
+            <h3>Time & birth</h3>
+            <label class="profile-settings-row" for="time-format">Time format
+              <select id="time-format">
+                <option value="minutes" selected>Minutes</option>
+                <option value="hours">Hours</option>
+                <option value="seconds">Seconds</option>
+              </select>
+            </label>
+            <label class="profile-settings-row" for="birth-date">Birth date
+              <input id="birth-date" type="date">
+            </label>
+            <label class="profile-settings-row" for="birth-time">Birth time
+              <input id="birth-time" type="time">
+            </label>
+            <div id="profile-timing-status" class="profile-location-status" aria-live="polite"></div>
+          </section>
+          <section class="profile-settings-group">
+            <h3>Tarot</h3>
+            <label class="profile-settings-row" for="profile-deck-select">Preferred deck
+              <select id="profile-deck-select" title="Preferred deck for card images"></select>
+            </label>
+            <div id="profile-deck-status" class="profile-location-status" aria-live="polite"></div>
+          </section>
+          <section class="profile-settings-group">
+            <h3>Offline</h3>
+            <p class="profile-settings-hint">Cache App Now stores missing files in this browser. Later visits reuse them until a file changes or you clear site data.</p>
+            <div id="profile-cache-status" class="profile-location-status" aria-live="polite">Loading cache status…</div>
+            <div class="profile-settings-actions">
+              <button id="profile-cache-now" class="profile-btn profile-btn-primary" type="button">Cache app now</button>
+              <button id="profile-cache-clear" class="profile-btn" type="button">Clear cache</button>
+            </div>
+          </section>
         </div>
       </div>
       <div id="profile-notes-panel" class="profile-notes-panel" hidden>
@@ -2898,21 +2924,21 @@
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-popover-menu.js?v=20260915-tree-3d"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
-  <script src="app/ui-library-marks.js?v=20260830-library"></script>
+  <script src="app/ui-library-marks.js?v=20260917-bookmark-shine"></script>
   <script src="app/plugins-host.js?v=20260916-playing-section"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260917-stargame2"></script>
+  <script src="app/lazy-sections.js?v=20260917-profile-media"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260917-natal-chart"></script>
   <script src="app/ui-dlc-shop.js?v=20260917-trial-settings"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
-  <script src="app/ui-navigation.js?v=20260917-games"></script>
+  <script src="app/ui-navigation.js?v=20260917-bookmark-shine"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>
   <script src="app/ui-calendar-visuals.js?v=20260307b"></script>
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>

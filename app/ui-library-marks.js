@@ -147,9 +147,19 @@
       return;
     }
     if (type === "tarot") {
+      const cardId = String(meta.cardId || item.key || "").trim();
+      const nav = window.TarotNavigationUi;
       window.TarotSectionStateUi?.setActiveSection?.("tarot");
-      await window.TarotSectionUi?.ensureTarotSection?.();
-      window.TarotSectionUi?.selectCardById?.(meta.cardId || item.key);
+      if (typeof nav?.prepareTarotBrowseDetailView === "function") {
+        await nav.prepareTarotBrowseDetailView();
+      } else {
+        await window.TarotSectionUi?.ensureTarotSection?.();
+        const layout = document.querySelector("#tarot-browse-view .browse-layout");
+        if (layout instanceof HTMLElement) {
+          window.TarotChromeUi?.showDetailOnly?.(layout, false);
+        }
+      }
+      window.TarotSectionUi?.selectCardById?.(cardId);
     }
   }
 

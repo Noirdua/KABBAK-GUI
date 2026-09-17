@@ -708,6 +708,9 @@
 
   window.TarotNavigationUi = {
     ...(window.TarotNavigationUi || {}),
-    init
+    init,
+    prepareTarotBrowseDetailView,
+    showSectionDetailOnly,
+    scheduleSectionDetailOnly
   };
 })();

@@ -22,6 +22,15 @@
     authName: "",
     displayName: "",
     bio: "",
+    pageHtml: "",
+    pageEditing: false,
+    profileTab: "page",
+    createdAt: "",
+    counts: {},
+    hasAvatar: false,
+    hasBanner: false,
+    mediaStamp: "",
+    quizProgress: null,
     friends: { friends: [], incoming: [], outgoing: [] },
     selectedDirectoryUser: "",
     selectedDirectoryUserData: null,
@@ -96,7 +105,26 @@
       directoryTopicsEl: document.getElementById("profile-directory-topics"),
       directoryBoardOpenEl: document.getElementById("profile-directory-board-open"),
       friendsRequestsEl: document.getElementById("profile-friends-requests"),
-      friendsListEl: document.getElementById("profile-friends-list")
+      friendsListEl: document.getElementById("profile-friends-list"),
+      avatarEl: document.getElementById("profile-avatar"),
+      avatarImgEl: document.getElementById("profile-avatar-img"),
+      avatarInitialsEl: document.getElementById("profile-avatar-initials"),
+      avatarInputEl: document.getElementById("profile-avatar-input"),
+      bannerInputEl: document.getElementById("profile-banner-input"),
+      titleNameEl: document.getElementById("profile-title-name"),
+      bioPreviewEl: document.getElementById("profile-bio-preview"),
+      memberSinceEl: document.getElementById("profile-member-since"),
+      tabsEl: document.getElementById("profile-tabs"),
+      pageEditBtn: document.getElementById("profile-page-edit"),
+      pageSaveBtn: document.getElementById("profile-page-save"),
+      pageCancelBtn: document.getElementById("profile-page-cancel"),
+      pageStatusEl: document.getElementById("profile-page-status"),
+      pageDefaultEl: document.getElementById("profile-page-default"),
+      pageFrameEl: document.getElementById("profile-page-frame"),
+      pageHtmlEl: document.getElementById("profile-page-html"),
+      pageEditorLabelEl: document.querySelector(".profile-page-editor-label"),
+      inboxListEl: document.getElementById("profile-inbox-list"),
+      inboxOpenFullBtn: document.getElementById("profile-inbox-open-full")
     };
   }
 
@@ -3225,62 +3253,9 @@
   }
 
   function renderQuizProgress(progress) {
-    const {
-      quizAccuracyEl,
-      quizAttemptsEl,
-      quizCorrectEl,
-      quizQuestionsEl,
-      quizCategoriesEl,
-      quizEmptyEl
-    } = getElements();
-
-    const overall = progress?.stats?.overall || {};
-    const attempts = Number(progress?.count) || 0;
-
-    if (quizEmptyEl) {
-      quizEmptyEl.hidden = attempts > 0;
-    }
-
-    if (quizAccuracyEl) {
-      quizAccuracyEl.textContent = overall.accuracy != null ? `${Math.round(overall.accuracy * 100)}%` : "--";
-    }
-    if (quizAttemptsEl) {
-      quizAttemptsEl.textContent = String(overall.attempts ?? attempts);
-    }
-    if (quizCorrectEl) {
-      quizCorrectEl.textContent = String(overall.totalCorrect ?? 0);
-    }
-    if (quizQuestionsEl) {
-      quizQuestionsEl.textContent = String(overall.totalQuestions ?? 0);
-    }
-
-    if (quizCategoriesEl) {
-      quizCategoriesEl.innerHTML = "";
-      const categories = Array.isArray(progress?.stats?.categories) ? progress.stats.categories : [];
-      categories.forEach((category) => {
-        const row = document.createElement("div");
-        row.className = "profile-quiz-category";
-
-        const label = document.createElement("span");
-        label.className = "profile-quiz-category-label";
-        label.textContent = category.categoryId || "General";
-
-        const bar = document.createElement("span");
-        bar.className = "profile-quiz-category-bar";
-        const fill = document.createElement("span");
-        fill.className = "profile-quiz-category-fill";
-        fill.style.width = `${Math.round((category.accuracy || 0) * 100)}%`;
-        bar.appendChild(fill);
-
-        const value = document.createElement("span");
-        value.className = "profile-quiz-category-value";
-        value.textContent = `${Math.round((category.accuracy || 0) * 100)}% (${category.totalCorrect}/${category.totalQuestions})`;
-
-        row.appendChild(label);
-        row.appendChild(bar);
-        row.appendChild(value);
-        quizCategoriesEl.appendChild(row);
-      });
+    state.quizProgress = progress || null;
+    if (state.profileTab === "page" && !state.pageEditing && !String(state.pageHtml || "").trim()) {
+      renderDefaultPage();
     }
   }
 
@@ -3582,6 +3557,13 @@
       updateClientLabel();
       state.bio = String(summary?.bio || "");
       syncBioUi();
+      state.createdAt = String(summary?.createdAt || "");
+      state.counts = summary?.counts && typeof summary.counts === "object" ? summary.counts : {};
+      state.hasAvatar = Boolean(summary?.hasAvatar);
+      state.hasBanner = Boolean(summary?.hasBanner);
+      state.mediaStamp = String(summary?.updatedAt || Date.now());
+      applyProfileMedia();
+      void loadProfilePage();
       state.directoryVisibility = String(summary?.directoryVisibility || "private");
       syncDirectoryUi();
       void refreshFriends();
@@ -3733,14 +3715,23 @@
   }
 
   function updateClientLabel() {
-    const { clientLabelEl } = getElements();
-    if (!clientLabelEl) return;
+    const { clientLabelEl, avatarEl, titleNameEl, memberSinceEl } = getElements();
     const displayName = String(state.displayName || state.authName || "").trim();
     const clientId = String(state.clientId || "").trim();
+    if (titleNameEl) titleNameEl.textContent = displayName || "Profile";
+    const initialsEl = document.getElementById("profile-avatar-initials");
+    if (initialsEl) initialsEl.textContent = initialsFromName(displayName || clientId);
+    if (memberSinceEl) {
+      const since = state.createdAt ? new Date(state.createdAt) : null;
+      memberSinceEl.textContent = since && !Number.isNaN(since.getTime())
+        ? `Joined ${since.toLocaleDateString()}`
+        : "";
+    }
+    if (!clientLabelEl) return;
     clientLabelEl.textContent = displayName
-      ? `Signed in as ${displayName}. Your notes and quiz progress are stored on the server.`
+      ? `@${displayName}`
       : clientId
-        ? `Signed in as ${clientId}. Your notes and quiz progress are stored on the server.`
+        ? clientId
         : "Signed in with your API key.";
     renderAccessBadges();
   }
@@ -3868,9 +3859,13 @@
   }
 
   function syncBioUi() {
-    const { bioInputEl } = getElements();
+    const { bioInputEl, bioPreviewEl } = getElements();
     if (bioInputEl) {
       bioInputEl.value = String(state.bio || "");
+    }
+    if (bioPreviewEl) {
+      bioPreviewEl.textContent = String(state.bio || "");
+      bioPreviewEl.hidden = !state.bio;
     }
   }
 
@@ -3891,11 +3886,251 @@
       state.bio = String(result?.bio ?? bio);
       syncBioUi();
       setBioStatus(state.bio ? "Bio saved." : "Bio cleared.");
+      if (!state.pageEditing) renderProfilePage();
       void renderPublicDirectory();
     } catch (error) {
       setBioStatus(`Could not save bio. ${error?.message || ""}`.trim(), true);
     } finally {
       if (bioSaveBtn) bioSaveBtn.disabled = false;
+    }
+  }
+
+  function setProfileTab(tab) {
+    const next = String(tab || "page");
+    state.profileTab = next;
+    document.querySelectorAll("[data-profile-tab]").forEach((button) => {
+      button.classList.toggle("is-active", button.getAttribute("data-profile-tab") === next);
+    });
+    ["page", "inbox", "bulletin", "friends", "directory", "library", "settings"].forEach((name) => {
+      const panel = document.getElementById(`profile-tab-${name}`);
+      if (panel) panel.hidden = name !== next;
+    });
+    if (next === "inbox") void renderInboxTab();
+    if (next === "bulletin") void renderDirectoryDiscussions();
+    if (next === "directory") void renderPublicDirectory();
+    if (next === "friends") void refreshFriends();
+    if (next === "page") renderProfilePage();
+  }
+
+  function initialsFromName(name) {
+    const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "?";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+
+  function setPageStatus(text, isError = false) {
+    const { pageStatusEl } = getElements();
+    if (!pageStatusEl) return;
+    pageStatusEl.textContent = text || "";
+    pageStatusEl.classList.toggle("is-error", isError);
+  }
+
+  function renderDefaultPage() {
+    const { pageDefaultEl } = getElements();
+    if (!pageDefaultEl) return;
+    pageDefaultEl.textContent = "";
+    const card = document.createElement("div");
+    card.className = "profile-page-default-card";
+    const heading = document.createElement("h2");
+    heading.textContent = state.displayName || state.authName || "Your page";
+    const bio = document.createElement("p");
+    bio.textContent = state.bio || "Add a bio in Settings, or edit this page's HTML to design it yourself.";
+    const hint = document.createElement("p");
+    hint.textContent = "This is the default profile layout. Use Edit HTML to replace it with your own markup.";
+    const stats = document.createElement("div");
+    stats.className = "profile-page-stats";
+    [
+      ["Friends", state.counts?.friends ?? (state.friends?.friends || []).length],
+      ["Journal", state.counts?.notes ?? (state.notes || []).length],
+      ["Inbox", state.counts?.messages ?? 0]
+    ].forEach(([label, value]) => {
+      const item = document.createElement("span");
+      const strong = document.createElement("strong");
+      strong.textContent = String(value);
+      item.append(strong, document.createTextNode(label));
+      stats.appendChild(item);
+    });
+    card.append(heading, bio, hint, stats);
+    const quiz = state.quizProgress;
+    const overall = quiz?.stats?.overall || {};
+    const attempts = Number(quiz?.count) || Number(overall.attempts) || 0;
+    const widget = document.createElement("div");
+    widget.className = "profile-quiz-widget";
+    const quizTitle = document.createElement("h3");
+    quizTitle.textContent = "Quiz";
+    widget.appendChild(quizTitle);
+    if (!attempts) {
+      const empty = document.createElement("p");
+      empty.textContent = "No quiz attempts yet.";
+      widget.appendChild(empty);
+    } else {
+      const line = document.createElement("p");
+      line.textContent = `${Math.round((overall.accuracy || 0) * 100)}% accuracy · ${overall.totalCorrect || 0}/${overall.totalQuestions || 0}`;
+      widget.appendChild(line);
+    }
+    card.appendChild(widget);
+    pageDefaultEl.appendChild(card);
+  }
+
+  function profileImageUrl(kind) {
+    const service = window.TarotDataService;
+    if (!service) return "";
+    return service.buildApiUrl(`/api/v1/profile/${kind}`, {
+      apiKey: service.getApiKey(),
+      v: state.mediaStamp || "1"
+    });
+  }
+
+  function applyProfileMedia() {
+    const cover = document.getElementById("profile-cover");
+    const img = document.getElementById("profile-avatar-img");
+    const initials = document.getElementById("profile-avatar-initials");
+    if (cover) {
+      cover.style.backgroundImage = state.hasBanner ? `url("${profileImageUrl("banner")}")` : "";
+    }
+    if (img) {
+      if (state.hasAvatar) {
+        img.src = profileImageUrl("avatar");
+        img.hidden = false;
+      } else {
+        img.removeAttribute("src");
+        img.hidden = true;
+      }
+    }
+    if (initials) initials.hidden = Boolean(state.hasAvatar);
+  }
+
+  async function uploadProfileImage(kind, file) {
+    if (!file) return;
+    const data = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Could not read that file."));
+      reader.readAsDataURL(file);
+    });
+    const service = window.TarotDataService;
+    await service.requestJson("PUT", service.buildApiUrl(`/api/v1/profile/${kind}`), {
+      data,
+      type: file.type
+    });
+    if (kind === "banner") state.hasBanner = true;
+    else state.hasAvatar = true;
+    state.mediaStamp = String(Date.now());
+    applyProfileMedia();
+  }
+
+  function renderProfilePage() {
+    const {
+      pageDefaultEl,
+      pageFrameEl,
+      pageHtmlEl,
+      pageEditorLabelEl,
+      pageEditBtn,
+      pageSaveBtn,
+      pageCancelBtn
+    } = getElements();
+    const editing = state.pageEditing;
+    if (pageEditorLabelEl) pageEditorLabelEl.hidden = !editing;
+    if (pageHtmlEl) {
+      pageHtmlEl.hidden = !editing;
+      if (editing) pageHtmlEl.value = state.pageHtml || "";
+    }
+    if (pageEditBtn) pageEditBtn.hidden = editing;
+    if (pageSaveBtn) pageSaveBtn.hidden = !editing;
+    if (pageCancelBtn) pageCancelBtn.hidden = !editing;
+    const custom = String(state.pageHtml || "").trim();
+    if (editing) {
+      if (pageDefaultEl) pageDefaultEl.hidden = true;
+      if (pageFrameEl) pageFrameEl.hidden = true;
+      return;
+    }
+    if (custom && pageFrameEl) {
+      if (pageDefaultEl) pageDefaultEl.hidden = true;
+      pageFrameEl.hidden = false;
+      const prefix = '<!doctype html><html><head><meta charset="utf-8"><style>'
+        + 'html,body{margin:0;padding:16px;font-family:system-ui,sans-serif;}'
+        + '</style></head><body>';
+      pageFrameEl.srcdoc = prefix + custom + '</body></html>';
+      return;
+    }
+    if (pageFrameEl) {
+      pageFrameEl.hidden = true;
+      pageFrameEl.removeAttribute("srcdoc");
+    }
+    if (pageDefaultEl) pageDefaultEl.hidden = false;
+    renderDefaultPage();
+  }
+
+  async function loadProfilePage() {
+    if (!isProfileAvailable()) return;
+    try {
+      const service = window.TarotDataService;
+      const result = await service.requestJson("GET", service.buildApiUrl("/api/v1/profile/page"));
+      state.pageHtml = String(result?.pageHtml || "");
+    } catch (_error) {
+      state.pageHtml = "";
+    }
+    renderProfilePage();
+  }
+
+  async function saveProfilePage() {
+    const { pageHtmlEl, pageSaveBtn } = getElements();
+    const pageHtml = String(pageHtmlEl?.value || "");
+    if (pageSaveBtn) pageSaveBtn.disabled = true;
+    try {
+      const service = window.TarotDataService;
+      const result = await service.requestJson("PATCH", service.buildApiUrl("/api/v1/profile/page"), { pageHtml });
+      state.pageHtml = String(result?.pageHtml ?? pageHtml);
+      state.pageEditing = false;
+      setPageStatus(state.pageHtml.trim() ? "Page saved." : "Default page restored.");
+      renderProfilePage();
+    } catch (error) {
+      setPageStatus(`Could not save page. ${error?.message || ""}`.trim(), true);
+    } finally {
+      if (pageSaveBtn) pageSaveBtn.disabled = false;
+    }
+  }
+
+  async function renderInboxTab() {
+    const { inboxListEl } = getElements();
+    if (!inboxListEl) return;
+    inboxListEl.textContent = "";
+    inboxListEl.appendChild(Object.assign(document.createElement("span"), {
+      className: "profile-directory-empty",
+      textContent: "Loading inbox…"
+    }));
+    try {
+      const inbox = await window.TarotDataService.fetchInbox();
+      const items = Array.isArray(inbox?.items) ? inbox.items.slice(0, 12) : [];
+      inboxListEl.textContent = "";
+      if (!items.length) {
+        inboxListEl.appendChild(Object.assign(document.createElement("span"), {
+          className: "profile-directory-empty",
+          textContent: "No messages yet."
+        }));
+        return;
+      }
+      items.forEach((item) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "profile-inbox-row";
+        const title = document.createElement("strong");
+        title.textContent = item.title || "(untitled)";
+        const meta = document.createElement("span");
+        meta.textContent = [item.sender, item.kind, item.publishedAt || item.createdAt].filter(Boolean).join(" · ");
+        row.append(title, meta);
+        row.addEventListener("click", () => {
+          document.getElementById("open-inbox")?.click();
+        });
+        inboxListEl.appendChild(row);
+      });
+    } catch (error) {
+      inboxListEl.textContent = "";
+      inboxListEl.appendChild(Object.assign(document.createElement("span"), {
+        className: "profile-directory-empty",
+        textContent: error?.message || "Could not load inbox."
+      }));
     }
   }
 
@@ -4510,6 +4745,37 @@
     });
     elements.bioSaveBtn?.addEventListener("click", () => {
       void saveBio();
+    });
+    elements.tabsEl?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-profile-tab]");
+      if (!button) return;
+      setProfileTab(button.getAttribute("data-profile-tab"));
+    });
+    elements.pageEditBtn?.addEventListener("click", () => {
+      state.pageEditing = true;
+      setPageStatus("");
+      renderProfilePage();
+    });
+    elements.pageCancelBtn?.addEventListener("click", () => {
+      state.pageEditing = false;
+      setPageStatus("");
+      renderProfilePage();
+    });
+    elements.pageSaveBtn?.addEventListener("click", () => {
+      void saveProfilePage();
+    });
+    elements.inboxOpenFullBtn?.addEventListener("click", () => {
+      document.getElementById("open-inbox")?.click();
+    });
+    elements.avatarInputEl?.addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = "";
+      if (file) void uploadProfileImage("avatar", file);
+    });
+    elements.bannerInputEl?.addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = "";
+      if (file) void uploadProfileImage("banner", file);
     });
     elements.directoryBoardOpenEl?.addEventListener("click", openCommunitySection);
     elements.directoryPublicEl?.addEventListener("change", () => {
