@@ -2068,6 +2068,147 @@
     });
   }
 
+  async function renderDemoUsersSettings(settingsEl, plugin) {
+    const status = createSettingsStatus(settingsEl);
+    const service = window.TarotDataService;
+    const adminMode = isAdmin();
+    const body = document.createElement("div");
+    body.className = "dlc-plugin-settings-body";
+    settingsEl.appendChild(body);
+
+    const hint = document.createElement("span");
+    hint.className = "settings-field-hint";
+    hint.textContent = adminMode
+      ? "Control the demo gate and the defaults applied to new demo accounts."
+      : "Read-only. An admin key is required to change demo settings.";
+    body.appendChild(hint);
+
+    const activeLabel = document.createElement("label");
+    activeLabel.className = "dlc-menu-hide-label";
+    const activeInput = document.createElement("input");
+    activeInput.type = "checkbox";
+    activeInput.disabled = !adminMode;
+    activeLabel.append(activeInput, document.createTextNode("Demo access enabled"));
+    body.appendChild(activeLabel);
+
+    const remoteLabel = document.createElement("label");
+    remoteLabel.className = "dlc-menu-hide-label";
+    const remoteInput = document.createElement("input");
+    remoteInput.type = "checkbox";
+    remoteInput.disabled = !adminMode;
+    remoteLabel.append(remoteInput, document.createTextNode("Allow demo access from remote hosts"));
+    body.appendChild(remoteLabel);
+
+    const remoteWarn = document.createElement("span");
+    remoteWarn.className = "settings-field-hint";
+    remoteWarn.textContent = "Warning: the gate hands out a live API key. Leave this off unless the host is trusted.";
+    body.appendChild(remoteWarn);
+
+    function makeField(labelText, fieldName, attributes = {}) {
+      const label = document.createElement("label");
+      label.className = "settings-field";
+      label.appendChild(document.createTextNode(labelText));
+      const input = document.createElement("input");
+      Object.keys(attributes).forEach((key) => {
+        input.setAttribute(key, String(attributes[key]));
+      });
+      input.dataset.field = fieldName;
+      input.readOnly = !adminMode;
+      label.appendChild(input);
+      return label;
+    }
+
+    const rowOne = document.createElement("div");
+    rowOne.className = "dlc-settings-config-row";
+    rowOne.append(
+      makeField("Demo access level", "demoAccessLevel", { type: "text", placeholder: "premium" }),
+      makeField("Trial access level", "trialAccessLevel", { type: "text", placeholder: "premium" })
+    );
+    body.appendChild(rowOne);
+
+    const rowTwo = document.createElement("div");
+    rowTwo.className = "dlc-settings-config-row";
+    rowTwo.append(
+      makeField("Default trial (days)", "defaultTrialDays", { type: "number", min: "0", max: "3650", step: "1", placeholder: "14" }),
+      makeField("Gate demo account id (optional)", "gateAccountId", { type: "text", placeholder: "First active demo" })
+    );
+    body.appendChild(rowTwo);
+
+    const rowThree = document.createElement("div");
+    rowThree.className = "dlc-settings-config-row";
+    rowThree.append(
+      makeField("Max demo accounts", "maxDemoAccounts", { type: "number", min: "0", max: "1000", step: "1", placeholder: "0 = unlimited" }),
+      makeField("Max trial accounts", "maxTrialAccounts", { type: "number", min: "0", max: "1000", step: "1", placeholder: "0 = unlimited" })
+    );
+    body.appendChild(rowThree);
+
+    const levelHint = document.createElement("span");
+    levelHint.className = "settings-field-hint";
+    levelHint.textContent = "Access level names come from the API access policy (for example basic, premium, pro+). New trials default to the default trial length.";
+    body.appendChild(levelHint);
+
+    const actions = document.createElement("div");
+    actions.className = "dlc-shop-actions";
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.className = "dlc-shop-btn";
+    saveBtn.textContent = adminMode ? "Save Settings" : "Admin key required to edit";
+    saveBtn.disabled = !adminMode;
+    actions.appendChild(saveBtn);
+    body.appendChild(actions);
+
+    const field = (name) => body.querySelector(`[data-field='${name}']`);
+
+    try {
+      const payload = await service.requestJson(
+        "GET",
+        service.buildApiUrl(`/api/v1/plugins/${plugin.name}/server/admin/settings`)
+      );
+      const settings = payload?.settings && typeof payload.settings === "object" ? payload.settings : {};
+      activeInput.checked = settings.enabled !== false;
+      remoteInput.checked = settings.allowRemote === true;
+      field("demoAccessLevel").value = String(settings.demoAccessLevel || "premium");
+      field("trialAccessLevel").value = String(settings.trialAccessLevel || settings.demoAccessLevel || "premium");
+      field("defaultTrialDays").value = String(settings.defaultTrialDays ?? 14);
+      field("maxDemoAccounts").value = String(settings.maxDemoAccounts ?? 0);
+      field("maxTrialAccounts").value = String(settings.maxTrialAccounts ?? 0);
+      field("gateAccountId").value = String(settings.gateAccountId || "");
+    } catch (error) {
+      status.set(`Could not load settings. ${error?.message || ""}`.trim(), true);
+    }
+
+    saveBtn.addEventListener("click", async () => {
+      if (!isAdmin()) {
+        status.set("Admin key required to save demo settings.", true);
+        return;
+      }
+      saveBtn.disabled = true;
+      try {
+        await service.requestJson(
+          "POST",
+          service.buildApiUrl(`/api/v1/plugins/${plugin.name}/server/admin/settings`),
+          {
+            settings: {
+              enabled: activeInput.checked,
+              allowRemote: remoteInput.checked,
+              demoAccessLevel: String(field("demoAccessLevel").value || "").trim() || "premium",
+              trialAccessLevel: String(field("trialAccessLevel").value || "").trim() || "premium",
+              defaultTrialDays: Number(field("defaultTrialDays").value) || 0,
+              maxDemoAccounts: Number(field("maxDemoAccounts").value) || 0,
+              maxTrialAccounts: Number(field("maxTrialAccounts").value) || 0,
+              gateAccountId: String(field("gateAccountId").value || "").trim()
+            }
+          }
+        );
+        status.set("Saved.");
+      } catch (error) {
+        status.set(`Could not save. ${error?.message || ""}`.trim(), true);
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+  }
+
   async function renderGenericConfigSettings(settingsEl, plugin) {
     const status = createSettingsStatus(settingsEl);
     const service = window.TarotDataService;
@@ -2348,7 +2489,9 @@
           ? renderLinksSettings
           : plugin?.name === "hydrus-network"
             ? renderHydrusNetworkSettings
-            : renderGenericConfigSettings;
+            : plugin?.name === "demo-users"
+              ? renderDemoUsersSettings
+              : renderGenericConfigSettings;
     void Promise.resolve(render(settingsEl, plugin)).then(() => renderPluginLogs(settingsEl, plugin));
   }
 
