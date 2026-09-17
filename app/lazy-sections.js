@@ -118,8 +118,8 @@
       "app/ui-enochian.js?v=20260820-template"
     ],
     numbers: [
-      "app/ui-numbers-detail.js?v=20260820-detail-template",
-      "app/ui-numbers.js?v=20260820-template"
+      "app/ui-numbers-detail.js?v=20260917-numbers-clean",
+      "app/ui-numbers.js?v=20260917-numbers-clean"
     ],
     numPad: [
       "app/ui-num-pad-grid.js?v=20260826-num-pad",
@@ -127,10 +127,10 @@
       "app/ui-num-pad.js?v=20260915-numpad-actions"
     ],
     natal: [
-      "app/ui-natal.js"
+      "app/ui-natal.js?v=20260917-natal-place"
     ],
     admin: [
-      "app/ui-admin.js?v=20260916-favicon-upload"
+      "app/ui-admin.js?v=20260917-publish-queue"
     ],
     profile: [
       "app/ui-profile.js?v=20260916-sky-revamp"

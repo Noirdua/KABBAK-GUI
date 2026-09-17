@@ -13,8 +13,6 @@
     setActiveSection: null
   };
 
-  const NUMBERS_SPECIAL_BASE_VALUES = [1, 2, 3, 4];
-  const numbersSpecialFlipState = new Map();
   const numbersDetailUi = window.NumbersDetailUi || {};
 
   if (typeof numbersDetailUi.renderNumberDetail !== "function") {
@@ -106,7 +104,6 @@
       detailTypeEl: document.getElementById("numbers-detail-type"),
       detailSummaryEl: document.getElementById("numbers-detail-summary"),
       detailBodyEl: document.getElementById("numbers-detail-body"),
-      specialPanelEl: document.getElementById("numbers-special-panel"),
       openNumbersBrowseEl: document.getElementById("open-numbers-browse"),
       openNumbersTheoryEl: document.getElementById("open-numbers-theory")
     };
@@ -288,8 +285,6 @@
       ensureTarotSection: config.ensureTarotSection,
       activeNumbersView,
       selectNumberEntry,
-      NUMBERS_SPECIAL_BASE_VALUES,
-      numbersSpecialFlipState,
       PLAYING_SUIT_SYMBOL,
       PLAYING_SUIT_LABEL,
       PLAYING_SUIT_TO_TAROT,

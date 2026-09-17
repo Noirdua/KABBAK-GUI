@@ -134,7 +134,6 @@
   // In-app replacement for window.prompt (blocked in some embedded browsers).
   function promptPublishMessage(item) {
     return new Promise((resolve) => {
-      document.querySelector(".dlc-publish-overlay")?.remove();
       const overlay = document.createElement("div");
       overlay.className = "dlc-settings-overlay dlc-publish-overlay";
       overlay.setAttribute("role", "dialog");
@@ -155,9 +154,13 @@
         </div>`;
       const input = overlay.querySelector(".dlc-publish-message");
       let settled = false;
+      const onKey = (event) => {
+        if (event.key === "Escape") finish(null);
+      };
       const finish = (value) => {
         if (settled) return;
         settled = true;
+        document.removeEventListener("keydown", onKey);
         overlay.remove();
         resolve(value);
       };
@@ -166,12 +169,7 @@
       overlay.addEventListener("mousedown", (event) => {
         if (event.target === overlay) finish(null);
       });
-      document.addEventListener("keydown", function onKey(event) {
-        if (event.key === "Escape") {
-          document.removeEventListener("keydown", onKey);
-          finish(null);
-        }
-      });
+      document.addEventListener("keydown", onKey);
       input.addEventListener("keydown", (event) => {
         if (event.key === "Enter") finish(String(input.value || ""));
       });
@@ -2440,16 +2438,30 @@
   let dlcRenderLimit = DLC_RENDER_STEP;
   let dlcLoadObserver = null;
   const dlcSelected = new Set();
+  const dlcPublishing = new Set();
+  const dlcPublishQueue = [];
+  let dlcPublishRunning = false;
 
   function dlcItemKey(item) {
     return `${item?.kind || ""}:${item?.name || ""}`;
   }
 
+  function defaultPublishMessage(item) {
+    return `Update ${item?.kind || "item"}: ${item?.name || ""}`;
+  }
+
+  function isDlcPublishBusy() {
+    return dlcPublishRunning || dlcPublishQueue.length > 0 || dlcPublishing.size > 0;
+  }
+
   function syncPublishBar() {
     const button = document.getElementById("admin-dlc-publish-selected");
     if (!button) return;
-    button.disabled = dlcSelected.size === 0;
-    button.textContent = `Publish selected (${dlcSelected.size})`;
+    const busy = isDlcPublishBusy();
+    button.disabled = dlcSelected.size === 0 || busy;
+    button.textContent = busy
+      ? `Publishing (${dlcPublishing.size})…`
+      : `Publish selected (${dlcSelected.size})`;
   }
 
   function pruneDlcSelection() {
@@ -2640,37 +2652,84 @@
     renderSelectStep();
   }
 
+  async function publishQueuedItem(job) {
+    const statusEl = document.getElementById("admin-dlc-publish-status");
+    const remaining = dlcPublishing.size;
+    if (statusEl) statusEl.textContent = `Publishing ${job.item.name} (${remaining} left)…`;
+    setStatus(`Publishing ${job.item.name}…`);
+    try {
+      const result = await requestJson("POST", "/api/v1/admin/dlc/publish", {
+        kind: job.item.kind,
+        name: job.item.name,
+        sourceId: job.item.sourceId || "",
+        message: job.message
+      });
+      const match = allDlcItems.find((entry) => dlcItemKey(entry) === dlcItemKey(job.item));
+      if (match) match.publishPending = false;
+      dlcSelected.delete(dlcItemKey(job.item));
+      job.ok = true;
+      const okText = result?.note
+        ? `${job.item.name}: ${result.note}`
+        : `Published ${job.item.name} to ${result?.sourceName || "repo"}.`;
+      setStatus(okText);
+      if (statusEl) statusEl.textContent = okText;
+    } catch (error) {
+      job.ok = false;
+      const failText = `Publish failed for ${job.item.name}. ${error?.message || "Unknown error."}`;
+      setStatus(failText, true);
+      if (statusEl) statusEl.textContent = failText;
+    } finally {
+      dlcPublishing.delete(dlcItemKey(job.item));
+      syncPublishBar();
+    }
+  }
+
+  async function runDlcPublishQueue() {
+    if (dlcPublishRunning) return;
+    dlcPublishRunning = true;
+    syncPublishBar();
+    const results = [];
+    try {
+      do {
+        while (dlcPublishQueue.length) {
+          const job = dlcPublishQueue.shift();
+          await publishQueuedItem(job);
+          results.push(job);
+        }
+        await loadPlugins();
+      } while (dlcPublishQueue.length);
+    } finally {
+      dlcPublishRunning = false;
+      syncPublishBar();
+    }
+    const published = results.filter((job) => job.ok).length;
+    const failed = results.length - published;
+    const statusEl = document.getElementById("admin-dlc-publish-status");
+    const summary = failed
+      ? `Published ${published}; ${failed} failed.`
+      : `Published ${published} item(s).`;
+    if (statusEl && results.length > 1) statusEl.textContent = summary;
+    if (results.length > 1) setStatus(summary, failed > 0);
+  }
+
+  function enqueueDlcPublish(item, message) {
+    const key = dlcItemKey(item);
+    if (!key || dlcPublishing.has(key)) return false;
+    dlcPublishing.add(key);
+    dlcPublishQueue.push({
+      item,
+      message: String(message || defaultPublishMessage(item)),
+      ok: false
+    });
+    syncPublishBar();
+    void runDlcPublishQueue();
+    return true;
+  }
+
   async function publishSelectedDlc() {
     const items = allDlcItems.filter((item) => dlcSelected.has(dlcItemKey(item)));
     if (!items.length) return;
-    const button = document.getElementById("admin-dlc-publish-selected");
-    const statusEl = document.getElementById("admin-dlc-publish-status");
-    if (button) button.disabled = true;
-    let published = 0;
-    const failed = [];
-    for (let index = 0; index < items.length; index += 1) {
-      const item = items[index];
-      if (statusEl) statusEl.textContent = `Publishing ${index + 1}/${items.length}: ${item.name}…`;
-      try {
-        await requestJson("POST", "/api/v1/admin/dlc/publish", {
-          kind: item.kind,
-          name: item.name,
-          sourceId: item.sourceId || "",
-          message: `Update ${item.kind}: ${item.name}`
-        });
-        published += 1;
-      } catch (error) {
-        failed.push(`${item.name}: ${error?.message || "failed"}`);
-      }
-    }
-    dlcSelected.clear();
-    if (statusEl) {
-      statusEl.textContent = failed.length
-        ? `Published ${published}; ${failed.length} failed — ${failed[0]}`
-        : `Published ${published} item(s).`;
-    }
-    setStatus(failed.length ? `Published ${published}; ${failed.length} failed.` : `Published ${published} item(s).`, failed.length > 0);
-    await loadPlugins();
+    items.forEach((item) => enqueueDlcPublish(item, defaultPublishMessage(item)));
   }
 
   function matchesDlcSearch(item, query) {
@@ -2881,40 +2940,30 @@
           });
         }
 
-        if (kind !== "pack" && item?.downloaded === true && item?.publishPending === true) {
+        const itemKey = dlcItemKey(item);
+        const publishing = dlcPublishing.has(itemKey);
+        if (kind !== "pack" && item?.downloaded === true && (item?.publishPending === true || publishing)) {
           const publishBtn = document.createElement("button");
           publishBtn.type = "button";
           publishBtn.className = "dlc-shop-btn";
-          publishBtn.textContent = "Publish";
+          publishBtn.textContent = publishing ? "Publishing…" : "Publish";
           publishBtn.title = "Validate, commit, and push this item to its DLC repository";
+          publishBtn.disabled = publishing;
           const publishStatus = document.createElement("span");
           publishStatus.className = "dlc-publish-status settings-field-hint";
+          if (publishing) publishStatus.textContent = "In queue…";
           actionRow?.append(publishBtn, publishStatus);
           publishBtn.addEventListener("click", async () => {
-            if (publishBtn.disabled) return;
-            const message = await promptPublishMessage(item);
+            if (publishBtn.disabled || dlcPublishing.has(itemKey)) return;
+            const skipPrompt = isDlcPublishBusy() || Boolean(document.querySelector(".dlc-publish-overlay"));
+            const message = skipPrompt
+              ? defaultPublishMessage(item)
+              : await promptPublishMessage(item);
             if (message === null) return;
+            if (!enqueueDlcPublish(item, message)) return;
             publishBtn.disabled = true;
-            publishStatus.textContent = "Publishing…";
-            setStatus(`Publishing ${item.name}…`);
-            try {
-              const result = await requestJson("POST", "/api/v1/admin/dlc/publish", {
-                kind: item.kind,
-                name: item.name,
-                sourceId: item.sourceId || "",
-                message
-              });
-              const okText = result?.note || `Published to ${result?.sourceName || "repo"} (${result?.branch || ""})${result?.head ? ` · ${result.head}` : ""}.`;
-              publishStatus.textContent = okText;
-              setStatus(okText);
-              await loadPlugins();
-            } catch (error) {
-              const failText = `Publish failed. ${error?.message || "Unknown error."}`;
-              publishStatus.textContent = failText;
-              setStatus(failText, true);
-            } finally {
-              publishBtn.disabled = false;
-            }
+            publishBtn.textContent = "Publishing…";
+            publishStatus.textContent = "In queue…";
           });
         }
 

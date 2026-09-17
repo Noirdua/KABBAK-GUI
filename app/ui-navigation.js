@@ -174,8 +174,20 @@
     });
 
     bindClick(elements.openTarotSpreadEl, () => {
-      setActiveSection("tarot");
-      config.tarotSpreadUi?.setSpread?.("three-card", false);
+      // ui-tarot-spread.js is lazy-loaded with the tarot section, so the module
+      // may not exist on the first click. Load it (and run its deferred init)
+      // before asking it to open the spread view.
+      void (async () => {
+        try {
+          await window.TarotLazySections?.ensureSectionScripts?.("tarot");
+          window.TarotEnsureDeferredUiInits?.();
+        } catch (_error) {
+          // Fall through; setActiveSection will still open the tarot section.
+        }
+        setActiveSection("tarot");
+        const spreadUi = window.TarotSpreadUi || config.tarotSpreadUi;
+        spreadUi?.setSpread?.("three-card", false);
+      })();
     });
 
     bindClick(elements.openTarotFrameEl, () => {

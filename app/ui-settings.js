@@ -10,6 +10,7 @@
       longitude: -0.1278,
       timeFormat: "minutes",
       birthDate: "",
+      birthTime: "",
       tarotDeck: "",
       stellariumBackgroundEnabled: false,
       detailTextScale: 1,
@@ -42,6 +43,7 @@
       timeFormatEl: document.getElementById("time-format"),
       nowTimeFormatEl: document.getElementById("now-time-format"),
       birthDateEl: document.getElementById("birth-date"),
+      birthTimeEl: document.getElementById("birth-time"),
       detailTextScaleEl: document.getElementById("detail-text-scale"),
       detailTextScaleValueEl: document.getElementById("detail-text-scale-value"),
       menuLayoutEl: document.getElementById("menu-layout"),
@@ -445,6 +447,23 @@
     return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
   }
 
+  function normalizeBirthTime(value) {
+    const normalized = String(value || "").trim();
+    if (!normalized) {
+      return "";
+    }
+    const match = normalized.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (!match) {
+      return "";
+    }
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (hour > 23 || minute > 59) {
+      return "";
+    }
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  }
+
   function getKnownTarotDeckIds() {
     if (!hasTarotAccess()) {
       return new Set([String(config.defaultSettings?.tarotDeck || "ceremonial-magick").trim().toLowerCase()]);
@@ -535,6 +554,7 @@
       longitude,
       timeFormat: normalizeTimeFormat(settings?.timeFormat),
       birthDate: normalizeBirthDate(settings?.birthDate),
+      birthTime: normalizeBirthTime(settings?.birthTime),
       tarotDeck: normalizeTarotDeck(settings?.tarotDeck || activeDeckFallback || config.defaultSettings.tarotDeck),
       detailTextScale: normalizeDetailTextScale(settings?.detailTextScale),
       menuLayout: normalizeMenuLayout(settings?.menuLayout),
@@ -586,6 +606,7 @@
       latitude: normalized.latitude,
       longitude: normalized.longitude,
       birthDate: normalized.birthDate || null,
+      birthTime: normalized.birthTime || null,
       birthDateParts,
       timeZone: timeZone || "UTC",
       timezoneOffsetMinutesNow: new Date().getTimezoneOffset(),
@@ -639,12 +660,13 @@
   // Time format and birth date now live on the Profile page. Persist them the
   // moment they change instead of waiting for the Settings Save button.
   function persistProfileTimingFields() {
-    const { timeFormatEl, birthDateEl, nowTimeFormatEl } = getElements();
+    const { timeFormatEl, birthDateEl, birthTimeEl, nowTimeFormatEl } = getElements();
     const saved = loadSavedSettings();
     const next = normalizeSettings({
       ...saved,
       timeFormat: normalizeTimeFormat(nowTimeFormatEl?.value || timeFormatEl?.value || saved.timeFormat),
-      birthDate: normalizeBirthDate(birthDateEl?.value || saved.birthDate)
+      birthDate: normalizeBirthDate(birthDateEl?.value || saved.birthDate),
+      birthTime: normalizeBirthTime(birthTimeEl?.value || saved.birthTime)
     });
     saveSettings(next);
     emitSettingsUpdated(next);
@@ -748,6 +770,7 @@
       timeFormatEl,
       nowTimeFormatEl,
       birthDateEl,
+      birthTimeEl,
       detailTextScaleEl,
       menuLayoutEl,
       nowTarotDeckEl,
@@ -764,6 +787,9 @@
     }
     if (birthDateEl) {
       birthDateEl.value = normalized.birthDate;
+    }
+    if (birthTimeEl) {
+      birthTimeEl.value = normalized.birthTime;
     }
     if (detailTextScaleEl) {
       detailTextScaleEl.value = String(Math.round(normalized.detailTextScale * 100));
@@ -795,6 +821,7 @@
       timeFormatEl,
       nowTimeFormatEl,
       birthDateEl,
+      birthTimeEl,
       detailTextScaleEl,
       menuLayoutEl,
       stellariumBackgroundEl
@@ -817,6 +844,7 @@
       longitude,
       timeFormat: normalizeTimeFormat(timeFormatValue),
       birthDate: normalizeBirthDate(birthDateEl?.value || saved.birthDate),
+      birthTime: normalizeBirthTime(birthTimeEl?.value || saved.birthTime),
       tarotDeck: normalizeTarotDeck(deckValue),
       detailTextScale: normalizeDetailTextScale(Number(detailTextScaleEl?.value || Math.round((saved.detailTextScale || 1) * 100)) / 100),
       menuLayout: normalizeMenuLayout(menuLayoutEl?.value || saved.menuLayout),
@@ -1048,6 +1076,7 @@
       nowTimeFormatEl,
       timeFormatEl,
       birthDateEl,
+      birthTimeEl,
       nowTarotDeckEl,
       nowLocationEditEl,
       stellariumBackgroundEl
@@ -1096,6 +1125,9 @@
     }
     if (birthDateEl) {
       birthDateEl.addEventListener("change", persistProfileTimingFields);
+    }
+    if (birthTimeEl) {
+      birthTimeEl.addEventListener("change", persistProfileTimingFields);
     }
 
     if (detailTextScaleEl) {

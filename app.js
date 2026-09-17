@@ -386,6 +386,7 @@ const DEFAULT_SETTINGS = {
   longitude: -0.1278,
   timeFormat: "minutes",
   birthDate: "",
+  birthTime: "",
   tarotDeck: DEFAULT_TAROT_DECK,
   stellariumBackgroundEnabled: false,
   detailTextScale: 1,

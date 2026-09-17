@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260917-word-options">
+  <link rel="stylesheet" href="app/styles.css?v=20260917-natal-chart">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -280,7 +280,7 @@
             <span class="profile-hub-card-kicker">Time</span>
             <h2>Time And Birth Date</h2>
           </div>
-          <p class="profile-location-copy">Controls calendar rendering, the Now panel, and optional sky background.</p>
+          <p class="profile-location-copy">Controls calendar rendering, the Now panel, natal chart defaults, and optional sky background.</p>
           <label class="profile-field" for="time-format">Time Format            <select id="time-format">
               <option value="minutes" selected>Minutes (default)</option>
               <option value="hours">Hours</option>
@@ -288,6 +288,8 @@
             </select>
           </label>
           <label class="profile-field" for="birth-date">Birth Date            <input id="birth-date" type="date">
+          </label>
+          <label class="profile-field" for="birth-time">Birth Time            <input id="birth-time" type="time">
           </label>
           <div id="profile-timing-status" class="profile-location-status" aria-live="polite"></div>
         </div>
@@ -1683,11 +1685,73 @@
     </div>
   </section>
   <section id="natal-section" hidden>
-    <div class="kabbalah-placeholder">
-      <div class="kabbalah-placeholder-card">
-        <strong>Natal Chart</strong>
-        <div class="body-text">Natal chart scaffolding and anchor summary.</div>
-        <pre id="natal-chart-summary" class="body-text natal-chart-summary">Natal Chart Scaffold: --</pre>
+    <div class="natal-layout">
+      <form id="natal-form" class="natal-form" autocomplete="off">
+        <div class="natal-form-head">
+          <strong>Natal Chart</strong>
+          <p class="body-text natal-form-copy">Uses Profile birth date, time, and location when set. Switch to Manual to pick a city or enter coordinates.</p>
+        </div>
+        <fieldset class="natal-source">
+          <legend>Birth data</legend>
+          <label class="natal-source-option"><input id="natal-source-profile" name="natal-source" type="radio" value="profile" checked> Profile</label>
+          <label class="natal-source-option"><input id="natal-source-manual" name="natal-source" type="radio" value="manual"> Manual</label>
+        </fieldset>
+        <div class="natal-form-grid">
+          <label class="profile-field" for="natal-date">Date            <input id="natal-date" type="date" required>
+          </label>
+          <label class="profile-field" for="natal-time">Time            <input id="natal-time" type="time">
+          </label>
+          <label class="natal-unknown-time" for="natal-time-unknown">
+            <input id="natal-time-unknown" type="checkbox">
+            Time unknown
+          </label>
+          <label class="profile-field" for="natal-location-country">Country            <select id="natal-location-country">
+              <option value="">Select a country…</option>
+            </select>
+          </label>
+          <label class="profile-field" for="natal-location-region">State / region            <select id="natal-location-region" disabled>
+              <option value="">Select a region…</option>
+            </select>
+          </label>
+          <label class="profile-field" for="natal-location-city">City            <select id="natal-location-city" disabled>
+              <option value="">Select a city…</option>
+            </select>
+          </label>
+          <label class="profile-field" for="natal-lat">Latitude            <input id="natal-lat" type="number" step="any" min="-90" max="90" placeholder="e.g. 51.5074">
+          </label>
+          <label class="profile-field" for="natal-lng">Longitude            <input id="natal-lng" type="number" step="any" min="-180" max="180" placeholder="e.g. -0.1278">
+          </label>
+        </div>
+        <div id="natal-location-label" class="natal-location-label">Location: --</div>
+        <div class="natal-form-actions">
+          <button id="natal-cast" class="profile-btn profile-btn-primary" type="submit">Cast Chart</button>
+          <div id="natal-status" class="natal-status" aria-live="polite"></div>
+        </div>
+      </form>
+      <div id="natal-empty" class="natal-empty">Enter a birth date and location, then cast.</div>
+      <div id="natal-result" class="natal-result" hidden>
+        <div class="natal-big-three" id="natal-big-three"></div>
+        <div class="natal-chart-row">
+          <div id="natal-wheel" class="natal-wheel" aria-hidden="true"></div>
+          <div class="natal-side">
+            <div id="natal-notes" class="natal-notes"></div>
+            <div id="natal-tallies" class="natal-tallies"></div>
+          </div>
+        </div>
+        <div class="natal-tables">
+          <div>
+            <h3 class="natal-table-title">Planets</h3>
+            <div id="natal-planets" class="natal-table"></div>
+          </div>
+          <div>
+            <h3 class="natal-table-title">Houses</h3>
+            <div id="natal-houses" class="natal-table"></div>
+          </div>
+          <div>
+            <h3 class="natal-table-title">Aspects</h3>
+            <div id="natal-aspects" class="natal-table"></div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -2610,9 +2674,7 @@
     </div>
   </section>
   <section id="numbers-section" hidden>
-    <div class="kab-layout numbers-layout">
-      <aside id="numbers-special-panel" class="numbers-special-panel" aria-label="4 card arrangement"></aside>
-      <div class="browse-layout numbers-main-layout">
+    <div class="browse-layout numbers-main-layout">
         <aside class="list-panel">
           <div class="list-header">
             <strong>Numbers (Digital Root)</strong>
@@ -2628,7 +2690,6 @@
           </div>
           <div id="numbers-detail-body" class="numbers-detail-body"></div>
         </section>
-      </div>
     </div>
   </section>
   <section id="planner-section" hidden>
@@ -2777,14 +2838,14 @@
   <script src="app/card-images.js?v=20260916-jokers"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260916-playing-section"></script>
+  <script src="app/lazy-sections.js?v=20260917-natal-place"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
-  <script src="app/ui-settings.js?v=20260916-sky-revamp"></script>
+  <script src="app/ui-settings.js?v=20260917-natal-chart"></script>
   <script src="app/ui-dlc-shop.js?v=20260916-back-optional"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
-  <script src="app/ui-navigation.js?v=20260916-playing-section"></script>
+  <script src="app/ui-navigation.js?v=20260917-spread-first-click"></script>
   <script src="app/ui-calendar-formatting.js?v=20260307b"></script>
   <script src="app/ui-calendar-visuals.js?v=20260307b"></script>
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
