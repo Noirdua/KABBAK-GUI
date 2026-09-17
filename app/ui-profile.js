@@ -24,11 +24,14 @@
     bio: "",
     pageHtml: "",
     pageEditing: false,
+    pagePreview: false,
     profileTab: "page",
     createdAt: "",
     counts: {},
     hasAvatar: false,
     hasBanner: false,
+    tagline: "",
+    journalVisibility: "private",
     mediaStamp: "",
     quizProgress: null,
     friends: { friends: [], incoming: [], outgoing: [] },
@@ -57,6 +60,22 @@
       storageFillEl: document.getElementById("profile-storage-fill"),
       noteListEl: document.getElementById("profile-note-list"),
       noteEditorEl: document.getElementById("profile-note-editor"),
+    noteStatsEl: document.getElementById("profile-note-stats"),
+    noteShareBtn: document.getElementById("profile-note-share"),
+    feedListEl: document.getElementById("profile-feed-list"),
+    postInputEl: document.getElementById("profile-post-input"),
+    postTitleEl: document.getElementById("profile-post-title"),
+    postToolsEl: document.getElementById("profile-post-tools"),
+    postFilesEl: document.getElementById("profile-post-files"),
+    postAttachmentsEl: document.getElementById("profile-post-attachments"),
+    postSubmitBtn: document.getElementById("profile-post-submit"),
+    postCountEl: document.getElementById("profile-post-count"),
+    postStatusEl: document.getElementById("profile-post-status"),
+    postNewBtn: document.getElementById("profile-post-new"),
+    postEvidenceBtn: document.getElementById("profile-post-evidence"),
+    postEvidenceCountEl: document.getElementById("profile-post-evidence-count"),
+    postComposerEl: document.getElementById("profile-post-composer"),
+    postPreviewCardEl: document.getElementById("profile-post-preview-card"),
       noteTitleEl: document.getElementById("profile-note-title"),
       noteDateEl: document.getElementById("profile-note-date"),
       sleptAtEl: document.getElementById("profile-slept-at"),
@@ -98,6 +117,12 @@
       bioInputEl: document.getElementById("profile-bio-input"),
       bioSaveBtn: document.getElementById("profile-bio-save"),
       bioStatusEl: document.getElementById("profile-bio-status"),
+      journalVisibilityEl: document.getElementById("profile-journal-visibility"),
+      journalVisibilityStatusEl: document.getElementById("profile-journal-visibility-status"),
+      taglineEl: document.getElementById("profile-tagline"),
+      taglineInputEl: document.getElementById("profile-tagline-input"),
+      taglineSaveBtn: document.getElementById("profile-tagline-save"),
+      taglineStatusEl: document.getElementById("profile-tagline-status"),
       directoryPublicEl: document.getElementById("profile-directory-public"),
       directoryStatusEl: document.getElementById("profile-directory-status"),
       directoryListEl: document.getElementById("profile-directory-list"),
@@ -823,6 +848,42 @@
     }
   }
 
+  // Writing stats for the editor only (the read view never shows them).
+  function collectEditorText() {
+    const parts = [];
+    const title = document.getElementById("profile-note-title");
+    if (title instanceof HTMLInputElement) {
+      parts.push(title.value || "");
+    }
+    document.querySelectorAll(
+      "#profile-scene-list input[type='text'], #profile-scene-list textarea, #profile-scene-list [contenteditable='true']"
+    ).forEach((node) => {
+      if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) {
+        parts.push(node.value || "");
+      } else {
+        parts.push(node.textContent || "");
+      }
+    });
+    return parts.join(" ").trim();
+  }
+
+  function updateNoteStats() {
+    const { noteEditorEl, noteStatsEl } = getElements();
+    if (!noteStatsEl) return;
+    if (noteEditorEl && noteEditorEl.hidden) {
+      noteStatsEl.textContent = "";
+      return;
+    }
+    const text = collectEditorText();
+    const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+    const characters = text.length;
+    const minutes = words ? Math.max(1, Math.round(words / 200)) : 0;
+    const paragraphCount = text ? text.split(/\n\s*\n/).filter((part) => part.trim()).length : 0;
+    noteStatsEl.textContent = words
+      ? `${words} word${words === 1 ? "" : "s"} · ${characters} character${characters === 1 ? "" : "s"} · ${paragraphCount} paragraph${paragraphCount === 1 ? "" : "s"} · ~${minutes} min read`
+      : "Start writing to see a word count.";
+  }
+
   function renderScenes() {
     const { sceneListEl } = getElements();
     if (!sceneListEl) {
@@ -938,6 +999,8 @@
     refreshSceneTransitions();
     void updateSceneSkyCards();
     syncActiveRecordingUi();
+    updateNoteStats();
+    void updateShareButtonState();
   }
 
   function refreshSceneTransitions() {
@@ -1705,28 +1768,19 @@
       return null;
     }
 
-    const currentEnd = hour.end.getTime();
-    let nextHour = pool.find((h) => h.start.getTime() >= currentEnd - 1000) || null;
-    if (!nextHour) {
-      tomorrowHours = tomorrowHours || calc.calcPlanetaryHoursForDayAndLocation(new Date(dateTime.getTime() + DAY_IN_MS), geo);
-      nextHour = (tomorrowHours && tomorrowHours[0]) || null;
-    }
-
     const planet = refData.planets?.[hour.planetId] || null;
-    const nextPlanet = nextHour ? (refData.planets?.[nextHour.planetId] || null) : null;
     const tarot = planet?.tarot || null;
     return {
       planetId: hour.planetId,
       planet,
-      nextPlanet,
       tarotName: tarot?.majorArcana || "",
       tarotNumber: tarot?.number != null ? tarot.number : null,
       isDaylight: hour.isDaylight === true,
-      hour,
-      nextHour
+      hour
     };
   }
 
+  // Current hour only: no "next planet" so the journal (and PDF) stays clean.
   function getSceneSkyText(sky) {
     if (!sky || !sky.planet) {
       return "";
@@ -1734,9 +1788,6 @@
     const parts = [`${sky.planet.symbol || ""} ${sky.planet.name || sky.planetId}`];
     if (sky.tarotName) {
       parts.push(sky.tarotName);
-    }
-    if (sky.nextPlanet) {
-      parts.push(`next ${sky.nextPlanet.name}`);
     }
     parts.push(sky.isDaylight ? "day" : "night");
     return parts.join(" · ");
@@ -3561,6 +3612,10 @@
       state.counts = summary?.counts && typeof summary.counts === "object" ? summary.counts : {};
       state.hasAvatar = Boolean(summary?.hasAvatar);
       state.hasBanner = Boolean(summary?.hasBanner);
+      state.tagline = String(summary?.tagline || "");
+      syncTaglineUi();
+      state.journalVisibility = String(summary?.journalVisibility || "private");
+      syncJournalVisibilityUi();
       state.mediaStamp = String(summary?.updatedAt || Date.now());
       applyProfileMedia();
       void loadProfilePage();
@@ -3909,7 +3964,10 @@
     if (next === "bulletin") void renderDirectoryDiscussions();
     if (next === "directory") void renderPublicDirectory();
     if (next === "friends") void refreshFriends();
-    if (next === "page") renderProfilePage();
+    if (next === "page") {
+      renderProfilePage();
+      void renderProfileFeed();
+    }
   }
 
   function initialsFromName(name) {
@@ -4020,6 +4078,120 @@
     applyProfileMedia();
   }
 
+  const PROFILE_HTML_TOOLS = [
+    { label: "B", title: "Bold", before: "<strong>", after: "</strong>", placeholder: "bold" },
+    { label: "I", title: "Italic", before: "<em>", after: "</em>", placeholder: "italic" },
+    { label: "U", title: "Underline", before: "<u>", after: "</u>", placeholder: "underlined" },
+    { label: "H2", title: "Heading", before: "<h2>", after: "</h2>", placeholder: "Heading" },
+    { label: "H3", title: "Sub-heading", before: "<h3>", after: "</h3>", placeholder: "Sub-heading" },
+    { label: "P", title: "Paragraph", before: "<p>", after: "</p>", placeholder: "Paragraph text" },
+    { label: "Link", title: "Link", before: '<a href="https://">', after: "</a>", placeholder: "link text" },
+    { label: "Image", title: "Image", before: '<img src="https://" alt="', after: '">', placeholder: "description" },
+    { label: "• List", title: "Bullet list", before: "<ul>\n  <li>", after: "</li>\n</ul>", placeholder: "item" },
+    { label: "1. List", title: "Numbered list", before: "<ol>\n  <li>", after: "</li>\n</ol>", placeholder: "item" },
+    { label: "Quote", title: "Quote", before: "<blockquote>", after: "</blockquote>", placeholder: "quote" },
+    { label: "Table", title: "Table", before: '<table border="1">\n  <tr><td>', after: "</td></tr>\n</table>", placeholder: "cell" },
+    { label: "Box", title: "Box / card", before: '<div style="border:1px solid #444;border-radius:12px;padding:12px">', after: "</div>", placeholder: "content" },
+    { label: "Center", title: "Center", before: '<div style="text-align:center">', after: "</div>", placeholder: "content" },
+    { label: "</>", title: "Code block", before: "<pre><code>", after: "</code></pre>", placeholder: "code" },
+    { label: "—", title: "Divider", before: "<hr>", after: "", placeholder: "" }
+  ];
+  const PROFILE_PAGE_STARTER = [
+    '<h2 style="margin:0 0 8px;">Your page title</h2>',
+    '<p>A short intro about you.</p>',
+    '<hr style="border:0;border-top:1px solid #444;margin:16px 0;">',
+    "<h3>Things I like</h3>",
+    "<ul><li>One</li><li>Two</li></ul>",
+    '<p><a href="https://example.com">A link</a></p>'
+  ].join("\n");
+
+  function buildProfileFrameDoc(html) {
+    const prefix = '<!doctype html><html><head><meta charset="utf-8"><style>'
+      + 'html,body{margin:0;padding:16px;font-family:system-ui,sans-serif;}'
+      + '</style></head><body>';
+    return prefix + String(html || "") + '</body></html>';
+  }
+
+  function insertProfileHtml(before, after = "", placeholder = "") {
+    const { pageHtmlEl } = getElements();
+    if (!(pageHtmlEl instanceof HTMLTextAreaElement)) return;
+    const start = pageHtmlEl.selectionStart ?? pageHtmlEl.value.length;
+    const end = pageHtmlEl.selectionEnd ?? pageHtmlEl.value.length;
+    const selected = pageHtmlEl.value.slice(start, end) || placeholder;
+    pageHtmlEl.value = pageHtmlEl.value.slice(0, start) + before + selected + after + pageHtmlEl.value.slice(end);
+    pageHtmlEl.focus();
+    const selectionStart = start + before.length;
+    pageHtmlEl.setSelectionRange(selectionStart, selectionStart + selected.length);
+  }
+
+  function ensureProfileFormatBar() {
+    const existing = document.getElementById("profile-page-format-bar");
+    if (existing) return existing;
+    const textarea = document.getElementById("profile-page-html");
+    if (!textarea) return null;
+    const bar = document.createElement("div");
+    bar.id = "profile-page-format-bar";
+    bar.className = "profile-format-bar";
+    PROFILE_HTML_TOOLS.forEach((tool) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "profile-format-btn";
+      button.title = tool.title;
+      button.setAttribute("aria-label", tool.title);
+      button.textContent = tool.label;
+      button.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        insertProfileHtml(tool.before, tool.after, tool.placeholder);
+      });
+      bar.appendChild(button);
+    });
+
+    const colour = document.createElement("input");
+    colour.type = "color";
+    colour.value = "#e5e7eb";
+    colour.className = "profile-format-color";
+    colour.setAttribute("aria-label", "Text colour");
+    bar.appendChild(colour);
+    const colourButton = document.createElement("button");
+    colourButton.type = "button";
+    colourButton.className = "profile-format-btn";
+    colourButton.textContent = "Colour";
+    colourButton.title = "Text colour";
+    colourButton.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      insertProfileHtml('<span style="color:' + colour.value + '">', "</span>", "coloured text");
+    });
+    bar.appendChild(colourButton);
+
+    const preview = document.createElement("button");
+    preview.type = "button";
+    preview.id = "profile-page-preview";
+    preview.className = "profile-format-btn";
+    preview.textContent = "Preview";
+    preview.title = "Preview the page";
+    preview.addEventListener("click", () => {
+      state.pagePreview = !state.pagePreview;
+      preview.textContent = state.pagePreview ? "Back to HTML" : "Preview";
+      renderProfilePage();
+    });
+    bar.appendChild(preview);
+
+    const starter = document.createElement("button");
+    starter.type = "button";
+    starter.className = "profile-format-btn";
+    starter.textContent = "Starter";
+    starter.title = "Insert a starter layout";
+    starter.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      insertProfileHtml(PROFILE_PAGE_STARTER, "", "");
+    });
+    bar.appendChild(starter);
+
+    const label = textarea.closest(".profile-page-editor-label") || textarea;
+    (label.parentElement || label).insertBefore(bar, label);
+    return bar;
+  }
+
   function renderProfilePage() {
     const {
       pageDefaultEl,
@@ -4031,27 +4203,35 @@
       pageCancelBtn
     } = getElements();
     const editing = state.pageEditing;
-    if (pageEditorLabelEl) pageEditorLabelEl.hidden = !editing;
-    if (pageHtmlEl) {
-      pageHtmlEl.hidden = !editing;
-      if (editing) pageHtmlEl.value = state.pageHtml || "";
-    }
+    const previewing = editing && state.pagePreview;
+    const formatBar = ensureProfileFormatBar();
+    if (formatBar) formatBar.hidden = !editing;
+    if (pageEditorLabelEl) pageEditorLabelEl.hidden = !editing || previewing;
+    if (pageHtmlEl) pageHtmlEl.hidden = !editing || previewing;
     if (pageEditBtn) pageEditBtn.hidden = editing;
     if (pageSaveBtn) pageSaveBtn.hidden = !editing;
     if (pageCancelBtn) pageCancelBtn.hidden = !editing;
-    const custom = String(state.pageHtml || "").trim();
     if (editing) {
       if (pageDefaultEl) pageDefaultEl.hidden = true;
-      if (pageFrameEl) pageFrameEl.hidden = true;
+      if (pageFrameEl) {
+        pageFrameEl.hidden = !previewing;
+        if (previewing) {
+          pageFrameEl.srcdoc = buildProfileFrameDoc(pageHtmlEl ? pageHtmlEl.value : "");
+        } else {
+          pageFrameEl.removeAttribute("srcdoc");
+        }
+      }
       return;
     }
+
+    state.pagePreview = false;
+    const previewButton = document.getElementById("profile-page-preview");
+    if (previewButton) previewButton.textContent = "Preview";
+    const custom = String(state.pageHtml || "").trim();
     if (custom && pageFrameEl) {
       if (pageDefaultEl) pageDefaultEl.hidden = true;
       pageFrameEl.hidden = false;
-      const prefix = '<!doctype html><html><head><meta charset="utf-8"><style>'
-        + 'html,body{margin:0;padding:16px;font-family:system-ui,sans-serif;}'
-        + '</style></head><body>';
-      pageFrameEl.srcdoc = prefix + custom + '</body></html>';
+      pageFrameEl.srcdoc = buildProfileFrameDoc(custom);
       return;
     }
     if (pageFrameEl) {
@@ -4060,6 +4240,928 @@
     }
     if (pageDefaultEl) pageDefaultEl.hidden = false;
     renderDefaultPage();
+  }
+
+  function syncTaglineUi() {
+    const { taglineEl, taglineInputEl } = getElements();
+    const value = String(state.tagline || "");
+    if (taglineInputEl) {
+      taglineInputEl.value = value;
+    }
+    if (taglineEl) {
+      taglineEl.textContent = value;
+      taglineEl.hidden = !value;
+    }
+  }
+
+  function setTaglineStatus(text, isError = false) {
+    const { taglineStatusEl } = getElements();
+    if (!taglineStatusEl) return;
+    taglineStatusEl.textContent = text || "";
+    taglineStatusEl.classList.toggle("is-error", isError);
+  }
+
+  async function saveTagline() {
+    const { taglineInputEl, taglineSaveBtn } = getElements();
+    const tagline = String(taglineInputEl?.value || "").trim().slice(0, 120);
+    if (taglineSaveBtn) taglineSaveBtn.disabled = true;
+    try {
+      const service = window.TarotDataService;
+      const result = await service.updateProfileTagline(tagline);
+      state.tagline = String(result?.tagline ?? tagline);
+      syncTaglineUi();
+      setTaglineStatus(state.tagline ? "Status saved." : "Status cleared.");
+    } catch (error) {
+      setTaglineStatus(`Could not save. ${error?.message || ""}`.trim(), true);
+    } finally {
+      if (taglineSaveBtn) taglineSaveBtn.disabled = false;
+    }
+  }
+
+  function syncJournalVisibilityUi() {
+    const { journalVisibilityEl } = getElements();
+    if (journalVisibilityEl) {
+      journalVisibilityEl.value = state.journalVisibility || "private";
+    }
+  }
+
+  function setJournalVisibilityStatus(text, isError = false) {
+    const { journalVisibilityStatusEl } = getElements();
+    if (!journalVisibilityStatusEl) return;
+    journalVisibilityStatusEl.textContent = text || "";
+    journalVisibilityStatusEl.classList.toggle("is-error", isError);
+  }
+
+  async function saveJournalVisibility() {
+    const { journalVisibilityEl } = getElements();
+    const visibility = String(journalVisibilityEl?.value || "private");
+    try {
+      const service = window.TarotDataService;
+      const result = await service.updateProfileJournalVisibility(visibility);
+      state.journalVisibility = String(result?.visibility || visibility);
+      syncJournalVisibilityUi();
+      setJournalVisibilityStatus(
+        state.journalVisibility === "private"
+          ? "Journal is private."
+          : `Journal is visible to ${state.journalVisibility === "friends" ? "friends" : "anyone"} on the site.`
+      );
+    } catch (error) {
+      setJournalVisibilityStatus(`Could not save. ${error?.message || ""}`.trim(), true);
+      syncJournalVisibilityUi();
+    }
+  }
+
+  async function viewUserJournal(clientId) {
+    const { directoryDetailEl } = getElements();
+    if (!directoryDetailEl) return;
+    if (directoryDetailEl.querySelector(".profile-directory-journal")) {
+      directoryDetailEl.querySelector(".profile-directory-journal").remove();
+      return;
+    }
+    const panel = makeEl("div", "profile-directory-journal");
+    panel.appendChild(makeEl("strong", "", "Journal"));
+    panel.appendChild(makeEl("span", "profile-directory-empty", "Loading…"));
+    directoryDetailEl.appendChild(panel);
+    try {
+      const result = await window.TarotDataService.fetchUserJournal(clientId);
+      const notes = Array.isArray(result?.notes) ? result.notes : [];
+      panel.textContent = "";
+      panel.appendChild(makeEl("strong", "", "Journal"));
+      if (!notes.length) {
+        panel.appendChild(makeEl("span", "profile-directory-empty", "No journal entries."));
+        return;
+      }
+      notes.forEach((note) => {
+        const row = makeEl("div", "profile-journal-row");
+        row.appendChild(makeEl("strong", "", note.title || "Untitled"));
+        const meta = [note.kind, note.occurredOn].filter(Boolean).join(" · ");
+        if (meta) row.appendChild(makeEl("span", "profile-journal-meta", meta));
+        (Array.isArray(note.scenes) ? note.scenes : []).slice(0, 3).forEach((scene) => {
+          const text = [scene.scenario, scene.notes, scene.thoughts, scene.steps].filter(Boolean).join(" — ");
+          if (text) row.appendChild(makeEl("p", "profile-journal-text", text.slice(0, 600)));
+        });
+        panel.appendChild(row);
+      });
+    } catch (error) {
+      panel.textContent = "";
+      panel.appendChild(makeEl("strong", "", "Journal"));
+      panel.appendChild(makeEl("span", "profile-directory-empty", error?.message || "This journal is not shared."));
+    }
+  }
+
+  // --- Shared journal entries (feed posts with comments) ---------------------
+
+  function setPostStatus(text, isError = false) {
+    const { postStatusEl } = getElements();
+    if (!postStatusEl) return;
+    postStatusEl.textContent = text || "";
+    postStatusEl.classList.toggle("is-error", isError);
+  }
+
+  let postAttachments = [];
+  let expandedPostId = "";
+
+  function updatePostCounter() {
+    const { postInputEl, postCountEl } = getElements();
+    if (postCountEl) {
+      postCountEl.textContent = `${String(postInputEl?.textContent || "").trim().length} / 999`;
+    }
+  }
+
+  function renderPostAttachments() {
+    const { postAttachmentsEl } = getElements();
+    if (!postAttachmentsEl) return;
+    postAttachmentsEl.textContent = "";
+    postAttachments.forEach((file, index) => {
+      const row = makeEl("div", "profile-post-attachment");
+      row.appendChild(makeEl("span", "", `${file.name} · ${Math.max(1, Math.round(file.size / 1024))} KB`));
+      const remove = makeEl("button", "profile-btn", "Remove");
+      remove.type = "button";
+      remove.addEventListener("click", () => {
+        postAttachments = postAttachments.filter((entry, i) => i !== index);
+        renderPostAttachments();
+      });
+      row.appendChild(remove);
+      postAttachmentsEl.appendChild(row);
+    });
+  }
+
+  function fileToAttachment(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: file.size,
+        data: String(reader.result || "")
+      });
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const POST_HTML_TOOLS = [
+    { cmd: "bold", label: "B", title: "Bold" },
+    { cmd: "italic", label: "I", title: "Italic" },
+    { cmd: "underline", label: "U", title: "Underline" },
+    { cmd: "insertUnorderedList", label: "•", title: "Bullet list" },
+    { cmd: "insertOrderedList", label: "1.", title: "Numbered list" },
+    { cmd: "formatBlock", value: "blockquote", label: "❝", title: "Quote" },
+    { cmd: "formatBlock", value: "h3", label: "H", title: "Heading" }
+  ];
+
+  function ensurePostTools() {
+    const { postToolsEl } = getElements();
+    if (!postToolsEl || postToolsEl.childElementCount) return;
+    POST_HTML_TOOLS.forEach((tool) => {
+      const button = makeEl("button", "profile-format-btn", tool.label);
+      button.type = "button";
+      button.title = tool.title;
+      button.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        const { postInputEl } = getElements();
+        postInputEl?.focus();
+        document.execCommand(tool.cmd, false, tool.value || null);
+        updatePostCounter();
+      });
+      postToolsEl.appendChild(button);
+    });
+    const link = makeEl("button", "profile-format-btn", "Link");
+    link.type = "button";
+    link.title = "Link";
+    link.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      const url = window.prompt("Link URL", "https://");
+      if (!url) return;
+      const { postInputEl } = getElements();
+      postInputEl?.focus();
+      document.execCommand("createLink", false, url);
+    });
+    postToolsEl.appendChild(link);
+  }
+
+  let composerEvidence = [];
+
+  function updateComposerEvidenceCount() {
+    const { postEvidenceCountEl } = getElements();
+    if (postEvidenceCountEl) {
+      postEvidenceCountEl.textContent = composerEvidence.length
+        ? `${composerEvidence.length} proof${composerEvidence.length === 1 ? "" : "s"} selected`
+        : "";
+    }
+  }
+
+  // Live preview mirrors the public share page by rendering the server template
+  // into a script-less sandbox, so what the author sees is what a reader gets.
+  let postPreviewTimer = null;
+  let postPreviewRequestSeq = 0;
+
+  function collectPostDraft() {
+    const { postTitleEl, postInputEl } = getElements();
+    return {
+      title: String(postTitleEl?.value || "").trim(),
+      kind: "waking",
+      body: String(postInputEl?.innerHTML || "").trim(),
+      entries: composerEvidence.map((item) => ({ kind: "evidence", evidenceId: item.id })),
+      attachments: postAttachments,
+      evidence: composerEvidence
+    };
+  }
+
+  function postDraftIsEmpty(draft) {
+    const text = String(draft.body || "").replace(/<[^>]*>/g, "").trim();
+    return !draft.title && !text && !draft.entries.length && !draft.attachments.length;
+  }
+
+  function showPostPreviewNote(text, isError = false) {
+    const { postPreviewCardEl } = getElements();
+    if (!postPreviewCardEl) return;
+    postPreviewCardEl.textContent = "";
+    const note = makeEl("span", "profile-directory-empty", text);
+    note.classList.toggle("is-error", isError);
+    postPreviewCardEl.appendChild(note);
+  }
+
+  function showPostPreviewHtml(container, html, minHeight = "420px") {
+    if (!container) return;
+    container.textContent = "";
+    const frame = makeEl("iframe", "profile-post-preview-frame");
+    frame.setAttribute("sandbox", "");
+    frame.title = "Post preview";
+    frame.style.width = "100%";
+    frame.style.minHeight = minHeight;
+    frame.style.border = "1px solid #3f3f46";
+    frame.style.borderRadius = "8px";
+    frame.style.background = "#0f0f14";
+    frame.srcdoc = String(html || "");
+    container.appendChild(frame);
+  }
+
+  async function renderPostPreviewNow() {
+    const draft = collectPostDraft();
+    if (postDraftIsEmpty(draft)) {
+      showPostPreviewNote("Start writing to see the post preview.");
+      return;
+    }
+    const seq = ++postPreviewRequestSeq;
+    showPostPreviewNote("Rendering…");
+    try {
+      const result = await window.TarotDataService.previewProfilePost(draft);
+      if (seq !== postPreviewRequestSeq) return;
+      const html = String(result?.html || "");
+      if (!html) {
+        showPostPreviewNote("Preview unavailable.", true);
+        return;
+      }
+      const { postPreviewCardEl } = getElements();
+      showPostPreviewHtml(postPreviewCardEl, html);
+    } catch (error) {
+      if (seq !== postPreviewRequestSeq) return;
+      showPostPreviewNote(error?.message || "Could not render the preview.", true);
+    }
+  }
+
+  function renderPostPreview() {
+    if (postPreviewTimer) clearTimeout(postPreviewTimer);
+    postPreviewTimer = setTimeout(() => {
+      postPreviewTimer = null;
+      void renderPostPreviewNow();
+    }, 300);
+  }
+
+  function setPostComposerOpen(open) {
+    const { postComposerEl, postInputEl } = getElements();
+    if (!postComposerEl) return;
+    postComposerEl.hidden = !open;
+    document.querySelector(".profile-feed-card")?.classList.toggle("is-composing", open);
+    if (open) {
+      renderPostPreview();
+      postInputEl?.focus();
+    }
+  }
+
+  // The "as posted" popup: owner posts render the server share template; posts
+  // by other authors fall back to the local feed card.
+  async function openPostPreview(post, authorName) {
+    if (!window.TaroOverlay?.open) return;
+    const body = makeEl("div", "profile-feed-list");
+    body.appendChild(makeEl("span", "profile-directory-empty", "Rendering…"));
+    window.TaroOverlay.open({ title: post.title || "Post preview", size: "medium", body });
+
+    const mine = Boolean(post.id) && post.authorClientId === state.clientId;
+    if (mine) {
+      try {
+        const result = await window.TarotDataService.getProfilePostShare(post.id);
+        const html = String(result?.html || "");
+        if (html) {
+          showPostPreviewHtml(body, html, "60vh");
+          return;
+        }
+      } catch (_error) {
+        // fall back to the local card
+      }
+    }
+
+    body.textContent = "";
+    body.appendChild(buildPostCard({
+      comments: [],
+      evidence: [],
+      entries: [],
+      ...post,
+      authorName: authorName || state.displayName || ""
+    }, {}));
+  }
+
+  async function previewComposerPost() {
+    if (!window.TaroOverlay?.open) return;
+    const body = makeEl("div", "profile-feed-list");
+    body.appendChild(makeEl("span", "profile-directory-empty", "Rendering…"));
+    window.TaroOverlay.open({ title: "Post preview", size: "medium", body });
+    const draft = collectPostDraft();
+    if (postDraftIsEmpty(draft)) {
+      body.textContent = "";
+      body.appendChild(makeEl("span", "profile-directory-empty", "Start writing to see the post preview."));
+      return;
+    }
+    try {
+      const result = await window.TarotDataService.previewProfilePost(draft);
+      const html = String(result?.html || "");
+      body.textContent = "";
+      if (!html) {
+        body.appendChild(makeEl("span", "profile-directory-empty", "Preview unavailable."));
+        return;
+      }
+      showPostPreviewHtml(body, html, "60vh");
+    } catch (error) {
+      body.textContent = "";
+      body.appendChild(makeEl("span", "profile-directory-empty", error?.message || "Could not render the preview."));
+    }
+  }
+
+  async function shareProfilePost(post) {
+    if (!window.TaroOverlay?.open || !post?.id) return;
+    const body = makeEl("div", "profile-feed-list");
+    body.appendChild(makeEl("span", "profile-directory-empty", "Loading share link…"));
+    window.TaroOverlay.open({ title: "Share post", size: "medium", body });
+
+    let result = null;
+    try {
+      result = await window.TarotDataService.getProfilePostShare(post.id);
+    } catch (error) {
+      body.textContent = "";
+      body.appendChild(makeEl("span", "profile-directory-empty", error?.message || "Could not load the share link."));
+      return;
+    }
+
+    const path = String(result?.path || post.sharePath || "").trim();
+    const url = path ? window.TarotDataService.buildApiUrl(path) : "";
+    const publiclyOpenable = state.journalVisibility === "public";
+    body.textContent = "";
+
+    if (result?.html) {
+      showPostPreviewHtml(body, result.html, "60vh");
+    }
+
+    const row = makeEl("div", "profile-post-compose-actions");
+    const input = makeEl("input", "profile-post-entry-input");
+    input.type = "text";
+    input.readOnly = true;
+    input.style.flex = "1";
+    input.value = url || "No share link yet.";
+    row.appendChild(input);
+
+    const copy = makeEl("button", "profile-btn", "Copy");
+    copy.type = "button";
+    copy.disabled = !url;
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(url);
+        copy.textContent = "Copied";
+      } catch (_error) {
+        input.focus();
+        input.select();
+      }
+    });
+    row.appendChild(copy);
+
+    const open = makeEl("button", "profile-btn", "Open");
+    open.type = "button";
+    open.disabled = !url || !publiclyOpenable;
+    if (url && publiclyOpenable) {
+      open.addEventListener("click", () => window.open(url, "_blank", "noopener"));
+    }
+    row.appendChild(open);
+    body.appendChild(row);
+
+    if (!path) {
+      body.appendChild(makeEl("span", "profile-hub-card-meta", "A calendar/feed secret is required before this post can be shared."));
+    } else if (!publiclyOpenable) {
+      body.appendChild(makeEl("span", "profile-hub-card-meta", "This link is private — it opens to the public once your journal visibility is public."));
+    } else {
+      body.appendChild(makeEl("span", "profile-hub-card-meta", "Anyone with this link can read the post."));
+    }
+  }
+
+  function togglePostComposer() {
+    const { postComposerEl } = getElements();
+    setPostComposerOpen(Boolean(postComposerEl?.hidden));
+  }
+
+  async function pickComposerEvidence() {
+    if (!window.TaroOverlay?.open) return;
+    const body = makeEl("div", "profile-feed-list");
+    body.appendChild(makeEl("span", "profile-directory-empty", "Loading…"));
+    window.TaroOverlay.open({ title: "Evidence — insert proof", size: "medium", body });
+    try {
+      const result = await window.TarotDataService.fetchEvidenceStore();
+      const items = Array.isArray(result?.evidence) ? result.evidence : [];
+      body.textContent = "";
+      if (!items.length) {
+        body.appendChild(makeEl("span", "profile-directory-empty", "Nothing collected yet. Use “Add to post” on any verse, card, or reference."));
+        return;
+      }
+      items.forEach((item) => {
+        const row = makeEl("div", "profile-feed-post");
+        row.appendChild(makeEl("strong", "", item.title || "Evidence"));
+        if (item.body) {
+          row.appendChild(makeEl("span", "profile-feed-post-meta", String(item.body).replace(/<[^>]*>/g, " ").slice(0, 160)));
+        }
+        const insert = makeEl("button", "profile-btn profile-btn-primary", "Insert");
+        insert.type = "button";
+        insert.addEventListener("click", () => {
+          if (!composerEvidence.some((entry) => entry.id === item.id)) {
+            composerEvidence.push(item);
+          }
+          updateComposerEvidenceCount();
+          renderPostPreview();
+          window.TaroOverlay.close();
+        });
+        row.appendChild(insert);
+        body.appendChild(row);
+      });
+    } catch (error) {
+      body.textContent = "";
+      body.appendChild(makeEl("span", "profile-directory-empty", error?.message || "Could not load evidence."));
+    }
+  }
+
+  async function submitPost() {
+    const { postInputEl, postTitleEl, postSubmitBtn } = getElements();
+    const body = String(postInputEl?.innerHTML || "").trim();
+    const text = String(postInputEl?.textContent || "").trim();
+    if (!text) {
+      setPostStatus("Write something first.", true);
+      return;
+    }
+    if (postSubmitBtn) postSubmitBtn.disabled = true;
+    try {
+      await window.TarotDataService.createProfilePost({
+        title: String(postTitleEl?.value || "").trim() || undefined,
+        body,
+        attachments: postAttachments,
+        evidenceIds: composerEvidence.map((item) => item.id)
+      });
+      if (postInputEl) postInputEl.innerHTML = "";
+      if (postTitleEl) postTitleEl.value = "";
+      postAttachments = [];
+      composerEvidence = [];
+      renderPostAttachments();
+      updateComposerEvidenceCount();
+      updatePostCounter();
+      renderPostPreview();
+      setPostComposerOpen(false);
+      setPostStatus("Posted.");
+      void renderProfileFeed();
+    } catch (error) {
+      setPostStatus(`Could not post. ${error?.message || ""}`.trim(), true);
+    } finally {
+      if (postSubmitBtn) postSubmitBtn.disabled = false;
+    }
+  }
+
+  // "Add to post" from any bookmark/note control: append the item to one of the
+  // user's own posts, or start a new post with it.
+  async function addToPost(spec) {
+    if (!window.TaroOverlay?.open || !spec) return;
+    const body = makeEl("div", "profile-feed-list");
+    body.appendChild(makeEl("span", "profile-directory-empty", "Loading…"));
+    window.TaroOverlay.open({ title: "Add to post", size: "medium", body });
+    const addItem = async (postId) => {
+      await window.TarotDataService.addPostItem(postId, {
+        title: spec.title || spec.key,
+        markType: spec.type || "",
+        markKey: spec.key || ""
+      });
+      setStatus("Added to your post.");
+      void renderProfileFeed();
+      window.TaroOverlay.close();
+    };
+    try {
+      const result = await window.TarotDataService.fetchProfilePosts();
+      const posts = Array.isArray(result?.posts) ? result.posts : [];
+      body.textContent = "";
+      const itemTitle = spec.title || spec.key || "Item";
+      const itemLabel = spec.label || spec.type || "library";
+      const template = [`From ${itemLabel}:`, itemTitle].join("\n").slice(0, 999);
+      const createNew = makeEl("button", "profile-btn profile-btn-primary", `New post: “${itemTitle.slice(0, 40)}”`);
+      createNew.type = "button";
+      createNew.addEventListener("click", async () => {
+        try {
+          const created = await window.TarotDataService.createProfilePost({
+            body: template,
+            title: itemTitle
+          });
+          await addItem(created.id);
+        } catch (error) {
+          window.alert(error?.message || "Could not add to a post.");
+        }
+      });
+      body.appendChild(createNew);
+      if (!posts.length) {
+        body.appendChild(makeEl("span", "profile-directory-empty", "No posts yet — start one above."));
+      }
+      posts.forEach((post) => {
+        const row = makeEl("div", "profile-feed-post");
+        row.appendChild(makeEl("strong", "", `${post.type === "journal" ? "Journal · " : ""}${post.title || "Post"}`));
+        const add = makeEl("button", "profile-btn", "Add here");
+        add.type = "button";
+        add.addEventListener("click", async () => {
+          try {
+            await addItem(post.id);
+          } catch (error) {
+            window.alert(error?.message || "Could not add to the post.");
+          }
+        });
+        row.appendChild(add);
+        body.appendChild(row);
+      });
+    } catch (error) {
+      body.textContent = "";
+      body.appendChild(makeEl("span", "profile-directory-empty", error?.message || "Could not load posts."));
+    }
+  }
+
+  // A post is a theory: a claim plus a thread of prose and evidence. Evidence
+  // collected with "Add to post" lands in the bucket and can be inserted
+  // anywhere in the thread.
+  // Post HTML is sanitized server-side, so it is safe to render here.
+  function appendFormatted(parent, html, className) {
+    const node = makeEl("div", className || "profile-post-rich");
+    node.innerHTML = String(html || "");
+    parent.appendChild(node);
+    return node;
+  }
+
+  function appendAttachments(parent, attachments) {
+    (attachments || []).forEach((file) => {
+      const isImage = String(file.type || "").startsWith("image/") && String(file.data || "").startsWith("data:");
+      if (isImage) {
+        const img = makeEl("img", "profile-post-image");
+        img.src = file.data;
+        img.alt = file.name || "";
+        parent.appendChild(img);
+      } else {
+        parent.appendChild(makeEl("span", "profile-post-file", file.name || "attachment"));
+      }
+    });
+  }
+
+  function buildPostCard(post, {
+    editable = false,
+    onComment,
+    onRemove,
+    onRemoveEvidence,
+    onSavePost,
+    onAddEntry,
+    onUpdateEntry,
+    onDeleteEntry
+  } = {}) {
+    const card = makeEl("article", "profile-feed-post");
+    const evidence = Array.isArray(post.evidence) ? post.evidence : [];
+
+    const head = makeEl("div", "profile-feed-post-head");
+    if (editable) {
+      const titleInput = makeEl("input", "profile-post-title-input");
+      titleInput.type = "text";
+      titleInput.maxLength = 300;
+      titleInput.value = post.title || "";
+      titleInput.placeholder = "What are you proving?";
+      titleInput.addEventListener("blur", () => onSavePost?.({ title: titleInput.value }));
+      head.appendChild(titleInput);
+    } else {
+      head.appendChild(makeEl("strong", "", post.title || "Untitled"));
+      const meta = [post.authorName, post.type === "journal" ? "journal" : "post", post.occurredOn].filter(Boolean).join(" · ");
+      if (meta) head.appendChild(makeEl("span", "profile-feed-post-meta", meta));
+    }
+    card.appendChild(head);
+
+    if (editable) {
+      const bodyArea = makeEl("textarea", "profile-post-body-input");
+      bodyArea.rows = 2;
+      bodyArea.maxLength = 999;
+      bodyArea.value = post.body || "";
+      bodyArea.placeholder = "State the theory…";
+      bodyArea.addEventListener("blur", () => onSavePost?.({ body: bodyArea.value }));
+      card.appendChild(bodyArea);
+    } else if (post.body) {
+      appendFormatted(card, post.body);
+    }
+    appendAttachments(card, post.attachments);
+
+    if (editable) {
+      card.appendChild(makeEl("span", "profile-post-bucket-label", `Evidence bucket · ${evidence.length}`));
+    }
+    if (evidence.length) {
+      const bucket = makeEl("div", "profile-post-bucket");
+      evidence.forEach((item) => {
+        const row = makeEl("div", "profile-feed-item");
+        row.appendChild(makeEl("strong", "", item.title || "Evidence"));
+        if (item.body) {
+          appendFormatted(row, item.body, "profile-post-entry-body");
+        }
+        appendAttachments(row, item.attachments);
+        if (editable) {
+          const insert = makeEl("button", "profile-btn", "Insert");
+          insert.type = "button";
+          insert.addEventListener("click", () => onAddEntry?.({ kind: "evidence", evidenceId: item.id }));
+          const remove = makeEl("button", "profile-btn", "Remove");
+          remove.type = "button";
+          remove.addEventListener("click", () => onRemoveEvidence?.(item.id));
+          row.append(insert, remove);
+        }
+        bucket.appendChild(row);
+      });
+      card.appendChild(bucket);
+    }
+
+    const entries = Array.isArray(post.entries) ? post.entries : [];
+    if (entries.length) {
+      const thread = makeEl("div", "profile-post-thread");
+      entries.forEach((entry, index) => {
+        const row = makeEl("div", "profile-post-entry");
+        if (entry.kind === "evidence") {
+          const item = evidence.find((candidate) => candidate.id === entry.evidenceId);
+          row.appendChild(makeEl("span", "profile-post-entry-kind", "Evidence"));
+          row.appendChild(makeEl("strong", "", item?.title || "Evidence"));
+          if (item?.body) {
+            appendFormatted(row, item.body, "profile-post-entry-body");
+          }
+          appendAttachments(row, item?.attachments);
+        } else if (editable) {
+          const area = makeEl("textarea", "profile-post-entry-input");
+          area.rows = 2;
+          area.value = entry.text || "";
+          area.placeholder = "Thread entry (HTML allowed)";
+          area.addEventListener("blur", () => onUpdateEntry?.(entry.id, { text: area.value }));
+          row.appendChild(area);
+        } else {
+          appendFormatted(row, entry.text, "profile-post-entry-body");
+        }
+        if (editable) {
+          const up = makeEl("button", "profile-btn", "↑");
+          up.type = "button";
+          up.disabled = index === 0;
+          up.addEventListener("click", () => onUpdateEntry?.(entry.id, { move: "up" }));
+          const down = makeEl("button", "profile-btn", "↓");
+          down.type = "button";
+          down.disabled = index === entries.length - 1;
+          down.addEventListener("click", () => onUpdateEntry?.(entry.id, { move: "down" }));
+          const remove = makeEl("button", "profile-btn", "Remove");
+          remove.type = "button";
+          remove.addEventListener("click", () => onDeleteEntry?.(entry.id));
+          row.append(up, down, remove);
+        }
+        thread.appendChild(row);
+      });
+      card.appendChild(thread);
+    }
+
+    if (editable) {
+      const addRow = makeEl("div", "profile-post-add");
+      const area = makeEl("textarea", "profile-post-entry-input");
+      area.rows = 2;
+      area.maxLength = 999;
+      area.placeholder = "Add a line to the thread…";
+      const insert = makeEl("button", "profile-btn profile-btn-primary", "Add to thread");
+      insert.type = "button";
+      insert.addEventListener("click", () => {
+        const text = String(area.value || "").trim();
+        if (text) {
+          onAddEntry?.({ kind: "text", text });
+          area.value = "";
+        }
+      });
+      addRow.append(area, insert);
+      card.appendChild(addRow);
+    }
+
+    const comments = makeEl("div", "profile-feed-comments");
+    (post.comments || []).forEach((comment) => {
+      const row = makeEl("div", "profile-feed-comment");
+      row.appendChild(makeEl("strong", "", comment.name || comment.clientId));
+      row.appendChild(makeEl("span", "", comment.text));
+      comments.appendChild(row);
+    });
+    card.appendChild(comments);
+
+    if (typeof onComment === "function") {
+      const form = makeEl("div", "profile-feed-comment-form");
+      const input = makeEl("input", "profile-feed-comment-input");
+      input.type = "text";
+      input.maxLength = 2000;
+      input.placeholder = "Add a comment…";
+      const send = makeEl("button", "profile-btn profile-btn-primary", "Comment");
+      send.type = "button";
+      send.addEventListener("click", () => onComment(input.value, send, input));
+      form.append(input, send);
+      card.appendChild(form);
+    }
+
+    if (typeof onRemove === "function") {
+      const remove = makeEl("button", "profile-btn profile-btn-danger", "Delete post");
+      remove.type = "button";
+      remove.addEventListener("click", () => onRemove());
+      card.appendChild(remove);
+    }
+    return card;
+  }
+
+  async function renderProfileFeed() {
+    const { feedListEl } = getElements();
+    if (!feedListEl) return;
+    feedListEl.textContent = "";
+    feedListEl.appendChild(makeEl("span", "profile-directory-empty", "Loading…"));
+    try {
+      const result = await window.TarotDataService.fetchProfileFeed();
+      const posts = Array.isArray(result?.posts) ? result.posts : [];
+      feedListEl.textContent = "";
+      if (!posts.length) {
+        feedListEl.appendChild(makeEl("span", "profile-directory-empty", "No posts yet. Use “New post” to start a theory."));
+        return;
+      }
+      posts.forEach((post) => {
+        const mine = post.authorClientId === state.clientId;
+        const service = window.TarotDataService;
+        const open = expandedPostId === post.id;
+        const row = makeEl("div", `profile-post-row${open ? " is-open" : ""}`);
+        const header = makeEl("button", "profile-post-row-head");
+        header.type = "button";
+
+        const titleLine = makeEl("span", "profile-post-row-title");
+        titleLine.appendChild(makeEl("strong", "", post.title || "Untitled"));
+        const evidenceCount = (post.evidence || []).length;
+        const metaParts = [
+          post.authorName,
+          formatDate(post.createdAt) || post.occurredOn,
+          `${evidenceCount} proof${evidenceCount === 1 ? "" : "s"}`,
+          `${post.commentCount || 0} comment${post.commentCount === 1 ? "" : "s"}`
+        ].filter(Boolean);
+        titleLine.appendChild(makeEl("span", "profile-post-row-meta", metaParts.join(" · ")));
+        header.appendChild(titleLine);
+
+        if (!open) {
+          const excerpt = String(post.body || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+          if (excerpt) {
+            header.appendChild(makeEl("span", "profile-post-row-excerpt", excerpt.slice(0, 160)));
+          }
+        }
+        header.addEventListener("click", () => {
+          expandedPostId = open ? "" : post.id;
+          void renderProfileFeed();
+        });
+        row.appendChild(header);
+
+        if (open) {
+          const previewBtn = makeEl("button", "profile-btn", "Preview");
+          previewBtn.type = "button";
+          previewBtn.addEventListener("click", (event) => {
+            event.stopPropagation();
+            openPostPreview(post, post.authorName);
+          });
+          row.appendChild(previewBtn);
+          if (mine) {
+            const shareBtn = makeEl("button", "profile-btn", "Share");
+            shareBtn.type = "button";
+            shareBtn.addEventListener("click", (event) => {
+              event.stopPropagation();
+              void shareProfilePost(post);
+            });
+            row.appendChild(shareBtn);
+          }
+          row.appendChild(buildPostCard(post, {
+            editable: mine,
+            onComment: (text, button, input) => void commentOnPost(post.authorClientId, post.id, text, button, input, renderProfileFeed),
+            onRemove: mine ? () => void unsharePost(post.id) : undefined,
+            onRemoveEvidence: mine
+              ? (evidenceId) => void service.deletePostItem(post.id, evidenceId).then(renderProfileFeed)
+              : undefined,
+            onSavePost: mine ? (payload) => void service.updateProfilePost(post.id, payload).then(renderProfileFeed) : undefined,
+            onAddEntry: mine ? (entry) => void service.addPostEntry(post.id, entry).then(renderProfileFeed) : undefined,
+            onUpdateEntry: mine ? (entryId, payload) => void service.updatePostEntry(post.id, entryId, payload).then(renderProfileFeed) : undefined,
+            onDeleteEntry: mine ? (entryId) => void service.deletePostEntry(post.id, entryId).then(renderProfileFeed) : undefined
+          }));
+        }
+        feedListEl.appendChild(row);
+      });
+    } catch (error) {
+      feedListEl.textContent = "";
+      feedListEl.appendChild(makeEl("span", "profile-directory-empty", error?.message || "Could not load shared entries."));
+    }
+  }
+
+  async function unsharePost(postId) {
+    try {
+      await window.TarotDataService.deleteProfilePost(postId);
+      void renderProfileFeed();
+      void updateShareButtonState();
+    } catch (error) {
+      setStatus(`Could not unshare. ${error?.message || ""}`.trim());
+    }
+  }
+
+  async function commentOnPost(authorClientId, postId, text, button, input, refresh) {
+    const value = String(text || "").trim();
+    if (!value) return;
+    if (button) button.disabled = true;
+    try {
+      await window.TarotDataService.addUserPostComment(authorClientId, postId, value);
+      if (input) input.value = "";
+      if (typeof refresh === "function") void refresh();
+    } catch (error) {
+      setStatus(`Could not comment. ${error?.message || ""}`.trim());
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  async function updateShareButtonState() {
+    const { noteShareBtn } = getElements();
+    if (!noteShareBtn) return;
+    if (!state.activeNoteId) {
+      noteShareBtn.textContent = "Share to profile";
+      noteShareBtn.dataset.shared = "";
+      return;
+    }
+    try {
+      const result = await window.TarotDataService.fetchProfilePosts();
+      const shared = (result?.posts || []).some((post) => post.noteId === state.activeNoteId);
+      noteShareBtn.textContent = shared ? "Unshare" : "Share to profile";
+      noteShareBtn.dataset.shared = shared ? "1" : "";
+    } catch (_error) {
+      noteShareBtn.textContent = "Share to profile";
+      noteShareBtn.dataset.shared = "";
+    }
+  }
+
+  async function toggleShareActiveNote() {
+    const { noteShareBtn } = getElements();
+    if (!noteShareBtn) return;
+    if (!state.activeNoteId) {
+      await saveNote();
+    }
+    if (!state.activeNoteId) return;
+    noteShareBtn.disabled = true;
+    try {
+      if (noteShareBtn.dataset.shared === "1") {
+        const result = await window.TarotDataService.fetchProfilePosts();
+        const post = (result?.posts || []).find((entry) => entry.noteId === state.activeNoteId);
+        if (post) await window.TarotDataService.deleteProfilePost(post.id);
+        setStatus("Unshared.");
+      } else {
+        await window.TarotDataService.createProfilePost(state.activeNoteId);
+        setStatus("Shared to your profile.");
+      }
+      void updateShareButtonState();
+      void renderProfileFeed();
+    } catch (error) {
+      setStatus(error?.message || "Could not update the share.");
+    } finally {
+      noteShareBtn.disabled = false;
+    }
+  }
+
+  async function openUserPosts(clientId, name) {
+    if (!window.TaroOverlay?.open) return;
+    const body = makeEl("div", "profile-feed-list");
+    body.appendChild(makeEl("span", "profile-directory-empty", "Loading…"));
+    window.TaroOverlay.open({ title: `${name || "User"} — shared entries`, size: "medium", body });
+    try {
+      const result = await window.TarotDataService.fetchUserPosts(clientId);
+      const posts = Array.isArray(result?.posts) ? result.posts : [];
+      body.textContent = "";
+      if (!posts.length) {
+        body.appendChild(makeEl("span", "profile-directory-empty", "No shared entries."));
+        return;
+      }
+      posts.forEach((post) => {
+        body.appendChild(buildPostCard(post, {
+          onComment: (text, button, input) => void commentOnPost(clientId, post.id, text, button, input, () => {})
+        }));
+      });
+    } catch (error) {
+      body.textContent = "";
+      body.appendChild(makeEl("span", "profile-directory-empty", error?.message || "These entries are not shared."));
+    }
   }
 
   async function loadProfilePage() {
@@ -4382,6 +5484,16 @@
     const relationship = userRelationship(user.clientId);
     const actions = makeEl("div", "profile-directory-detail-actions");
     friendActionButtons(relationship, user.clientId).forEach((button) => actions.appendChild(button));
+
+    const journal = makeEl("button", "profile-btn", "Journal");
+    journal.type = "button";
+    journal.addEventListener("click", () => void viewUserJournal(user.clientId));
+    actions.appendChild(journal);
+
+    const posts = makeEl("button", "profile-btn", "Shared entries");
+    posts.type = "button";
+    posts.addEventListener("click", () => void openUserPosts(user.clientId, user.displayName));
+    actions.appendChild(posts);
 
     const message = makeEl("button", "profile-btn", "Send message");
     message.type = "button";
@@ -4746,6 +5858,42 @@
     elements.bioSaveBtn?.addEventListener("click", () => {
       void saveBio();
     });
+    elements.journalVisibilityEl?.addEventListener("change", () => {
+      void saveJournalVisibility();
+    });
+    elements.taglineSaveBtn?.addEventListener("click", () => {
+      void saveTagline();
+    });
+    elements.postSubmitBtn?.addEventListener("click", () => {
+      void submitPost();
+    });
+    elements.postInputEl?.addEventListener("input", updatePostCounter);
+    elements.postInputEl?.addEventListener("input", renderPostPreview);
+    elements.postTitleEl?.addEventListener("input", renderPostPreview);
+    elements.postNewBtn?.addEventListener("click", togglePostComposer);
+    document.getElementById("profile-post-preview-btn")?.addEventListener("click", previewComposerPost);
+    document.getElementById("profile-post-cancel")?.addEventListener("click", () => {
+      setPostComposerOpen(false);
+    });
+    elements.postEvidenceBtn?.addEventListener("click", () => {
+      void pickComposerEvidence();
+    });
+    elements.postFilesEl?.addEventListener("change", async (event) => {
+      const files = Array.from(event.target.files || []);
+      event.target.value = "";
+      for (const file of files) {
+        const attachment = await fileToAttachment(file);
+        if (attachment) postAttachments.push(attachment);
+      }
+      renderPostAttachments();
+      renderPostPreview();
+    });
+    ensurePostTools();
+    updatePostCounter();
+    elements.noteEditorEl?.addEventListener("input", updateNoteStats);
+    elements.noteShareBtn?.addEventListener("click", () => {
+      void toggleShareActiveNote();
+    });
     elements.tabsEl?.addEventListener("click", (event) => {
       const button = event.target.closest("[data-profile-tab]");
       if (!button) return;
@@ -4753,11 +5901,14 @@
     });
     elements.pageEditBtn?.addEventListener("click", () => {
       state.pageEditing = true;
+      state.pagePreview = false;
+      if (elements.pageHtmlEl) elements.pageHtmlEl.value = state.pageHtml || "";
       setPageStatus("");
       renderProfilePage();
     });
     elements.pageCancelBtn?.addEventListener("click", () => {
       state.pageEditing = false;
+      state.pagePreview = false;
       setPageStatus("");
       renderProfilePage();
     });
@@ -4842,6 +5993,9 @@
 
     setView("hub");
     void refreshProfile();
+    // Load the posts feed on first open, not only after posting.
+    void renderProfileFeed();
+    void updateComposerEvidenceCount();
   }
 
   function readPdfTheme() {
@@ -4898,12 +6052,194 @@
     return (Number(rgb[1]) * 0.2126 + Number(rgb[2]) * 0.7152 + Number(rgb[3]) * 0.0722) < 140;
   }
 
+  function cssColorToRgb(value, fallback = [244, 244, 245]) {
+    const text = String(value || "");
+    const rgbMatch = text.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (rgbMatch) {
+      return [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])];
+    }
+    const hex = text.match(/^#([0-9a-f]{6})$/i);
+    if (hex) {
+      const valueInt = parseInt(hex[1], 16);
+      return [(valueInt >> 16) & 255, (valueInt >> 8) & 255, valueInt & 255];
+    }
+    return fallback;
+  }
+
+  function starPoints(centreX, centreY, radius) {
+    const points = [];
+    for (let index = 0; index < 10; index += 1) {
+      const angle = (Math.PI / 5) * index - Math.PI / 2;
+      const r = index % 2 === 0 ? radius : radius * 0.42;
+      points.push(`${(centreX + Math.cos(angle) * r).toFixed(2)},${(centreY + Math.sin(angle) * r).toFixed(2)}`);
+    }
+    return points.join(" ");
+  }
+
+  // Decorative-only page frame; all readable text is drawn with jsPDF so it stays
+  // selectable and searchable in the PDF.
+  function buildJournalFrameSvg(width, height, theme) {
+    const NS = "http://www.w3.org/2000/svg";
+    const make = (tag, attrs) => {
+      const node = document.createElementNS(NS, tag);
+      Object.keys(attrs).forEach((key) => node.setAttribute(key, String(attrs[key])));
+      return node;
+    };
+    const corner = (x, y) => [
+      make("circle", { cx: x, cy: y, r: 1.4, fill: "none", stroke: theme.accentSoft, "stroke-width": 0.3 }),
+      make("circle", { cx: x, cy: y, r: 0.5, fill: theme.brand })
+    ];
+
+    const svg = make("svg", {
+      xmlns: NS,
+      viewBox: `0 0 ${width} ${height}`,
+      width,
+      height
+    });
+    svg.append(
+      make("rect", { x: 8, y: 8, width: width - 16, height: height - 16, rx: 3, fill: "none", stroke: theme.border, "stroke-width": 0.7 }),
+      make("rect", { x: 11, y: 11, width: width - 22, height: height - 22, rx: 2, fill: "none", stroke: theme.accentSoft, "stroke-width": 0.25 }),
+      make("line", { x1: 18, y1: 26, x2: width - 18, y2: 26, stroke: theme.accent, "stroke-width": 0.4 }),
+      make("line", { x1: 18, y1: height - 24, x2: width - 18, y2: height - 24, stroke: theme.border, "stroke-width": 0.3 }),
+      make("polygon", { points: starPoints(width / 2, 26, 1.8), fill: theme.brand }),
+      make("polygon", { points: starPoints(width / 2, height - 24, 1.4), fill: theme.accentSoft }),
+      ...corner(13, 13),
+      ...corner(width - 13, 13),
+      ...corner(13, height - 13),
+      ...corner(width - 13, height - 13)
+    );
+    return svg;
+  }
+
+  async function exportCurrentNoteAsSvgPdf() {
+    if (pdfExportInFlight) return;
+    pdfExportInFlight = true;
+    const exportBtn = document.getElementById("profile-note-export-pdf");
+    if (exportBtn) exportBtn.disabled = true;
+    const bail = (message) => {
+      if (message) setError(message);
+      if (exportBtn) exportBtn.disabled = false;
+      pdfExportInFlight = false;
+    };
+
+    setStatus("Preparing PDF export…");
+    syncScenesFromDom();
+    const scenes = (state.scenes || []).slice();
+    if (!scenes.length) {
+      bail("Nothing to export.");
+      return;
+    }
+
+    try {
+      const JsPDF = await window.TarotLazySections.ensureJsPDF();
+      const svg2pdf = await window.TarotLazySections.ensureSvg2Pdf();
+      const theme = readPdfTheme();
+      const dark = pdfOnDark(theme);
+      const textRgb = cssColorToRgb(theme.text, dark ? [244, 244, 245] : [24, 24, 27]);
+      const mutedRgb = cssColorToRgb(theme.muted, [161, 161, 170]);
+      const accentRgb = cssColorToRgb(theme.accent, [99, 102, 241]);
+      const pageRgb = cssColorToRgb(theme.page, dark ? [15, 15, 20] : [250, 250, 252]);
+
+      const title = String(document.getElementById("profile-note-title")?.value || "Untitled Entry").trim() || "Untitled Entry";
+      const occurredOn = String(state.occurredOn || document.getElementById("profile-note-date")?.value || "").trim();
+      const kind = state.kind === "dream" ? "Dream" : "Waking";
+
+      const doc = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentW = pageW - margin * 2;
+      const bottomLimit = pageH - 30;
+      const frameElement = buildJournalFrameSvg(pageW, pageH, theme);
+
+      const paintBackground = () => {
+        doc.setFillColor(pageRgb[0], pageRgb[1], pageRgb[2]);
+        doc.rect(0, 0, pageW, pageH, "F");
+      };
+
+      const paintFrame = async () => {
+        await svg2pdf(frameElement.cloneNode(true), doc, { x: 0, y: 0, width: pageW, height: pageH });
+      };
+
+      await paintBackground();
+      await paintFrame();
+      let cursorY = 36;
+
+      const ensureSpace = async (needed) => {
+        if (cursorY + needed <= bottomLimit) return;
+        doc.addPage();
+        await paintBackground();
+        await paintFrame();
+        cursorY = 36;
+      };
+
+      const writeBlock = async (text, { size = 10, style = "normal", color = textRgb, gap = 1.6 } = {}) => {
+        const value = String(text || "").trim();
+        if (!value) return;
+        doc.setFont("helvetica", style);
+        doc.setFontSize(size);
+        doc.setTextColor(color[0], color[1], color[2]);
+        const lines = doc.splitTextToSize(value, contentW);
+        const lineHeight = size * 0.42;
+        for (const line of lines) {
+          await ensureSpace(lineHeight);
+          doc.text(line, margin, cursorY);
+          cursorY += lineHeight;
+        }
+        cursorY += gap;
+      };
+
+      await writeBlock(title, { size: 20, style: "bold", gap: 2.4 });
+      await writeBlock([kind, occurredOn].filter(Boolean).join(" · "), { size: 10, color: mutedRgb, gap: 6 });
+
+      for (let index = 0; index < scenes.length; index += 1) {
+        const scene = scenes[index] || {};
+        const heading = [
+          [scene.time, scene.endTime].filter(Boolean).join("–"),
+          scene.place
+        ].filter(Boolean).join(" · ") || `Scene ${index + 1}`;
+        await ensureSpace(12);
+        await writeBlock(heading, { size: 12, style: "bold", color: accentRgb, gap: 2 });
+        await writeBlock([scene.mood, scene.emotion, scene.atmosphere].filter(Boolean).join(" · "), { size: 9, color: mutedRgb, gap: 2 });
+        await writeBlock(scene.scenario, { size: 11, gap: 2.4 });
+        await writeBlock(scene.steps, { size: 10, gap: 2.4 });
+        await writeBlock(scene.thoughts, { size: 10, gap: 2.4 });
+        await writeBlock(scene.notes, { size: 10, gap: 6 });
+      }
+
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let page = 1; page <= pageCount; page += 1) {
+        doc.setPage(page);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(mutedRgb[0], mutedRgb[1], mutedRgb[2]);
+        doc.text(`${page} / ${pageCount}`, pageW - 18, pageH - 16, { align: "right" });
+      }
+
+      const fileDate = (occurredOn || new Date().toISOString().slice(0, 10)).replace(/[^\d-]/g, "") || "entry";
+      const safeTitle = title.replace(/[^\w\-]+/g, "-").slice(0, 60) || "entry";
+      doc.save(`KABBAK-${state.kind === "dream" ? "dream" : "waking"}-${fileDate}-${safeTitle}.pdf`);
+      setStatus("PDF exported (SVG frame).");
+    } catch (error) {
+      bail(error?.message || "Could not export the PDF.");
+      return;
+    } finally {
+      if (exportBtn) exportBtn.disabled = false;
+      pdfExportInFlight = false;
+    }
+  }
+
   function bindExportButton() {
     const exportBtn = document.getElementById("profile-note-export-pdf");
     if (!exportBtn || exportBtn._pdfExportBound) return;
     exportBtn._pdfExportBound = true;
     exportBtn.addEventListener("click", () => {
-      void exportCurrentNoteAsPdf();
+      const template = String(document.getElementById("profile-note-export-template")?.value || "classic");
+      if (template === "svg") {
+        void exportCurrentNoteAsSvgPdf();
+      } else {
+        void exportCurrentNoteAsPdf();
+      }
     });
   }
 
@@ -5420,6 +6756,7 @@
     ...(window.ProfileUi || {}),
     ensureProfileSection,
     getLocation,
+    addToPost,
     mountJournal,
     recordQuizAttempt,
     refreshProfile

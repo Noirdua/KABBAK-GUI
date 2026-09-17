@@ -10,7 +10,8 @@
     "astronomy-engine": "^2.1.19",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
-    "suncalc": "^1.9.0"
+    "suncalc": "^1.9.0",
+    "svg2pdf.js": "^2.8.1"
   },
   "devDependencies": {
     "serve": "^14.2.6"

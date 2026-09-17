@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260917-noflicker">
+  <link rel="stylesheet" href="app/styles.css?v=20260917-feedback">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -221,10 +221,7 @@
               <p class="profile-bio-line" id="profile-bio-preview"></p>
               <div class="profile-identity-meta">
                 <span id="profile-member-since" class="profile-meta-chip"></span>
-                <label class="profile-directory-toggle">
-                  <input id="profile-directory-public" type="checkbox"> Listed publicly
-                </label>
-                <span id="profile-directory-status" class="profile-location-status" aria-live="polite"></span>
+                <span id="profile-tagline" class="profile-tagline"></span>
               </div>
             </div>
           </div>
@@ -248,6 +245,36 @@
           <div id="profile-page-view" class="profile-page-view">
             <div id="profile-page-default" class="profile-page-default"></div>
             <iframe id="profile-page-frame" class="profile-page-frame" sandbox="" hidden title="Your profile page"></iframe>
+          </div>
+          <div class="profile-hub-card profile-feed-card">
+            <span class="profile-hub-card-kicker">Community</span>
+            <span class="profile-hub-card-title">Posts</span>
+            <span class="profile-hub-card-copy">Theories with evidence — yours, your friends', and public profiles'. Journal entries live in the Journal.</span>
+            <div class="profile-post-actions">
+              <button id="profile-post-new" class="profile-btn profile-btn-primary" type="button">New post</button>
+              <button id="profile-post-evidence" class="profile-btn" type="button">Evidence</button>
+              <span id="profile-post-evidence-count" class="profile-hub-card-meta"></span>
+            </div>
+            <div id="profile-post-composer" class="profile-post-compose" hidden>
+              <input id="profile-post-title" class="profile-post-title-input" type="text" maxlength="300" placeholder="Claim — what are you proving?">
+              <div id="profile-post-tools" class="profile-format-bar"></div>
+              <div id="profile-post-input" class="profile-post-body-input" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="State the theory…"></div>
+              <div class="profile-post-compose-actions">
+                <label class="profile-btn" for="profile-post-files">Attach</label>
+                <input id="profile-post-files" type="file" multiple hidden>
+                <button id="profile-post-submit" class="profile-btn profile-btn-primary" type="button">Post</button>
+                <button id="profile-post-preview-btn" class="profile-btn" type="button">Preview</button>
+                <button id="profile-post-cancel" class="profile-btn" type="button">Cancel</button>
+                <span id="profile-post-count" class="profile-hub-card-meta">0 / 999</span>
+                <span id="profile-post-status" class="profile-location-status" aria-live="polite"></span>
+              </div>
+              <div id="profile-post-attachments" class="profile-post-attachments"></div>
+              <div id="profile-post-preview" class="profile-post-preview">
+                <span class="profile-hub-card-kicker">Preview</span>
+                <div id="profile-post-preview-card" class="profile-post-preview-card"></div>
+              </div>
+            </div>
+            <div id="profile-feed-list" class="profile-feed-list"></div>
           </div>
           <label class="profile-field profile-page-editor-label" for="profile-page-html" hidden>Custom HTML
             <textarea id="profile-page-html" rows="16" maxlength="100000" placeholder="Write HTML for your public-facing page. Scripts and forms are stripped. Leave empty to use the default layout."></textarea>
@@ -312,6 +339,29 @@
             <div class="profile-settings-actions">
               <button id="profile-bio-save" class="profile-btn profile-btn-primary" type="button">Save bio</button>
               <span id="profile-bio-status" class="profile-location-status" aria-live="polite"></span>
+            </div>
+            <label class="profile-settings-row" for="profile-tagline-input">Status
+              <input id="profile-tagline-input" type="text" maxlength="120" placeholder="A short status or tagline">
+            </label>
+            <div class="profile-settings-actions">
+              <button id="profile-tagline-save" class="profile-btn profile-btn-primary" type="button">Save status</button>
+              <span id="profile-tagline-status" class="profile-location-status" aria-live="polite"></span>
+            </div>
+            <label class="profile-settings-row" for="profile-directory-public">Directory
+              <span class="profile-settings-inline"><input id="profile-directory-public" type="checkbox"> Listed publicly</span>
+            </label>
+            <div class="profile-settings-actions">
+              <span id="profile-directory-status" class="profile-location-status" aria-live="polite">Shown in the public directory when on.</span>
+            </div>
+            <label class="profile-settings-row" for="profile-journal-visibility">Journal visible to
+              <select id="profile-journal-visibility">
+                <option value="private">Only me</option>
+                <option value="friends">Friends</option>
+                <option value="public">Anyone</option>
+              </select>
+            </label>
+            <div class="profile-settings-actions">
+              <span id="profile-journal-visibility-status" class="profile-location-status" aria-live="polite">Journal entries stay private unless you share them.</span>
             </div>
             <button id="profile-open-notes" class="profile-settings-link" type="button">
               <span>Journal</span>
@@ -434,10 +484,17 @@
             </div>
             <div id="profile-scene-list"></div>
           </div>
+             <div id="profile-note-stats" class="profile-note-stats" aria-live="polite"></div>
              <div class="profile-editor-actions">
               <button id="profile-note-save" class="profile-btn profile-btn-primary" type="button">Save</button>
               <button id="profile-note-interpret" class="profile-btn" type="button" hidden>Interpret</button>
               <button id="profile-note-cancel" class="profile-btn" type="button">Cancel</button>
+              <label class="profile-export-template">Template
+                <select id="profile-note-export-template">
+                  <option value="classic">Classic</option>
+                  <option value="svg">SVG frame</option>
+                </select>
+              </label>
               <button id="profile-note-export-pdf" class="profile-btn" type="button">Export PDF</button>
               <button id="profile-note-delete" class="profile-btn profile-btn-danger" type="button">Delete</button>
             </div>
@@ -2886,11 +2943,7 @@
       <p class="planner-feed-copy">Astrology and moon dates are calculated for your saved location and time zone. Changing these subscriptions keeps the same feed URL.</p>
       <div class="planner-field">
         <span>Include</span>
-        <label class="planner-check"><input id="planner-feed-layer-user" type="checkbox" checked> My events</label>
-        <label class="planner-check"><input id="planner-feed-layer-notes" type="checkbox"> Notes &amp; journals</label>
-        <label class="planner-check"><input id="planner-feed-layer-astrology" type="checkbox"> Astrology (decans)</label>
-        <label class="planner-check"><input id="planner-feed-layer-moon" type="checkbox" checked> Moon phases</label>
-        <label class="planner-check"><input id="planner-feed-layer-holidays" type="checkbox" checked> Holidays</label>
+        <div id="planner-feed-layers" class="planner-feed-layers"></div>
       </div>
       <div class="planner-field-actions">
         <button id="planner-feed-save" class="planner-btn planner-primary" type="button">Save subscriptions</button>
@@ -2924,18 +2977,18 @@
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
   <script src="app/app-config.js?v=20260916-favicon-upload"></script>
-  <script src="app/data-service.js?v=20260917-guisubs"></script>
+  <script src="app/data-service.js?v=20260917-postshare"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-popover-menu.js?v=20260915-tree-3d"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
-  <script src="app/ui-library-marks.js?v=20260917-bookmark-shine"></script>
+  <script src="app/ui-library-marks.js?v=20260917-feedback"></script>
   <script src="app/plugins-host.js?v=20260916-playing-section"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260917-subs"></script>
+  <script src="app/lazy-sections.js?v=20260917-postshare"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260917-cleanup"></script>
@@ -2946,7 +2999,7 @@
 
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
   <script src="app/ui-section-state.js?v=20260917-cleanup"></script>
-  <script src="app/ui-planner.js?v=20260917-noflicker"></script>
+  <script src="app/ui-planner.js?v=20260917-planetarysub"></script>
   <script src="app/ui-inbox.js?v=20260915-reply"></script>
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>

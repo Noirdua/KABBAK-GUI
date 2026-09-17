@@ -663,10 +663,11 @@
       const copyBtn = document.getElementById("admin-message-copy");
       const openBtn = document.getElementById("admin-message-open");
       if (isPublic) {
-        const path = String(created?.path || "");
+        const page = created?.message || created || {};
+        const path = String(created?.path || page.path || "");
         const url = path
           ? window.TarotDataService.buildApiUrl(path)
-          : window.TarotDataService.buildApiUrl(`/api/v1/share/${created?.token || ""}`);
+          : window.TarotDataService.buildApiUrl(`/api/v1/share/${page.token || ""}`);
         if (urlEl) urlEl.value = url;
       } else if (urlEl) {
         urlEl.value = "";

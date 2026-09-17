@@ -15,6 +15,7 @@
 
   const HTML2CANVAS_SRC = "node_modules/html2canvas/dist/html2canvas.min.js";
   const JSPDF_SRC = "node_modules/jspdf/dist/jspdf.umd.min.js";
+  const SVG2PDF_SRC = "node_modules/svg2pdf.js/dist/svg2pdf.umd.min.js";
 
   const SCRIPT_GROUPS = {
     tarotCore: [
@@ -133,10 +134,10 @@
       "app/ui-natal.js?v=20260917-natal-place"
     ],
     admin: [
-      "app/ui-admin.js?v=20260917-publish-queue"
+      "app/ui-admin.js?v=20260917-admin-share-url"
     ],
     profile: [
-      "app/ui-profile.js?v=20260917-subs"
+      "app/ui-profile.js?v=20260917-postshare"
     ]
   };
 
@@ -278,6 +279,23 @@
     throw new Error("PDF export library failed to load.");
   }
 
+  // svg2pdf embeds SVG as real PDF vector paths; it needs jsPDF loaded first.
+  // The UMD bundle exposes an exports object, so the function is .svg2pdf.
+  async function ensureSvg2Pdf() {
+    if (window.svg2pdf && typeof window.svg2pdf.svg2pdf === "function") {
+      return window.svg2pdf.svg2pdf;
+    }
+
+    await ensureJsPDF();
+    await loadScript(SVG2PDF_SRC);
+
+    if (window.svg2pdf && typeof window.svg2pdf.svg2pdf === "function") {
+      return window.svg2pdf.svg2pdf;
+    }
+
+    throw new Error("SVG export library failed to load.");
+  }
+
   // Warm common paths after first paint without blocking startup.
   function scheduleIdleWarmup(groupIds = []) {
     const run = () => {
@@ -293,7 +311,7 @@
   }
 
   function listKnownScripts() {
-    const urls = [...SHARED_SCRIPTS, HTML2CANVAS_SRC, JSPDF_SRC];
+    const urls = [...SHARED_SCRIPTS, HTML2CANVAS_SRC, JSPDF_SRC, SVG2PDF_SRC];
     Object.values(SCRIPT_GROUPS).forEach((group) => {
       if (Array.isArray(group)) urls.push(...group);
     });
@@ -304,6 +322,7 @@
     ensureSectionScripts,
     ensureHtml2Canvas,
     ensureJsPDF,
+    ensureSvg2Pdf,
     listKnownScripts,
     loadScriptGroup,
     loadScript,

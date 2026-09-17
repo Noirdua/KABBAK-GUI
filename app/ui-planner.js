@@ -18,13 +18,16 @@
   const MAX_ATTACHMENTS_UI = 6;
   const MAX_ATTACHMENT_BYTES_UI = 5 * 1024 * 1024;
   const FEED_LAYERS_STORAGE_KEY = "kabbak-feed-layers-v1";
-  const FEED_LAYER_IDS = {
-    user: "planner-feed-layer-user",
-    notes: "planner-feed-layer-notes",
-    astrology: "planner-feed-layer-astrology",
-    moon: "planner-feed-layer-moon",
-    holidays: "planner-feed-layer-holidays"
-  };
+  // Subscribe layers. Rendered in JS so a cached page shell never hides one.
+  const FEED_LAYERS = [
+    { id: "user", text: "My events", defaultOn: true },
+    { id: "notes", text: "Notes & journals", defaultOn: false },
+    { id: "astrology", text: "Astrology (decans)", defaultOn: false },
+    { id: "moon", text: "Moon phases", defaultOn: true },
+    { id: "planetary", text: "Planetary hours", defaultOn: false },
+    { id: "holidays", text: "Holidays", defaultOn: true }
+  ];
+  const FEED_LAYER_IDS = Object.fromEntries(FEED_LAYERS.map((layer) => [layer.id, `planner-feed-layer-${layer.id}`]));
 
   let bound = false;
   let view = "month";
@@ -61,14 +64,8 @@
   let planetaryOccurrences = [];
   let filterPopoverEl = null;
   let feedState = null;
-  let feedLayerPrefs = {
-    user: true,
-    notes: false,
-    astrology: false,
-    moon: true,
-    holidays: true,
-    notesFormat: "events"
-  };
+  let feedLayerPrefs = Object.fromEntries(FEED_LAYERS.map((layer) => [layer.id, layer.defaultOn === true]));
+  feedLayerPrefs.notesFormat = "events";
   let feedPrefsSaveTimer = null;
   let referenceCache = null;
   let baseAttachments = [];
@@ -1233,11 +1230,31 @@
     }
   }
 
+  function ensureFeedLayers() {
+    const wrap = el("planner-feed-layers");
+    if (!wrap || wrap.childElementCount) {
+      return;
+    }
+    FEED_LAYERS.forEach((entry) => {
+      const label = document.createElement("label");
+      label.className = "planner-check";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.id = `planner-feed-layer-${entry.id}`;
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(` ${entry.text}`));
+      wrap.appendChild(label);
+    });
+  }
+
   function openFeed() {
     const modal = el("planner-feed");
     if (modal) {
       modal.hidden = false;
     }
+    ensureFeedLayers();
+    loadFeedPrefs();
+    syncFeedPrefsToControls();
     void refreshFeed();
   }
 
@@ -1487,6 +1504,7 @@
     });
 
     ensurePlannerFilters();
+    ensureFeedLayers();
     loadPlannerFilters();
     syncPlannerFilterControls();
     document.querySelectorAll("[data-planner-filter]").forEach((input) => {

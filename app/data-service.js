@@ -1158,6 +1158,116 @@
     return requestJson("GET", buildApiUrl("/api/v1/profile/calendar-feed"));
   }
 
+  async function updateProfileTagline(tagline) {
+    return requestJson("PATCH", buildApiUrl("/api/v1/profile/tagline"), { tagline });
+  }
+
+  async function updateProfileJournalVisibility(visibility) {
+    return requestJson("PATCH", buildApiUrl("/api/v1/profile/journal-visibility"), { visibility });
+  }
+
+  async function fetchUserJournal(clientId) {
+    return requestJson(
+      "GET",
+      buildApiUrl(`/api/v1/profile/directory/users/${encodeURIComponent(clientId)}/journal`)
+    );
+  }
+
+  async function fetchProfilePosts() {
+    return requestJson("GET", buildApiUrl("/api/v1/profile/posts"));
+  }
+
+  async function fetchProfileFeed() {
+    return requestJson("GET", buildApiUrl("/api/v1/profile/feed"));
+  }
+
+  async function createProfilePost(payload) {
+    const body = typeof payload === "string" ? { noteId: payload } : (payload || {});
+    return requestJson("POST", buildApiUrl("/api/v1/profile/posts"), body);
+  }
+
+  async function updateProfilePost(postId, payload) {
+    return requestJson("PATCH", buildApiUrl(`/api/v1/profile/posts/${encodeURIComponent(postId)}`), payload);
+  }
+
+  async function addPostEntry(postId, entry) {
+    return requestJson(
+      "POST",
+      buildApiUrl(`/api/v1/profile/posts/${encodeURIComponent(postId)}/entries`),
+      entry
+    );
+  }
+
+  async function updatePostEntry(postId, entryId, payload) {
+    return requestJson(
+      "PATCH",
+      buildApiUrl(`/api/v1/profile/posts/${encodeURIComponent(postId)}/entries/${encodeURIComponent(entryId)}`),
+      payload
+    );
+  }
+
+  async function deletePostEntry(postId, entryId) {
+    return requestJson(
+      "DELETE",
+      buildApiUrl(`/api/v1/profile/posts/${encodeURIComponent(postId)}/entries/${encodeURIComponent(entryId)}`)
+    );
+  }
+
+  async function fetchEvidenceStore() {
+    return requestJson("GET", buildApiUrl("/api/v1/profile/evidence"));
+  }
+
+  async function addEvidenceStoreItem(item) {
+    return requestJson("POST", buildApiUrl("/api/v1/profile/evidence"), item);
+  }
+
+  async function deleteEvidenceStoreItem(evidenceId) {
+    return requestJson("DELETE", buildApiUrl(`/api/v1/profile/evidence/${encodeURIComponent(evidenceId)}`));
+  }
+
+  async function addPostItem(postId, item) {
+    return requestJson(
+      "POST",
+      buildApiUrl(`/api/v1/profile/posts/${encodeURIComponent(postId)}/items`),
+      item
+    );
+  }
+
+  async function deletePostItem(postId, itemId) {
+    return requestJson(
+      "DELETE",
+      buildApiUrl(`/api/v1/profile/posts/${encodeURIComponent(postId)}/items/${encodeURIComponent(itemId)}`)
+    );
+  }
+
+  async function deleteProfilePost(postId) {
+    return requestJson("DELETE", buildApiUrl(`/api/v1/profile/posts/${encodeURIComponent(postId)}`));
+  }
+
+  async function previewProfilePost(draft) {
+    const body = draft && typeof draft === "object" ? draft : {};
+    return requestJson("POST", buildApiUrl("/api/v1/profile/posts/preview"), body);
+  }
+
+  async function getProfilePostShare(postId) {
+    return requestJson("GET", buildApiUrl(`/api/v1/profile/posts/${encodeURIComponent(postId)}/share`));
+  }
+
+  async function fetchUserPosts(clientId) {
+    return requestJson(
+      "GET",
+      buildApiUrl(`/api/v1/profile/directory/users/${encodeURIComponent(clientId)}/posts`)
+    );
+  }
+
+  async function addUserPostComment(clientId, postId, text) {
+    return requestJson(
+      "POST",
+      buildApiUrl(`/api/v1/profile/directory/users/${encodeURIComponent(clientId)}/posts/${encodeURIComponent(postId)}/comments`),
+      { text }
+    );
+  }
+
   async function fetchProfileCalendarEvents(fromIso, toIso) {
     return requestJson("GET", buildApiUrl("/api/v1/profile/calendar-events", {
       from: fromIso,
@@ -1360,6 +1470,26 @@
     fetchNowSnapshot,
     fetchProfileCalendarFeed,
     fetchProfileCalendarEvents,
+    fetchUserJournal,
+    updateProfileTagline,
+    updateProfileJournalVisibility,
+    fetchProfilePosts,
+    fetchProfileFeed,
+    createProfilePost,
+    updateProfilePost,
+    addPostEntry,
+    updatePostEntry,
+    deletePostEntry,
+    addPostItem,
+    deletePostItem,
+    fetchEvidenceStore,
+    addEvidenceStoreItem,
+    deleteEvidenceStoreItem,
+    deleteProfilePost,
+    previewProfilePost,
+    getProfilePostShare,
+    fetchUserPosts,
+    addUserPostComment,
     fetchProfileEvent,
     fetchProfileEvents,
     fetchWeekEvents,

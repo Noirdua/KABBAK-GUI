@@ -2529,6 +2529,9 @@
       color: var(--tt-accent-soft);
       font-weight: 600;
     }
+    .profile-dream-symbols[hidden] {
+      display: none !important;
+    }
     .profile-dream-symbols {
       display: flex;
       flex-wrap: wrap;
@@ -13990,6 +13993,22 @@
       font-size: 12px;
       color: var(--tt-text-muted);
     }
+    .profile-tagline {
+      font-size: 13px;
+      color: var(--tt-text);
+      font-style: italic;
+    }
+    .profile-tagline[hidden] {
+      display: none !important;
+    }
+    .profile-settings-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: flex-end;
+      font-size: 14px;
+      color: var(--tt-text);
+    }
     .profile-tabs {
       display: flex;
       flex-wrap: wrap;
@@ -14037,6 +14056,61 @@
       flex-wrap: wrap;
       align-items: center;
       gap: 8px;
+    }
+    .profile-note-stats {
+      padding: 2px 0 6px;
+      font-size: 12px;
+      color: var(--tt-text-muted);
+    }
+    .profile-export-template {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--tt-text-muted);
+    }
+    .profile-export-template select {
+      border: 1px solid var(--tt-border);
+      border-radius: 6px;
+      background: var(--tt-bg-deep);
+      color: var(--tt-text);
+      font: inherit;
+      font-size: 12px;
+      padding: 4px 6px;
+    }
+    .profile-format-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .profile-format-bar[hidden] {
+      display: none !important;
+    }
+    .profile-format-btn {
+      min-width: 30px;
+      height: 30px;
+      padding: 0 8px;
+      border-radius: 6px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deep);
+      color: var(--tt-text);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .profile-format-btn:hover {
+      border-color: color-mix(in srgb, var(--tt-accent) 60%, var(--tt-border));
+    }
+    .profile-format-color {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid var(--tt-border);
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
     }
     .profile-page-view {
       min-height: 280px;
@@ -14745,6 +14819,10 @@
     .journal-note-picker button:hover {
       background: color-mix(in srgb, var(--tt-accent) 16%, transparent);
     }
+    /* display:flex would otherwise override the hidden attribute. */
+    .profile-sleep-row[hidden] {
+      display: none !important;
+    }
     .profile-sleep-row {
       display: flex;
       flex-wrap: wrap;
@@ -15276,15 +15354,21 @@
       background: var(--tt-accent);
       color: var(--tt-bg-deepest);
     }
+    /* One horizontal row: the date/court/decan chips sit across the top, with the
+       kind toggle and date fields beside/below them instead of stacked. */
     .profile-note-meta-row {
-      display: grid;
-      grid-template-columns: auto minmax(160px, 220px);
-      gap: 12px;
+      display: flex;
+      flex-wrap: wrap;
       align-items: end;
+      gap: 12px;
+    }
+    .profile-note-meta-row #profile-day-cards {
+      order: -1;
+      flex: 1 1 100%;
     }
     @media (max-width: 640px) {
       .profile-note-meta-row {
-        grid-template-columns: minmax(0, 1fr);
+        align-items: stretch;
       }
     }
     .profile-kind-toggle {
@@ -15475,6 +15559,11 @@
       border-radius: 8px;
       background: var(--tt-bg-deepest);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+    /* display:grid above would otherwise override the hidden attribute, leaving
+       an empty suggestion box under the mood input. */
+    .profile-mood-suggestions[hidden] {
+      display: none !important;
     }
     .profile-mood-suggestion {
       border: 0;
@@ -16546,6 +16635,11 @@
       color: var(--tt-text);
       cursor: pointer;
     }
+    .planner-feed-layers {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
     .planner-filter-item {
       position: relative;
       display: inline-flex;
@@ -17126,6 +17220,436 @@
     }
     .profile-directory-detail-status.is-error {
       color: #f87171;
+    }
+    .profile-directory-journal {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--tt-border);
+    }
+    .profile-journal-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deep);
+    }
+    .profile-journal-row strong {
+      font-size: 13px;
+      color: var(--tt-text-bright, var(--tt-text));
+    }
+    .profile-journal-meta {
+      font-size: 11px;
+      color: var(--tt-text-muted);
+    }
+    .profile-journal-text {
+      margin: 0;
+      font-size: 12px;
+      color: var(--tt-text);
+      white-space: pre-wrap;
+    }
+    .profile-post-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    /* Compact controls in the posts card — no big, bubbly buttons. */
+    .profile-feed-card .profile-btn,
+    .profile-post-actions .profile-btn,
+    .profile-post-compose .profile-btn,
+    .profile-post-entry .profile-btn,
+    .profile-feed-post .profile-btn {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.4;
+      min-height: 0;
+    }
+    /* Composing replaces the card header/actions instead of stacking under them. */
+    .profile-feed-card.is-composing .profile-hub-card-kicker,
+    .profile-feed-card.is-composing .profile-hub-card-title,
+    .profile-feed-card.is-composing .profile-hub-card-copy,
+    .profile-feed-card.is-composing .profile-post-actions {
+      display: none;
+    }
+    .profile-post-compose {
+      margin-top: 0;
+    }
+    .profile-post-compose {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .profile-post-compose[hidden] {
+      display: none !important;
+    }
+    .profile-post-preview {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--tt-border);
+    }
+    .profile-post-preview-card {
+      display: flex;
+      flex-direction: column;
+    }
+    .profile-feed-list {
+      max-width: 760px;
+    }
+    .kabbak-mark-overlay {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .kabbak-mark-overlay .kabbak-mark-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deepest);
+      color: var(--tt-text);
+      font: inherit;
+      font-size: 13px;
+      resize: vertical;
+    }
+    .kabbak-mark-overlay .kabbak-mark-btn {
+      align-self: flex-start;
+    }
+    .kabbak-mark-picker {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .kabbak-mark-picker[hidden] {
+      display: none !important;
+    }
+    .kabbak-mark-picker-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deepest);
+      font-size: 12px;
+    }
+    .kabbak-mark-picker-row strong {
+      color: var(--tt-text-bright, var(--tt-text));
+    }
+    .kabbak-mark-picker-row.is-added {
+      border-color: color-mix(in srgb, #34d399 55%, var(--tt-border));
+      background: color-mix(in srgb, #34d399 10%, var(--tt-bg-deepest));
+    }
+    .kabbak-mark-picker-row .kabbak-mark-btn[disabled] {
+      opacity: 1;
+    }
+    /* Visible "this item is marked" state: bookmark / note / evidence badges. */
+    .kabbak-mark-btn.is-marked {
+      border-color: color-mix(in srgb, var(--tt-accent) 55%, var(--tt-border));
+      color: var(--tt-text-bright, var(--tt-text));
+    }
+    .kabbak-mark-flag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 14px;
+      height: 14px;
+      margin-left: 4px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+    .kabbak-mark-flag.is-bookmark {
+      background: color-mix(in srgb, #facc15 32%, transparent);
+      color: #fde68a;
+    }
+    .kabbak-mark-flag.is-note {
+      background: color-mix(in srgb, #60a5fa 32%, transparent);
+      color: #bfdbfe;
+    }
+    .kabbak-mark-flag.is-evidence {
+      background: color-mix(in srgb, #34d399 32%, transparent);
+      color: #a7f3d0;
+    }
+    /* Posts list: a neat, separated column of collapsed rows. */
+    .profile-post-row {
+      border: 1px solid var(--tt-border);
+      border-left: 3px solid color-mix(in srgb, var(--tt-accent) 55%, var(--tt-border));
+      border-radius: 10px;
+      background: var(--tt-bg-deep);
+      overflow: hidden;
+    }
+    .profile-post-row + .profile-post-row {
+      margin-top: 10px;
+    }
+    .profile-post-row.is-open {
+      border-color: color-mix(in srgb, var(--tt-accent) 45%, var(--tt-border));
+    }
+    .profile-post-row-head {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      width: 100%;
+      padding: 10px 12px;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .profile-post-row-head:hover {
+      background: color-mix(in srgb, var(--tt-accent) 6%, transparent);
+    }
+    .profile-post-row-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .profile-post-row-title strong {
+      font-size: 14px;
+      color: var(--tt-text-bright, var(--tt-text));
+    }
+    .profile-post-row-meta {
+      font-size: 11px;
+      color: var(--tt-text-muted);
+    }
+    .profile-post-row-excerpt {
+      font-size: 12px;
+      color: var(--tt-text-muted);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .profile-post-row .profile-feed-post {
+      border: 0;
+      border-top: 1px solid var(--tt-border);
+      border-radius: 0;
+    }
+    .profile-post-compose textarea {
+      box-sizing: border-box;
+      width: 100%;
+      resize: vertical;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deepest);
+      color: var(--tt-text);
+      font: inherit;
+      font-size: 13px;
+    }
+    .profile-post-compose-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .profile-post-title-input,
+    .profile-post-body-input,
+    .profile-post-entry-input {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deepest);
+      color: var(--tt-text);
+      font: inherit;
+      font-size: 13px;
+      resize: vertical;
+    }
+    .profile-post-body-input[contenteditable] {
+      min-height: 68px;
+    }
+    .profile-post-body-input[contenteditable]:empty:before {
+      content: attr(data-placeholder);
+      color: var(--tt-text-dim);
+      pointer-events: none;
+    }
+    .profile-post-rich {
+      font-size: 13px;
+      color: var(--tt-text);
+    }
+    .profile-post-rich:empty {
+      display: none;
+    }
+    .profile-post-entry-body {
+      flex: 1;
+      font-size: 13px;
+      color: var(--tt-text);
+    }
+    .profile-post-image {
+      display: block;
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 6px;
+    }
+    .profile-post-file {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--tt-border);
+      font-size: 11px;
+      color: var(--tt-text-muted);
+    }
+    .profile-post-attachments {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .profile-post-attachment {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deepest);
+      font-size: 12px;
+      color: var(--tt-text);
+    }
+    .profile-post-title-input {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .profile-post-bucket-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--tt-text-muted);
+    }
+    .profile-post-bucket,
+    .profile-post-thread {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .profile-post-entry {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deepest);
+    }
+    .profile-post-entry p {
+      margin: 0;
+      flex: 1;
+    }
+    .profile-post-entry textarea {
+      flex: 1;
+    }
+    .profile-post-entry-kind {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--tt-accent-soft);
+    }
+    .profile-post-add {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .profile-feed-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deepest);
+      font-size: 12px;
+      color: var(--tt-text);
+    }
+    .profile-feed-item strong {
+      color: var(--tt-text-bright, var(--tt-text));
+    }
+    .profile-feed-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .profile-feed-post {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deep);
+    }
+    .profile-feed-post-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .profile-feed-post-head strong {
+      font-size: 14px;
+      color: var(--tt-text-bright, var(--tt-text));
+    }
+    .profile-feed-post-meta {
+      font-size: 11px;
+      color: var(--tt-text-muted);
+    }
+    .profile-feed-post-body {
+      margin: 0;
+      font-size: 13px;
+      color: var(--tt-text);
+      white-space: pre-wrap;
+    }
+    .profile-feed-comments {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 4px;
+      padding-top: 6px;
+      border-top: 1px solid var(--tt-border);
+    }
+    .profile-feed-comment {
+      display: flex;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--tt-text);
+    }
+    .profile-feed-comment strong {
+      color: var(--tt-text-bright, var(--tt-text));
+    }
+    .profile-feed-comment-form {
+      display: flex;
+      gap: 6px;
+    }
+    .profile-feed-comment-input {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deepest);
+      color: var(--tt-text);
+      font: inherit;
+      font-size: 12px;
     }
     .profile-directory-discussions {
       display: flex;
