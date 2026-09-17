@@ -13,12 +13,18 @@
     travel: "#f59e0b",
     other: "#94a3b8"
   };
-  const PRINCIPAL_MOON_PHASES = new Set(["New Moon", "First Quarter", "Full Moon", "Last Quarter"]);
-  const STATE_ICON = { holiday: "#fde68a", moon: "#c7d2fe" };
+  const STATE_ICON = { holiday: "#fde68a", moon: "#c7d2fe", astrology: "#fcd34d", notes: "#6366f1", planetary: "#52525b" };
   const MAX_SEGMENTS_UI = 12;
   const MAX_ATTACHMENTS_UI = 6;
   const MAX_ATTACHMENT_BYTES_UI = 5 * 1024 * 1024;
   const FEED_LAYERS_STORAGE_KEY = "kabbak-feed-layers-v1";
+  const FEED_LAYER_IDS = {
+    user: "planner-feed-layer-user",
+    notes: "planner-feed-layer-notes",
+    astrology: "planner-feed-layer-astrology",
+    moon: "planner-feed-layer-moon",
+    holidays: "planner-feed-layer-holidays"
+  };
 
   let bound = false;
   let view = "month";
@@ -26,9 +32,44 @@
   let sideDate = null;
   let occurrences = [];
   let editingEventId = "";
-  let loading = false;
+  let loadToken = 0;
+  const FILTER_STORAGE_KEY = "kabbak-planner-filters-v1";
+  // Calendar filter groups. "events" is the profile's own events; the rest map
+  // to the subscription layers plus the local planetary-hour layer.
+  const PLANNER_FILTERS = [
+    { id: "events", text: "My events" },
+    { id: "astrology", text: "Astrology", configurable: true },
+    { id: "moon", text: "Moon", configurable: true },
+    { id: "holidays", text: "Holidays" },
+    { id: "planetary", text: "Planetary hours" }
+  ];
+  const PLANNER_FILTER_IDS = PLANNER_FILTERS.map((entry) => entry.id);
+  const MOON_PHASE_CHOICES = [
+    { slug: "new", label: "New Moon" },
+    { slug: "first-quarter", label: "First Quarter" },
+    { slug: "full", label: "Full Moon" },
+    { slug: "last-quarter", label: "Last Quarter" }
+  ];
+  const ASTROLOGY_DETAIL_CHOICES = [
+    { value: "decan", label: "Decan changes (every 10°)" },
+    { value: "degree", label: "Every degree (about daily)" },
+    { value: "sign", label: "Sign ingresses only" }
+  ];
+
+  let plannerFilterState = { events: true, astrology: true, moon: true, holidays: true, planetary: true };
+  let overlayOccurrences = [];
+  let planetaryOccurrences = [];
+  let filterPopoverEl = null;
   let feedState = null;
-  let feedLayerPrefs = { moon: true, holidays: true, notes: false, notesFormat: "events" };
+  let feedLayerPrefs = {
+    user: true,
+    notes: false,
+    astrology: false,
+    moon: true,
+    holidays: true,
+    notesFormat: "events"
+  };
+  let feedPrefsSaveTimer = null;
   let referenceCache = null;
   let baseAttachments = [];
   let occurrenceAttachments = [];
@@ -108,6 +149,218 @@
     return window.TarotAppCalendar || null;
   }
 
+  // Built in JS (not static HTML) so it always appears even if the page shell is
+  // served from cache.
+  function ensurePlannerFilters() {
+    if (el("planner-filters")) {
+      return;
+    }
+    const shell = document.querySelector("#planner-section .planner-shell");
+    const body = shell?.querySelector(".planner-body");
+    if (!shell || !body) {
+      return;
+    }
+    const bar = document.createElement("div");
+    bar.id = "planner-filters";
+    bar.className = "planner-filters";
+    bar.setAttribute("role", "group");
+    bar.setAttribute("aria-label", "Show calendars");
+    const label = document.createElement("span");
+    label.className = "planner-filter-label";
+    label.textContent = "Show";
+    bar.appendChild(label);
+    PLANNER_FILTERS.forEach((entry) => {
+      const item = document.createElement("span");
+      item.className = "planner-filter-item";
+      const label = document.createElement("label");
+      label.className = "planner-layer";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.setAttribute("data-planner-filter", entry.id);
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(` ${entry.text}`));
+      item.appendChild(label);
+      if (entry.configurable) {
+        const gear = document.createElement("button");
+        gear.type = "button";
+        gear.className = "planner-filter-gear";
+        gear.setAttribute("aria-label", `${entry.text} settings`);
+        gear.title = `${entry.text} settings`;
+        gear.textContent = "⚙";
+        gear.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void openFilterConfig(entry.id, gear);
+        });
+        item.appendChild(gear);
+      }
+      bar.appendChild(item);
+    });
+    shell.insertBefore(bar, body);
+  }
+
+  function readFeedOptions() {
+    const options = feedState?.options;
+    if (options && typeof options === "object") {
+      return {
+        // An empty array means "no phases"; only an absent value means all.
+        moonPhases: Array.isArray(options.moonPhases)
+          ? options.moonPhases
+          : MOON_PHASE_CHOICES.map((phase) => phase.slug),
+        astrologyDetail: options.astrologyDetail || "decan"
+      };
+    }
+    return { moonPhases: MOON_PHASE_CHOICES.map((phase) => phase.slug), astrologyDetail: "decan" };
+  }
+
+  // Reveal the calendar only once it has been themed and populated.
+  function markCalendarReady() {
+    document.getElementById("planner-section")?.classList.add("is-calendar-ready");
+  }
+
+  function closeFilterPopover() {
+    if (filterPopoverEl) {
+      filterPopoverEl.remove();
+      filterPopoverEl = null;
+    }
+  }
+
+  function onFilterPopoverOutsideClick(event) {
+    if (filterPopoverEl && !filterPopoverEl.contains(event.target) && !event.target.closest(".planner-filter-gear")) {
+      closeFilterPopover();
+    }
+  }
+
+  async function saveFeedOptions(nextOptions) {
+    try {
+      feedState = await window.TarotDataService.updateProfileCalendarFeed({ options: nextOptions });
+      void render();
+      setStatus("Calendar settings saved.");
+    } catch (error) {
+      setStatus(error?.message || "Could not save calendar settings.");
+    }
+  }
+
+  // Per-calendar settings: which moon phases, and how fine-grained astrology is.
+  async function openFilterConfig(kind, anchor) {
+    closeFilterPopover();
+    try {
+      feedState = await window.TarotDataService.fetchProfileCalendarFeed();
+    } catch (_error) {
+      // fall back to whatever state we have (defaults)
+    }
+    const options = readFeedOptions();
+    const popover = document.createElement("div");
+    popover.className = "planner-filter-popover";
+    const title = document.createElement("strong");
+    title.textContent = kind === "moon" ? "Moon phases" : "Astrology events";
+    popover.appendChild(title);
+
+    if (kind === "moon") {
+      MOON_PHASE_CHOICES.forEach((phase) => {
+        const option = document.createElement("label");
+        option.className = "planner-filter-option";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.setAttribute("data-phase", phase.slug);
+        input.checked = options.moonPhases.includes(phase.slug);
+        input.addEventListener("change", () => {
+          const selected = MOON_PHASE_CHOICES
+            .filter((entry) => popover.querySelector(`[data-phase="${entry.slug}"]`)?.checked)
+            .map((entry) => entry.slug);
+          void saveFeedOptions({ moonPhases: selected, astrologyDetail: options.astrologyDetail });
+        });
+        option.appendChild(input);
+        option.appendChild(document.createTextNode(` ${phase.label}`));
+        popover.appendChild(option);
+      });
+    } else {
+      ASTROLOGY_DETAIL_CHOICES.forEach((choice) => {
+        const option = document.createElement("label");
+        option.className = "planner-filter-option";
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = "planner-astrology-detail";
+        input.value = choice.value;
+        input.checked = options.astrologyDetail === choice.value;
+        input.addEventListener("change", () => {
+          if (input.checked) {
+            void saveFeedOptions({ moonPhases: options.moonPhases, astrologyDetail: choice.value });
+          }
+        });
+        option.appendChild(input);
+        option.appendChild(document.createTextNode(` ${choice.label}`));
+        popover.appendChild(option);
+      });
+    }
+
+    (anchor.parentElement || anchor).appendChild(popover);
+    filterPopoverEl = popover;
+    window.setTimeout(() => {
+      document.addEventListener("click", onFilterPopoverOutsideClick, { once: true });
+    }, 0);
+  }
+
+  function loadPlannerFilters() {
+    try {
+      const raw = window.localStorage.getItem(FILTER_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed && typeof parsed === "object") {
+        PLANNER_FILTER_IDS.forEach((id) => {
+          plannerFilterState[id] = parsed[id] !== false;
+        });
+      }
+    } catch (_error) {
+      // keep defaults
+    }
+  }
+
+  function savePlannerFilters() {
+    try {
+      window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(plannerFilterState));
+    } catch (_error) {
+      // persistence is best-effort
+    }
+  }
+
+  function syncPlannerFilterControls() {
+    document.querySelectorAll("[data-planner-filter]").forEach((input) => {
+      const id = input.getAttribute("data-planner-filter");
+      input.checked = plannerFilterState[id] !== false;
+    });
+  }
+
+  function filterIdForCalendarId(calendarId) {
+    const id = String(calendarId || "user");
+    if (id === "user") return "events";
+    if (id === "astrology") return "astrology";
+    if (id === "moon") return "moon";
+    if (id === "holiday") return "holidays";
+    if (id === "planetary" || id.startsWith("planet-")) return "planetary";
+    return "";
+  }
+
+  function isCalendarVisible(calendarId) {
+    const filterId = filterIdForCalendarId(calendarId);
+    return !filterId || plannerFilterState[filterId] !== false;
+  }
+
+  function calendarIdForOccurrence(occurrence) {
+    if (occurrence?.calendarId) {
+      return String(occurrence.calendarId);
+    }
+    const source = occurrence?.source || "user";
+    if (source === "holiday") return "holiday";
+    if (source === "moon") return "moon";
+    if (source === "astrology") return "astrology";
+    if (source === "planetary") return "planetary";
+    return "user";
+  }
+
+  function isOccurrenceVisible(occurrence) {
+    return isCalendarVisible(calendarIdForOccurrence(occurrence));
+  }
+
   function categoryColor(occurrence) {
     if (occurrence.color) {
       return occurrence.color;
@@ -116,6 +369,14 @@
   }
 
   function readGeo() {
+    // The profile location is authoritative (planetary hours, sky cards); the
+    // legacy settings blob and the London default are only fallbacks.
+    const profileLocation = window.ProfileUi?.getLocation?.() || window.TarotSettingsUi?.getProfileLocation?.();
+    const profileLatitude = Number(profileLocation?.latitude);
+    const profileLongitude = Number(profileLocation?.longitude);
+    if (Number.isFinite(profileLatitude) && Number.isFinite(profileLongitude)) {
+      return { latitude: profileLatitude, longitude: profileLongitude };
+    }
     try {
       const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
       const parsed = raw ? JSON.parse(raw) : null;
@@ -166,66 +427,64 @@
     return `${startText} – ${endText}`;
   }
 
-  function buildOverlayOccurrences(from, to) {
-    const result = [];
-    if (!(el("planner-layer-holidays")?.checked)) {
-      // holidays layer off
-    } else {
-      const referenceData = referenceCache || window.TarotAppRuntime?.getReferenceData?.() || null;
-      const holidaysView = referenceData?.calendarHolidays;
-      if (Array.isArray(holidaysView)) {
-        const seen = new Set();
-        for (let year = from.getFullYear(); year <= to.getFullYear(); year += 1) {
-          holidaysView.forEach((holiday, index) => {
-            const monthDay = String(holiday?.monthDayStart || "").trim();
-            if (!/^\d{2}-\d{2}$/.test(monthDay)) {
-              return;
-            }
-            const date = `${year}-${monthDay}`;
-            if (date < isoDate(from) || date > isoDate(to)) {
-              return;
-            }
-            const id = `holiday:${holiday.id || index}:${date}`;
-            if (seen.has(id)) {
-              return;
-            }
-            seen.add(id);
-            result.push({
-              id,
-              eventId: "",
-              title: holiday.name || "Holiday",
-              date,
-              allDay: true,
-              category: "holiday",
-              source: "holiday",
-              editable: false
-            });
-          });
-        }
-      }
-    }
+  // Explicit map so an unexpected category can never be filed under the wrong
+  // calendar (user events use their own category, notes use dream/journal).
+  const SUBSCRIPTION_SOURCE_BY_CATEGORY = {
+    astrology: "astrology",
+    moon: "moon",
+    holiday: "holiday",
+    notes: "notes",
+    dream: "notes",
+    journal: "notes"
+  };
 
-    if (el("planner-layer-moon")?.checked && window.SunCalc && window.TarotCalc?.getMoonPhaseName) {
-      let previous = "";
-      for (let cursor = from; cursor <= to; cursor = addDays(cursor, 1)) {
-        const phase = window.TarotCalc.getMoonPhaseName(window.SunCalc.getMoonIllumination(cursor).phase);
-        const date = isoDate(cursor);
-        if (PRINCIPAL_MOON_PHASES.has(phase) && phase !== previous) {
-          result.push({
-            id: `moon:${date}`,
-            eventId: "",
-            title: `Moon: ${phase}`,
-            date,
-            allDay: true,
-            category: "moon",
-            source: "moon",
-            editable: false
-          });
-        }
-        previous = phase;
-      }
+  function addMinutesToTime(time, minutes) {
+    const [hours, mins] = String(time || "").split(":").map(Number);
+    if (!Number.isFinite(hours) || !Number.isFinite(mins)) {
+      return "";
     }
-    return result;
+    const total = (hours * 60 + mins + minutes) % (24 * 60);
+    return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+  }
+
+  // Turns a server subscription event into a calendar occurrence. Astrology and
+  // moon events carry an exact local time, so they render as timed blocks (the
+  // ICS feed keeps them all-day).
+  function subscriptionOccurrence(event) {
+    const source = SUBSCRIPTION_SOURCE_BY_CATEGORY[String(event.category || "").toLowerCase()];
+    if (!source) {
+      return null;
+    }
+    const timed = Boolean(event.time) && (source === "astrology" || source === "moon");
+    const occurrence = {
+      id: event.id,
+      eventId: "",
+      title: event.title || "",
+      date: event.date,
+      allDay: !timed,
+      category: source,
+      source,
+      editable: false
+    };
+    if (timed) {
+      occurrence.segments = [{ startTime: event.time, endTime: addMinutesToTime(event.time, 30) }];
+    }
+    return occurrence;
+  }
+
+  // The in-app calendar shows exactly what the profile is subscribed to, from
+  // the same server computation that builds the ICS feed.
+  async function buildOverlayOccurrences(from, to) {
+    if (typeof window.TarotDataService?.fetchProfileCalendarEvents !== "function") {
+      return [];
+    }
+    try {
+      const payload = await window.TarotDataService.fetchProfileCalendarEvents(isoDate(from), isoDate(to));
+      const events = Array.isArray(payload?.events) ? payload.events : [];
+      return events.map(subscriptionOccurrence).filter(Boolean);
+    } catch (_error) {
+      return [];
+    }
   }
 
   function occurrenceSegments(occurrence) {
@@ -241,16 +500,30 @@
   // A split-time event paints one block per segment; a plain event is one block.
   function toCalendarEvents(occurrence) {
     const source = occurrence.source || "user";
-    let calendarId = "user";
-    if (source === "holiday") {
-      calendarId = "holiday";
-    } else if (source === "moon") {
-      calendarId = "moon";
+    // Honour an explicit calendar first: planetary hours use the per-planet
+    // calendars, and defaulting them to "user" hid them behind the My events
+    // filter and made them read-only user events.
+    let calendarId = occurrence.calendarId || "user";
+    if (!occurrence.calendarId) {
+      if (source === "holiday") {
+        calendarId = "holiday";
+      } else if (source === "moon") {
+        calendarId = "moon";
+      } else if (source === "astrology") {
+        calendarId = "astrology";
+      } else if (source === "notes") {
+        calendarId = "user";
+      }
     }
+    // Planetary hours keep the per-planet calendar colors (native event look)
+    // instead of a forced swatch.
+    const nativeColors = source === "planetary";
     const color = occurrence.editable === false
       ? STATE_ICON[source] || "#cbd5e1"
       : categoryColor(occurrence);
-    const textColor = source === "moon" || source === "holiday" ? "#1f2937" : "#ffffff";
+    const textColor = source === "moon" || source === "holiday" || source === "astrology"
+      ? "#1f2937"
+      : "#ffffff";
     const title = occurrence.title || "(untitled)";
 
     if (occurrence.allDay === true) {
@@ -262,9 +535,9 @@
         start: `${occurrence.date}T00:00:00`,
         end: `${isoDate(addDays(parseIsoDate(occurrence.date) || focusDate, 1))}T00:00:00`,
         category: "allday",
-        backgroundColor: color,
-        borderColor: color,
-        color: textColor,
+        backgroundColor: nativeColors ? undefined : color,
+        borderColor: nativeColors ? undefined : color,
+        color: nativeColors ? undefined : textColor,
         raw: occurrence
       }];
     }
@@ -277,9 +550,9 @@
       start: `${occurrence.date}T${segment.startTime}:00`,
       end: `${occurrence.date}T${segment.endTime || segment.startTime}:00`,
       category: "time",
-      backgroundColor: color,
-      borderColor: color,
-      color: textColor,
+      backgroundColor: nativeColors ? undefined : color,
+      borderColor: nativeColors ? undefined : color,
+      color: nativeColors ? undefined : textColor,
       raw: occurrence
     }));
   }
@@ -301,27 +574,82 @@
     }
   }
 
-  async function renderCalendar() {
+  // Planetary hours become ordinary timed occurrences so they flow through the
+  // same rendering and agenda paths as every other event (no custom overlay).
+  function planetaryOccurrence(event) {
+    const start = event?.start instanceof Date ? event.start : new Date(event?.start);
+    const end = event?.end instanceof Date ? event.end : new Date(event?.end);
+    if (Number.isNaN(start.getTime())) {
+      return null;
+    }
+    const planetName = event?.raw?.planetName || "";
+    const symbol = event?.raw?.planetSymbol || "";
+    const title = planetName ? `${symbol ? `${symbol} ` : ""}${planetName} hour` : (event?.title || "Planetary hour");
+    return {
+      id: event?.id || `ph-${start.getTime()}`,
+      eventId: "",
+      title,
+      date: isoDate(start),
+      allDay: false,
+      segments: [{
+        startTime: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
+        endTime: `${pad(end.getHours())}:${pad(end.getMinutes())}`
+      }],
+      category: "planetary",
+      source: "planetary",
+      calendarId: event?.calendarId || "planetary",
+      editable: false
+    };
+  }
+
+  async function renderCalendar(token = loadToken) {
     const calendar = getCalendar();
     if (!calendar) {
       return;
     }
     const range = visibleRange();
-    const overlays = buildOverlayOccurrences(range.from, range.to);
-    const planetary = el("planner-layer-planetary")?.checked && (view === "week" || view === "day")
-      ? await buildPlanetaryEvents()
-      : [];
+    const overlays = await buildOverlayOccurrences(range.from, range.to);
+    if (token !== loadToken) {
+      return;
+    }
+    overlayOccurrences = overlays;
+    // Planetary hours are real timed events, shown in every view (month/week/
+    // day) and in the agenda; overflow collapses into the usual "+N more".
+    const wantsPlanetary = plannerFilterState.planetary !== false;
+    const planetary = wantsPlanetary ? await buildPlanetaryEvents() : [];
+    if (token !== loadToken) {
+      return;
+    }
+    planetaryOccurrences = planetary.map(planetaryOccurrence).filter(Boolean);
     const calendarEvents = occurrences
       .flatMap(toCalendarEvents)
       .concat(overlays.flatMap(toCalendarEvents))
-      .concat(planetary);
+      .concat(planetaryOccurrences.flatMap(toCalendarEvents))
+      .filter((event) => isCalendarVisible(event.calendarId));
+    // Apply the view and date BEFORE adding events: createEvents commits into
+    // the store for the calendar's current render range, so adding them while
+    // the panel is still on an older range (month especially) drops them.
+    // changeView() only takes a view name; the date is moved with setDate().
+    // Read the calendar's real view so an external change (e.g. the home
+    // calendar) can't leave us out of sync.
+    const targetView = view === "agenda" ? "month" : view;
+    calendar.setDate(focusDate);
+    const actualView = typeof calendar.getViewName === "function" ? calendar.getViewName() : "";
+    const viewChanged = actualView !== targetView;
+    if (viewChanged) {
+      calendar.changeView(targetView);
+    }
     calendar.clear();
     calendar.createEvents(calendarEvents);
-
-    if (view === "agenda") {
-      calendar.changeView("month", focusDate);
-    } else {
-      calendar.changeView(view, focusDate);
+    if (viewChanged) {
+      // Force the freshly added events into the new view (month in particular).
+      requestAnimationFrame(() => {
+        try {
+          calendar.render();
+        } catch (_error) {
+          // Rendering is best-effort; the events are already in the store.
+        }
+      });
     }
 
     if (view === "day" || view === "week") {
@@ -333,6 +661,8 @@
         }
       });
     }
+
+    requestAnimationFrame(() => markCalendarReady());
   }
 
   function occurrenceTimeText(occurrence) {
@@ -395,9 +725,24 @@
     const isDayMode = view === "day" || Boolean(sideDate);
     const targetDate = sideDate || focusDate;
     const targetIso = isoDate(targetDate);
+    // Merge the profile's own events with the subscription/planetary overlays so
+    // the agenda reflects the same filters as the calendar grid.
+    const combined = occurrences
+      .concat(overlayOccurrences)
+      .concat(planetaryOccurrences)
+      .filter(isOccurrenceVisible)
+      .sort((left, right) => {
+        const byDate = String(left.date || "").localeCompare(String(right.date || ""));
+        if (byDate !== 0) {
+          return byDate;
+        }
+        const leftTime = left.time || left.startTime || "";
+        const rightTime = right.time || right.startTime || "";
+        return String(leftTime).localeCompare(String(rightTime));
+      });
     const list = isDayMode
-      ? occurrences.filter((entry) => entry.date === targetIso)
-      : occurrences;
+      ? combined.filter((entry) => entry.date === targetIso)
+      : combined;
 
     if (side) {
       side.hidden = false;
@@ -426,6 +771,8 @@
     if (!bound) {
       bind();
     }
+    ensurePlannerFilters();
+    syncPlannerFilterControls();
     window.TarotRefreshCalendarTheme?.();
     const rangeLabel = el("planner-range-label");
     if (rangeLabel) {
@@ -439,30 +786,30 @@
     void loadEvents();
   }
 
+  // Each render takes a token; a newer navigation invalidates older in-flight
+  // loads so stepping the calendar always refreshes the events and overlays.
   async function loadEvents() {
-    if (loading) {
-      return;
-    }
-    loading = true;
+    const token = ++loadToken;
     setStatus("Loading events…");
     try {
-      if (el("planner-layer-holidays")?.checked && !referenceCache) {
-        try {
-          referenceCache = await window.TarotDataService?.loadReferenceData?.() || null;
-        } catch (_error) {
-          referenceCache = null;
-        }
-      }
       const { from, to } = visibleRange();
       const payload = await window.TarotDataService?.fetchProfileEvents?.(isoDate(from), isoDate(to));
+      if (token !== loadToken) {
+        return;
+      }
       occurrences = Array.isArray(payload?.events) ? payload.events : [];
-      await renderCalendar();
+      await renderCalendar(token);
+      if (token !== loadToken) {
+        return;
+      }
       renderAgenda();
       setStatus("");
     } catch (error) {
-      setStatus(error?.message || "Could not load events.");
-    } finally {
-      loading = false;
+      if (token === loadToken) {
+        setStatus(error?.message || "Could not load events.");
+      }
+      // Never leave the calendar hidden if a render failed.
+      markCalendarReady();
     }
   }
 
@@ -913,12 +1260,10 @@
       const raw = window.localStorage.getItem(FEED_LAYERS_STORAGE_KEY);
       const parsed = raw ? JSON.parse(raw) : null;
       if (parsed && typeof parsed === "object") {
-        feedLayerPrefs = {
-          moon: parsed.moon !== false,
-          holidays: parsed.holidays !== false,
-          notes: parsed.notes === true,
-          notesFormat: parsed.notesFormat === "journal" ? "journal" : "events"
-        };
+        Object.keys(FEED_LAYER_IDS).forEach((layer) => {
+          feedLayerPrefs[layer] = parsed[layer] === true;
+        });
+        feedLayerPrefs.notesFormat = parsed.notesFormat === "journal" ? "journal" : "events";
       }
     } catch (_error) {
       // keep defaults
@@ -933,32 +1278,82 @@
     }
   }
 
-  function syncFeedPrefsToControls() {
-    const moon = el("planner-feed-layer-moon");
-    const holidays = el("planner-feed-layer-holidays");
-    const notes = el("planner-feed-layer-notes");
-    const format = el("planner-feed-notes-format");
-    if (moon) moon.checked = feedLayerPrefs.moon;
-    if (holidays) holidays.checked = feedLayerPrefs.holidays;
-    if (notes) notes.checked = feedLayerPrefs.notes;
-    if (format) format.value = feedLayerPrefs.notesFormat;
-    const formatWrap = el("planner-feed-notes-format-wrap");
-    if (formatWrap) formatWrap.hidden = !feedLayerPrefs.notes;
+  function selectedFeedLayers() {
+    return Object.keys(FEED_LAYER_IDS).filter((layer) => feedLayerPrefs[layer] === true);
   }
 
+  function syncFeedPrefsFromState() {
+    const layers = Array.isArray(feedState?.layers) ? feedState.layers : null;
+    if (layers) {
+      Object.keys(FEED_LAYER_IDS).forEach((layer) => {
+        feedLayerPrefs[layer] = layers.includes(layer);
+      });
+    }
+    if (feedState?.notesFormat) {
+      feedLayerPrefs.notesFormat = feedState.notesFormat === "journal" ? "journal" : "events";
+    }
+    saveFeedPrefs();
+  }
+
+  function syncFeedPrefsToControls() {
+    Object.keys(FEED_LAYER_IDS).forEach((layer) => {
+      const input = el(FEED_LAYER_IDS[layer]);
+      if (input) input.checked = feedLayerPrefs[layer] === true;
+    });
+    const format = el("planner-feed-notes-format");
+    if (format) format.value = feedLayerPrefs.notesFormat;
+    const formatWrap = el("planner-feed-notes-format-wrap");
+    if (formatWrap) formatWrap.hidden = feedLayerPrefs.notes !== true;
+  }
+
+  // The URL carries only the token: subscription layers live on the profile, so
+  // toggling them applies without the user re-adding the calendar.
   function buildFeedUrl() {
     if (!feedState?.enabled || !feedState?.token) {
       return "";
     }
-    const layers = ["user"];
-    if (feedLayerPrefs.moon) layers.push("moon");
-    if (feedLayerPrefs.holidays) layers.push("holidays");
-    if (feedLayerPrefs.notes) layers.push("notes");
-    const params = { token: feedState.token, layers: layers.join(",") };
-    if (feedLayerPrefs.notes && feedLayerPrefs.notesFormat === "journal") {
-      params.notesFormat = "journal";
+    return window.TarotDataService.buildApiUrl("/api/v1/calendar/feed.ics", { token: feedState.token });
+  }
+
+  function setLayerStatus(message, isError = false) {
+    const node = el("planner-feed-layer-status");
+    if (!node) return;
+    node.textContent = message || "";
+    node.dataset.tone = isError ? "error" : "";
+  }
+
+  function pushFeedPrefs(immediate = false) {
+    window.clearTimeout(feedPrefsSaveTimer);
+    setLayerStatus("Saving…");
+    const run = async () => {
+      if (!window.TarotDataService?.updateProfileCalendarFeed) {
+        setLayerStatus("Could not save subscriptions.", true);
+        return;
+      }
+      const requested = selectedFeedLayers();
+      try {
+        feedState = await window.TarotDataService.updateProfileCalendarFeed({
+          layers: requested,
+          notesFormat: feedLayerPrefs.notesFormat
+        });
+        syncFeedPrefsFromState();
+        syncFeedPrefsToControls();
+        const saved = Array.isArray(feedState?.layers) ? feedState.layers : [];
+        const dropped = requested.filter((layer) => !saved.includes(layer));
+        if (dropped.length) {
+          setLayerStatus(`Server ignored: ${dropped.join(", ")}. Restart the API to load the latest subscription layers.`, true);
+        } else {
+          setLayerStatus("Saved. Your calendar app picks this up on its next refresh.");
+        }
+      } catch (error) {
+        setLayerStatus(error?.message || "Could not save subscriptions.", true);
+      }
+    };
+    if (immediate) {
+      void run();
+      return;
     }
-    return window.TarotDataService.buildApiUrl("/api/v1/calendar/feed.ics", params);
+    feedPrefsSaveTimer = window.setTimeout(run, 350);
   }
 
   function applyFeedState() {
@@ -968,6 +1363,7 @@
     const rotateButton = el("planner-feed-rotate");
     const copyButton = el("planner-feed-copy");
     const enabled = feedState?.enabled === true && Boolean(feedState?.token);
+    syncFeedPrefsFromState();
     syncFeedPrefsToControls();
     if (urlInput) {
       urlInput.value = enabled ? buildFeedUrl() : "";
@@ -1001,7 +1397,10 @@
   async function changeFeed(action) {
     setFeedStatus("Updating…");
     try {
-      feedState = await window.TarotDataService.updateProfileCalendarFeed(action);
+      const payload = action === "enable"
+        ? { action, layers: selectedFeedLayers(), notesFormat: feedLayerPrefs.notesFormat }
+        : { action };
+      feedState = await window.TarotDataService.updateProfileCalendarFeed(payload);
       applyFeedState();
       setFeedStatus(feedState?.enabled ? "Feed is on. Changes appear after your calendar app refreshes." : "Feed is off.");
     } catch (error) {
@@ -1087,9 +1486,15 @@
       });
     });
 
-    ["planner-layer-moon", "planner-layer-holidays", "planner-layer-planetary"].forEach((id) => {
-      el(id)?.addEventListener("change", () => {
-        void renderCalendar();
+    ensurePlannerFilters();
+    loadPlannerFilters();
+    syncPlannerFilterControls();
+    document.querySelectorAll("[data-planner-filter]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const id = input.getAttribute("data-planner-filter");
+        plannerFilterState[id] = input.checked;
+        savePlannerFilters();
+        render();
       });
     });
 
@@ -1112,6 +1517,7 @@
       void resetOccurrenceAttachments();
     });
 
+    el("planner-feed-save")?.addEventListener("click", () => pushFeedPrefs(true));
     el("planner-feed-close")?.addEventListener("click", closeFeed);
     el("planner-feed-copy")?.addEventListener("click", copyFeed);
     el("planner-feed-enable")?.addEventListener("click", () => changeFeed("enable"));
@@ -1119,19 +1525,18 @@
     el("planner-feed-disable")?.addEventListener("click", () => changeFeed("disable"));
 
     loadFeedPrefs();
-    ["planner-feed-layer-moon", "planner-feed-layer-holidays", "planner-feed-layer-notes"].forEach((id) => {
-      el(id)?.addEventListener("change", () => {
-        feedLayerPrefs.moon = el("planner-feed-layer-moon")?.checked === true;
-        feedLayerPrefs.holidays = el("planner-feed-layer-holidays")?.checked === true;
-        feedLayerPrefs.notes = el("planner-feed-layer-notes")?.checked === true;
+    Object.keys(FEED_LAYER_IDS).forEach((layer) => {
+      el(FEED_LAYER_IDS[layer])?.addEventListener("change", () => {
+        feedLayerPrefs[layer] = el(FEED_LAYER_IDS[layer])?.checked === true;
         saveFeedPrefs();
-        applyFeedState();
+        syncFeedPrefsToControls();
+        pushFeedPrefs();
       });
     });
     el("planner-feed-notes-format")?.addEventListener("change", (event) => {
       feedLayerPrefs.notesFormat = event.target?.value === "journal" ? "journal" : "events";
       saveFeedPrefs();
-      applyFeedState();
+      pushFeedPrefs();
     });
 
     const calendar = getCalendar();

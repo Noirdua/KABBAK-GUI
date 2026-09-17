@@ -4539,7 +4539,7 @@
       const result = await service.requestJson(
         "PATCH",
         service.buildApiUrl("/api/v1/profile/location"),
-        input
+        { ...input, utcOffsetMinutes: -new Date().getTimezoneOffset() }
       );
       state.location = result?.location ? { ...result.location } : { latitude: input.latitude, longitude: input.longitude, label: input.label };
       syncLocationUi();

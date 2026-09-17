@@ -12653,38 +12653,6 @@
         flex: 1 1 100%;
       }
     }
-    #month-strip {
-      height: 28px;
-      background: var(--tt-bg);
-      border-bottom: 1px solid var(--tt-surface);
-      box-sizing: border-box;
-      overflow: hidden;
-      padding-left: 0;
-      padding-right: 0;
-    }
-    #month-strip .month-strip-track {
-      height: 100%;
-      display: grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
-    }
-    #month-strip .month-strip-segment {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 600;
-      color: #e5e7eb;
-      letter-spacing: 0.01em;
-      border-left: 1px solid rgba(255, 255, 255, 0.08);
-      box-sizing: border-box;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      text-transform: uppercase;
-    }
-    #month-strip .month-strip-segment:first-child {
-      border-left: 0;
-    }
     #now-panel {
       --now-square-size: min(85vmin, calc(100vw - 172px), calc(100svh - 92px));
         --now-sky-width: max(calc(var(--now-square-size) * 3.25), calc(100% + 420px));
@@ -13232,6 +13200,19 @@
       margin-top: 1px;
     }
 
+    .toastui-calendar-see-more-container {
+      z-index: 60;
+    }
+
+    .toastui-calendar-see-more .toastui-calendar-more-title-date,
+    .toastui-calendar-see-more .toastui-calendar-more-title-day {
+      color: var(--tt-text-bright, #e5e7eb);
+    }
+
+    .toastui-calendar-see-more .toastui-calendar-month-more-list {
+      scrollbar-width: thin;
+    }
+
     .toastui-calendar-timegrid-time-column .toastui-calendar-timegrid-current-time {
       font-size: 12px;
       font-weight: 700;
@@ -13251,43 +13232,6 @@
       box-shadow: none;
       text-shadow: none;
       z-index: 5;
-    }
-
-    .toastui-calendar-timegrid-time-column .toastui-calendar-timegrid-current-time .now-celestial-chip {
-      width: auto;
-      height: auto;
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      justify-content: center;
-      gap: 0;
-      line-height: 1;
-      border: none;
-      background: transparent;
-      box-shadow: none;
-      text-shadow: none;
-    }
-
-    .toastui-calendar-timegrid-time-column .toastui-calendar-timegrid-current-time .now-celestial-icon {
-      font-size: 34px;
-      line-height: 1;
-    }
-
-    .toastui-calendar-timegrid-time-column .toastui-calendar-timegrid-current-time .now-celestial-value {
-      font-size: 10px;
-      font-weight: 800;
-      line-height: 1;
-      letter-spacing: 0.01em;
-    }
-
-    .toastui-calendar-timegrid-time-column .toastui-calendar-timegrid-current-time.is-sun .now-celestial-chip {
-      color: #facc15;
-      filter: drop-shadow(0 0 var(--sun-glow-size, 10px) rgba(250, 204, 21, var(--sun-glow-alpha, 0.75)));
-    }
-
-    .toastui-calendar-timegrid-time-column .toastui-calendar-timegrid-current-time.is-moon .now-celestial-chip {
-      color: var(--tt-text-cool-bright);
-      filter: drop-shadow(0 0 8px rgba(148, 163, 184, var(--moon-glow-alpha, 0.5)));
     }
 
     .toastui-calendar-timegrid-time-column {
@@ -16382,9 +16326,18 @@
     }
     .planner-shell {
       display: grid;
-      grid-template-rows: auto minmax(0, 1fr) auto;
+      /* toolbar, filter bar, calendar body, status */
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
       height: 100%;
       min-height: 0;
+    }
+    /* Hide the calendar until the planner has applied its theme and events, so
+       opening Calendar never flashes the unstyled/empty grid. */
+    #planner-section .planner-calendar-wrap {
+      visibility: hidden;
+    }
+    #planner-section.is-calendar-ready .planner-calendar-wrap {
+      visibility: visible;
     }
     .planner-toolbar {
       display: flex;
@@ -16565,6 +16518,88 @@
       font-size: 12px;
       color: var(--tt-text-muted);
       padding: 0 16px 8px;
+    }
+    .planner-status[data-tone="error"] {
+      color: #f87171;
+    }
+    .planner-filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--tt-border);
+      background: var(--tt-bg-deep);
+    }
+    .planner-filter-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--tt-text-muted);
+    }
+    .planner-filters .planner-layer {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--tt-text);
+      cursor: pointer;
+    }
+    .planner-filter-item {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .planner-filter-gear {
+      border: 0;
+      background: transparent;
+      color: var(--tt-text-muted);
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+      padding: 2px;
+    }
+    .planner-filter-gear:hover {
+      color: var(--tt-text);
+    }
+    .planner-filter-popover {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 90;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 210px;
+      padding: 10px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: var(--tt-bg-deepest);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+    .planner-filter-popover strong {
+      font-size: 12px;
+      color: var(--tt-text-bright, var(--tt-text));
+    }
+    .planner-filter-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--tt-text);
+      cursor: pointer;
+    }
+    .planner-field-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px 8px;
+    }
+    .planner-field-actions .planner-status {
+      padding: 0;
     }
     .planner-modal {
       position: fixed;

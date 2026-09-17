@@ -136,7 +136,7 @@
       "app/ui-admin.js?v=20260917-publish-queue"
     ],
     profile: [
-      "app/ui-profile.js?v=20260917-profile-media"
+      "app/ui-profile.js?v=20260917-subs"
     ]
   };
 

@@ -23,8 +23,7 @@
     onConnectionSaved: null,
     onReopenActiveSection: null,
     setActiveSection: null,
-    getActiveSection: null,
-    onRenderWeek: null
+    getActiveSection: null
   };
 
   let lastConnectionProbeResult = null;
@@ -891,16 +890,11 @@
     const deckChanged = String(previous.tarotDeck || "") !== String(normalized.tarotDeck || "");
     const timeFormatChanged = String(previous.timeFormat || "") !== String(normalized.timeFormat || "");
 
-    // Avoid full calendar rebuild unless location changed; Sky only needs panel refresh.
-    if (geoChanged && typeof config.onRenderWeek === "function") {
-      await config.onRenderWeek();
-    } else {
-      window.TarotAppRuntime?.refreshNowPanel?.({
-        forceSky: true,
-        forceCards: deckChanged || timeFormatChanged,
-        skipCalendarVisuals: true
-      });
-    }
+    // The panel is the only live surface; the calendar re-renders when opened.
+    window.TarotAppRuntime?.refreshNowPanel?.({
+      forceSky: true,
+      forceCards: deckChanged || timeFormatChanged
+    });
 
     if (options.quiet !== true) {
       setNowSettingsStatus(
@@ -983,8 +977,6 @@
       }
       if (connectionChanged && typeof config.onConnectionSaved === "function") {
         await config.onConnectionSaved(connectionResult, connectionSettings);
-      } else if (typeof config.onRenderWeek === "function") {
-        await config.onRenderWeek();
       }
 
       if (!didPersist || connectionResult.didPersist === false) {
@@ -1044,9 +1036,7 @@
       }
     );
 
-    if (options.render !== false && typeof config.onRenderWeek === "function") {
-      void config.onRenderWeek();
-    } else if (options.render !== false) {
+    if (options.render !== false) {
       window.TarotAppRuntime?.refreshNowPanel?.({ forceSky: true });
     }
 
@@ -1197,9 +1187,7 @@
           backgroundEnabled: Boolean(normalized.stellariumBackgroundEnabled)
         });
       }
-      if (typeof config.onRenderWeek === "function") {
-        void config.onRenderWeek();
-      } else if ((window.TarotSectionStateUi?.getActiveSection?.() || "home") === "sky") {
+      if ((window.TarotSectionStateUi?.getActiveSection?.() || "home") === "sky") {
         window.TarotAppRuntime?.refreshNowPanel?.({ forceSky: true });
       }
     });

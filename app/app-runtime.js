@@ -2,13 +2,10 @@
   "use strict";
 
   let config = {
-    calendar: null,
-    baseWeekOptions: null,
     defaultSettings: null,
     latEl: null,
     lngEl: null,
     nowElements: null,
-    calendarVisualsUi: null,
     homeUi: null,
     onStatus: null,
     hasTarotAccess: () => false,
@@ -23,8 +20,6 @@
   let currentGeo = null;
   let nowInterval = null;
   let runtimeListenersBound = false;
-  let centeredDayKey = "";
-  let renderInProgress = false;
   let currentTimeFormat = "minutes";
   let currentSettings = null;
 
@@ -108,19 +103,6 @@
     return { latitude, longitude };
   }
 
-  function applyCenteredWeekWindow(date) {
-    const startDayOfWeek = config.services.getCenteredWeekStartDay?.(date) ?? 0;
-    config.calendar?.setOptions?.({
-      week: {
-        ...(config.baseWeekOptions || {}),
-        startDayOfWeek
-      }
-    });
-    config.calendarVisualsUi?.applyTimeFormatTemplates?.();
-    config.calendar?.changeView?.("week");
-    config.calendar?.setDate?.(date);
-  }
-
   function startNowTicker() {
     stopNowTicker();
 
@@ -132,27 +114,16 @@
       if (config.shouldPollNow?.() === false) {
         return;
       }
-
-      if (!referenceData || !currentGeo || renderInProgress) {
+      if (!referenceData || !currentGeo) {
         return;
       }
 
       const now = new Date();
       config.homeUi?.syncNowPanelTheme?.(now);
       config.homeUi?.syncNowSkyBackground?.(currentGeo);
-      const currentDayKey = config.services.getDateKey?.(now) || "";
-      if (currentDayKey !== centeredDayKey) {
-        centeredDayKey = currentDayKey;
-        void renderWeek({ force: true });
-        return;
-      }
 
       try {
         await config.services.updateNowPanel?.(referenceData, currentGeo, config.nowElements, currentTimeFormat);
-        // Calendar strip is not visible on Sky; skip expensive DOM paint there.
-        if ((window.TarotSectionStateUi?.getActiveSection?.() || "home") !== "sky") {
-          config.calendarVisualsUi?.applyDynamicNowIndicatorVisual?.(now);
-        }
       } catch (_error) {
       }
     };
@@ -189,9 +160,6 @@
       currentTimeFormat,
       { forceCards: options.forceCards === true }
     );
-    if (options.skipCalendarVisuals !== true) {
-      config.calendarVisualsUi?.applyDynamicNowIndicatorVisual?.(now);
-    }
   }
 
   function syncNowTickerState() {
@@ -206,7 +174,7 @@
     }
 
     // Restore sky + panel once when entering Sky; ticker handles later polls.
-    refreshNowPanel({ forceSky: true, skipCalendarVisuals: true });
+    refreshNowPanel({ forceSky: true });
 
     if (!nowInterval) {
       startNowTicker();
@@ -214,9 +182,6 @@
       config.services.startCountdownTicker?.();
     }
   }
-
-  let weekRendered = false;
-  let weekRenderPromise = null;
 
   async function bootstrapConnectedShell(options = {}) {
     currentGeo = parseGeoInput();
@@ -248,72 +213,6 @@
     return magickDataset;
   }
 
-  async function renderWeek(options = {}) {
-    // The planner owns the calendar surface and renders profile events into it.
-    if (typeof window.TarotPlannerUi?.isActive === "function" && window.TarotPlannerUi.isActive()) {
-      window.TarotPlannerUi.render?.();
-      return;
-    }
-    if (weekRendered && options.force !== true) {
-      return;
-    }
-    if (weekRenderPromise) {
-      return weekRenderPromise;
-    }
-
-    renderInProgress = true;
-    weekRenderPromise = (async () => {
-      try {
-        const tarotAccessEnabled = config.hasTarotAccess?.() === true;
-        currentGeo = parseGeoInput();
-
-        if (!referenceData) {
-          setStatus("Loading planetary and calendar correspondences...");
-          referenceData = await config.services.loadReferenceData?.() || null;
-        }
-
-        // Magick dataset is large (~1MB). Only pull it when a section needs it,
-        // not on first home paint.
-        if (options.includeMagick === true && !magickDataset) {
-          await ensureMagickDatasetLoaded();
-        }
-
-        const anchorDate = new Date();
-        centeredDayKey = config.services.getDateKey?.(anchorDate) || "";
-        applyCenteredWeekWindow(anchorDate);
-
-        const events = await config.services.buildWeekEvents?.(currentGeo, referenceData, anchorDate) || [];
-        config.calendar?.clear?.();
-        config.calendar?.createEvents?.(events);
-        config.calendarVisualsUi?.applySunRulerGradient?.(anchorDate);
-        config.calendarVisualsUi?.updateMonthStrip?.();
-        requestAnimationFrame(() => {
-          config.calendarVisualsUi?.updateMonthStrip?.();
-        });
-
-        weekRendered = true;
-        setStatus(tarotAccessEnabled
-          ? `Rendered ${events.length} planetary + tarot events for lat ${currentGeo.latitude}, lng ${currentGeo.longitude}.`
-          : `Rendered ${events.length} planetary events for lat ${currentGeo.latitude}, lng ${currentGeo.longitude}.`);
-      } catch (error) {
-        setStatus(error?.message || "Failed to render calendar.");
-        throw error;
-      } finally {
-        renderInProgress = false;
-        weekRenderPromise = null;
-      }
-    })();
-
-    return weekRenderPromise;
-  }
-
-  async function ensureWeekRendered(options = {}) {
-    if (weekRendered && options.force !== true) {
-      return;
-    }
-    await renderWeek(options);
-  }
-
   function applySettings(settings) {
     currentTimeFormat = settings?.timeFormat || "minutes";
     currentSettings = settings ? { ...settings } : { ...(config.defaultSettings || {}) };
@@ -338,8 +237,6 @@
       currentTimeFormat = currentSettings.timeFormat || "minutes";
     }
 
-    centeredDayKey = config.services.getDateKey?.(new Date()) || centeredDayKey;
-
     if (!runtimeListenersBound) {
       document.addEventListener("section:changed", () => {
         syncNowTickerState();
@@ -357,8 +254,6 @@
     ...(window.TarotAppRuntime || {}),
     init,
     parseGeoInput,
-    applyCenteredWeekWindow,
-    renderWeek,
     applySettings,
     getReferenceData,
     ensureReferenceData,
@@ -369,7 +264,6 @@
     getCurrentSettings,
     refreshNowPanel,
     bootstrapConnectedShell,
-    ensureWeekRendered,
     ensureMagickDatasetLoaded
   };
 })();

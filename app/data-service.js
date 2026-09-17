@@ -1158,6 +1158,13 @@
     return requestJson("GET", buildApiUrl("/api/v1/profile/calendar-feed"));
   }
 
+  async function fetchProfileCalendarEvents(fromIso, toIso) {
+    return requestJson("GET", buildApiUrl("/api/v1/profile/calendar-events", {
+      from: fromIso,
+      to: toIso
+    }));
+  }
+
   async function createProfileLink(link) {
     return requestJson("POST", buildApiUrl("/api/v1/profile/links"), link);
   }
@@ -1301,8 +1308,11 @@
     );
   }
 
-  async function updateProfileCalendarFeed(action) {
-    return requestJson("POST", buildApiUrl("/api/v1/profile/calendar-feed"), { action });
+  async function updateProfileCalendarFeed(input) {
+    const payload = typeof input === "string"
+      ? { action: input }
+      : (input && typeof input === "object" ? input : {});
+    return requestJson("POST", buildApiUrl("/api/v1/profile/calendar-feed"), payload);
   }
 
   window.TarotDataService = {
@@ -1349,6 +1359,7 @@
     fetchQuietHours,
     fetchNowSnapshot,
     fetchProfileCalendarFeed,
+    fetchProfileCalendarEvents,
     fetchProfileEvent,
     fetchProfileEvents,
     fetchWeekEvents,

@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260917-profile-media">
+  <link rel="stylesheet" href="app/styles.css?v=20260917-noflicker">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -2801,9 +2801,6 @@
           <button class="planner-view-btn" type="button" data-planner-view="agenda" role="tab">Agenda</button>
         </div>
         <div class="planner-actions">
-          <label class="planner-layer"><input id="planner-layer-moon" type="checkbox"> Moon</label>
-          <label class="planner-layer"><input id="planner-layer-holidays" type="checkbox"> Holidays</label>
-          <label class="planner-layer"><input id="planner-layer-planetary" type="checkbox"> Planetary hours</label>
           <button id="planner-feed-toggle" class="planner-btn" type="button">Subscribe</button>
           <button id="planner-new" class="planner-btn planner-primary" type="button">New event</button>
         </div>
@@ -2886,11 +2883,18 @@
     <div class="planner-modal-card" role="dialog" aria-modal="true" aria-labelledby="planner-feed-title">
       <h2 id="planner-feed-title" class="planner-modal-title">Subscribe in your calendar app</h2>
       <p class="planner-feed-copy">A read-only feed. Your events show up in Apple Calendar, Google Calendar, Outlook and others, and refresh on their schedule. This does not sync changes back.</p>
+      <p class="planner-feed-copy">Astrology and moon dates are calculated for your saved location and time zone. Changing these subscriptions keeps the same feed URL.</p>
       <div class="planner-field">
         <span>Include</span>
+        <label class="planner-check"><input id="planner-feed-layer-user" type="checkbox" checked> My events</label>
+        <label class="planner-check"><input id="planner-feed-layer-notes" type="checkbox"> Notes &amp; journals</label>
+        <label class="planner-check"><input id="planner-feed-layer-astrology" type="checkbox"> Astrology (decans)</label>
         <label class="planner-check"><input id="planner-feed-layer-moon" type="checkbox" checked> Moon phases</label>
         <label class="planner-check"><input id="planner-feed-layer-holidays" type="checkbox" checked> Holidays</label>
-        <label class="planner-check"><input id="planner-feed-layer-notes" type="checkbox"> Notes &amp; journals</label>
+      </div>
+      <div class="planner-field-actions">
+        <button id="planner-feed-save" class="planner-btn planner-primary" type="button">Save subscriptions</button>
+        <span id="planner-feed-layer-status" class="planner-status" aria-live="polite"></span>
       </div>
       <label class="planner-field" id="planner-feed-notes-format-wrap" hidden>Notes format        <select id="planner-feed-notes-format">
           <option value="events">Calendar events (works everywhere)</option>
@@ -2920,7 +2924,7 @@
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
   <script src="app/app-config.js?v=20260916-favicon-upload"></script>
-  <script src="app/data-service.js?v=20260917-games"></script>
+  <script src="app/data-service.js?v=20260917-guisubs"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-popover-menu.js?v=20260915-tree-3d"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
@@ -2931,23 +2935,22 @@
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260917-profile-media"></script>
+  <script src="app/lazy-sections.js?v=20260917-subs"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
-  <script src="app/ui-settings.js?v=20260917-natal-chart"></script>
+  <script src="app/ui-settings.js?v=20260917-cleanup"></script>
   <script src="app/ui-dlc-shop.js?v=20260917-trial-settings"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
   <script src="app/ui-navigation.js?v=20260917-bookmark-shine"></script>
-  <script src="app/ui-calendar-formatting.js?v=20260307b"></script>
-  <script src="app/ui-calendar-visuals.js?v=20260307b"></script>
+
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
-  <script src="app/ui-section-state.js?v=20260917-games"></script>
-  <script src="app/ui-planner.js?v=20260915-notes"></script>
+  <script src="app/ui-section-state.js?v=20260917-cleanup"></script>
+  <script src="app/ui-planner.js?v=20260917-noflicker"></script>
   <script src="app/ui-inbox.js?v=20260915-reply"></script>
-  <script src="app/app-runtime.js?v=20260916-sky-revamp"></script>
+  <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20260917-games"></script>
+  <script src="app.js?v=20260917-cleanup"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>

@@ -106,7 +106,6 @@
     isSectionAccessible: () => true,
     getReferenceData: () => null,
     getMagickDataset: () => null,
-    calendarVisualsUi: null,
     tarotSpreadUi: null,
     settingsUi: null,
     homeUi: null,

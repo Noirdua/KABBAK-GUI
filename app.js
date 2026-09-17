@@ -1,4 +1,4 @@
-const { getCenteredWeekStartDay, getDateKey, getMoonPhaseName } = window.TarotCalc;
+const { getCenteredWeekStartDay, getDateKey } = window.TarotCalc;
 const { loadReferenceData, loadMagickDataset } = window.TarotDataService;
 const { buildWeekEvents } = window.TarotEventBuilder;
 const { updateNowPanel } = window.TarotNowUi;
@@ -42,15 +42,11 @@ const tarotSpreadUi = new Proxy({}, {
 const settingsUi = window.TarotSettingsUi || {};
 const chromeUi = window.TarotChromeUi || {};
 const navigationUi = window.TarotNavigationUi || {};
-const calendarFormattingUi = window.TarotCalendarFormatting || {};
-const calendarVisualsUi = window.TarotCalendarVisuals || {};
 const homeUi = window.TarotHomeUi || {};
 const sectionStateUi = window.TarotSectionStateUi || {};
 const appRuntime = window.TarotAppRuntime || {};
 
 const statusEl = document.getElementById("status");
-const monthStripEl = document.getElementById("month-strip");
-const calendarEl = document.getElementById("calendar");
 const plannerSectionEl = document.getElementById("planner-section");
 const settingsSectionEl = document.getElementById("settings-section");
 const audioCircleSectionEl = document.getElementById("audio-circle-section");
@@ -449,6 +445,19 @@ function readThemeToken(token, fallback) {
   return value || fallback;
 }
 
+// The month "more" popover has no intrinsic size (the library default is
+// width/height null), which collapses it to a sliver. Give it a real, viewport
+// aware box; the event list inside scrolls.
+function calendarMoreViewWidth() {
+  const viewport = typeof window === "undefined" ? 1024 : window.innerWidth;
+  return Math.round(Math.min(380, Math.max(240, viewport - 48)));
+}
+
+function calendarMoreViewHeight() {
+  const viewport = typeof window === "undefined" ? 800 : window.innerHeight;
+  return Math.round(Math.min(480, Math.max(240, viewport - 160)));
+}
+
 function buildCalendarTheme() {
   const border = readThemeToken("--tt-border", "#3f3f46");
   const surface = readThemeToken("--tt-bg", "#18181b");
@@ -509,8 +518,8 @@ function buildCalendarTheme() {
         border: `1px solid ${border}`,
         boxShadow: "0 2px 6px 0 rgba(0, 0, 0, 0.45)",
         backgroundColor: surfaceDeep,
-        width: null,
-        height: null
+        width: calendarMoreViewWidth(),
+        height: calendarMoreViewHeight()
       },
       gridCell: { headerHeight: 31, footerHeight: null },
       moreViewTitle: { backgroundColor: "inherit" }
@@ -622,7 +631,6 @@ appRuntime.init?.({
   latEl,
   lngEl,
   nowElements,
-  calendarVisualsUi,
   homeUi,
   hasTarotAccess: () => hasTarotFeatureAccess(),
   shouldPollNow: () => (sectionStateUi.getActiveSection?.() || "home") === "sky" && document.hidden !== true,
@@ -949,17 +957,6 @@ async function ensureConnectedApp(nextConnectionSettings = null) {
 
   await warmActiveDeckCache();
 
-  // Prefetch calendar in the background without blocking home.
-  if (typeof window.requestIdleCallback === "function") {
-    window.requestIdleCallback(() => {
-      void appRuntime.ensureWeekRendered?.();
-    }, { timeout: 5000 });
-  } else {
-    window.setTimeout(() => {
-      void appRuntime.ensureWeekRendered?.();
-    }, 1200);
-  }
-
   return true;
 }
 
@@ -1068,14 +1065,11 @@ sectionStateUi.init?.({
   calendar,
   tarotSpreadUi,
   settingsUi,
-  calendarVisualsUi,
   homeUi,
   isSectionAccessible: (section) => isSectionAccessible(section),
   getReferenceData: () => appRuntime.getReferenceData?.() || null,
   getMagickDataset: () => appRuntime.getMagickDataset?.() || null,
   elements: {
-    calendarEl,
-    monthStripEl,
     nowPanelEl,
     homeWelcomeEl,
     settingsSectionEl,
@@ -1223,22 +1217,10 @@ settingsUi.init?.({
   onConnectionSaved: async () => ensureConnectedApp(),
   getActiveSection: () => sectionStateUi.getActiveSection?.() || "home",
   setActiveSection: (section) => sectionStateUi.setActiveSection?.(section),
-  onReopenActiveSection: (section) => sectionStateUi.setActiveSection?.(section),
-  onRenderWeek: () => appRuntime.ensureWeekRendered?.({ force: true })
+  onReopenActiveSection: (section) => sectionStateUi.setActiveSection?.(section)
 });
 
 chromeUi.init?.();
-calendarFormattingUi.init?.({
-  getCurrentTimeFormat: () => appRuntime.getCurrentTimeFormat?.() || "minutes",
-  getReferenceData: () => appRuntime.getReferenceData?.() || null
-});
-calendarVisualsUi.init?.({
-  calendar,
-  monthStripEl,
-  getCurrentGeo: () => appRuntime.getCurrentGeo?.() || null,
-  parseGeoInput: () => appRuntime.parseGeoInput?.(),
-  getMoonPhaseName
-});
 homeUi.init?.({
   nowSkyLayerEl,
   nowPanelEl,
