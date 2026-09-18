@@ -24,7 +24,7 @@
       "app/ui-tarot-card-derivations.js?v=20260307b",
       "app/ui-tarot-detail.js?v=20260805-no-active-deck",
       "app/ui-tarot-relation-display.js?v=20260307b",
-      "app/ui-tarot.js?v=20260917-quote-meta",
+      "app/ui-tarot.js?v=20260918-compare-system",
       "app/ui-tarot-spread.js?v=20260905-reverse-off",
       "app/tarot-database-builders.js?v=20260424-decan-ranges-01",
       "app/tarot-database-assembly.js?v=20260402-princess-links-01",

@@ -868,7 +868,8 @@
       (Array.isArray(entries) ? entries : [])
         .map((entry) => ({
           id: String(entry?.id || "").trim(),
-          label: String(entry?.label || entry?.id || "").trim()
+          label: String(entry?.label || entry?.id || "").trim(),
+          system: String(entry?.system || "tarot").trim().toLowerCase() || "tarot"
         }))
         .filter((entry) => entry.id)
         .map((entry) => [entry.id, entry])
@@ -877,6 +878,16 @@
 
   function getRegisteredDeckList() {
     return Array.from(getRegisteredDeckOptionMap().values());
+  }
+
+  function getDeckSystem(deckId) {
+    const normalizedDeckId = String(deckId || "").trim();
+    return getRegisteredDeckOptionMap().get(normalizedDeckId)?.system || "tarot";
+  }
+
+  function getRegisteredDecksForSystem(system) {
+    const normalizedSystem = String(system || "tarot").trim().toLowerCase() || "tarot";
+    return getRegisteredDeckList().filter((deck) => deck.system === normalizedSystem);
   }
 
   function resolveRawCardVariants(card, deckIdToResolve = "") {
@@ -1132,7 +1143,7 @@
     }
 
     const activeDeckId = String(primaryCardRequest.deckId || requestedDeckId || getActiveDeck?.() || "").trim();
-    const availableCompareDecks = getRegisteredDeckList().filter((deck) => deck.id);
+    const availableCompareDecks = getRegisteredDecksForSystem(getDeckSystem(activeDeckId)).filter((deck) => deck.id);
     const requestedSequenceIds = Array.isArray(options?.sequenceIds)
       ? options.sequenceIds
         .map((sequenceId) => String(sequenceId || "").trim())
@@ -1220,7 +1231,7 @@
       return;
     }
 
-    const availableCompareDecks = getRegisteredDeckList().filter((deck) => deck.id);
+    const availableCompareDecks = getRegisteredDecksForSystem(getDeckSystem(activeVariant.deckId)).filter((deck) => deck.id);
 
     window.TarotUiLightbox?.open?.({
       ...primaryCardRequest,

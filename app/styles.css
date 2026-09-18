@@ -1962,6 +1962,9 @@
     .dlc-settings-config-row .settings-field {
       flex: 1 1 160px;
     }
+    .dlc-settings-config-row.mp-new-playlist-form[hidden] {
+      display: none;
+    }
     .dlc-link-entries {
       display: grid;
       gap: 10px;

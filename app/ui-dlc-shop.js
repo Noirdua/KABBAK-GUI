@@ -1428,12 +1428,18 @@
       .replace(/^-+|-+$/g, "") || "playlist";
 
     let config = { align: "center", playlists: [] };
+    let configLoadError = "";
     try {
       const payload = await service.requestJson("GET", service.buildApiUrl(`/api/v1/plugins/${plugin.name}/config`));
-      if (payload?.config && typeof payload.config === "object") {
-        config = { align: "center", playlists: [], ...payload.config };
+      const loaded = payload?.config;
+      if (loaded && typeof loaded === "object" && !Array.isArray(loaded)) {
+        config = { align: "center", playlists: [], ...loaded };
+      } else {
+        configLoadError = "The server returned an unexpected config shape.";
       }
-    } catch (_error) {}
+    } catch (error) {
+      configLoadError = `Could not load the saved playlists (${error?.message || "request failed"}).`;
+    }
     if (!Array.isArray(config.playlists)) {
       const migrated = [];
       Object.entries(config.playlistOrder || {}).forEach(([name, tracks]) => {
@@ -1444,6 +1450,9 @@
         });
       });
       config.playlists = migrated;
+    }
+    if (configLoadError) {
+      status.set(`${configLoadError} Editing will save over the stored config.`, true);
     }
 
     let uploadLimitBytes = 0;
@@ -1543,6 +1552,29 @@
     playlistRow.appendChild(alignSelect);
     settingsBody.appendChild(playlistRow);
 
+    const playlistHint = document.createElement("span");
+    playlistHint.className = "settings-field-hint";
+    settingsBody.appendChild(playlistHint);
+
+    const newPlaylistForm = document.createElement("div");
+    newPlaylistForm.className = "dlc-settings-config-row mp-new-playlist-form";
+    newPlaylistForm.hidden = true;
+    const newPlaylistInput = document.createElement("input");
+    newPlaylistInput.type = "text";
+    newPlaylistInput.className = "dlc-create-name";
+    newPlaylistInput.placeholder = "New playlist name";
+    newPlaylistInput.maxLength = 60;
+    const newPlaylistCreate = document.createElement("button");
+    newPlaylistCreate.type = "button";
+    newPlaylistCreate.className = "dlc-shop-btn";
+    newPlaylistCreate.textContent = "Create";
+    const newPlaylistCancel = document.createElement("button");
+    newPlaylistCancel.type = "button";
+    newPlaylistCancel.className = "dlc-shop-btn";
+    newPlaylistCancel.textContent = "Cancel";
+    newPlaylistForm.append(newPlaylistInput, newPlaylistCreate, newPlaylistCancel);
+    settingsBody.appendChild(newPlaylistForm);
+
     const listHead = document.createElement("div");
     listHead.className = "dlc-settings-row-head";
     listHead.innerHTML = `<strong>Library</strong><span class="settings-field-hint">${adminMode ? "Upload once. Check songs for this playlist, then Save Playlist." : "Songs assigned to the selected playlist."}</span>`;
@@ -1562,15 +1594,30 @@
 
     function refreshPlaylistSelect() {
       playlistSelect.innerHTML = "";
-      (config.playlists || []).forEach((entry) => {
+      const playlists = Array.isArray(config.playlists) ? config.playlists : [];
+      if (!playlists.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "— no playlists yet —";
+        option.selected = true;
+        playlistSelect.appendChild(option);
+        currentPlaylistId = "";
+        deletePlaylistBtn.disabled = true;
+        playlistHint.textContent = adminMode
+          ? "No playlists yet. Click ＋ New Playlist to create one."
+          : "No playlists have been created yet.";
+        return;
+      }
+      playlists.forEach((entry) => {
         const option = document.createElement("option");
         option.value = entry.id;
         option.textContent = entry.name || entry.id;
         playlistSelect.appendChild(option);
       });
-      if (!currentPlaylist()) currentPlaylistId = config.playlists[0]?.id || "";
+      if (!currentPlaylist()) currentPlaylistId = playlists[0].id;
       playlistSelect.value = currentPlaylistId;
       deletePlaylistBtn.disabled = !adminMode || !currentPlaylist();
+      playlistHint.textContent = "";
     }
 
     function renderLibraryList() {
@@ -1635,22 +1682,53 @@
       renderLibraryList();
     });
 
-    newPlaylistBtn.addEventListener("click", async () => {
+    newPlaylistBtn.addEventListener("click", () => {
       if (!adminMode) return;
-      const name = String(window.prompt("New playlist name:") || "").trim();
-      if (!name) return;
+      newPlaylistForm.hidden = false;
+      newPlaylistInput.value = "";
+      newPlaylistInput.focus();
+      status.set("");
+    });
+
+    newPlaylistCancel.addEventListener("click", () => {
+      newPlaylistForm.hidden = true;
+      newPlaylistInput.value = "";
+    });
+
+    newPlaylistInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        newPlaylistCreate.click();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        newPlaylistCancel.click();
+      }
+    });
+
+    newPlaylistCreate.addEventListener("click", async () => {
+      const name = String(newPlaylistInput.value || "").trim();
+      if (!name) {
+        status.set("Type a playlist name first.", true);
+        newPlaylistInput.focus();
+        return;
+      }
       let id = slugPlaylist(name);
       const used = new Set((config.playlists || []).map((entry) => entry.id));
       let suffix = 2;
       while (used.has(id)) id = `${slugPlaylist(name)}-${suffix++}`;
       const next = { ...config, playlists: [...(config.playlists || []), { id, name, tracks: [] }] };
+      newPlaylistCreate.disabled = true;
       try {
         await saveConfig(next, `Playlist '${name}' created.`);
         currentPlaylistId = id;
         refreshPlaylistSelect();
         renderLibraryList();
+        newPlaylistForm.hidden = true;
+        newPlaylistInput.value = "";
       } catch (error) {
         status.set(`Could not create playlist. ${error?.message || ""}`, true);
+      } finally {
+        newPlaylistCreate.disabled = false;
       }
     });
 
@@ -1730,7 +1808,7 @@
       saveBtn.addEventListener("click", async () => {
         const playlist = currentPlaylist();
         if (!playlist) {
-          status.set("Create a playlist first.", true);
+          status.set("Create a playlist first (use ＋ New Playlist).", true);
           return;
         }
         const tracks = [...listEl.querySelectorAll("input[type='checkbox']:checked")].map((box) => box.dataset.track);
