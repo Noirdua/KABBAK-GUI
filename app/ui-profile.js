@@ -63,7 +63,6 @@
     noteStatsEl: document.getElementById("profile-note-stats"),
     noteShareBtn: document.getElementById("profile-note-share"),
     feedListEl: document.getElementById("profile-feed-list"),
-    postInputEl: document.getElementById("profile-post-input"),
     postTitleEl: document.getElementById("profile-post-title"),
     postToolsEl: document.getElementById("profile-post-tools"),
     postFilesEl: document.getElementById("profile-post-files"),
@@ -74,6 +73,9 @@
     postNewBtn: document.getElementById("profile-post-new"),
     postEvidenceBtn: document.getElementById("profile-post-evidence"),
     postEvidenceCountEl: document.getElementById("profile-post-evidence-count"),
+    postBlocksEl: document.getElementById("profile-post-blocks"),
+    postEvidenceListEl: document.getElementById("profile-post-evidence-list"),
+    postAddTextBtnEl: document.getElementById("profile-post-add-text"),
     postComposerEl: document.getElementById("profile-post-composer"),
     postPreviewCardEl: document.getElementById("profile-post-preview-card"),
       noteTitleEl: document.getElementById("profile-note-title"),
@@ -96,12 +98,6 @@
       quickNoteTimeEl: document.getElementById("profile-quicknote-time"),
       quickNoteSaveBtn: document.getElementById("profile-quicknote-save"),
       quickNotesListEl: document.getElementById("profile-quicknotes-list"),
-      quizAccuracyEl: document.getElementById("profile-quiz-accuracy"),
-      quizAttemptsEl: document.getElementById("profile-quiz-attempts"),
-      quizCorrectEl: document.getElementById("profile-quiz-correct"),
-      quizQuestionsEl: document.getElementById("profile-quiz-questions"),
-      quizCategoriesEl: document.getElementById("profile-quiz-categories"),
-      quizEmptyEl: document.getElementById("profile-quiz-empty"),
       locationLatEl: document.getElementById("profile-location-lat"),
       locationLngEl: document.getElementById("profile-location-lng"),
       locationLabelEl: document.getElementById("profile-location-label"),
@@ -132,8 +128,6 @@
       friendsRequestsEl: document.getElementById("profile-friends-requests"),
       friendsListEl: document.getElementById("profile-friends-list"),
       avatarEl: document.getElementById("profile-avatar"),
-      avatarImgEl: document.getElementById("profile-avatar-img"),
-      avatarInitialsEl: document.getElementById("profile-avatar-initials"),
       avatarInputEl: document.getElementById("profile-avatar-input"),
       bannerInputEl: document.getElementById("profile-banner-input"),
       titleNameEl: document.getElementById("profile-title-name"),
@@ -502,6 +496,18 @@
     return String(value || "")
       .replace(/<[^>]+>/g, " ")
       .replace(/&nbsp;/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function decodePostEntities(value) {
+    const holder = document.createElement("textarea");
+    holder.innerHTML = String(value || "");
+    return holder.value;
+  }
+
+  function postExcerptText(value) {
+    return decodePostEntities(String(value || "").replace(/<[^>]*>/g, " "))
       .replace(/\s+/g, " ")
       .trim();
   }
@@ -4351,194 +4357,8 @@
 
   // --- Shared journal entries (feed posts with comments) ---------------------
 
-  function setPostStatus(text, isError = false) {
-    const { postStatusEl } = getElements();
-    if (!postStatusEl) return;
-    postStatusEl.textContent = text || "";
-    postStatusEl.classList.toggle("is-error", isError);
-  }
-
   let postAttachments = [];
   let expandedPostId = "";
-
-  function updatePostCounter() {
-    const { postInputEl, postCountEl } = getElements();
-    if (postCountEl) {
-      postCountEl.textContent = `${String(postInputEl?.textContent || "").trim().length} / 999`;
-    }
-  }
-
-  function renderPostAttachments() {
-    const { postAttachmentsEl } = getElements();
-    if (!postAttachmentsEl) return;
-    postAttachmentsEl.textContent = "";
-    postAttachments.forEach((file, index) => {
-      const row = makeEl("div", "profile-post-attachment");
-      row.appendChild(makeEl("span", "", `${file.name} · ${Math.max(1, Math.round(file.size / 1024))} KB`));
-      const remove = makeEl("button", "profile-btn", "Remove");
-      remove.type = "button";
-      remove.addEventListener("click", () => {
-        postAttachments = postAttachments.filter((entry, i) => i !== index);
-        renderPostAttachments();
-      });
-      row.appendChild(remove);
-      postAttachmentsEl.appendChild(row);
-    });
-  }
-
-  function fileToAttachment(file) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve({
-        name: file.name,
-        type: file.type || "application/octet-stream",
-        size: file.size,
-        data: String(reader.result || "")
-      });
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(file);
-    });
-  }
-
-  const POST_HTML_TOOLS = [
-    { cmd: "bold", label: "B", title: "Bold" },
-    { cmd: "italic", label: "I", title: "Italic" },
-    { cmd: "underline", label: "U", title: "Underline" },
-    { cmd: "insertUnorderedList", label: "•", title: "Bullet list" },
-    { cmd: "insertOrderedList", label: "1.", title: "Numbered list" },
-    { cmd: "formatBlock", value: "blockquote", label: "❝", title: "Quote" },
-    { cmd: "formatBlock", value: "h3", label: "H", title: "Heading" }
-  ];
-
-  function ensurePostTools() {
-    const { postToolsEl } = getElements();
-    if (!postToolsEl || postToolsEl.childElementCount) return;
-    POST_HTML_TOOLS.forEach((tool) => {
-      const button = makeEl("button", "profile-format-btn", tool.label);
-      button.type = "button";
-      button.title = tool.title;
-      button.addEventListener("mousedown", (event) => {
-        event.preventDefault();
-        const { postInputEl } = getElements();
-        postInputEl?.focus();
-        document.execCommand(tool.cmd, false, tool.value || null);
-        updatePostCounter();
-      });
-      postToolsEl.appendChild(button);
-    });
-    const link = makeEl("button", "profile-format-btn", "Link");
-    link.type = "button";
-    link.title = "Link";
-    link.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      const url = window.prompt("Link URL", "https://");
-      if (!url) return;
-      const { postInputEl } = getElements();
-      postInputEl?.focus();
-      document.execCommand("createLink", false, url);
-    });
-    postToolsEl.appendChild(link);
-  }
-
-  let composerEvidence = [];
-
-  function updateComposerEvidenceCount() {
-    const { postEvidenceCountEl } = getElements();
-    if (postEvidenceCountEl) {
-      postEvidenceCountEl.textContent = composerEvidence.length
-        ? `${composerEvidence.length} proof${composerEvidence.length === 1 ? "" : "s"} selected`
-        : "";
-    }
-  }
-
-  // Live preview mirrors the public share page by rendering the server template
-  // into a script-less sandbox, so what the author sees is what a reader gets.
-  let postPreviewTimer = null;
-  let postPreviewRequestSeq = 0;
-
-  function collectPostDraft() {
-    const { postTitleEl, postInputEl } = getElements();
-    return {
-      title: String(postTitleEl?.value || "").trim(),
-      kind: "waking",
-      body: String(postInputEl?.innerHTML || "").trim(),
-      entries: composerEvidence.map((item) => ({ kind: "evidence", evidenceId: item.id })),
-      attachments: postAttachments,
-      evidence: composerEvidence
-    };
-  }
-
-  function postDraftIsEmpty(draft) {
-    const text = String(draft.body || "").replace(/<[^>]*>/g, "").trim();
-    return !draft.title && !text && !draft.entries.length && !draft.attachments.length;
-  }
-
-  function showPostPreviewNote(text, isError = false) {
-    const { postPreviewCardEl } = getElements();
-    if (!postPreviewCardEl) return;
-    postPreviewCardEl.textContent = "";
-    const note = makeEl("span", "profile-directory-empty", text);
-    note.classList.toggle("is-error", isError);
-    postPreviewCardEl.appendChild(note);
-  }
-
-  function showPostPreviewHtml(container, html, minHeight = "420px") {
-    if (!container) return;
-    container.textContent = "";
-    const frame = makeEl("iframe", "profile-post-preview-frame");
-    frame.setAttribute("sandbox", "");
-    frame.title = "Post preview";
-    frame.style.width = "100%";
-    frame.style.minHeight = minHeight;
-    frame.style.border = "1px solid #3f3f46";
-    frame.style.borderRadius = "8px";
-    frame.style.background = "#0f0f14";
-    frame.srcdoc = String(html || "");
-    container.appendChild(frame);
-  }
-
-  async function renderPostPreviewNow() {
-    const draft = collectPostDraft();
-    if (postDraftIsEmpty(draft)) {
-      showPostPreviewNote("Start writing to see the post preview.");
-      return;
-    }
-    const seq = ++postPreviewRequestSeq;
-    showPostPreviewNote("Rendering…");
-    try {
-      const result = await window.TarotDataService.previewProfilePost(draft);
-      if (seq !== postPreviewRequestSeq) return;
-      const html = String(result?.html || "");
-      if (!html) {
-        showPostPreviewNote("Preview unavailable.", true);
-        return;
-      }
-      const { postPreviewCardEl } = getElements();
-      showPostPreviewHtml(postPreviewCardEl, html);
-    } catch (error) {
-      if (seq !== postPreviewRequestSeq) return;
-      showPostPreviewNote(error?.message || "Could not render the preview.", true);
-    }
-  }
-
-  function renderPostPreview() {
-    if (postPreviewTimer) clearTimeout(postPreviewTimer);
-    postPreviewTimer = setTimeout(() => {
-      postPreviewTimer = null;
-      void renderPostPreviewNow();
-    }, 300);
-  }
-
-  function setPostComposerOpen(open) {
-    const { postComposerEl, postInputEl } = getElements();
-    if (!postComposerEl) return;
-    postComposerEl.hidden = !open;
-    document.querySelector(".profile-feed-card")?.classList.toggle("is-composing", open);
-    if (open) {
-      renderPostPreview();
-      postInputEl?.focus();
-    }
-  }
 
   // The "as posted" popup: owner posts render the server share template; posts
   // by other authors fall back to the local feed card.
@@ -4554,7 +4374,7 @@
         const result = await window.TarotDataService.getProfilePostShare(post.id);
         const html = String(result?.html || "");
         if (html) {
-          showPostPreviewHtml(body, html, "60vh");
+          window.PostEditorUi?.showPostPreviewHtml?.(body, html, "60vh");
           return;
         }
       } catch (_error) {
@@ -4570,32 +4390,6 @@
       ...post,
       authorName: authorName || state.displayName || ""
     }, {}));
-  }
-
-  async function previewComposerPost() {
-    if (!window.TaroOverlay?.open) return;
-    const body = makeEl("div", "profile-feed-list");
-    body.appendChild(makeEl("span", "profile-directory-empty", "Rendering…"));
-    window.TaroOverlay.open({ title: "Post preview", size: "medium", body });
-    const draft = collectPostDraft();
-    if (postDraftIsEmpty(draft)) {
-      body.textContent = "";
-      body.appendChild(makeEl("span", "profile-directory-empty", "Start writing to see the post preview."));
-      return;
-    }
-    try {
-      const result = await window.TarotDataService.previewProfilePost(draft);
-      const html = String(result?.html || "");
-      body.textContent = "";
-      if (!html) {
-        body.appendChild(makeEl("span", "profile-directory-empty", "Preview unavailable."));
-        return;
-      }
-      showPostPreviewHtml(body, html, "60vh");
-    } catch (error) {
-      body.textContent = "";
-      body.appendChild(makeEl("span", "profile-directory-empty", error?.message || "Could not render the preview."));
-    }
   }
 
   async function shareProfilePost(post) {
@@ -4619,7 +4413,7 @@
     body.textContent = "";
 
     if (result?.html) {
-      showPostPreviewHtml(body, result.html, "60vh");
+      window.PostEditorUi?.showPostPreviewHtml?.(body, result.html, "60vh");
     }
 
     const row = makeEl("div", "profile-post-compose-actions");
@@ -4662,83 +4456,6 @@
     }
   }
 
-  function togglePostComposer() {
-    const { postComposerEl } = getElements();
-    setPostComposerOpen(Boolean(postComposerEl?.hidden));
-  }
-
-  async function pickComposerEvidence() {
-    if (!window.TaroOverlay?.open) return;
-    const body = makeEl("div", "profile-feed-list");
-    body.appendChild(makeEl("span", "profile-directory-empty", "Loading…"));
-    window.TaroOverlay.open({ title: "Evidence — insert proof", size: "medium", body });
-    try {
-      const result = await window.TarotDataService.fetchEvidenceStore();
-      const items = Array.isArray(result?.evidence) ? result.evidence : [];
-      body.textContent = "";
-      if (!items.length) {
-        body.appendChild(makeEl("span", "profile-directory-empty", "Nothing collected yet. Use “Add to post” on any verse, card, or reference."));
-        return;
-      }
-      items.forEach((item) => {
-        const row = makeEl("div", "profile-feed-post");
-        row.appendChild(makeEl("strong", "", item.title || "Evidence"));
-        if (item.body) {
-          row.appendChild(makeEl("span", "profile-feed-post-meta", String(item.body).replace(/<[^>]*>/g, " ").slice(0, 160)));
-        }
-        const insert = makeEl("button", "profile-btn profile-btn-primary", "Insert");
-        insert.type = "button";
-        insert.addEventListener("click", () => {
-          if (!composerEvidence.some((entry) => entry.id === item.id)) {
-            composerEvidence.push(item);
-          }
-          updateComposerEvidenceCount();
-          renderPostPreview();
-          window.TaroOverlay.close();
-        });
-        row.appendChild(insert);
-        body.appendChild(row);
-      });
-    } catch (error) {
-      body.textContent = "";
-      body.appendChild(makeEl("span", "profile-directory-empty", error?.message || "Could not load evidence."));
-    }
-  }
-
-  async function submitPost() {
-    const { postInputEl, postTitleEl, postSubmitBtn } = getElements();
-    const body = String(postInputEl?.innerHTML || "").trim();
-    const text = String(postInputEl?.textContent || "").trim();
-    if (!text) {
-      setPostStatus("Write something first.", true);
-      return;
-    }
-    if (postSubmitBtn) postSubmitBtn.disabled = true;
-    try {
-      await window.TarotDataService.createProfilePost({
-        title: String(postTitleEl?.value || "").trim() || undefined,
-        body,
-        attachments: postAttachments,
-        evidenceIds: composerEvidence.map((item) => item.id)
-      });
-      if (postInputEl) postInputEl.innerHTML = "";
-      if (postTitleEl) postTitleEl.value = "";
-      postAttachments = [];
-      composerEvidence = [];
-      renderPostAttachments();
-      updateComposerEvidenceCount();
-      updatePostCounter();
-      renderPostPreview();
-      setPostComposerOpen(false);
-      setPostStatus("Posted.");
-      void renderProfileFeed();
-    } catch (error) {
-      setPostStatus(`Could not post. ${error?.message || ""}`.trim(), true);
-    } finally {
-      if (postSubmitBtn) postSubmitBtn.disabled = false;
-    }
-  }
-
   // "Add to post" from any bookmark/note control: append the item to one of the
   // user's own posts, or start a new post with it.
   async function addToPost(spec) {
@@ -4749,6 +4466,7 @@
     const addItem = async (postId) => {
       await window.TarotDataService.addPostItem(postId, {
         title: spec.title || spec.key,
+        body: spec.body || "",
         markType: spec.type || "",
         markKey: spec.key || ""
       });
@@ -5020,7 +4738,10 @@
         header.appendChild(titleLine);
 
         if (!open) {
-          const excerpt = String(post.body || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+          const firstTextEntry = (post.entries || []).find((entry) => (
+            entry.kind === "text" && window.PostEditorUi?.hasContent?.(entry.text) === true
+          ));
+          const excerpt = postExcerptText(post.body || firstTextEntry?.text || "");
           if (excerpt) {
             header.appendChild(makeEl("span", "profile-post-row-excerpt", excerpt.slice(0, 160)));
           }
@@ -5864,32 +5585,18 @@
     elements.taglineSaveBtn?.addEventListener("click", () => {
       void saveTagline();
     });
-    elements.postSubmitBtn?.addEventListener("click", () => {
-      void submitPost();
-    });
-    elements.postInputEl?.addEventListener("input", updatePostCounter);
-    elements.postInputEl?.addEventListener("input", renderPostPreview);
-    elements.postTitleEl?.addEventListener("input", renderPostPreview);
-    elements.postNewBtn?.addEventListener("click", togglePostComposer);
-    document.getElementById("profile-post-preview-btn")?.addEventListener("click", previewComposerPost);
-    document.getElementById("profile-post-cancel")?.addEventListener("click", () => {
-      setPostComposerOpen(false);
-    });
-    elements.postEvidenceBtn?.addEventListener("click", () => {
-      void pickComposerEvidence();
-    });
-    elements.postFilesEl?.addEventListener("change", async (event) => {
-      const files = Array.from(event.target.files || []);
-      event.target.value = "";
-      for (const file of files) {
-        const attachment = await fileToAttachment(file);
-        if (attachment) postAttachments.push(attachment);
+    window.PostEditorUi?.mount?.({
+      getAttachments: () => postAttachments,
+      clearAttachments: () => {
+        postAttachments = [];
+      },
+      onPosted: () => {
+        void renderProfileFeed();
       }
-      renderPostAttachments();
-      renderPostPreview();
     });
-    ensurePostTools();
-    updatePostCounter();
+    elements.postNewBtn?.addEventListener("click", () => {
+      window.PostEditorUi?.toggle?.();
+    });
     elements.noteEditorEl?.addEventListener("input", updateNoteStats);
     elements.noteShareBtn?.addEventListener("click", () => {
       void toggleShareActiveNote();
@@ -5995,7 +5702,6 @@
     void refreshProfile();
     // Load the posts feed on first open, not only after posting.
     void renderProfileFeed();
-    void updateComposerEvidenceCount();
   }
 
   function readPdfTheme() {

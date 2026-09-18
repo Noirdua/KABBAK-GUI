@@ -662,19 +662,22 @@
       const result = document.getElementById("admin-message-result");
       const copyBtn = document.getElementById("admin-message-copy");
       const openBtn = document.getElementById("admin-message-open");
+      let hasShareLink = false;
       if (isPublic) {
         const page = created?.message || created || {};
         const path = String(created?.path || page.path || "");
+        const token = String(page.token || "");
+        hasShareLink = Boolean(path || token);
         const url = path
           ? window.TarotDataService.buildApiUrl(path)
-          : window.TarotDataService.buildApiUrl(`/api/v1/share/${page.token || ""}`);
+          : (hasShareLink ? window.TarotDataService.buildApiUrl(`/api/v1/share/${token}`) : "");
         if (urlEl) urlEl.value = url;
       } else if (urlEl) {
         urlEl.value = "";
       }
-      if (result) result.hidden = !isPublic;
-      if (copyBtn) copyBtn.hidden = !isPublic;
-      if (openBtn) openBtn.hidden = !isPublic;
+      if (result) result.hidden = !isPublic || !hasShareLink;
+      if (copyBtn) copyBtn.hidden = !isPublic || !hasShareLink;
+      if (openBtn) openBtn.hidden = !isPublic || !hasShareLink;
 
       if (messageTargetClientId) {
         setMessageStatus("Direct message delivered to their inbox.");
@@ -684,7 +687,7 @@
         const failed = Array.isArray(created?.failures) ? created.failures.length : 0;
         setMessageStatus(`Delivered to ${delivered} inbox${delivered === 1 ? "" : "es"}${failed ? ` · ${failed} failed` : ""}.`);
         setStatus("Message sent.");
-      } else if (isPublic) {
+      } else if (isPublic && hasShareLink) {
         setMessageStatus("Sent to every user's inbox. The URL below is a public page you can also share.");
         setStatus("Broadcast sent to all users.");
       } else {

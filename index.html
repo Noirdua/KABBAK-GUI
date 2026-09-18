@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260917-feedback">
+  <link rel="stylesheet" href="app/styles.css?v=20260917-mark-overlay-z">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -252,26 +252,37 @@
             <span class="profile-hub-card-copy">Theories with evidence — yours, your friends', and public profiles'. Journal entries live in the Journal.</span>
             <div class="profile-post-actions">
               <button id="profile-post-new" class="profile-btn profile-btn-primary" type="button">New post</button>
-              <button id="profile-post-evidence" class="profile-btn" type="button">Evidence</button>
-              <span id="profile-post-evidence-count" class="profile-hub-card-meta"></span>
             </div>
             <div id="profile-post-composer" class="profile-post-compose" hidden>
-              <input id="profile-post-title" class="profile-post-title-input" type="text" maxlength="300" placeholder="Claim — what are you proving?">
-              <div id="profile-post-tools" class="profile-format-bar"></div>
-              <div id="profile-post-input" class="profile-post-body-input" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="State the theory…"></div>
-              <div class="profile-post-compose-actions">
-                <label class="profile-btn" for="profile-post-files">Attach</label>
-                <input id="profile-post-files" type="file" multiple hidden>
-                <button id="profile-post-submit" class="profile-btn profile-btn-primary" type="button">Post</button>
-                <button id="profile-post-preview-btn" class="profile-btn" type="button">Preview</button>
-                <button id="profile-post-cancel" class="profile-btn" type="button">Cancel</button>
-                <span id="profile-post-count" class="profile-hub-card-meta">0 / 999</span>
-                <span id="profile-post-status" class="profile-location-status" aria-live="polite"></span>
-              </div>
-              <div id="profile-post-attachments" class="profile-post-attachments"></div>
-              <div id="profile-post-preview" class="profile-post-preview">
-                <span class="profile-hub-card-kicker">Preview</span>
-                <div id="profile-post-preview-card" class="profile-post-preview-card"></div>
+              <div class="profile-post-compose-grid">
+                <div class="profile-post-compose-main">
+                  <input id="profile-post-title" class="profile-post-title-input" type="text" maxlength="300" placeholder="Claim — what are you proving?">
+                  <div id="profile-post-tools" class="profile-format-bar"></div>
+                  <div id="profile-post-blocks" class="profile-post-blocks" aria-multiline="true"></div>
+                  <button id="profile-post-add-text" class="profile-post-add-block" type="button">+ Text block</button>
+                  <div class="profile-post-compose-actions">
+                    <label class="profile-btn" for="profile-post-files">Attach</label>
+                    <input id="profile-post-files" type="file" multiple hidden>
+                    <button id="profile-post-submit" class="profile-btn profile-btn-primary" type="button">Post</button>
+                    <button id="profile-post-preview-btn" class="profile-btn" type="button">Preview</button>
+                    <button id="profile-post-cancel" class="profile-btn" type="button">Cancel</button>
+                    <span id="profile-post-count" class="profile-hub-card-meta">0 / 999</span>
+                    <span id="profile-post-status" class="profile-location-status" aria-live="polite"></span>
+                  </div>
+                  <div id="profile-post-attachments" class="profile-post-attachments"></div>
+                  <div id="profile-post-preview" class="profile-post-preview">
+                    <span class="profile-hub-card-kicker">Preview</span>
+                    <div id="profile-post-preview-card" class="profile-post-preview-card"></div>
+                  </div>
+                </div>
+                <aside id="profile-post-aside" class="profile-post-aside" aria-label="Evidence">
+                  <span class="profile-post-aside-title">Evidence</span>
+                  <div id="profile-post-evidence-list" class="profile-post-evidence-list"></div>
+                  <div class="profile-post-aside-actions">
+                    <button id="profile-post-evidence" class="profile-btn" type="button">Insert proof</button>
+                    <span id="profile-post-evidence-count" class="profile-hub-card-meta"></span>
+                  </div>
+                </aside>
               </div>
             </div>
             <div id="profile-feed-list" class="profile-feed-list"></div>
@@ -2981,14 +2992,14 @@
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-popover-menu.js?v=20260915-tree-3d"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
-  <script src="app/ui-library-marks.js?v=20260917-feedback"></script>
+  <script src="app/ui-library-marks.js?v=20260917-mark-overlay-z"></script>
   <script src="app/plugins-host.js?v=20260916-playing-section"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260917-postshare"></script>
+  <script src="app/lazy-sections.js?v=20260917-quote-meta"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260917-cleanup"></script>

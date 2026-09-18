@@ -1740,6 +1740,7 @@
       type: "text",
       key: `${sourceId}|${workId}|${sectionId}|${verseId}`,
       title: `${verse.reference || verseId} · ${source?.title || sourceId}`,
+      body: String(verse?.text || "").trim(),
       meta: { sourceId, workId, sectionId, verseId }
     });
   }

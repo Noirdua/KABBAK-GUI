@@ -17301,6 +17301,184 @@
       display: flex;
       flex-direction: column;
     }
+    .profile-post-compose-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 230px;
+      gap: 12px;
+      align-items: start;
+    }
+    .profile-post-compose-main {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+    .profile-post-blocks {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .profile-post-add-block {
+      align-self: flex-start;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px dashed var(--tt-border);
+      background: transparent;
+      color: var(--tt-text-muted);
+      font: inherit;
+      font-size: 12px;
+      line-height: 1.4;
+      cursor: pointer;
+    }
+    .profile-post-add-block:hover {
+      color: var(--tt-text);
+      border-color: var(--tt-accent-soft);
+    }
+    .profile-post-block {
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+    }
+    .profile-post-block-tools {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-top: 4px;
+      opacity: 0.85;
+      transition: opacity 0.12s ease;
+    }
+    .profile-post-block:hover .profile-post-block-tools,
+    .profile-post-block:focus-within .profile-post-block-tools {
+      opacity: 1;
+    }
+    .profile-post-block-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 18px;
+      padding: 0;
+      border-radius: 5px;
+      border: 1px solid var(--tt-border);
+      background: var(--tt-bg-deepest);
+      color: var(--tt-text-muted);
+      font-size: 11px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .profile-post-block-btn:hover:not([disabled]) {
+      color: var(--tt-text);
+      border-color: var(--tt-accent-soft);
+    }
+    .profile-post-block-btn[disabled] {
+      opacity: 0.35;
+      cursor: default;
+    }
+    .profile-post-block-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .profile-post-block-text {
+      box-sizing: border-box;
+      min-height: 34px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--tt-text);
+      font: inherit;
+      font-size: 13px;
+    }
+    .profile-post-block-text:hover {
+      border-color: color-mix(in srgb, var(--tt-border) 60%, transparent);
+    }
+    .profile-post-block-text:focus {
+      border-color: var(--tt-border);
+      background: var(--tt-bg-deepest);
+      outline: none;
+    }
+    .profile-post-block-text[contenteditable][data-empty="true"]:before {
+      content: attr(data-placeholder);
+      color: var(--tt-text-dim);
+      pointer-events: none;
+    }
+    .profile-post-block.is-evidence .profile-post-block-body {
+      display: flex;
+      align-items: center;
+    }
+    .profile-post-block .profile-post-evidence-marker {
+      display: inline-flex;
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .profile-post-aside {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      border: 1px solid var(--tt-border);
+      border-radius: 8px;
+      background: var(--tt-bg-deepest);
+      position: sticky;
+      top: 8px;
+    }
+    .profile-post-aside-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--tt-text-muted);
+    }
+    .profile-post-evidence-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .profile-post-bucket-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 5px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--tt-border);
+      background: color-mix(in srgb, var(--tt-accent) 10%, transparent);
+      font-size: 12px;
+    }
+    .profile-post-bucket-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--tt-text);
+    }
+    .profile-post-bucket-meta {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      color: var(--tt-text-muted);
+      font-size: 11px;
+      line-height: 1.3;
+    }
+    .profile-post-bucket-item .profile-btn {
+      align-self: flex-start;
+      padding: 2px 8px;
+      font-size: 11px;
+    }
+    .profile-post-aside-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    @media (max-width: 760px) {
+      .profile-post-compose-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .profile-post-aside {
+        position: static;
+      }
+    }
     .profile-feed-list {
       max-width: 760px;
     }
@@ -17323,6 +17501,12 @@
     }
     .kabbak-mark-overlay .kabbak-mark-btn {
       align-self: flex-start;
+    }
+    /* The mark Actions overlay is opened from inside the card lightbox, which
+       sets z-index: 9999 inline and covers the viewport with its stage. Stack
+       the Actions modal above that reader or every click lands on the card. */
+    .taro-overlay.kabbak-mark-actions-overlay {
+      z-index: 10000;
     }
     .kabbak-mark-picker {
       display: flex;
@@ -17506,6 +17690,35 @@
       border: 1px solid var(--tt-border);
       font-size: 11px;
       color: var(--tt-text-muted);
+    }
+    .profile-post-evidence-chip {
+      display: inline-block;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: baseline;
+      margin: 0 2px;
+      padding: 1px 8px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--tt-accent) 45%, var(--tt-border));
+      background: color-mix(in srgb, var(--tt-accent) 16%, transparent);
+      color: var(--tt-text);
+      font-size: 12px;
+      line-height: 1.5;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+    }
+    .profile-post-evidence-chip::before {
+      content: "⟦";
+      margin-right: 3px;
+      color: var(--tt-accent);
+    }
+    .profile-post-evidence-chip::after {
+      content: "⟧";
+      margin-left: 3px;
+      color: var(--tt-accent);
     }
     .profile-post-attachments {
       display: flex;

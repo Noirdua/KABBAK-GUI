@@ -287,6 +287,7 @@
     picker.hidden = true;
     const itemPayload = () => ({
       title: spec.title || spec.key,
+      body: spec.body || "",
       markType: spec.type,
       markKey: spec.key
     });
@@ -364,7 +365,12 @@
     });
 
     body.append(bookmarkBtn, noteArea, saveNote, evidenceBtn, picker, status);
-    window.TaroOverlay.open({ title: spec.title || "Actions", size: "small", body });
+    window.TaroOverlay.open({
+      title: spec.title || "Actions",
+      size: "small",
+      className: "kabbak-mark-actions-overlay",
+      body
+    });
   }
 
   document.addEventListener("connection:access-updated", () => {

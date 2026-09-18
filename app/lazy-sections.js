@@ -24,7 +24,7 @@
       "app/ui-tarot-card-derivations.js?v=20260307b",
       "app/ui-tarot-detail.js?v=20260805-no-active-deck",
       "app/ui-tarot-relation-display.js?v=20260307b",
-      "app/ui-tarot.js?v=20260914-frame-iching",
+      "app/ui-tarot.js?v=20260917-quote-meta",
       "app/ui-tarot-spread.js?v=20260905-reverse-off",
       "app/tarot-database-builders.js?v=20260424-decan-ranges-01",
       "app/tarot-database-assembly.js?v=20260402-princess-links-01",
@@ -89,7 +89,7 @@
       "app/ui-alphabet-detail.js?v=20260822-rashi",
       "app/ui-alphabet-kabbalah.js",
       "app/ui-alphabet.js?v=20260917-word-options",
-      "app/ui-alphabet-text.js?v=20260914-zen-raw",
+      "app/ui-alphabet-text.js?v=20260917-quote-meta",
       "app/ui-alphabet-reference.js?v=20260913-syn-cells"
     ],
     scriber: [
@@ -134,10 +134,11 @@
       "app/ui-natal.js?v=20260917-natal-place"
     ],
     admin: [
-      "app/ui-admin.js?v=20260917-admin-share-url"
+      "app/ui-admin.js?v=20260917-admin-share-url-2"
     ],
     profile: [
-      "app/ui-profile.js?v=20260917-postshare"
+      "app/ui-post-editor.js?v=20260917-quote-meta",
+      "app/ui-profile.js?v=20260917-quote-meta"
     ]
   };
 

@@ -769,6 +769,7 @@
       type: "tarot",
       key: String(card?.id || ""),
       title: String(card?.name || card?.id || "Tarot card"),
+      body: String(card?.meaning || card?.summary || card?.meanings?.upright || "").trim(),
       meta: { cardId: String(card?.id || "") }
     });
   }
