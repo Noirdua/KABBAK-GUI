@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260918-music-playlist-fix">
+  <link rel="stylesheet" href="app/styles.css?v=20260919-account-login">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -185,19 +185,65 @@
   </div>
   <div id="connection-gate" class="connection-gate" hidden>
     <div class="connection-gate-card" role="dialog" aria-modal="true" aria-labelledby="connection-gate-title">
-      <div class="connection-gate-eyebrow">API Connection Required</div>
-      <h1 id="connection-gate-title" class="connection-gate-title">Connect KABBAK to its API</h1>
-      <p class="connection-gate-copy">This client stays in shell mode until it has a reachable API URL and, if required by the server, a valid API key.</p>
+      <div class="connection-gate-eyebrow">Account</div>
+      <h1 id="connection-gate-title" class="connection-gate-title">Sign in to KABBAK</h1>
+      <p class="connection-gate-copy">Sign in with your username and password. On a phone, set the API Base URL to your server's address.</p>
       <div class="connection-gate-fields">
         <label class="settings-field settings-field-full" for="connection-gate-base-url">API Base URL          <input id="connection-gate-base-url" type="url" inputmode="url" placeholder="http://localhost:3100">
         </label>
-        <label class="settings-field settings-field-full" for="connection-gate-api-key">API Key          <input id="connection-gate-api-key" type="password" autocomplete="off" placeholder="Leave blank only if your API does not require a key">
+      </div>
+      <div id="connection-gate-account" class="connection-gate-account">
+        <div class="connection-gate-step" data-account-step="login">
+          <div class="connection-gate-account-fields">
+            <input id="connection-gate-login-username" type="text" autocomplete="username" placeholder="Username" aria-label="Username">
+            <input id="connection-gate-login-password" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password">
+          </div>
+          <div class="connection-gate-account-actions">
+            <button id="connection-gate-signin" type="button">Sign in</button>
+            <button id="connection-gate-signup-switch" type="button">Create an account</button>
+          </div>
+        </div>
+
+        <div class="connection-gate-step" data-account-step="signup" hidden>
+          <div class="connection-gate-account-fields">
+            <input id="connection-gate-signup-username" type="text" autocomplete="username" placeholder="Username (public, 3-24 chars)" aria-label="Username">
+            <input id="connection-gate-signup-email" type="email" inputmode="email" autocomplete="email" placeholder="Email (private, for verification)" aria-label="Email">
+            <input id="connection-gate-signup-password" type="password" autocomplete="new-password" placeholder="Password (8+ characters)" aria-label="Password">
+          </div>
+          <div class="connection-gate-captcha">
+            <span id="connection-gate-captcha-prompt" class="connection-gate-captcha-prompt">Loading challenge…</span>
+            <button id="connection-gate-captcha-refresh" class="connection-gate-captcha-refresh" type="button" aria-label="New challenge">New</button>
+            <div id="connection-gate-captcha-choices" class="connection-gate-captcha-choices"></div>
+            <input id="connection-gate-captcha-answer" type="text" inputmode="numeric" autocomplete="off" placeholder="Answer" aria-label="Captcha answer">
+          </div>
+          <div class="connection-gate-account-actions">
+            <button id="connection-gate-signup" type="button">Start 30-day trial</button>
+            <button id="connection-gate-signin-switch" type="button">I already have an account</button>
+          </div>
+        </div>
+
+        <div class="connection-gate-step" data-account-step="verify" hidden>
+          <p class="connection-gate-verify-copy">We emailed a 6-digit code to <strong id="connection-gate-verify-email">your email</strong>. Enter it to activate your trial.</p>
+          <div class="connection-gate-account-fields">
+            <input id="connection-gate-verify-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" aria-label="Verification code">
+          </div>
+          <div class="connection-gate-account-actions">
+            <button id="connection-gate-verify" type="button">Verify and start trial</button>
+            <button id="connection-gate-resend" type="button">Resend code</button>
+          </div>
+        </div>
+
+        <div id="connection-gate-account-status" class="connection-gate-account-status" aria-live="polite"></div>
+      </div>
+      <button id="connection-gate-advanced-toggle" class="connection-gate-advanced-toggle" type="button">Use an API key instead</button>
+      <div id="connection-gate-advanced" class="connection-gate-advanced" hidden>
+        <label class="settings-field settings-field-full" for="connection-gate-api-key">API Key          <input id="connection-gate-api-key" type="password" autocomplete="off" placeholder="kabbak_… (operators and bots)">
         </label>
+        <div class="connection-gate-actions">
+          <button id="connection-gate-connect" type="button">Save And Connect</button>
+        </div>
       </div>
-      <div id="connection-gate-status" class="connection-gate-status" aria-live="polite">Enter your API details to continue.</div>
-      <div class="connection-gate-actions">
-        <button id="connection-gate-connect" type="button">Save And Connect</button>
-      </div>
+      <div id="connection-gate-status" class="connection-gate-status" aria-live="polite">Sign in, or create an account to start a trial.</div>
     </div>
   </div>
   <section id="profile-section" hidden>
@@ -622,6 +668,10 @@
               <span class="settings-connection-summary-label">Permissions</span>
               <span id="api-connection-summary-permissions" class="settings-connection-summary-value">Save settings to validate this API key.</span>
             </div>
+          </div>
+          <div class="settings-connection-actions">
+            <button id="api-logout" class="settings-logout-btn" type="button">Log out</button>
+            <span class="settings-logout-hint">Clears the saved API key on this device and returns to the connection screen.</span>
           </div>
         <section class="settings-panel settings-panel-wide">
           <div class="settings-panel-head">
@@ -2987,7 +3037,7 @@
   <script src="app/ui-theme.js?v=20260911-scroll-perf"></script>
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
-  <script src="app/app-config.js?v=20260919-native-shell"></script>
+  <script src="app/app-config.js?v=20260919-logout"></script>
   <script src="app/data-service.js?v=20260917-postshare"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-popover-menu.js?v=20260915-tree-3d"></script>
@@ -3014,7 +3064,8 @@
   <script src="app/ui-inbox.js?v=20260915-reply"></script>
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20260917-cleanup"></script>
+  <script src="app.js?v=20260919-account-login"></script>
+  <script src="app/auth-signup.js?v=20260919-account-login"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>

@@ -1003,6 +1003,28 @@ function bindConnectionGate() {
   });
 }
 
+function logOutOfApi() {
+  stopBackgroundReconnect();
+  window.TarotAppConfig?.clearConnectionKey?.();
+  window.TarotAppConfig?.updateConnectionAccess?.(null);
+  authLostHandled = false;
+  showConnectionGate("Signed out. Sign in again or create an account.", "pending");
+  hideLoadingScreen();
+  document.getElementById("connection-gate-login-username")?.focus?.();
+}
+
+window.logOutOfApi = logOutOfApi;
+
+function bindApiLogout() {
+  const button = document.getElementById("api-logout");
+  if (!button) {
+    return;
+  }
+  button.addEventListener("click", () => {
+    logOutOfApi();
+  });
+}
+
 const deferredUiInitState = {
   numbers: false,
   numPad: false,
@@ -1244,7 +1266,7 @@ document.addEventListener("connection:auth-lost", () => {
   authLostHandled = true;
   stopBackgroundReconnect();
   window.TarotAppConfig?.updateConnectionAccess?.(null);
-  showConnectionGate("Your API key is no longer valid. Enter a valid key to continue.", "error");
+  showConnectionGate("Your session ended. Sign in again to continue.", "error");
   hideLoadingScreen();
 });
 
@@ -1424,6 +1446,7 @@ applyAdminDeepLink();
   );
 
   bindConnectionGate();
+  bindApiLogout();
   const connected = await ensureConnectedApp();
   if (!connected) {
     // Skip authenticated warmups when the gate is up: they would just fire

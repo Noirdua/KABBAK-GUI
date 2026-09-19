@@ -867,6 +867,207 @@
     #connection-gate-connect:hover {
       background: linear-gradient(180deg, #f59e0b, #d97706);
     }
+    .connection-gate-account {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid var(--tt-border);
+      border-radius: 12px;
+      background: var(--tt-bg-deep);
+      display: grid;
+      gap: 10px;
+    }
+    .connection-gate-account[hidden] {
+      display: none;
+    }
+    .connection-gate-account-head {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--tt-text-muted);
+    }
+    .connection-gate-account-fields {
+      display: grid;
+      gap: 8px;
+    }
+    .connection-gate-account-fields input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: var(--tt-bg);
+      color: var(--tt-text);
+      font-size: 14px;
+    }
+    .connection-gate-account-fields input:focus {
+      outline: none;
+      border-color: var(--tt-brand);
+    }
+    .connection-gate-account-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .connection-gate-account-actions button {
+      flex: 1 1 auto;
+      appearance: none;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: var(--tt-surface);
+      color: var(--tt-text);
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .connection-gate-account-actions button:hover {
+      background: var(--tt-border);
+    }
+    #connection-gate-signup {
+      border-color: #f59e0b;
+      color: #111827;
+      background: linear-gradient(180deg, var(--tt-brand), #ea580c);
+    }
+    #connection-gate-signup:hover {
+      background: linear-gradient(180deg, #f59e0b, #d97706);
+    }
+    .connection-gate-account-actions button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .connection-gate-account-toggle {
+      margin-top: 12px;
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--tt-brand);
+      font-size: 13px;
+      cursor: pointer;
+      padding: 4px 0;
+      text-decoration: underline;
+    }
+    .connection-gate-account-toggle:hover {
+      color: var(--tt-text-bright);
+    }
+    .connection-gate-step[hidden] {
+      display: none;
+    }
+    .connection-gate-advanced-toggle {
+      margin-top: 12px;
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--tt-text-muted);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 4px 0;
+      text-decoration: underline;
+    }
+    .connection-gate-advanced-toggle:hover {
+      color: var(--tt-text-bright);
+    }
+    .connection-gate-advanced {
+      margin-top: 10px;
+      display: grid;
+      gap: 10px;
+    }
+    .connection-gate-advanced[hidden] {
+      display: none;
+    }
+    .connection-gate-advanced .connection-gate-actions {
+      margin-top: 0;
+    }
+    .connection-gate-account.is-busy {
+      opacity: 0.85;
+    }
+    .connection-gate-account-status {
+      min-height: 18px;
+      margin-top: 10px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--tt-text-soft);
+      word-break: break-word;
+    }
+    .connection-gate-account-status[data-tone="error"] {
+      color: #fca5a5;
+    }
+    .connection-gate-account-status[data-tone="success"] {
+      color: #86efac;
+    }
+    .connection-gate-account-status[data-tone="pending"] {
+      color: #fde68a;
+    }
+    .connection-gate-captcha {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px dashed var(--tt-border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--tt-bg) 70%, transparent);
+    }
+    .connection-gate-captcha-prompt {
+      flex: 1 1 auto;
+      min-width: 120px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--tt-text-bright);
+    }
+    .connection-gate-captcha-refresh {
+      appearance: none;
+      border: 1px solid var(--tt-border);
+      border-radius: 8px;
+      padding: 5px 10px;
+      background: var(--tt-surface);
+      color: var(--tt-text);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .connection-gate-captcha-choices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      width: 100%;
+    }
+    .connection-gate-captcha-choice {
+      appearance: none;
+      border: 1px solid var(--tt-border);
+      border-radius: 999px;
+      padding: 6px 14px;
+      background: var(--tt-surface);
+      color: var(--tt-text);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .connection-gate-captcha-choice:hover {
+      border-color: var(--tt-brand);
+      color: var(--tt-brand);
+    }
+    .connection-gate-captcha input {
+      flex: 1 1 90px;
+      min-width: 80px;
+      padding: 9px 12px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: var(--tt-bg);
+      color: var(--tt-text);
+      font-size: 14px;
+    }
+    .connection-gate-captcha input:focus {
+      outline: none;
+      border-color: var(--tt-brand);
+    }
+    .connection-gate-verify-copy {
+      margin: 0 0 10px;
+      color: var(--tt-text-soft);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .connection-gate-verify-copy strong {
+      color: var(--tt-text-bright);
+      word-break: break-all;
+    }
     .cache-loader-overlay {
       position: fixed;
       inset: 0;
@@ -3693,6 +3894,33 @@
       font-size: 13px;
       line-height: 1.5;
       word-break: break-word;
+    }
+    .settings-connection-actions {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .settings-logout-btn {
+      appearance: none;
+      border: 1px solid rgba(239, 68, 68, 0.55);
+      border-radius: 10px;
+      padding: 9px 16px;
+      background: rgba(239, 68, 68, 0.12);
+      color: #fca5a5;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .settings-logout-btn:hover {
+      background: rgba(239, 68, 68, 0.22);
+      color: #fecaca;
+    }
+    .settings-logout-hint {
+      color: var(--tt-text-muted);
+      font-size: 12px;
+      line-height: 1.5;
     }
     .calendar-year-control {
       display: flex;

@@ -606,6 +606,28 @@
 
       return current;
     },
+    // Log out: drop the saved key (both storages) but keep the API base URL so
+    // the gate is ready for another key or a new trial account.
+    clearConnectionKey() {
+      const previous = this.getConnectionSettings();
+      try {
+        window.localStorage.removeItem(apiKeyStorageKey);
+      } catch (_error) {}
+      try {
+        window.sessionStorage.removeItem(apiKeyStorageKey);
+      } catch (_error) {}
+
+      this.apiKey = "";
+
+      document.dispatchEvent(new CustomEvent("connection:updated", {
+        detail: {
+          previous,
+          current: { apiBaseUrl: this.getApiBaseUrl(), apiKey: "" }
+        }
+      }));
+
+      return { ...previous };
+    },
     updateConnectionSettings(nextSettings = {}) {
       const previous = this.getConnectionSettings();
       const current = normalizeConnectionSettings({
