@@ -222,7 +222,9 @@
 
     if (!storedBaseUrl) {
       const host = String(window.location.hostname || "");
-      if (host === "localhost" || host === "127.0.0.1") {
+      const nativeShell = document.documentElement.getAttribute("data-kabbak-native") === "1"
+        || window.Capacitor?.isNativePlatform?.() === true;
+      if (!nativeShell && (host === "localhost" || host === "127.0.0.1")) {
         storedBaseUrl = "http://localhost:3100";
       }
     }

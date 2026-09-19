@@ -15,6 +15,7 @@
   const SKIN_ROLES = new Set(["skin", "overhaul", "ui"]);
   const ACTIVE_SKIN_STORAGE_KEY = "kabbak-active-skin";
   const DEFAULT_SKIN_ID = "layout-default";
+  const NATIVE_SKIN_ID = "layout-phone";
   let refreshPromise = null;
   let activeSkinId = null;
   // Set while loading opted-in "public" plugins before the app is authenticated,
@@ -77,6 +78,19 @@
     } catch (_error) {}
   }
 
+  function isNativeShell() {
+    try {
+      if (document.documentElement.getAttribute("data-kabbak-native") === "1") {
+        return true;
+      }
+    } catch (_error) {}
+    try {
+      return window.Capacitor?.isNativePlatform?.() === true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
   function preservesDefaultChrome(plugin) {
     return plugin?.preserveChrome === true
       || String(plugin?.chrome || "").trim().toLowerCase() === "default"
@@ -108,10 +122,13 @@
     if (requested && requested !== "default" && skins.some((skin) => skin.id === requested)) {
       return requested;
     }
+    if (isNativeShell() && skins.some((skin) => skin.id === NATIVE_SKIN_ID)) {
+      return NATIVE_SKIN_ID;
+    }
     if (skins.some((skin) => skin.id === DEFAULT_SKIN_ID)) {
       return DEFAULT_SKIN_ID;
     }
-    return "";
+    return skins[0]?.id || "";
   }
 
   function selectedSkinId() {
@@ -646,6 +663,9 @@
 
         for (const name of [...mounted]) {
           if (!desiredNames.includes(name)) {
+            if (registered.get(name)?.bundled) {
+              continue;
+            }
             unmountPlugin(name);
             // Forget the old registration and assets so a reinstall (with
             // possibly new code) loads fresh instead of reusing stale closures.
@@ -703,7 +723,13 @@
       const id = String(plugin.id).trim();
       if (!id) return;
       const catalog = pendingCatalog.get(id) || {};
-      registered.set(id, { ...catalog, ...plugin, id });
+      const previous = registered.get(id);
+      registered.set(id, {
+        ...catalog,
+        ...plugin,
+        id,
+        bundled: Boolean(plugin.bundled || previous?.bundled)
+      });
       mountPlugin(id);
     },
     refresh,

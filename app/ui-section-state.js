@@ -194,6 +194,10 @@
     });
   }
 
+  function canGoBack() {
+    return sectionHistory.length > 0;
+  }
+
   function goBack() {
     const previous = sectionHistory.pop();
     if (!previous) {
@@ -731,6 +735,7 @@
     init,
     getActiveSection,
     setActiveSection,
+    canGoBack,
     goBack,
     registerSection,
     unregisterSection,
