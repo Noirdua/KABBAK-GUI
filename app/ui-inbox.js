@@ -25,13 +25,27 @@
 
   function setBadge(count) {
     const badge = el("inbox-badge");
-    if (!badge) return;
-    if (count > 0) {
-      badge.hidden = false;
-      badge.textContent = count > 99 ? "99+" : String(count);
-    } else {
-      badge.hidden = true;
-      badge.textContent = "";
+    if (badge) {
+      if (count > 0) {
+        badge.hidden = false;
+        badge.textContent = count > 99 ? "99+" : String(count);
+      } else {
+        badge.hidden = true;
+        badge.textContent = "";
+      }
+    }
+
+    // The inbox lives inside the Social menu now, so mirror unread state on the
+    // group trigger (attribute-driven, so menu rewrites cannot wipe it).
+    const group = el("open-community-menu");
+    if (group) {
+      if (count > 0) {
+        group.dataset.unread = count > 99 ? "99+" : String(count);
+        group.title = `${count} unread message${count === 1 ? "" : "s"}`;
+      } else {
+        delete group.dataset.unread;
+        group.removeAttribute("title");
+      }
     }
   }
 

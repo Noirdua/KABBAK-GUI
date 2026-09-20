@@ -131,6 +131,35 @@
     }
   }
 
+  // Groups without a dedicated section button (Lore, Social) light up whenever
+  // one of their menu items is the active section.
+  const GENERIC_GROUP_TRIGGER_IDS = new Set(["open-lore", "open-community-menu"]);
+
+  function syncNavState() {
+    document.querySelectorAll(".topbar-dropdown").forEach((dropdownEl) => {
+      const trigger = dropdownEl.querySelector(":scope > button[aria-haspopup='menu']");
+      if (!(trigger instanceof HTMLElement) || !GENERIC_GROUP_TRIGGER_IDS.has(trigger.id)) {
+        return;
+      }
+      const childActive = Array.from(dropdownEl.querySelectorAll(".topbar-dropdown-menu button"))
+        .some((button) => button.getAttribute("aria-pressed") === "true" || button.classList.contains("is-active"));
+      setPressed(trigger, childActive);
+    });
+
+    // Mark the active section for assistive tech (menu groups are skipped).
+    document.querySelectorAll(".topbar-actions .settings-trigger").forEach((button) => {
+      if (button.getAttribute("aria-haspopup") === "menu") {
+        return;
+      }
+      const active = button.getAttribute("aria-pressed") === "true" || button.classList.contains("is-active");
+      if (active) {
+        button.setAttribute("aria-current", "page");
+      } else {
+        button.removeAttribute("aria-current");
+      }
+    });
+  }
+
   function getReferenceData() {
     return config.getReferenceData?.() || null;
   }
@@ -294,7 +323,7 @@
     const isTarotOpen = activeSection === "tarot";
     const isTarotFrameOpen = activeSection === "tarot-frame";
     const isTarotHouseOpen = activeSection === "tarot-house";
-    const isTarotMenuOpen = isTarotOpen || isTarotFrameOpen || isTarotHouseOpen;
+    const isTarotMenuOpen = isTarotOpen || isTarotFrameOpen || isTarotHouseOpen || activeSection === "playing-cards";
     const isAstronomyOpen = activeSection === "astronomy";
     const isSkyOpen = activeSection === "sky";
     const isPlanetOpen = activeSection === "planets";
@@ -302,7 +331,7 @@
     const isNatalOpen = activeSection === "natal";
     const isZodiacOpen = activeSection === "zodiac";
     const isModalitiesOpen = activeSection === "modalities";
-    const isAstronomyMenuOpen = isAstronomyOpen || isPlanetOpen || isCyclesOpen || isZodiacOpen || isModalitiesOpen || isNatalOpen || isSkyOpen;
+    const isAstronomyMenuOpen = isAstronomyOpen || isPlanetOpen || isCyclesOpen || isZodiacOpen || isModalitiesOpen || isNatalOpen || isSkyOpen || isPlannerOpen;
     const isElementsOpen = activeSection === "elements";
     const isTattvasOpen = activeSection === "tattvas";
     const isIChingOpen = activeSection === "iching";
@@ -325,7 +354,7 @@
     const isAlphabetLettersOpen = activeSection === "alphabet-letters";
     const isAlphabetTextOpen = activeSection === "alphabet-text";
     const isAlphabetReferenceOpen = activeSection === "alphabet-reference";
-    const isAlphabetMenuOpen = isAlphabetOpen || isAlphabetLettersOpen || isAlphabetTextOpen || isAlphabetReferenceOpen;
+    const isAlphabetMenuOpen = isAlphabetOpen || isAlphabetLettersOpen || isAlphabetTextOpen || isAlphabetReferenceOpen || activeSection === "scriber";
     const isScriberOpen = activeSection === "scriber";
     const isNumbersOpen = activeSection === "numbers";
     const isNumPadOpen = activeSection === "num-pad";
@@ -443,6 +472,7 @@
     setPressed(elements.openEnochianEl, isEnochianOpen);
     setPressed(elements.openProfileEl, isProfileOpen);
     setPressed(elements.openAdminEl, isAdminOpen);
+    syncNavState();
     if (pendingProfileTab) window.ProfileUi?.setProfileTab?.(pendingProfileTab);
 
     if (isPlannerOpen) {

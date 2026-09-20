@@ -32,6 +32,20 @@
       --tt-scroll-track: #09090b;
       --tt-scroll-thumb: #3f3f46;
       --tt-scroll-thumb-hover: #6366f1;
+      --tt-browser-chrome-bottom: 0px;
+    }
+    @media (max-width: 900px), (hover: none) and (pointer: coarse) {
+      :root {
+        --tt-browser-chrome-bottom: 96px;
+      }
+    }
+    @media (display-mode: standalone) {
+      :root {
+        --tt-browser-chrome-bottom: 0px;
+      }
+    }
+    html[data-kabbak-native] {
+      --tt-browser-chrome-bottom: 0px;
     }
 
     html {
@@ -42,6 +56,24 @@
     * {
       scrollbar-width: thin;
       scrollbar-color: var(--tt-scroll-thumb) var(--tt-scroll-track);
+    }
+
+    /* Native controls (scrollbars, color/date pickers, autofill) follow the
+       dark theme instead of the OS default. */
+    html {
+      color-scheme: dark;
+    }
+
+    /* One consistent keyboard focus ring across chrome, menus, and panels.
+       :where() keeps specificity at zero so component styles can override. */
+    :where(button, a[href], summary, [role="button"], [role="menuitem"], [role="tab"], [tabindex]):focus-visible {
+      outline: 2px solid var(--tt-accent-strong);
+      outline-offset: 2px;
+    }
+
+    /* "You are here" marker for the active section inside the nav menu. */
+    .topbar-actions .settings-trigger[aria-current="page"] {
+      box-shadow: inset 3px 0 0 var(--tt-accent-strong);
     }
 
     *::-webkit-scrollbar {
@@ -407,7 +439,7 @@
         min-height: calc(100svh - 58px);
         max-height: calc(100svh - 58px);
         margin: 0;
-        padding: 14px 12px calc(18px + env(safe-area-inset-bottom, 0px));
+        padding: 14px 12px calc(18px + env(safe-area-inset-bottom, 0px) + var(--tt-browser-chrome-bottom, 0px));
         border-radius: 0 0 18px 18px;
         border-left: 0;
         border-right: 0;
@@ -434,7 +466,7 @@
       .topbar.is-menu-open .topbar-actions {
         min-height: calc(100svh - 52px);
         max-height: calc(100svh - 52px);
-        padding: 12px 10px calc(18px + env(safe-area-inset-bottom, 0px));
+        padding: 12px 10px calc(18px + env(safe-area-inset-bottom, 0px) + var(--tt-browser-chrome-bottom, 0px));
         border-radius: 0;
       }
       .settings-trigger {
@@ -702,7 +734,7 @@
       max-height: none;
       margin: 0;
       /* Top padding clears the brand button, which floats above the drawer. */
-      padding: 64px 14px calc(20px + env(safe-area-inset-bottom, 0px));
+      padding: 64px 14px calc(28px + env(safe-area-inset-bottom, 0px) + var(--tt-browser-chrome-bottom, 0px));
       align-content: start;
       border-radius: 0 18px 18px 0;
       border-top: 0;
@@ -712,6 +744,12 @@
       overflow-y: auto;
       overscroll-behavior: contain;
       animation: topbar-drawer-slide-in 180ms ease-out;
+    }
+    body[data-menu-layout="drawer"] .topbar.is-menu-open .topbar-actions::after {
+      content: "";
+      display: block;
+      height: calc(24px + env(safe-area-inset-bottom, 0px) + var(--tt-browser-chrome-bottom, 0px));
+      pointer-events: none;
     }
     /* The brand button floats over the scrolling drawer, so give it an opaque
        header strip or menu items slide up behind the KABBAK text. Same z-index
@@ -743,7 +781,9 @@
       inset: 0;
       z-index: 120;
       display: grid;
-      place-items: center;
+      place-items: start center;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       padding: 24px;
       background:
         radial-gradient(circle at top, rgba(245, 158, 11, 0.18), transparent 34%),
@@ -754,6 +794,10 @@
     }
     .connection-gate-card {
       width: min(460px, calc(100vw - 32px));
+      margin: auto 0;
+      max-height: calc(100dvh - 48px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       padding: 24px;
       border: 1px solid rgba(245, 158, 11, 0.28);
       border-radius: 18px;
@@ -784,6 +828,65 @@
     .connection-gate-fields {
       display: grid;
       gap: 12px;
+    }
+    .connection-gate-server {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .connection-gate-server-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 12px;
+      border: 1px solid var(--tt-border);
+      border-radius: 12px;
+      background: var(--tt-bg-deep);
+      color: var(--tt-text);
+      font-size: 14px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .connection-gate-server-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--tt-text-muted);
+      flex: 0 0 auto;
+    }
+    .connection-gate-server-btn[data-health="ok"] .connection-gate-server-dot {
+      background: #4ade80;
+      box-shadow: 0 0 8px rgba(74, 222, 128, 0.7);
+    }
+    .connection-gate-server-btn[data-health="pending"] .connection-gate-server-dot {
+      background: #fbbf24;
+    }
+    .connection-gate-server-btn[data-health="bad"] .connection-gate-server-dot {
+      background: #f87171;
+    }
+    .connection-gate-server-editor {
+      display: grid;
+      grid-template-columns: 1fr 88px;
+      gap: 8px;
+      align-items: end;
+    }
+    .connection-gate-server-editor[hidden] {
+      display: none;
+    }
+    .connection-gate-server-editor .settings-field {
+      margin: 0;
+    }
+    #connection-gate-server-apply {
+      grid-column: 1 / -1;
+      min-height: 40px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--tt-brand);
+      color: #18181b;
+      font-weight: 700;
+      cursor: pointer;
     }
     .connection-gate-status {
       min-height: 20px;
@@ -965,8 +1068,11 @@
     .connection-gate-forgot-switch:hover {
       color: var(--tt-text-bright);
     }
-    .connection-gate-advanced-toggle {
+    .connection-gate-method-row {
       margin-top: 12px;
+    }
+    .connection-gate-advanced-toggle {
+      margin-top: 0;
       appearance: none;
       border: 0;
       background: transparent;
@@ -16716,9 +16822,10 @@
       color: var(--tt-text);
     }
     .planner-shell {
-      display: grid;
-      /* toolbar, filter bar, calendar body, status */
-      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      /* Flex (not fixed grid rows) so hiding the toolbar filter bar on phones
+         cannot shift the calendar body off its 1fr track. */
+      display: flex;
+      flex-direction: column;
       height: 100%;
       min-height: 0;
     }
@@ -16824,6 +16931,7 @@
     .planner-body {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 300px;
+      flex: 1 1 auto;
       min-height: 0;
     }
     .planner-calendar-wrap {
@@ -16912,6 +17020,78 @@
     }
     .planner-status[data-tone="error"] {
       color: #f87171;
+    }
+    /* Phone chrome folds the view switcher, filters, and actions into one sheet.
+       Hidden on desktop, where those controls are already laid out inline. */
+    .planner-settings-btn {
+      display: none;
+    }
+    .planner-settings-sheet {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: auto;
+      /* 100dvh keeps the card above mobile browser chrome; a plain inset:0
+         would let it slide under the browser's bottom bar. */
+      height: 100vh;
+      height: 100dvh;
+      /* Below .planner-modal (300) so the event editor stacks above it. */
+      z-index: 250;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      /* Scroll the sheet, not the card, so absolutely-positioned gear popovers
+         are not clipped by the card. */
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .planner-settings-sheet[hidden] {
+      display: none;
+    }
+    .planner-settings-backdrop {
+      position: fixed;
+      inset: 0;
+      border: 0;
+      background: rgba(0, 0, 0, 0.55);
+      cursor: pointer;
+    }
+    .planner-settings-card {
+      position: relative;
+      z-index: 1;
+      width: min(460px, calc(100vw - 20px));
+      /* margin-top:auto pins a short card to the bottom but still allows
+         scrolling to the top when the card is taller than the viewport. */
+      margin: auto auto 0;
+      padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+      border: 1px solid var(--tt-border);
+      border-radius: 22px 22px 0 0;
+      background: var(--tt-bg);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .planner-settings-card > strong {
+      font-size: 16px;
+      color: var(--tt-text-bright);
+    }
+    .planner-settings-card .planner-filter-label {
+      margin: 4px 0 0;
+    }
+    .planner-settings-views,
+    .planner-settings-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+    }
+    .planner-settings-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .planner-settings-actions .planner-btn {
+      flex: 1;
     }
     .planner-filters {
       display: flex;
@@ -17238,6 +17418,23 @@
     }
     .topbar-badge[hidden] {
       display: none;
+    }
+    /* Unread count mirrored on a collapsed menu group trigger. */
+    .topbar-actions .settings-trigger[data-unread]::after {
+      content: attr(data-unread);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 16px;
+      height: 16px;
+      margin-left: 6px;
+      padding: 0 4px;
+      border-radius: 999px;
+      background: var(--tt-accent);
+      color: var(--tt-bg-deepest);
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
     }
     .planner-modal-wide {
       width: min(680px, 100%);

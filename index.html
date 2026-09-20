@@ -4,7 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>KABBAK</title>
-  <link id="app-favicon" rel="icon" href="favicon.ico" type="image/x-icon">
+  <meta name="description" content="KABBAK is a correspondence encyclopedia for tarot, kabbalah, astrology, alphabets, I Ching, and more.">
+  <meta name="theme-color" content="#18181b">
+  <link id="app-favicon" rel="icon" href="app/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="node_modules/@toast-ui/calendar/dist/toastui-calendar.min.css?v=20260309-home-calendar-fix">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-sans-hebrew/hebrew-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-sans-hebrew/hebrew-700.css">
@@ -17,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260919-reset-captcha">
+  <link rel="stylesheet" href="app/styles.css?v=20260920-sheet-overlay">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -109,17 +111,19 @@
           <button id="open-alphabet-letters" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Letter</button>
           <button id="open-alphabet-text" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Text</button>
           <button id="open-alphabet-reference" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Reference</button>
+          <button id="open-scriber" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Scriber</button>
         </div>
       </div>
       <div class="topbar-dropdown" aria-label="Astronomy menu">
-        <button id="open-astronomy" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="astronomy-subpages" aria-expanded="false">Astronomy ▾</button>
-        <div id="astronomy-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Astronomy subpages">
+        <button id="open-astronomy" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="astronomy-subpages" aria-expanded="false">Astrology ▾</button>
+        <div id="astronomy-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Astrology subpages">
+          <button id="open-calendar" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Calendar</button>
           <button id="open-cycles" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Cycles</button>
           <button id="open-modalities" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Modalities</button>
           <button id="open-natal" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Natal Chart</button>
-          <button id="open-planets" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Planet</button>
-          <button id="open-zodiac" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Zodiac</button>
+          <button id="open-planets" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Planets</button>
           <button id="open-sky" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Sky</button>
+          <button id="open-zodiac" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Zodiac</button>
         </div>
       </div>
       <div class="topbar-dropdown" aria-label="Audio menu">
@@ -129,11 +133,15 @@
           <button id="open-audio-notes" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Notes</button>
         </div>
       </div>
-      <button id="open-calendar" class="settings-trigger" type="button" aria-pressed="false">Calendar</button>
-      <button id="open-elements" class="settings-trigger" type="button" aria-pressed="false">Elements</button>
-      <button id="open-tattvas" class="settings-trigger" type="button" aria-pressed="false">Tattvas</button>
-      <button id="open-enochian" class="settings-trigger" type="button" aria-pressed="false">Enochian</button>
-      <button id="open-gods" class="settings-trigger" type="button" aria-pressed="false">Gods</button>
+      <div class="topbar-dropdown" aria-label="Lore menu">
+        <button id="open-lore" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="lore-subpages" aria-expanded="false">Lore ▾</button>
+        <div id="lore-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Lore subpages">
+          <button id="open-elements" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Elements</button>
+          <button id="open-tattvas" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Tattvas</button>
+          <button id="open-enochian" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Enochian</button>
+          <button id="open-gods" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Gods</button>
+        </div>
+      </div>
       <div class="topbar-dropdown" aria-label="I Ching menu">
         <button id="open-iching" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="iching-subpages" aria-expanded="false">I Ching ▾</button>
         <div id="iching-subpages" class="topbar-dropdown-menu" role="menu" aria-label="I Ching subpages">
@@ -143,7 +151,6 @@
           <button id="open-iching-phases" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Phases</button>
         </div>
       </div>
-      <button id="open-playing-cards" class="settings-trigger" type="button" aria-pressed="false">Playing Cards</button>
       <div class="topbar-dropdown" aria-label="Kabbalah menu">
         <button id="open-kabbalah" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="kabbalah-subpages" aria-expanded="false">Kabbalah ▾</button>
         <div id="kabbalah-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Kabbalah subpages">
@@ -164,10 +171,16 @@
           <button id="open-numbers-num-pad" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Num Pad</button>
         </div>
       </div>
-      <button id="open-quiz" class="settings-trigger" type="button" aria-pressed="false">Quiz</button>
-      <button id="open-community" class="settings-trigger" type="button" aria-pressed="false">Community</button>
-      <button id="open-games" class="settings-trigger" type="button" aria-pressed="false">Games</button>
-      <button id="open-scriber" class="settings-trigger" type="button" aria-pressed="false">Scriber</button>
+      <div class="topbar-dropdown" aria-label="Social menu">
+        <button id="open-community-menu" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="community-subpages" aria-expanded="false">Social ▾</button>
+        <div id="community-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Social subpages">
+          <button id="open-inbox" class="settings-trigger topbar-sub-trigger topbar-menu-inbox" type="button" role="menuitem" hidden>Inbox<span id="inbox-badge" class="topbar-badge" hidden></span></button>
+          <button id="open-community" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Board</button>
+          <button id="open-quiz" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Quiz</button>
+          <button id="open-games" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Games</button>
+          <button id="open-profile" class="settings-trigger topbar-sub-trigger topbar-menu-profile" type="button" role="menuitem" hidden>Profile</button>
+        </div>
+      </div>
       <div class="topbar-dropdown" aria-label="Tarot menu">
         <button id="open-tarot" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="tarot-subpages" aria-expanded="false">Tarot ▾</button>
         <div id="tarot-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Tarot subpages">
@@ -175,22 +188,33 @@
           <button id="open-tarot-spread" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Draw Spread</button>
           <button id="open-tarot-frame" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Frame</button>
           <button id="open-tarot-house" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">House</button>
+          <button id="open-playing-cards" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Playing Cards</button>
         </div>
       </div>
-      <button id="open-inbox" class="settings-trigger topbar-menu-inbox" type="button" aria-pressed="false" hidden>Inbox<span id="inbox-badge" class="topbar-badge" hidden></span></button>
       <button id="open-admin" class="settings-trigger topbar-menu-admin" type="button" aria-pressed="false" hidden>Admin</button>
       <button id="open-settings" class="settings-trigger topbar-menu-settings" type="button" aria-pressed="false">Settings</button>
-      <button id="open-profile" class="settings-trigger topbar-menu-profile" type="button" aria-pressed="false" hidden>Profile</button>
     </div>
   </div>
   <div id="connection-gate" class="connection-gate" hidden>
     <div class="connection-gate-card" role="dialog" aria-modal="true" aria-labelledby="connection-gate-title">
       <div class="connection-gate-eyebrow">Account</div>
       <h1 id="connection-gate-title" class="connection-gate-title">Sign in to KABBAK</h1>
-      <p class="connection-gate-copy">Sign in with your username and password. On a phone, set the API Base URL to your server's address.</p>
-      <div class="connection-gate-fields">
-        <label class="settings-field settings-field-full" for="connection-gate-base-url">API Base URL          <input id="connection-gate-base-url" type="url" inputmode="url" placeholder="http://localhost:3100">
-        </label>
+      <p class="connection-gate-copy">Sign in with your username and password. Tap Server to set the API address.</p>
+      <div class="connection-gate-server">
+        <button id="connection-gate-server-toggle" class="connection-gate-server-btn" type="button" data-health="unknown" aria-expanded="false" aria-controls="connection-gate-server-editor">
+          <span class="connection-gate-server-dot" aria-hidden="true"></span>
+          <span id="connection-gate-server-label">Server</span>
+        </button>
+        <div id="connection-gate-server-editor" class="connection-gate-server-editor" hidden>
+          <label class="settings-field" for="connection-gate-server-host">Host
+            <input id="connection-gate-server-host" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="192.168.1.50">
+          </label>
+          <label class="settings-field" for="connection-gate-server-port">Port
+            <input id="connection-gate-server-port" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="3100">
+          </label>
+          <button id="connection-gate-server-apply" type="button">Use this server</button>
+        </div>
+        <input id="connection-gate-base-url" type="url" inputmode="url" hidden>
       </div>
       <div id="connection-gate-account" class="connection-gate-account">
         <div class="connection-gate-step" data-account-step="login">
@@ -259,9 +283,12 @@
 
         <div id="connection-gate-account-status" class="connection-gate-account-status" aria-live="polite"></div>
       </div>
-      <button id="connection-gate-advanced-toggle" class="connection-gate-advanced-toggle" type="button">Use an API key instead</button>
+      <div class="connection-gate-method-row">
+        <button id="connection-gate-advanced-toggle" class="connection-gate-advanced-toggle" type="button">Use an API key instead</button>
+      </div>
       <div id="connection-gate-advanced" class="connection-gate-advanced" hidden>
-        <label class="settings-field settings-field-full" for="connection-gate-api-key">API Key          <input id="connection-gate-api-key" type="password" autocomplete="off" placeholder="kabbak_… (operators and bots)">
+        <label class="settings-field settings-field-full" for="connection-gate-api-key">API Key
+          <input id="connection-gate-api-key" type="password" autocomplete="off" placeholder="kabbak_… (operators and bots)">
         </label>
         <div class="connection-gate-actions">
           <button id="connection-gate-connect" type="button">Save And Connect</button>
@@ -474,6 +501,10 @@
             <label class="profile-settings-row" for="profile-location-label">Label
               <input id="profile-location-label" type="text" maxlength="200" placeholder="Home">
             </label>
+            <label class="profile-settings-row" for="profile-location-timezone">Time zone
+              <select id="profile-location-timezone"><option value="">Select…</option></select>
+            </label>
+            <p id="profile-location-timezone-hint" class="profile-settings-hint">Used for calendar times and sky events.</p>
             <div class="profile-settings-actions">
               <button id="profile-location-detect" class="profile-btn" type="button">Use my location</button>
               <button id="profile-location-save" class="profile-btn profile-btn-primary" type="button">Save</button>
@@ -2416,13 +2447,13 @@
           <span id="alpha-letter-count" class="list-count">--</span>
         </div>
         <div class="alpha-tabs">
-          <button id="alpha-tab-all" class="alpha-tab-btn alpha-tab-active" data-alpha="all">All</button>
-          <button id="alpha-tab-hebrew"  class="alpha-tab-btn" data-alpha="hebrew">Hebrew</button>
-          <button id="alpha-tab-greek"   class="alpha-tab-btn" data-alpha="greek">Greek (Classical/Koine)</button>
-          <button id="alpha-tab-greek-archaic" class="alpha-tab-btn" data-alpha="greekArchaic">Greek (Archaic)</button>
-          <button id="alpha-tab-english" class="alpha-tab-btn" data-alpha="english">English</button>
-          <button id="alpha-tab-arabic"  class="alpha-tab-btn" data-alpha="arabic">Arabic</button>
-          <button id="alpha-tab-enochian" class="alpha-tab-btn" data-alpha="enochian">Enochian</button>
+          <button id="alpha-tab-all" type="button" class="alpha-tab-btn alpha-tab-active" data-alpha="all">All</button>
+          <button id="alpha-tab-hebrew" type="button" class="alpha-tab-btn" data-alpha="hebrew">Hebrew</button>
+          <button id="alpha-tab-greek" type="button" class="alpha-tab-btn" data-alpha="greek">Greek (Classical/Koine)</button>
+          <button id="alpha-tab-greek-archaic" type="button" class="alpha-tab-btn" data-alpha="greekArchaic">Greek (Archaic)</button>
+          <button id="alpha-tab-english" type="button" class="alpha-tab-btn" data-alpha="english">English</button>
+          <button id="alpha-tab-arabic" type="button" class="alpha-tab-btn" data-alpha="arabic">Arabic</button>
+          <button id="alpha-tab-enochian" type="button" class="alpha-tab-btn" data-alpha="enochian">Enochian</button>
         </div>
         <div class="dataset-search-wrap alpha-filter-search-wrap">
           <input id="alpha-search-input" class="dataset-search-input" type="search" placeholder="Search letters, meanings, transliteration, or position (e.g., 13)" aria-label="Search alphabet letters">
@@ -2921,6 +2952,7 @@
           <button class="planner-view-btn" type="button" data-planner-view="agenda" role="tab">Agenda</button>
         </div>
         <div class="planner-actions">
+          <button id="planner-settings" class="planner-icon-btn planner-settings-btn" type="button" aria-label="Calendar options" aria-expanded="false" aria-controls="planner-settings-sheet">⚙</button>
           <button id="planner-feed-toggle" class="planner-btn" type="button">Subscribe</button>
           <button id="planner-new" class="planner-btn planner-primary" type="button">New event</button>
         </div>
@@ -2935,6 +2967,25 @@
         </aside>
       </div>
       <div id="planner-status" class="planner-status" aria-live="polite"></div>
+      <div id="planner-settings-sheet" class="planner-settings-sheet" hidden>
+        <button id="planner-settings-backdrop" class="planner-settings-backdrop" type="button" aria-label="Close calendar options"></button>
+        <div class="planner-settings-card" role="dialog" aria-labelledby="planner-settings-title">
+          <strong id="planner-settings-title">Calendar</strong>
+          <p class="planner-filter-label">View</p>
+          <div class="planner-views planner-settings-views" role="tablist" aria-label="Calendar view">
+            <button class="planner-view-btn" type="button" data-planner-view="month" role="tab">Month</button>
+            <button class="planner-view-btn" type="button" data-planner-view="week" role="tab">Week</button>
+            <button class="planner-view-btn" type="button" data-planner-view="day" role="tab">Day</button>
+            <button class="planner-view-btn" type="button" data-planner-view="agenda" role="tab">Agenda</button>
+          </div>
+          <p class="planner-filter-label">Show</p>
+          <div id="planner-settings-filters" class="planner-settings-filters"></div>
+          <div class="planner-settings-actions">
+            <button id="planner-settings-subscribe" class="planner-btn" type="button">Subscribe</button>
+            <button id="planner-settings-new" class="planner-btn planner-primary" type="button">New event</button>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
   <div id="planner-modal" class="planner-modal" hidden>
@@ -3039,35 +3090,35 @@
   <script src="app/ui-theme.js?v=20260911-scroll-perf"></script>
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
-  <script src="app/app-config.js?v=20260919-demo-personal"></script>
-  <script src="app/data-service.js?v=20260917-postshare"></script>
+  <script src="app/app-config.js?v=20260920-server-btn"></script>
+  <script src="app/data-service.js?v=20260920-lan-cors"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-popover-menu.js?v=20260915-tree-3d"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
   <script src="app/ui-library-marks.js?v=20260919-actions-webp"></script>
-  <script src="app/plugins-host.js?v=20260919-native-shell"></script>
+  <script src="app/plugins-host.js?v=20260920-phone-settings"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260919-actions-webp"></script>
+  <script src="app/lazy-sections.js?v=20260920-pdt"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
-  <script src="app/ui-dlc-shop.js?v=20260918-music-playlist-fix"></script>
+  <script src="app/ui-dlc-shop.js?v=20260920-phone-settings"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
   <script src="app/ui-navigation.js?v=20260917-bookmark-shine"></script>
 
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
-  <script src="app/ui-section-state.js?v=20260919-profile-settings"></script>
-  <script src="app/ui-planner.js?v=20260917-planetarysub"></script>
-  <script src="app/ui-inbox.js?v=20260919-demo-personal"></script>
+  <script src="app/ui-section-state.js?v=20260920-review-fixes"></script>
+  <script src="app/ui-planner.js?v=20260920-phone-sheet"></script>
+  <script src="app/ui-inbox.js?v=20260920-polish"></script>
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20260919-account-login"></script>
-  <script src="app/auth-signup.js?v=20260919-reset-captcha"></script>
+  <script src="app.js?v=20260920-server-btn"></script>
+  <script src="app/auth-signup.js?v=20260920-server-btn"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>

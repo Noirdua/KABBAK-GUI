@@ -23,6 +23,12 @@
     const connectEl = document.getElementById("connection-gate-connect");
     const advancedToggleEl = document.getElementById("connection-gate-advanced-toggle");
     const advancedEl = document.getElementById("connection-gate-advanced");
+    const serverToggleEl = document.getElementById("connection-gate-server-toggle");
+    const serverEditorEl = document.getElementById("connection-gate-server-editor");
+    const serverHostEl = document.getElementById("connection-gate-server-host");
+    const serverPortEl = document.getElementById("connection-gate-server-port");
+    const serverApplyEl = document.getElementById("connection-gate-server-apply");
+    const serverLabelEl = document.getElementById("connection-gate-server-label");
 
     const signupUsernameEl = document.getElementById("connection-gate-signup-username");
     const signupEmailEl = document.getElementById("connection-gate-signup-email");
@@ -109,6 +115,97 @@
 
     function baseUrl() {
       return String(baseUrlEl?.value || "").trim().replace(/\/+$/, "");
+    }
+
+    function parseServerUrl(raw) {
+      const value = String(raw || "").trim();
+      if (!value) {
+        return { protocol: "http:", host: "", port: "" };
+      }
+      try {
+        const url = new URL(/^[a-z]+:\/\//i.test(value) ? value : `http://${value}`);
+        return {
+          protocol: url.protocol || "http:",
+          host: url.hostname || "",
+          port: url.port || ""
+        };
+      } catch (_error) {
+        return { protocol: "http:", host: value, port: "" };
+      }
+    }
+
+    function composeServerUrl() {
+      const parsed = parseServerUrl(baseUrl());
+      const host = String(serverHostEl?.value || parsed.host || "").trim()
+        .replace(/^[a-z]+:\/\//i, "")
+        .split("/")[0]
+        .split(":")[0];
+      const port = String(serverPortEl?.value || "").trim() || "3100";
+      if (!host) {
+        return "";
+      }
+      const protocol = parsed.protocol || "http:";
+      return `${protocol}//${host}:${port}`;
+    }
+
+    function syncServerFields() {
+      const parsed = parseServerUrl(baseUrl());
+      if (serverHostEl && document.activeElement !== serverHostEl) {
+        serverHostEl.value = parsed.host;
+      }
+      if (serverPortEl && document.activeElement !== serverPortEl) {
+        serverPortEl.value = parsed.port || (parsed.host ? "3100" : "");
+      }
+      if (serverLabelEl) {
+        const host = parsed.host;
+        const port = parsed.port || (host ? "3100" : "");
+        serverLabelEl.textContent = host ? `${host}:${port}` : "Server";
+      }
+    }
+
+    function setServerHealth(tone) {
+      if (serverToggleEl) {
+        serverToggleEl.dataset.health = tone;
+      }
+    }
+
+    async function probeServerHealth() {
+      const base = baseUrl();
+      if (!base) {
+        setServerHealth("unknown");
+        return;
+      }
+      setServerHealth("pending");
+      try {
+        const response = await fetch(`${base}/api/v1/health`, { cache: "no-store" });
+        setServerHealth(response.ok ? "ok" : "bad");
+      } catch (_error) {
+        setServerHealth("bad");
+      }
+    }
+
+    function applyServerEditor() {
+      const next = composeServerUrl();
+      if (!next) {
+        setStatus("Enter a host (and port) for the API server.", "error");
+        serverHostEl?.focus();
+        return;
+      }
+      if (baseUrlEl) {
+        baseUrlEl.value = next;
+      }
+      const current = window.TarotAppConfig?.getConnectionSettings?.() || {};
+      window.TarotAppConfig?.updateConnectionSettings?.({
+        apiBaseUrl: next,
+        apiKey: current.apiKey || ""
+      });
+      syncServerFields();
+      if (serverEditorEl) {
+        serverEditorEl.hidden = true;
+      }
+      serverToggleEl?.setAttribute("aria-expanded", "false");
+      void probeServerHealth();
+      void refreshProviders();
     }
 
     async function apiPost(path, body) {
@@ -443,9 +540,17 @@
     }
 
     function setAdvancedOpen(open) {
-      advancedEl.hidden = !open;
-      advancedToggleEl.textContent = open ? "Hide API key" : "Use an API key instead";
-      if (open) keyEl?.focus();
+      if (advancedEl) advancedEl.hidden = !open;
+      if (panelEl) panelEl.hidden = open;
+      if (advancedToggleEl) {
+        advancedToggleEl.textContent = open ? "Sign in with username" : "Use an API key instead";
+        advancedToggleEl.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+      if (open) {
+        keyEl?.focus();
+      } else {
+        loginUsernameEl?.focus();
+      }
     }
 
     signupEl.addEventListener("click", () => { void submitSignup(); });
@@ -498,13 +603,36 @@
     });
 
     const rememberedUsername = readRememberedUsername();
-    if (rememberedUsername) {
-      if (loginUsernameEl) loginUsernameEl.value = rememberedUsername;
-      showStep("login");
-      loginPasswordEl?.focus();
-    } else {
-      showStep("signup");
+    if (rememberedUsername && loginUsernameEl) {
+      loginUsernameEl.value = rememberedUsername;
     }
+    showStep("login");
+    setAdvancedOpen(false);
+    syncServerFields();
+    serverToggleEl?.addEventListener("click", () => {
+      const open = Boolean(serverEditorEl?.hidden);
+      if (serverEditorEl) serverEditorEl.hidden = !open;
+      serverToggleEl.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) {
+        syncServerFields();
+        serverHostEl?.focus();
+      }
+    });
+    serverApplyEl?.addEventListener("click", () => applyServerEditor());
+    serverPortEl?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        applyServerEditor();
+      }
+    });
+    if (rememberedUsername) loginPasswordEl?.focus();
+    void probeServerHealth();
+
+    window.TarotAuthSignup = {
+      ...(window.TarotAuthSignup || {}),
+      syncServerFields,
+      probeServerHealth
+    };
 
     console.debug("[auth-signup] ready", {
       captcha: Boolean(captchaRefreshEl),

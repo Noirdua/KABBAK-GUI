@@ -104,6 +104,8 @@
       locationCountryEl: document.getElementById("profile-location-country"),
       locationRegionEl: document.getElementById("profile-location-region"),
       locationCityEl: document.getElementById("profile-location-city"),
+      locationTimezoneEl: document.getElementById("profile-location-timezone"),
+      locationTimezoneHintEl: document.getElementById("profile-location-timezone-hint"),
       locationDetectBtn: document.getElementById("profile-location-detect"),
       locationSaveBtn: document.getElementById("profile-location-save"),
       locationStatusEl: document.getElementById("profile-location-status"),
@@ -3788,6 +3790,7 @@
       if (locationLatEl && Number.isFinite(Number(place?.latitude))) locationLatEl.value = String(place.latitude);
       if (locationLngEl && Number.isFinite(Number(place?.longitude))) locationLngEl.value = String(place.longitude);
       if (locationLabelEl && place?.label) locationLabelEl.value = place.label;
+      if (place?.timeZone) populateTimeZoneSelect(place.timeZone);
     } catch (_error) {
       // Keep any manual coordinates already entered.
     }
@@ -3810,6 +3813,7 @@
       await loadLocationRegions();
       await loadLocationCities();
     }
+    populateTimeZoneSelect(loc?.timeZone || browserTimeZone());
   }
 
   function updateClientLabel() {
@@ -5363,6 +5367,82 @@
     }
   }
 
+  let timeZonesLoaded = false;
+
+  function browserTimeZone() {
+    try {
+      return String(Intl.DateTimeFormat().resolvedOptions().timeZone || "").trim();
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function timeZonePart(timeZone, timeZoneName) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName }).formatToParts(new Date());
+      return String(parts.find((part) => part.type === "timeZoneName")?.value || "");
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function formatTimeZoneOffset(timeZone) {
+    const offset = timeZonePart(timeZone, "shortOffset").replace(/^GMT/, "UTC");
+    const abbr = timeZonePart(timeZone, "short");
+    if (abbr && offset && abbr !== offset) {
+      return `${abbr} (${offset})`;
+    }
+    return offset || abbr;
+  }
+
+  function updateTimeZoneHint() {
+    const { locationTimezoneEl, locationTimezoneHintEl } = getElements();
+    if (!locationTimezoneHintEl) return;
+    const tz = String(locationTimezoneEl?.value || "").trim();
+    if (!tz) {
+      locationTimezoneHintEl.textContent = "Used for calendar times and sky events.";
+      return;
+    }
+    const offset = formatTimeZoneOffset(tz);
+    const generic = timeZonePart(tz, "longGeneric") || timeZonePart(tz, "shortGeneric");
+    locationTimezoneHintEl.textContent = offset
+      ? `${generic || tz.replace(/_/g, " ")} · currently ${offset}. Used for calendar and sky times.`
+      : `${tz.replace(/_/g, " ")}. Used for calendar and sky times.`;
+  }
+
+  function populateTimeZoneSelect(selected) {
+    const { locationTimezoneEl } = getElements();
+    if (!locationTimezoneEl) return;
+    const zones = typeof Intl.supportedValuesOf === "function"
+      ? Intl.supportedValuesOf("timeZone")
+      : [browserTimeZone()].filter(Boolean);
+    const current = String(selected || locationTimezoneEl.value || browserTimeZone() || "").trim();
+    if (!timeZonesLoaded) {
+      locationTimezoneEl.textContent = "";
+      const blank = document.createElement("option");
+      blank.value = "";
+      blank.textContent = "Select…";
+      locationTimezoneEl.appendChild(blank);
+      zones.forEach((tz) => {
+        const option = document.createElement("option");
+        option.value = tz;
+        const city = tz.split("/").pop().replace(/_/g, " ");
+        const offset = formatTimeZoneOffset(tz);
+        option.textContent = offset ? `${city} (${offset})` : city;
+        locationTimezoneEl.appendChild(option);
+      });
+      timeZonesLoaded = true;
+    }
+    if (current && ![...locationTimezoneEl.options].some((opt) => opt.value === current)) {
+      const extra = document.createElement("option");
+      extra.value = current;
+      extra.textContent = current.replace(/_/g, " ");
+      locationTimezoneEl.appendChild(extra);
+    }
+    locationTimezoneEl.value = current;
+    updateTimeZoneHint();
+  }
+
   function readLocationInputs() {
     const {
       locationLatEl,
@@ -5370,7 +5450,8 @@
       locationLabelEl,
       locationCountryEl,
       locationRegionEl,
-      locationCityEl
+      locationCityEl,
+      locationTimezoneEl
     } = getElements();
     const latitude = Number(String(locationLatEl?.value || "").trim());
     const longitude = Number(String(locationLngEl?.value || "").trim());
@@ -5380,7 +5461,8 @@
       label: String(locationLabelEl?.value || "").trim(),
       country: String(locationCountryEl?.value || "").trim(),
       region: String(locationRegionEl?.value || "").trim(),
-      city: String(locationCityEl?.value || "").trim()
+      city: String(locationCityEl?.value || "").trim(),
+      timeZone: String(locationTimezoneEl?.value || "").trim()
     };
   }
 
@@ -5422,7 +5504,11 @@
       const result = await service.requestJson(
         "PATCH",
         service.buildApiUrl("/api/v1/profile/location"),
-        { ...input, utcOffsetMinutes: -new Date().getTimezoneOffset() }
+        {
+          ...input,
+          timeZone: input.timeZone || browserTimeZone(),
+          utcOffsetMinutes: -new Date().getTimezoneOffset()
+        }
       );
       state.location = result?.location ? { ...result.location } : { latitude: input.latitude, longitude: input.longitude, label: input.label };
       syncLocationUi();
@@ -5454,6 +5540,7 @@
         if (locationLabelEl && !String(locationLabelEl.value || "").trim()) {
           locationLabelEl.value = "My location";
         }
+        populateTimeZoneSelect(browserTimeZone());
         setLocationStatus("Found. Press Save to keep it.");
       },
       () => {
@@ -5615,6 +5702,8 @@
       void saveLocation();
     });
     elements.locationDetectBtn?.addEventListener("click", detectLocation);
+    populateTimeZoneSelect(browserTimeZone());
+    elements.locationTimezoneEl?.addEventListener("change", updateTimeZoneHint);
     elements.locationCountryEl?.addEventListener("change", () => {
       void loadLocationRegions().then(() => loadLocationCities()).then(() => applySelectedPlace());
     });

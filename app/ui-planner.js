@@ -146,9 +146,24 @@
     return window.TarotAppCalendar || null;
   }
 
+  // Phone chrome folds the view switcher, filters, and actions into one sheet.
+  function setPlannerSettingsOpen(open) {
+    const sheet = el("planner-settings-sheet");
+    if (!sheet) {
+      return;
+    }
+    sheet.hidden = !open;
+    el("planner-settings")?.setAttribute("aria-expanded", open ? "true" : "false");
+    // The phone skin's page layer sits below the bottom rail; promote it while
+    // the sheet is open so the rail cannot cover the sheet.
+    document.documentElement.classList.toggle("kabbak-planner-sheet-open", open === true);
+  }
+
   // Built in JS (not static HTML) so it always appears even if the page shell is
   // served from cache.
   function ensurePlannerFilters() {
+    // The options sheet mirrors the toolbar filters, so fill it first.
+    fillPlannerFilterBar(el("planner-settings-filters"));
     if (el("planner-filters")) {
       return;
     }
@@ -166,6 +181,15 @@
     label.className = "planner-filter-label";
     label.textContent = "Show";
     bar.appendChild(label);
+    fillPlannerFilterBar(bar);
+    shell.insertBefore(bar, body);
+  }
+
+  function fillPlannerFilterBar(bar) {
+    if (!bar || bar.dataset.ready === "1") {
+      return;
+    }
+    bar.dataset.ready = "1";
     PLANNER_FILTERS.forEach((entry) => {
       const item = document.createElement("span");
       item.className = "planner-filter-item";
@@ -193,7 +217,6 @@
       }
       bar.appendChild(item);
     });
-    shell.insertBefore(bar, body);
   }
 
   function readFeedOptions() {
@@ -1492,6 +1515,19 @@
     el("planner-new")?.addEventListener("click", () => openEditor(null));
     el("planner-feed-toggle")?.addEventListener("click", openFeed);
 
+    el("planner-settings")?.addEventListener("click", () => {
+      setPlannerSettingsOpen(el("planner-settings-sheet")?.hidden === true);
+    });
+    el("planner-settings-backdrop")?.addEventListener("click", () => setPlannerSettingsOpen(false));
+    el("planner-settings-subscribe")?.addEventListener("click", () => {
+      setPlannerSettingsOpen(false);
+      openFeed();
+    });
+    el("planner-settings-new")?.addEventListener("click", () => {
+      setPlannerSettingsOpen(false);
+      openEditor(null);
+    });
+
     document.querySelectorAll("[data-planner-view]").forEach((button) => {
       button.addEventListener("click", () => {
         const next = button.getAttribute("data-planner-view");
@@ -1499,6 +1535,7 @@
           view = next;
           sideDate = null;
           render();
+          setPlannerSettingsOpen(false);
         }
       });
     });
@@ -1562,6 +1599,14 @@
       calendar.on("clickEvent", onCalendarClick);
       calendar.on("clickDayname", onCalendarDateClick);
     }
+
+    // Never leave the sheet (and its page-layer promotion) open behind another
+    // section when the user navigates away.
+    document.addEventListener("section:changed", (event) => {
+      if (String(event?.detail?.activeSection || "") !== "planner") {
+        setPlannerSettingsOpen(false);
+      }
+    });
   }
 
   window.TarotPlannerUi = {

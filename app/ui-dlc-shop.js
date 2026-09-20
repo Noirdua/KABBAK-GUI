@@ -2542,6 +2542,105 @@
     await load();
   }
 
+  function renderLayoutPhoneSettings(settingsEl) {
+    const status = createSettingsStatus(settingsEl);
+    const body = document.createElement("div");
+    body.className = "dlc-plugin-settings-body";
+    settingsEl.appendChild(body);
+
+    const hint = document.createElement("span");
+    hint.className = "settings-field-hint";
+    hint.textContent = "These options are saved on this device. They apply as soon as you change them.";
+    body.appendChild(hint);
+
+    const OPTIONS_KEY = "kabbak-phone-options";
+    const AUTO_KEY = "kabbak-phone-auto-browser";
+    const defaults = { browse: "drill", density: "comfortable", barLabels: true };
+
+    function readPhoneOptions() {
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(OPTIONS_KEY) || "{}");
+        return { ...defaults, ...(parsed && typeof parsed === "object" ? parsed : {}) };
+      } catch (_error) {
+        return { ...defaults };
+      }
+    }
+
+    function writePhoneOptions(next) {
+      try {
+        window.localStorage.setItem(OPTIONS_KEY, JSON.stringify(next));
+      } catch (_error) {}
+      document.documentElement.classList.toggle("kabbak-phone-split", next.browse === "split");
+      document.documentElement.classList.toggle("kabbak-phone-compact", next.density === "compact");
+      document.documentElement.classList.toggle("kabbak-phone-no-barlabels", next.barLabels === false);
+    }
+
+    function autoEnabled() {
+      try {
+        const raw = String(window.localStorage.getItem(AUTO_KEY) || "").trim().toLowerCase();
+        if (!raw) return true;
+        return raw !== "0" && raw !== "false" && raw !== "off";
+      } catch (_error) {
+        return true;
+      }
+    }
+
+    function addSelect(labelText, value, choices, onChange) {
+      const label = document.createElement("label");
+      label.className = "settings-field";
+      label.appendChild(document.createTextNode(labelText));
+      const select = document.createElement("select");
+      choices.forEach(([id, text]) => {
+        const option = document.createElement("option");
+        option.value = String(id);
+        option.textContent = text;
+        if (String(id) === String(value)) option.selected = true;
+        select.appendChild(option);
+      });
+      select.addEventListener("change", () => onChange(select.value));
+      label.appendChild(select);
+      body.appendChild(label);
+      return select;
+    }
+
+    const autoLabel = document.createElement("label");
+    autoLabel.className = "settings-field";
+    const autoBox = document.createElement("input");
+    autoBox.type = "checkbox";
+    autoBox.checked = autoEnabled();
+    autoLabel.appendChild(autoBox);
+    autoLabel.appendChild(document.createTextNode(" Use phone layout automatically in mobile browsers"));
+    body.appendChild(autoLabel);
+    const autoHint = document.createElement("span");
+    autoHint.className = "settings-field-hint";
+    autoHint.textContent = "When on, phones and small screens load Phone Layout even if this device last used the default chrome. The Android/iPhone app always uses Phone Layout.";
+    body.appendChild(autoHint);
+
+    let options = readPhoneOptions();
+    addSelect("Page layout", options.browse, [["drill", "Full screen"], ["split", "Split"]], (value) => {
+      options = { ...options, browse: value };
+      writePhoneOptions(options);
+      status.set("Saved.");
+    });
+    addSelect("Row size", options.density, [["comfortable", "Comfortable"], ["compact", "Compact"]], (value) => {
+      options = { ...options, density: value };
+      writePhoneOptions(options);
+      status.set("Saved.");
+    });
+    addSelect("Bottom bar labels", options.barLabels, [["true", "Show"], ["false", "Hide"]], (value) => {
+      options = { ...options, barLabels: value === "true" };
+      writePhoneOptions(options);
+      status.set("Saved.");
+    });
+
+    autoBox.addEventListener("change", () => {
+      try {
+        window.localStorage.setItem(AUTO_KEY, autoBox.checked ? "1" : "0");
+      } catch (_error) {}
+      status.set("Saved. Reload the page to apply the layout choice.");
+    });
+  }
+
   function openPluginSettings(cardEl, plugin) {
     if (plugin?.name === "menu-plugin") {
       if (!isAdmin()) {
@@ -2569,7 +2668,9 @@
             ? renderHydrusNetworkSettings
             : plugin?.name === "demo-users"
               ? renderDemoUsersSettings
-              : renderGenericConfigSettings;
+              : plugin?.name === "layout-phone"
+                ? renderLayoutPhoneSettings
+                : renderGenericConfigSettings;
     void Promise.resolve(render(settingsEl, plugin)).then(() => renderPluginLogs(settingsEl, plugin));
   }
 

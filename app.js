@@ -286,6 +286,9 @@ function restoreSystemMenuButton(button) {
   if (!(button instanceof HTMLElement)) return;
   button.classList.remove("mp-hidden");
   button.style.removeProperty("display");
+  // Buttons intentionally nested in a nav group (e.g. Profile under Social)
+  // must keep their place; only un-grouped system buttons get restored.
+  if (button.closest(".topbar-dropdown")) return;
   const actions = document.getElementById("topbar-actions");
   if (actions && button.parentElement !== actions) {
     const settingsBtn = document.getElementById("open-settings");
@@ -755,9 +758,17 @@ function normalizeConnectionSettingsInput(connectionSettings = null) {
 
 function syncConnectionGateInputs(connectionSettings = getConnectionSettings()) {
   const normalizedConnectionSettings = normalizeConnectionSettingsInput(connectionSettings);
+  const editorEl = document.getElementById("connection-gate-server-editor");
+  const hostEl = document.getElementById("connection-gate-server-host");
+  const portEl = document.getElementById("connection-gate-server-port");
+  const editingServer = editorEl && !editorEl.hidden
+    || document.activeElement === hostEl
+    || document.activeElement === portEl
+    || document.activeElement === connectionGateBaseUrlEl;
 
-  if (connectionGateBaseUrlEl) {
+  if (connectionGateBaseUrlEl && !editingServer) {
     connectionGateBaseUrlEl.value = normalizedConnectionSettings.apiBaseUrl;
+    window.TarotAuthSignup?.syncServerFields?.();
   }
 
   if (connectionGateApiKeyEl) {
@@ -895,7 +906,7 @@ async function ensureConnectedApp(nextConnectionSettings = null) {
   }
 
   if (!configuredConnection.apiBaseUrl) {
-    showConnectionGate("Enter an API Base URL to load KABBAK.", "error", configuredConnection);
+    showConnectionGate("Tap Server to set the API address, then sign in.", "error", configuredConnection);
     return false;
   }
 

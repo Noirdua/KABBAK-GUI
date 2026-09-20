@@ -231,12 +231,7 @@
     }
 
     if (!storedBaseUrl) {
-      const host = String(window.location.hostname || "");
-      const nativeShell = document.documentElement.getAttribute("data-kabbak-native") === "1"
-        || window.Capacitor?.isNativePlatform?.() === true;
-      if (!nativeShell && (host === "localhost" || host === "127.0.0.1")) {
-        storedBaseUrl = "http://localhost:3100";
-      }
+      storedBaseUrl = "";
     }
 
     return normalizeConnectionSettings({
@@ -440,8 +435,8 @@
     if (href) {
       link.setAttribute("href", href);
     } else {
-      link.setAttribute("href", "favicon.ico");
-      link.setAttribute("type", "image/x-icon");
+      link.setAttribute("href", "app/favicon.svg");
+      link.setAttribute("type", "image/svg+xml");
     }
     const existing = document.getElementById("app-favicon");
     if (existing && existing.parentNode) {

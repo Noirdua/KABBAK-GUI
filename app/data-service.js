@@ -980,15 +980,28 @@
 
       let tarotAvailable = false;
       let deckCount = null;
-      const deckResponse = await fetch(buildApiUrl("/api/v1/decks/options", {}, resolvedConnection), requestOptions);
+      let deckResponse;
+      try {
+        deckResponse = await fetch(buildApiUrl("/api/v1/decks/options", {}, resolvedConnection), requestOptions);
+      } catch (_error) {
+        return {
+          ok: false,
+          reason: "cors-blocked",
+          message: "The API is reachable, but this page's origin is blocked by CORS. Restart the API after updating KABBAK_ALLOWED_ORIGINS.",
+          health,
+          auth: health?.auth || null
+        };
+      }
 
       if (deckResponse.status === 401) {
         return {
           ok: false,
           reason: "auth-required",
-          message: health?.apiKeyRequired
-            ? "The API requires a valid API key."
-            : "The API rejected this connection."
+          message: presentedKey
+            ? "That API key is not valid."
+            : (health?.apiKeyRequired
+              ? "The API requires a valid API key."
+              : "The API rejected this connection.")
         };
       }
 
@@ -1000,9 +1013,11 @@
           return {
             ok: false,
             reason: "auth-required",
-            message: health?.apiKeyRequired
-              ? "The API requires a valid API key."
-              : "The API rejected this connection."
+            message: presentedKey
+              ? "That API key is not valid."
+              : (health?.apiKeyRequired
+                ? "The API requires a valid API key."
+                : "The API rejected this connection.")
           };
         }
         return {
@@ -1050,7 +1065,7 @@
       return {
         ok: false,
         reason: "network-error",
-        message: "Unable to reach the API. Check the URL and make sure the server is running."
+        message: "Unable to reach the API. Check the URL. If the server is running, this is a network/CORS block, not a bad API key."
       };
     }
   }
@@ -1271,7 +1286,8 @@
   async function fetchProfileCalendarEvents(fromIso, toIso) {
     return requestJson("GET", buildApiUrl("/api/v1/profile/calendar-events", {
       from: fromIso,
-      to: toIso
+      to: toIso,
+      utcOffsetMinutes: String(-new Date().getTimezoneOffset())
     }));
   }
 

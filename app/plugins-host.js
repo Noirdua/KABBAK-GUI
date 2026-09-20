@@ -14,6 +14,7 @@
   const pendingCatalog = new Map();
   const SKIN_ROLES = new Set(["skin", "overhaul", "ui"]);
   const ACTIVE_SKIN_STORAGE_KEY = "kabbak-active-skin";
+  const AUTO_PHONE_BROWSER_KEY = "kabbak-phone-auto-browser";
   const DEFAULT_SKIN_ID = "layout-default";
   const NATIVE_SKIN_ID = "layout-phone";
   let refreshPromise = null;
@@ -91,6 +92,30 @@
     }
   }
 
+  function isPhoneBrowser() {
+    if (isNativeShell()) {
+      return false;
+    }
+    try {
+      return window.matchMedia("(hover: none) and (pointer: coarse)").matches
+        || window.matchMedia("(max-width: 900px)").matches;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function autoPhoneBrowserEnabled() {
+    try {
+      const raw = String(window.localStorage.getItem(AUTO_PHONE_BROWSER_KEY) || "").trim().toLowerCase();
+      if (!raw) {
+        return true;
+      }
+      return raw !== "0" && raw !== "false" && raw !== "off";
+    } catch (_error) {
+      return true;
+    }
+  }
+
   function preservesDefaultChrome(plugin) {
     return plugin?.preserveChrome === true
       || String(plugin?.chrome || "").trim().toLowerCase() === "default"
@@ -123,6 +148,10 @@
       return requested;
     }
     if (isNativeShell() && skins.some((skin) => skin.id === NATIVE_SKIN_ID)) {
+      return NATIVE_SKIN_ID;
+    }
+    if (autoPhoneBrowserEnabled() && isPhoneBrowser()
+      && skins.some((skin) => skin.id === NATIVE_SKIN_ID)) {
       return NATIVE_SKIN_ID;
     }
     if (skins.some((skin) => skin.id === DEFAULT_SKIN_ID)) {
@@ -697,7 +726,13 @@
         }
         const resolvedSkin = selectedSkinId();
         if (resolvedSkin && readStoredSkinId() !== resolvedSkin) {
-          persistSkinId(resolvedSkin);
+          const autoPhone = !isNativeShell()
+            && autoPhoneBrowserEnabled()
+            && isPhoneBrowser()
+            && resolvedSkin === NATIVE_SKIN_ID;
+          if (!autoPhone) {
+            persistSkinId(resolvedSkin);
+          }
         }
         if (activeSkinId && selectedSkinId() !== activeSkinId) {
           unmountPlugin(activeSkinId);

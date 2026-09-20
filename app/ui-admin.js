@@ -416,7 +416,7 @@
         fromRepo
       });
       setStatus(result?.note || `${fromRepo ? "Removed from repository" : "Deleted"} ${item.name}.`);
-      await loadPlugins();
+      await loadPlugins({ force: true });
     } catch (error) {
       setStatus(`Could not delete ${item.name}. ${error?.message || ""}`, true);
     }
@@ -2345,7 +2345,7 @@
     }
 
     await window.TaroTimePluginHost?.refresh?.();
-    await loadPlugins();
+    await loadPlugins({ force: true });
     if (button) button.disabled = false;
 
     if (lastState === "running") {
@@ -2436,6 +2436,34 @@
   }
 
   let allDlcItems = [];
+  const DLC_CATALOG_CACHE_KEY = "kabbak-admin-dlc-catalog-v1";
+  let dlcCatalogMemory = null;
+
+  function readDlcCatalogCache() {
+    if (dlcCatalogMemory && Array.isArray(dlcCatalogMemory.items)) {
+      return dlcCatalogMemory;
+    }
+    try {
+      const parsed = JSON.parse(window.sessionStorage.getItem(DLC_CATALOG_CACHE_KEY) || "null");
+      if (parsed && Array.isArray(parsed.items)) {
+        dlcCatalogMemory = parsed;
+        return parsed;
+      }
+    } catch (_error) {}
+    return null;
+  }
+
+  function writeDlcCatalogCache(catalog) {
+    const payload = {
+      items: Array.isArray(catalog?.items) ? catalog.items : [],
+      origin: catalog?.origin || "",
+      cachedAt: Date.now()
+    };
+    dlcCatalogMemory = payload;
+    try {
+      window.sessionStorage.setItem(DLC_CATALOG_CACHE_KEY, JSON.stringify(payload));
+    } catch (_error) {}
+  }
   let activeDlcFilter = "all";
   let dlcSearchQuery = "";
   const DLC_RENDER_STEP = 60;
@@ -2640,7 +2668,7 @@
               sourceNames: selected.map((item) => item.name),
               removeSources: removeEl ? removeEl.checked : false
             },
-            onCreated: () => { void loadPlugins(); }
+            onCreated: () => { void loadPlugins({ force: true }); }
           });
         } catch (error) {
           continueBtn.disabled = false;
@@ -2700,7 +2728,7 @@
           await publishQueuedItem(job);
           results.push(job);
         }
-        await loadPlugins();
+        await loadPlugins({ force: true });
       } while (dlcPublishQueue.length);
     } finally {
       dlcPublishRunning = false;
@@ -2834,7 +2862,7 @@
               setStatus(isInstalled
                 ? `Uninstalled ${item.name}. Refreshing storage…`
                 : `Installing ${item.name}…`);
-              await loadPlugins();
+              await loadPlugins({ force: true });
               if (isPlugin) {
                 await window.TaroTimePluginHost?.refresh?.();
               } else {
@@ -2869,7 +2897,7 @@
             try {
               await requestJson("POST", "/api/v1/dlc/update", { kind: item.kind, name: item.name, sourceId: item.sourceId || "" });
               await window.TaroTimePluginHost?.refresh?.();
-              await loadPlugins();
+              await loadPlugins({ force: true });
               setStatus(`Updated ${item.name}.`);
             } catch (error) {
               setStatus(`Could not update ${item.name}. ${error?.message || ""}`, true);
@@ -2924,7 +2952,7 @@
               if (["reference", "text", "deck"].includes(item.kind) && window.TaroTimeDlcShop?.openCreateDlc) {
                 window.TaroTimeDlcShop.openCreateDlc(card, {
                   editItem: item,
-                  onCreated: () => { void loadPlugins(); }
+                  onCreated: () => { void loadPlugins({ force: true }); }
                 });
                 return;
               }
@@ -3160,7 +3188,7 @@
           });
           await window.TaroTimePluginHost?.refresh?.();
           await loadDlcSources();
-          await loadPlugins();
+          await loadPlugins({ force: true });
           setStatus(`Saved ${source.name}.`);
         } catch (error) {
           setStatus(`Could not save ${source.name}. ${error?.message || ""}`, true);
@@ -3178,7 +3206,7 @@
         try {
           await requestJson("POST", `/api/v1/admin/dlc/sources/${encodeURIComponent(source.id)}/sync`, {});
           await loadDlcSources();
-          await loadPlugins();
+          await loadPlugins({ force: true });
           setStatus(`Synced ${source.name}.`);
         } catch (error) {
           setStatus(`Could not sync ${source.name}. ${error?.message || ""}`, true);
@@ -3196,7 +3224,7 @@
         try {
           await requestJson("DELETE", `/api/v1/admin/dlc/sources/${encodeURIComponent(source.id)}`);
           await loadDlcSources();
-          await loadPlugins();
+          await loadPlugins({ force: true });
           setStatus(`Removed ${source.name}.`);
         } catch (error) {
           setStatus(`Could not remove ${source.name}. ${error?.message || ""}`, true);
@@ -3375,7 +3403,7 @@
         urlField.input.value = "";
         await window.TaroTimePluginHost?.refresh?.();
         await loadDlcSources();
-        await loadPlugins();
+        await loadPlugins({ force: true });
         statusEl.textContent = "Repository added.";
         setStatus("DLC repository added.");
       } catch (error) {
@@ -3429,18 +3457,28 @@
     }
   }
 
-  async function loadPlugins() {
+  async function loadPlugins({ force = false } = {}) {
     const { dlcCatalogEl } = getElements();
     if (!dlcCatalogEl) return;
+    if (!force) {
+      const cached = readDlcCatalogCache();
+      if (cached) {
+        allDlcItems = cached.items;
+        renderDlcCatalog();
+        const age = cached.cachedAt ? Math.max(0, Date.now() - Number(cached.cachedAt)) : 0;
+        const ageLabel = age < 60_000 ? "just now" : `${Math.round(age / 60_000)} min ago`;
+        setStatus(`DLC cached (${ageLabel}${cached.origin ? `, ${cached.origin}` : ""}). Press Refresh for a live catalog.`);
+        return;
+      }
+    }
     try {
-      const catalog = await requestJson("GET", "/api/v1/dlc/catalog?refresh=1", null, { timeoutMs: 120000 });
+      const catalog = await requestJson("GET", "/api/v1/dlc/catalog", null, { timeoutMs: 120000 });
       allDlcItems = Array.isArray(catalog?.items) ? catalog.items : [];
+      writeDlcCatalogCache({ items: allDlcItems, origin: catalog?.origin || "" });
       renderDlcCatalog();
-      // Publish status is a follow-up pass; never block first paint on it.
       void annotatePublishPending().then(() => renderDlcCatalog()).catch(() => {});
-      const baseUrl = window.TarotDataService?.getApiBaseUrl?.() || "";
       const pluginCount = allDlcItems.filter((item) => item?.kind === "plugin").length;
-      setStatus(`DLC loaded (server: ${baseUrl || "?"}, source: ${catalog?.origin || "none"}, plugins: ${pluginCount}).`);
+      setStatus(`DLC loaded (source: ${catalog?.origin || "none"}, plugins: ${pluginCount}).`);
     } catch (error) {
       setStatus(`Could not load DLC. ${error?.message || ""}`, true);
       dlcCatalogEl.innerHTML = "";
@@ -3454,7 +3492,7 @@
         </div>
       `;
       errorCard.querySelector('[data-action="retry"]').addEventListener("click", () => {
-        void loadPlugins();
+        void loadPlugins({ force: true });
       });
       dlcCatalogEl.appendChild(errorCard);
     }
@@ -3511,7 +3549,7 @@
           }
           await window.TaroTimePluginHost?.refresh?.();
           await loadDlcSources();
-          await loadPlugins();
+          await loadPlugins({ force: true });
           setStatus(`DLC refreshed${result?.head ? ` (${result.head})` : ""}.`);
         } catch (error) {
           setStatus(`Could not refresh DLC. ${error?.message || ""}`, true);
@@ -3555,7 +3593,7 @@
             xhr.onerror = () => reject(new Error("Network error during DLC import."));
             xhr.send(buffer);
           });
-          await loadPlugins();
+          await loadPlugins({ force: true });
           if (result?.imported?.kind && result.imported.kind !== "plugin" && result.imported.kind !== "api") {
             void pollReloadStatus((text, isError) => setStatus(text, isError));
           } else {
@@ -3575,11 +3613,11 @@
         const { dlcCatalogEl } = getElements();
         if (window.TaroTimeDlcShop?.openCreateDlc) {
           window.TaroTimeDlcShop.openCreateDlc(dlcCatalogEl, {
-            onCreated: () => loadPlugins()
+            onCreated: () => loadPlugins({ force: true })
           });
         } else if (window.TaroTimeDlcShop?.openCreatePlugin) {
           window.TaroTimeDlcShop.openCreatePlugin(dlcCatalogEl, {
-            onCreated: () => loadPlugins()
+            onCreated: () => loadPlugins({ force: true })
           });
         } else {
           setStatus("DLC creation is available in Settings > DLC Shop & Plugins.", true);

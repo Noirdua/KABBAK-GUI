@@ -134,11 +134,11 @@
       "app/ui-natal.js?v=20260917-natal-place"
     ],
     admin: [
-      "app/ui-admin.js?v=20260917-admin-share-url-2"
+      "app/ui-admin.js?v=20260920-dlc-cache"
     ],
     profile: [
       "app/ui-post-editor.js?v=20260917-quote-meta",
-      "app/ui-profile.js?v=20260919-demo-personal"
+      "app/ui-profile.js?v=20260920-pdt"
     ]
   };
 
