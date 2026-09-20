@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260920-sheet-overlay">
+  <link rel="stylesheet" href="app/styles.css?v=20260920-gate-server">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -206,21 +206,28 @@
           <span id="connection-gate-server-label">Server</span>
         </button>
         <div id="connection-gate-server-editor" class="connection-gate-server-editor" hidden>
-          <label class="settings-field" for="connection-gate-server-host">Host
-            <input id="connection-gate-server-host" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="192.168.1.50">
+          <label class="settings-field connection-gate-server-host-field" for="connection-gate-server-host">Host
+            <input id="connection-gate-server-host" name="kabbak-api-host" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="api.example.com" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
+          </label>
+          <label class="settings-field" for="connection-gate-server-protocol">Protocol
+            <select id="connection-gate-server-protocol" name="kabbak-api-protocol">
+              <option value="https:">https://</option>
+              <option value="http:">http://</option>
+            </select>
           </label>
           <label class="settings-field" for="connection-gate-server-port">Port
-            <input id="connection-gate-server-port" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="3100">
+            <input id="connection-gate-server-port" name="kabbak-api-port" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="443">
           </label>
           <button id="connection-gate-server-apply" type="button">Use this server</button>
         </div>
-        <input id="connection-gate-base-url" type="url" inputmode="url" hidden>
+        <input id="connection-gate-base-url" name="kabbak-api-url" type="url" inputmode="url" hidden>
+        <p id="connection-gate-server-hint" class="settings-field-hint" aria-live="polite"></p>
       </div>
       <div id="connection-gate-account" class="connection-gate-account">
         <div class="connection-gate-step" data-account-step="login">
           <div class="connection-gate-account-fields">
-            <input id="connection-gate-login-username" type="text" autocomplete="username" placeholder="Username" aria-label="Username">
-            <input id="connection-gate-login-password" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password">
+            <input id="connection-gate-login-username" name="kabbak-username" type="text" autocomplete="off" placeholder="Username" aria-label="Username" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
+            <input id="connection-gate-login-password" name="kabbak-password" type="password" autocomplete="off" placeholder="Password" aria-label="Password" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
           </div>
           <div class="connection-gate-account-actions">
             <button id="connection-gate-signin" type="button">Sign in</button>
@@ -288,7 +295,7 @@
       </div>
       <div id="connection-gate-advanced" class="connection-gate-advanced" hidden>
         <label class="settings-field settings-field-full" for="connection-gate-api-key">API Key
-          <input id="connection-gate-api-key" type="password" autocomplete="off" placeholder="kabbak_… (operators and bots)">
+          <input id="connection-gate-api-key" name="kabbak-api-key" type="password" autocomplete="new-password" placeholder="kabbak_… (operators and bots)" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
         </label>
         <div class="connection-gate-actions">
           <button id="connection-gate-connect" type="button">Save And Connect</button>
@@ -3118,7 +3125,7 @@
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
   <script src="app.js?v=20260920-server-btn"></script>
-  <script src="app/auth-signup.js?v=20260920-server-btn"></script>
+  <script src="app/auth-signup.js?v=20260920-gate-protocol"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>

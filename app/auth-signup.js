@@ -29,6 +29,8 @@
     const serverPortEl = document.getElementById("connection-gate-server-port");
     const serverApplyEl = document.getElementById("connection-gate-server-apply");
     const serverLabelEl = document.getElementById("connection-gate-server-label");
+    const serverProtocolEl = document.getElementById("connection-gate-server-protocol");
+    const serverHintEl = document.getElementById("connection-gate-server-hint");
 
     const signupUsernameEl = document.getElementById("connection-gate-signup-username");
     const signupEmailEl = document.getElementById("connection-gate-signup-email");
@@ -117,20 +119,24 @@
       return String(baseUrlEl?.value || "").trim().replace(/\/+$/, "");
     }
 
+    function defaultProtocol() {
+      return window.location.protocol === "https:" ? "https:" : "http:";
+    }
+
     function parseServerUrl(raw) {
       const value = String(raw || "").trim();
       if (!value) {
-        return { protocol: "http:", host: "", port: "" };
+        return { protocol: defaultProtocol(), host: "", port: "" };
       }
       try {
-        const url = new URL(/^[a-z]+:\/\//i.test(value) ? value : `http://${value}`);
+        const url = new URL(/^[a-z]+:\/\//i.test(value) ? value : `${defaultProtocol()}//${value}`);
         return {
-          protocol: url.protocol || "http:",
+          protocol: url.protocol || defaultProtocol(),
           host: url.hostname || "",
           port: url.port || ""
         };
       } catch (_error) {
-        return { protocol: "http:", host: value, port: "" };
+        return { protocol: defaultProtocol(), host: value, port: "" };
       }
     }
 
@@ -140,12 +146,15 @@
         .replace(/^[a-z]+:\/\//i, "")
         .split("/")[0]
         .split(":")[0];
-      const port = String(serverPortEl?.value || "").trim() || "3100";
       if (!host) {
         return "";
       }
-      const protocol = parsed.protocol || "http:";
-      return `${protocol}//${host}:${port}`;
+      const protocol = String(serverProtocolEl?.value || parsed.protocol || defaultProtocol());
+      const rawPort = String(serverPortEl?.value || "").trim();
+      const port = rawPort || (protocol === "https:" ? "443" : "80");
+      const isDefault = (protocol === "https:" && port === "443")
+        || (protocol === "http:" && port === "80");
+      return isDefault ? `${protocol}//${host}` : `${protocol}//${host}:${port}`;
     }
 
     function syncServerFields() {
@@ -154,13 +163,17 @@
         serverHostEl.value = parsed.host;
       }
       if (serverPortEl && document.activeElement !== serverPortEl) {
-        serverPortEl.value = parsed.port || (parsed.host ? "3100" : "");
+        serverPortEl.value = parsed.port;
+      }
+      if (serverProtocolEl && document.activeElement !== serverProtocolEl) {
+        serverProtocolEl.value = parsed.protocol || defaultProtocol();
       }
       if (serverLabelEl) {
-        const host = parsed.host;
-        const port = parsed.port || (host ? "3100" : "");
-        serverLabelEl.textContent = host ? `${host}:${port}` : "Server";
+        serverLabelEl.textContent = parsed.host
+          ? `${parsed.host}${parsed.port ? `:${parsed.port}` : ""}`
+          : "Server";
       }
+      syncPortPlaceholder();
     }
 
     function setServerHealth(tone) {
@@ -169,18 +182,51 @@
       }
     }
 
+    function setServerHint(message) {
+      if (serverHintEl) {
+        serverHintEl.textContent = String(message || "");
+      }
+    }
+
+    function syncPortPlaceholder() {
+      if (!serverPortEl) {
+        return;
+      }
+      const protocol = String(serverProtocolEl?.value || defaultProtocol());
+      serverPortEl.placeholder = protocol === "https:" ? "443" : "3100";
+    }
+
     async function probeServerHealth() {
       const base = baseUrl();
       if (!base) {
         setServerHealth("unknown");
+        setServerHint("Tap Server to set the API address.");
         return;
       }
+
+      // An https page cannot call an http API: the browser blocks it before the
+      // request leaves, which would otherwise look like "unreachable".
+      if (window.location.protocol === "https:" && /^http:\/\//i.test(base)) {
+        setServerHealth("bad");
+        setServerHint(`${base} is blocked: this page is HTTPS and the API is HTTP (mixed content). Use https:// (put the API behind TLS), or serve the GUI over HTTP.`);
+        return;
+      }
+
       setServerHealth("pending");
+      setServerHint(`Checking ${base}…`);
       try {
         const response = await fetch(`${base}/api/v1/health`, { cache: "no-store" });
-        setServerHealth(response.ok ? "ok" : "bad");
+        if (response.ok) {
+          setServerHealth("ok");
+          setServerHint(`Connected to ${base}.`);
+        } else {
+          setServerHealth("bad");
+          setServerHint(`${base} answered HTTP ${response.status}. Check that this is the API root.`);
+        }
       } catch (_error) {
         setServerHealth("bad");
+        const httpsPage = window.location.protocol === "https:";
+        setServerHint(`Could not reach ${base}.${httpsPage ? " On an HTTPS page the API must also be HTTPS; an http:// API is blocked as mixed content." : ""} Check the host, protocol, and port, and that KABBAK_ALLOWED_ORIGINS includes ${window.location.origin || "this origin"}.`);
       }
     }
 
@@ -204,6 +250,7 @@
         serverEditorEl.hidden = true;
       }
       serverToggleEl?.setAttribute("aria-expanded", "false");
+      setServerHint(`Saved ${next}.`);
       void probeServerHealth();
       void refreshProviders();
     }
@@ -619,7 +666,14 @@
       }
     });
     serverApplyEl?.addEventListener("click", () => applyServerEditor());
+    serverProtocolEl?.addEventListener("change", () => syncPortPlaceholder());
     serverPortEl?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        applyServerEditor();
+      }
+    });
+    serverHostEl?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
         applyServerEditor();
