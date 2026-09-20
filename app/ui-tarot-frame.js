@@ -1113,6 +1113,7 @@
 
   function canUseProfileLayoutStore() {
     return window.TarotAppConfig?.isProfileAuthorized?.() === true
+      && window.TarotAppConfig?.hasPersonalFeatures?.() !== false
       && typeof window.TarotDataService?.requestJson === "function";
   }
 

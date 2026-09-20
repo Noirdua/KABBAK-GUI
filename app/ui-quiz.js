@@ -100,7 +100,7 @@
     if (!highScoresEl || typeof window.TarotDataService?.fetchQuizProgress !== "function") {
       return;
     }
-    if (!window.TarotAppConfig?.isProfileAuthorized?.()) {
+    if (!window.TarotAppConfig?.isProfileAuthorized?.() || window.TarotAppConfig?.hasPersonalFeatures?.() === false) {
       highScoresEl.hidden = true;
       return;
     }
@@ -140,7 +140,7 @@
     if (!block || !list || typeof window.TarotDataService?.fetchQuizLeaderboard !== "function") {
       return;
     }
-    if (!window.TarotAppConfig?.isProfileAuthorized?.()) {
+    if (!window.TarotAppConfig?.isProfileAuthorized?.() || window.TarotAppConfig?.hasPersonalFeatures?.() === false) {
       block.hidden = true;
       return;
     }
@@ -559,7 +559,7 @@
     if (state.scoreAnswered <= 0) {
       return;
     }
-    if (!window.TarotAppConfig?.isProfileAuthorized?.()) {
+    if (!window.TarotAppConfig?.isProfileAuthorized?.() || window.TarotAppConfig?.hasPersonalFeatures?.() === false) {
       return;
     }
 

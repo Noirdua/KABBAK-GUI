@@ -951,6 +951,20 @@
     .connection-gate-step[hidden] {
       display: none;
     }
+    .connection-gate-forgot-switch {
+      margin-top: 10px;
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--tt-text-muted);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 4px 0;
+      text-decoration: underline;
+    }
+    .connection-gate-forgot-switch:hover {
+      color: var(--tt-text-bright);
+    }
     .connection-gate-advanced-toggle {
       margin-top: 12px;
       appearance: none;
@@ -995,6 +1009,9 @@
     }
     .connection-gate-account-status[data-tone="pending"] {
       color: #fde68a;
+    }
+    .connection-gate-captcha[hidden] {
+      display: none !important;
     }
     .connection-gate-captcha {
       margin-top: 10px;
@@ -14488,6 +14505,60 @@
       padding: 4px 16px 8px;
       font-size: 12px;
       color: var(--tt-text-muted);
+    }
+    .profile-demo-cta {
+      margin: 0 0 16px;
+      padding: 14px 16px;
+      border: 1px solid color-mix(in srgb, var(--tt-brand) 40%, var(--tt-border));
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--tt-brand) 10%, var(--tt-bg-deep));
+    }
+    .profile-demo-cta strong {
+      display: block;
+      margin: 0 0 6px;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--tt-brand);
+    }
+    .profile-demo-cta p {
+      margin: 0 0 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--tt-text);
+    }
+    html[data-personal-features="off"] [data-personal-feature],
+    html[data-personal-features="off"] #open-inbox {
+      display: none !important;
+    }
+    .profile-settings-pad {
+      padding: 8px 16px 16px;
+    }
+    .profile-settings-row-stack input,
+    .profile-settings-row-stack select {
+      max-width: none;
+      text-align: left;
+    }
+    .profile-settings-row .settings-range-row {
+      flex: 1;
+      max-width: 60%;
+    }
+    .profile-settings-row .settings-range-input {
+      max-width: none;
+      text-align: left;
+    }
+    .profile-tab-settings .theme-custom-editor,
+    .profile-tab-settings .settings-connection-summary,
+    .profile-tab-settings .settings-connection-actions {
+      margin: 0 16px 16px;
+    }
+    .profile-tab-settings .theme-custom-editor {
+      margin-top: 0;
+      padding: 16px;
+      border-top: 1px solid var(--tt-border);
+    }
+    .profile-tab-settings .settings-page-actions {
+      display: flex;
     }
     .profile-settings-link {
       display: flex;

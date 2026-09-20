@@ -151,6 +151,19 @@
     return window.TarotAppConfig?.isProfileAuthorized?.() === true;
   }
 
+  function hasPersonalFeatures() {
+    return window.TarotAppConfig?.hasPersonalFeatures?.() === true;
+  }
+
+  function applyPersonalChrome() {
+    const allowed = hasPersonalFeatures();
+    const cta = document.getElementById("profile-demo-cta");
+    if (cta) cta.hidden = allowed;
+    if (!allowed && state.profileTab !== "settings") {
+      setProfileTab("settings");
+    }
+  }
+
   function setStatus(text) {
     const { noteStatusEl } = getElements();
     if (noteStatusEl) {
@@ -1313,6 +1326,14 @@
   async function savePreferredDeck(deckId) {
     const normalized = String(deckId || "").trim();
     try {
+      if (!hasPersonalFeatures()) {
+        state.preferredDeck = normalized;
+        applyPreferredDeckGlobally(state.preferredDeck);
+        setDeckStatus(state.preferredDeck
+          ? `Saved on this device: ${state.preferredDeck}.`
+          : "Saved on this device. Using the app default deck.");
+        return;
+      }
       const service = window.TarotDataService;
       const result = await service.requestJson(
         "PATCH",
@@ -3600,11 +3621,18 @@
 
     state.loading = true;
     try {
+      applyPersonalChrome();
       const service = window.TarotDataService;
       const summary = await service.requestJson("GET", service.buildApiUrl("/api/v1/profile"));
-      const notesPayload = await service.requestJson("GET", service.buildApiUrl("/api/v1/profile/notes"));
-      const quickNotesPayload = await service.requestJson("GET", service.buildApiUrl("/api/v1/profile/quick-notes"));
-      const progress = await service.requestJson("GET", service.buildApiUrl("/api/v1/profile/quiz-progress"));
+      const notesPayload = hasPersonalFeatures()
+        ? await service.requestJson("GET", service.buildApiUrl("/api/v1/profile/notes"))
+        : { notes: [] };
+      const quickNotesPayload = hasPersonalFeatures()
+        ? await service.requestJson("GET", service.buildApiUrl("/api/v1/profile/quick-notes"))
+        : { quickNotes: [] };
+      const progress = hasPersonalFeatures()
+        ? await service.requestJson("GET", service.buildApiUrl("/api/v1/profile/quiz-progress"))
+        : null;
 
       const { clientLabelEl } = getElements();
       state.clientId = String(summary?.clientId || "").trim();
@@ -3624,18 +3652,27 @@
       syncJournalVisibilityUi();
       state.mediaStamp = String(summary?.updatedAt || Date.now());
       applyProfileMedia();
-      void loadProfilePage();
+      if (hasPersonalFeatures()) {
+        void loadProfilePage();
+        void refreshFriends();
+        void renderDirectoryDiscussions();
+      }
       state.directoryVisibility = String(summary?.directoryVisibility || "private");
       syncDirectoryUi();
-      void refreshFriends();
-      void renderDirectoryDiscussions();
 
       state.notes = Array.isArray(notesPayload?.notes) ? notesPayload.notes : [];
       state.quickNotes = Array.isArray(quickNotesPayload?.quickNotes) ? quickNotesPayload.quickNotes : [];
       renderQuickNotes();
-      state.location = summary?.location && typeof summary.location === "object"
-        ? { ...summary.location }
-        : null;
+      if (hasPersonalFeatures()) {
+        state.location = summary?.location && typeof summary.location === "object"
+          ? { ...summary.location }
+          : null;
+      } else {
+        const saved = window.TarotSettingsUi?.loadSavedSettings?.() || {};
+        state.location = Number.isFinite(Number(saved.latitude)) && Number.isFinite(Number(saved.longitude))
+          ? { latitude: Number(saved.latitude), longitude: Number(saved.longitude) }
+          : null;
+      }
       document.dispatchEvent(new CustomEvent("profile:location-updated", { detail: { location: getLocation() } }));
       await loadLocationCountries();
       await syncLocationUi();
@@ -3646,7 +3683,7 @@
       renderStorage(summary?.storage);
       renderNoteFilters();
       renderNoteList();
-      renderQuizProgress(progress);
+      if (progress) renderQuizProgress(progress);
       syncNotesMode();
       if (state.editing) {
         void updateSceneSkyCards();
@@ -3957,11 +3994,12 @@
   }
 
   function setProfileTab(tab) {
-    const next = String(tab || "page");
+    const next = hasPersonalFeatures() ? String(tab || "page") : "settings";
     state.profileTab = next;
     document.querySelectorAll("[data-profile-tab]").forEach((button) => {
       button.classList.toggle("is-active", button.getAttribute("data-profile-tab") === next);
     });
+    document.getElementById("open-settings")?.setAttribute("aria-pressed", next === "settings" ? "true" : "false");
     ["page", "inbox", "bulletin", "friends", "directory", "library", "settings"].forEach((name) => {
       const panel = document.getElementById(`profile-tab-${name}`);
       if (panel) panel.hidden = name !== next;
@@ -5368,6 +5406,18 @@
       locationSaveBtn.disabled = true;
     }
     try {
+      if (!hasPersonalFeatures()) {
+        const latitude = Number(input.latitude);
+        const longitude = Number(input.longitude);
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          window.TarotSettingsUi?.persistLocationAndRefresh?.(latitude, longitude);
+        }
+        state.location = { ...input };
+        syncLocationUi();
+        setLocationStatus("Saved on this device. Create a trial account to keep it with your profile.");
+        document.dispatchEvent(new CustomEvent("profile:location-updated", { detail: { location: getLocation() } }));
+        return;
+      }
       const service = window.TarotDataService;
       const result = await service.requestJson(
         "PATCH",
@@ -5532,6 +5582,7 @@
     }
 
     state.initialized = true;
+    applyPersonalChrome();
     const elements = getElements();
 
     document.getElementById("profile-open-notes")?.addEventListener("click", openJournalOrNotes);
@@ -5692,16 +5743,21 @@
     });
 
     document.addEventListener("connection:access-updated", () => {
+      applyPersonalChrome();
       populateProfileDeckSelect();
       if (state.preferredDeck) {
         applyPreferredDeckGlobally(state.preferredDeck);
       }
     });
+    document.getElementById("profile-demo-signup")?.addEventListener("click", () => {
+      document.getElementById("api-logout")?.click();
+    });
 
     setView("hub");
     void refreshProfile();
-    // Load the posts feed on first open, not only after posting.
-    void renderProfileFeed();
+    if (hasPersonalFeatures()) {
+      void renderProfileFeed();
+    }
   }
 
   function readPdfTheme() {
@@ -6461,6 +6517,8 @@
   window.ProfileUi = {
     ...(window.ProfileUi || {}),
     ensureProfileSection,
+    setProfileTab,
+    getProfileTab: () => state.profileTab,
     getLocation,
     addToPost,
     mountJournal,

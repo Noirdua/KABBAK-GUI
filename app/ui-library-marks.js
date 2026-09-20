@@ -25,9 +25,13 @@
     return window.TarotDataService;
   }
 
+  function canUsePersonalLibrary() {
+    return window.TarotAppConfig?.hasPersonalFeatures?.() !== false;
+  }
+
   async function loadLibrary() {
     const svc = service();
-    if (!svc?.requestJson || !svc?.buildApiUrl) {
+    if (!svc?.requestJson || !svc?.buildApiUrl || !canUsePersonalLibrary()) {
       library = { bookmarks: [], notes: [] };
       loaded = false;
       return library;
@@ -52,7 +56,7 @@
     window.clearTimeout(saveTimer);
     saveTimer = window.setTimeout(() => {
       const svc = service();
-      if (!svc?.requestJson || !svc?.buildApiUrl) return;
+      if (!svc?.requestJson || !svc?.buildApiUrl || !canUsePersonalLibrary()) return;
       svc.requestJson("PUT", svc.buildApiUrl(LIBRARY_PATH), {
         bookmarks: library.bookmarks,
         notes: library.notes

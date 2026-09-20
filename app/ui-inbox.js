@@ -19,7 +19,8 @@
   }
 
   function isEnabled() {
-    return window.TarotDataService?.isApiEnabled?.() === true;
+    return window.TarotDataService?.isApiEnabled?.() === true
+      && window.TarotAppConfig?.hasPersonalFeatures?.() !== false;
   }
 
   function setBadge(count) {

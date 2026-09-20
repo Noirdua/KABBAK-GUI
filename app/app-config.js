@@ -13,7 +13,9 @@
     capabilities: Object.freeze({
       tarot: false,
       adminApiManagement: false
-    })
+    }),
+    demo: false,
+    personalFeatures: true
   });
 
   function normalizeBaseUrl(value) {
@@ -91,12 +93,18 @@
       || (connected && !apiKeyRequired)
       || accessLevel === "premium"
       || adminApiManagementCapability;
+    const clientId = String(auth?.clientId || source?.clientId || "").trim();
+    const demo = auth?.demo === true
+      || source?.demo === true
+      || clientId === "cli_demo"
+      || clientId.startsWith("cli_demo_");
+    const personalFeatures = authenticated && !demo && auth?.personalFeatures !== false && source?.personalFeatures !== false;
 
     return {
       connected,
       apiKeyRequired,
       authenticated,
-      clientId: String(auth?.clientId || source?.clientId || "").trim(),
+      clientId,
       accountId: String(auth?.accountId || source?.accountId || "").trim(),
       accessLevel,
       roles,
@@ -104,7 +112,9 @@
       capabilities: {
         tarot: tarotCapability,
         adminApiManagement: adminApiManagementCapability
-      }
+      },
+      demo,
+      personalFeatures
     };
   }
 
@@ -584,6 +594,9 @@
       const access = this.getConnectionAccess();
       return access.authenticated === true && Boolean(String(access.clientId || "").trim());
     },
+    hasPersonalFeatures() {
+      return this.getConnectionAccess().personalFeatures === true;
+    },
     hasTarotAccess() {
       return this.getConnectionAccess().capabilities.tarot === true;
     },
@@ -594,6 +607,7 @@
       const previous = this.getConnectionAccess();
       const current = normalizeConnectionAccess(nextAccess);
       this.connectionAccess = current;
+      document.documentElement.dataset.personalFeatures = current.personalFeatures === true ? "on" : "off";
 
       if (!sameConnectionAccess(previous, current)) {
         document.dispatchEvent(new CustomEvent("connection:access-updated", {

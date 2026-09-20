@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260919-account-login">
+  <link rel="stylesheet" href="app/styles.css?v=20260919-reset-captcha">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -202,6 +202,7 @@
             <button id="connection-gate-signin" type="button">Sign in</button>
             <button id="connection-gate-signup-switch" type="button">Create an account</button>
           </div>
+          <button id="connection-gate-forgot-switch" class="connection-gate-forgot-switch" type="button">Forgot password?</button>
         </div>
 
         <div class="connection-gate-step" data-account-step="signup" hidden>
@@ -209,12 +210,6 @@
             <input id="connection-gate-signup-username" type="text" autocomplete="username" placeholder="Username (public, 3-24 chars)" aria-label="Username">
             <input id="connection-gate-signup-email" type="email" inputmode="email" autocomplete="email" placeholder="Email (private, for verification)" aria-label="Email">
             <input id="connection-gate-signup-password" type="password" autocomplete="new-password" placeholder="Password (8+ characters)" aria-label="Password">
-          </div>
-          <div class="connection-gate-captcha">
-            <span id="connection-gate-captcha-prompt" class="connection-gate-captcha-prompt">Loading challenge…</span>
-            <button id="connection-gate-captcha-refresh" class="connection-gate-captcha-refresh" type="button" aria-label="New challenge">New</button>
-            <div id="connection-gate-captcha-choices" class="connection-gate-captcha-choices"></div>
-            <input id="connection-gate-captcha-answer" type="text" inputmode="numeric" autocomplete="off" placeholder="Answer" aria-label="Captcha answer">
           </div>
           <div class="connection-gate-account-actions">
             <button id="connection-gate-signup" type="button">Start 30-day trial</button>
@@ -231,6 +226,35 @@
             <button id="connection-gate-verify" type="button">Verify and start trial</button>
             <button id="connection-gate-resend" type="button">Resend code</button>
           </div>
+        </div>
+
+        <div class="connection-gate-step" data-account-step="forgot" hidden>
+          <div class="connection-gate-account-fields">
+            <input id="connection-gate-forgot-identifier" type="text" autocomplete="username" placeholder="Username or email" aria-label="Username or email">
+          </div>
+          <div class="connection-gate-account-actions">
+            <button id="connection-gate-forgot-submit" type="button">Email me a reset code</button>
+            <button id="connection-gate-forgot-cancel" type="button">Back to sign in</button>
+          </div>
+        </div>
+
+        <div class="connection-gate-step" data-account-step="reset" hidden>
+          <p class="connection-gate-verify-copy">Enter the 6-digit reset code we emailed you, then choose a new password.</p>
+          <div class="connection-gate-account-fields">
+            <input id="connection-gate-reset-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" aria-label="Reset code">
+            <input id="connection-gate-reset-password" type="password" autocomplete="new-password" placeholder="New password (8+ characters)" aria-label="New password">
+          </div>
+          <div class="connection-gate-account-actions">
+            <button id="connection-gate-reset-submit" type="button">Set new password</button>
+            <button id="connection-gate-reset-cancel" type="button">Back to sign in</button>
+          </div>
+        </div>
+
+        <div id="connection-gate-captcha" class="connection-gate-captcha" hidden>
+          <span id="connection-gate-captcha-prompt" class="connection-gate-captcha-prompt">Loading challenge…</span>
+          <button id="connection-gate-captcha-refresh" class="connection-gate-captcha-refresh" type="button" aria-label="New challenge">New</button>
+          <div id="connection-gate-captcha-choices" class="connection-gate-captcha-choices"></div>
+          <input id="connection-gate-captcha-answer" type="text" inputmode="numeric" autocomplete="off" placeholder="Answer" aria-label="Captcha answer">
         </div>
 
         <div id="connection-gate-account-status" class="connection-gate-account-status" aria-live="polite"></div>
@@ -272,12 +296,12 @@
             </div>
           </div>
           <nav class="profile-tabs" id="profile-tabs" aria-label="Profile sections">
-            <button type="button" class="profile-tab is-active" data-profile-tab="page">Page</button>
-            <button type="button" class="profile-tab" data-profile-tab="inbox">Inbox</button>
-            <button type="button" class="profile-tab" data-profile-tab="bulletin">Bulletin</button>
-            <button type="button" class="profile-tab" data-profile-tab="friends">Friends</button>
-            <button type="button" class="profile-tab" data-profile-tab="directory">Directory</button>
-            <button type="button" class="profile-tab" data-profile-tab="library">Library</button>
+            <button type="button" class="profile-tab is-active" data-profile-tab="page" data-personal-feature>Page</button>
+            <button type="button" class="profile-tab" data-profile-tab="inbox" data-personal-feature>Inbox</button>
+            <button type="button" class="profile-tab" data-profile-tab="bulletin" data-personal-feature>Bulletin</button>
+            <button type="button" class="profile-tab" data-profile-tab="friends" data-personal-feature>Friends</button>
+            <button type="button" class="profile-tab" data-profile-tab="directory" data-personal-feature>Directory</button>
+            <button type="button" class="profile-tab" data-profile-tab="library" data-personal-feature>Library</button>
             <button type="button" class="profile-tab" data-profile-tab="settings">Settings</button>
           </nav>
         </div>
@@ -381,7 +405,12 @@
           </div>
         </div>
         <div id="profile-tab-settings" class="profile-tab-panel" hidden>
-          <section class="profile-settings-group">
+          <div id="profile-demo-cta" class="profile-demo-cta" hidden>
+            <strong>Shared demo</strong>
+            <p>Journal, friends, inbox, and a public page need your own account. Create a free trial to keep them.</p>
+            <button id="profile-demo-signup" class="profile-btn profile-btn-primary" type="button">Create a trial account</button>
+          </div>
+          <section class="profile-settings-group" data-personal-feature>
             <h3>Account</h3>
             <label class="profile-settings-row" for="profile-display-name">Display name
               <input id="profile-display-name" type="text" maxlength="100" placeholder="Your name">
@@ -484,6 +513,107 @@
               <button id="profile-cache-clear" class="profile-btn" type="button">Clear cache</button>
             </div>
           </section>
+          <section class="profile-settings-group">
+            <h3>Navigation</h3>
+            <label class="profile-settings-row" for="menu-layout">Menu style
+              <select id="menu-layout">
+                <option value="drawer" selected>Side drawer</option>
+                <option value="panel">Drop-down panel</option>
+              </select>
+            </label>
+            <p class="profile-settings-hint">Side drawer overlays from the left. Tap outside or press Escape to close.</p>
+            <label class="profile-settings-row" for="ui-skin">UI Overhaul
+              <select id="ui-skin">
+                <option value="" selected>Default layout</option>
+              </select>
+            </label>
+            <p class="profile-settings-hint">Installed layout plugins. Only one is active.</p>
+          </section>
+          <section class="profile-settings-group">
+            <h3>Look</h3>
+            <p class="profile-settings-hint">Materials and structure. Palettes below retint every look.</p>
+            <div class="profile-settings-pad">
+              <div id="look-preset-list" class="look-preset-grid" role="radiogroup" aria-label="App look"></div>
+            </div>
+          </section>
+          <section class="profile-settings-group">
+            <h3>Color palette</h3>
+            <p class="profile-settings-hint">Retints the active look. Live preview as you pick or edit colors.</p>
+            <div class="profile-settings-pad">
+              <div id="theme-preset-list" class="theme-preset-grid" role="radiogroup" aria-label="Color theme"></div>
+            </div>
+            <div class="theme-custom-editor">
+              <p class="profile-settings-hint">Colors preview live. Save them as a named palette to reuse later.</p>
+              <div class="theme-custom-swatches">
+                <label class="theme-color-field">Background<input id="theme-color-bg" type="color" value="#18181b"></label>
+                <label class="theme-color-field">Surface<input id="theme-color-surface" type="color" value="#27272a"></label>
+                <label class="theme-color-field">Border<input id="theme-color-border" type="color" value="#3f3f46"></label>
+                <label class="theme-color-field">Text<input id="theme-color-text" type="color" value="#f4f4f5"></label>
+                <label class="theme-color-field">Muted Text<input id="theme-color-muted" type="color" value="#a1a1aa"></label>
+                <label class="theme-color-field">Accent<input id="theme-color-accent" type="color" value="#6366f1"></label>
+                <label class="theme-color-field">Brand<input id="theme-color-brand" type="color" value="#fbbf24"></label>
+              </div>
+              <div class="theme-custom-actions">
+                <input id="theme-custom-name" type="text" class="theme-custom-name-input" placeholder="Theme name" maxlength="40">
+                <button id="theme-save-new-btn" type="button">Save As New Theme</button>
+                <button id="theme-update-btn" type="button" hidden>Update This Theme</button>
+                <button id="theme-reset-btn" type="button">Reset Colors</button>
+              </div>
+              <small id="theme-custom-status" class="settings-field-hint" aria-live="polite">Pick a theme above to load its colors into the editor.</small>
+            </div>
+          </section>
+          <section class="profile-settings-group">
+            <h3>Detail text</h3>
+            <label class="profile-settings-row" for="detail-text-scale">Font size
+              <div class="settings-range-row">
+                <input id="detail-text-scale" class="settings-range-input" type="range" min="85" max="135" step="5" value="100">
+                <span id="detail-text-scale-value" class="settings-range-value">100%</span>
+              </div>
+            </label>
+            <p class="profile-settings-hint">Lower values fit more text; higher values make detail panes and alphabet content easier to read.</p>
+          </section>
+          <section class="profile-settings-group">
+            <h3>API connection</h3>
+            <label class="profile-settings-row profile-settings-row-stack" for="api-base-url">API Base URL
+              <input id="api-base-url" type="url" inputmode="url" placeholder="http://localhost:3100">
+            </label>
+            <label class="profile-settings-row profile-settings-row-stack" for="api-key">API Key
+              <input id="api-key" type="password" autocomplete="off" placeholder="Optional unless the API requires one">
+            </label>
+            <div id="api-connection-summary" class="settings-connection-summary" data-tone="neutral" aria-live="polite">
+              <div class="settings-connection-summary-row">
+                <span class="settings-connection-summary-label">Status</span>
+                <span id="api-connection-summary-state" class="settings-connection-summary-value">Not checked yet.</span>
+              </div>
+              <div class="settings-connection-summary-row">
+                <span class="settings-connection-summary-label">Client</span>
+                <span id="api-connection-summary-client" class="settings-connection-summary-value">No authenticated API identity.</span>
+              </div>
+              <div class="settings-connection-summary-row">
+                <span class="settings-connection-summary-label">Access</span>
+                <span id="api-connection-summary-access" class="settings-connection-summary-value">Unknown</span>
+              </div>
+              <div class="settings-connection-summary-row">
+                <span class="settings-connection-summary-label">Permissions</span>
+                <span id="api-connection-summary-permissions" class="settings-connection-summary-value">Save settings to validate this API key.</span>
+              </div>
+            </div>
+            <div class="settings-connection-actions">
+              <button id="api-logout" class="settings-logout-btn" type="button">Log out</button>
+              <span class="settings-logout-hint">Clears the saved API key on this device and returns to the connection screen.</span>
+            </div>
+          </section>
+          <section class="profile-settings-group">
+            <h3>DLC</h3>
+            <p class="profile-settings-hint">DLC and plugin management is in the Admin panel (requires an admin API key).</p>
+          </section>
+          <div class="settings-actions settings-page-actions">
+            <div id="settings-page-status" class="settings-page-status" data-tone="neutral" aria-live="polite">
+              <span id="settings-page-status-text" class="settings-page-status-text">Settings ready.</span>
+              <span id="settings-page-status-time" class="settings-page-status-time" hidden></span>
+            </div>
+            <button id="save-settings" type="button">Save Settings</button>
+          </div>
         </div>
       </div>
       <div id="profile-notes-panel" class="profile-notes-panel" hidden>
@@ -560,135 +690,7 @@
       </div>
     </div>
   </section>
-  <section id="settings-section" hidden>
-    <div class="settings-page-shell">
-      <div class="settings-page-hero">
-        <div>
-          <div class="settings-page-eyebrow">Configuration</div>
-          <h1 class="settings-page-title">Settings</h1>
-          <p class="settings-page-copy">A dedicated page for app behavior, deck caching, and API connection settings. This stays scrollable and leaves room for more controls later.</p>
-        </div>
-        <button id="close-settings" class="settings-page-back" type="button">Back</button>
-      </div>
-      <div class="settings-page-layout">
-        <section class="settings-panel settings-panel-wide">
-          <div class="settings-panel-head">
-            <strong>Navigation Menu</strong>
-            <span>Choose how the top navigation menu opens.</span>
-          </div>
-          <div class="settings-grid">
-            <label class="settings-field settings-field-full">Menu Style              <select id="menu-layout">
-                <option value="drawer" selected>Side drawer (slides in from the left)</option>
-                <option value="panel">Drop-down panel</option>
-              </select>
-              <small class="settings-field-hint">The side drawer overlays the page from the left edge, like a phone menu. Tap outside it or press Escape to close.</small>
-            </label>
-            <label class="settings-field settings-field-full">UI Overhaul              <select id="ui-skin">
-                <option value="" selected>Default layout</option>
-              </select>
-              <small class="settings-field-hint">Installed layout plugins. Default Layout is the built-in top bar; only one is active.</small>
-            </label>
-          </div>
-        </section>
-        <section class="settings-panel settings-panel-wide">
-          <div class="settings-panel-head">
-            <strong>Look</strong>
-            <span>Materials and structure. Palettes below retint every look — Neon + Crimson is red glow, Paper + Ocean is blue parchment.</span>
-          </div>
-          <div id="look-preset-list" class="look-preset-grid" role="radiogroup" aria-label="App look"></div>
-        </section>
-        <section class="settings-panel settings-panel-wide">
-          <div class="settings-panel-head">
-            <strong>Color Palette</strong>
-            <span>Retints the active look. Live preview as you pick or edit colors.</span>
-          </div>
-          <div id="theme-preset-list" class="theme-preset-grid" role="radiogroup" aria-label="Color theme"></div>
-          <div class="theme-custom-editor">
-            <div class="settings-panel-head">
-              <strong>Create Your Own Palette</strong>
-              <span>Colors preview live as you edit. Save them as a named palette to reuse later.</span>
-            </div>
-            <div class="theme-custom-swatches">
-              <label class="theme-color-field">Background<input id="theme-color-bg" type="color" value="#18181b"></label>
-              <label class="theme-color-field">Surface<input id="theme-color-surface" type="color" value="#27272a"></label>
-              <label class="theme-color-field">Border<input id="theme-color-border" type="color" value="#3f3f46"></label>
-              <label class="theme-color-field">Text<input id="theme-color-text" type="color" value="#f4f4f5"></label>
-              <label class="theme-color-field">Muted Text<input id="theme-color-muted" type="color" value="#a1a1aa"></label>
-              <label class="theme-color-field">Accent<input id="theme-color-accent" type="color" value="#6366f1"></label>
-              <label class="theme-color-field">Brand<input id="theme-color-brand" type="color" value="#fbbf24"></label>
-            </div>
-            <div class="theme-custom-actions">
-              <input id="theme-custom-name" type="text" class="theme-custom-name-input" placeholder="Theme name" maxlength="40">
-              <button id="theme-save-new-btn" type="button">Save As New Theme</button>
-              <button id="theme-update-btn" type="button" hidden>Update This Theme</button>
-              <button id="theme-reset-btn" type="button">Reset Colors</button>
-            </div>
-            <small id="theme-custom-status" class="settings-field-hint" aria-live="polite">Pick a theme above to load its colors into the editor.</small>
-          </div>
-        </section>
-        <section class="settings-panel settings-panel-wide">
-          <div class="settings-panel-head">
-            <strong>Detail Text</strong>
-            <span>Adjust the font size used by tarot detail panes and alphabet readers.</span>
-          </div>
-          <div class="settings-grid">
-            <label class="settings-field settings-field-full settings-range-field">Font Size              <div class="settings-range-row">
-                <input id="detail-text-scale" class="settings-range-input" type="range" min="85" max="135" step="5" value="100">
-                <span id="detail-text-scale-value" class="settings-range-value">100%</span>
-              </div>
-              <small class="settings-field-hint">Lower values fit more text; higher values make detail panes and alphabet content easier to read.</small>
-            </label>
-          </div>
-        </section>
-        <section class="settings-panel settings-panel-wide">
-          <div class="settings-panel-head">
-            <strong>API Connection</strong>
-            <span>Set the API base URL and key used by this client shell.</span>
-          </div>
-          <div class="settings-grid">
-            <label class="settings-field settings-field-full">API Base URL              <input id="api-base-url" type="url" inputmode="url" placeholder="http://localhost:3100">
-            </label>
-            <label class="settings-field settings-field-full">API Key              <input id="api-key" type="password" autocomplete="off" placeholder="Optional unless the API requires one">
-            </label>
-          </div>
-          <div id="api-connection-summary" class="settings-connection-summary" data-tone="neutral" aria-live="polite">
-            <div class="settings-connection-summary-row">
-              <span class="settings-connection-summary-label">Status</span>
-              <span id="api-connection-summary-state" class="settings-connection-summary-value">Not checked yet.</span>
-            </div>
-            <div class="settings-connection-summary-row">
-              <span class="settings-connection-summary-label">Client</span>
-              <span id="api-connection-summary-client" class="settings-connection-summary-value">No authenticated API identity.</span>
-            </div>
-            <div class="settings-connection-summary-row">
-              <span class="settings-connection-summary-label">Access</span>
-              <span id="api-connection-summary-access" class="settings-connection-summary-value">Unknown</span>
-            </div>
-            <div class="settings-connection-summary-row">
-              <span class="settings-connection-summary-label">Permissions</span>
-              <span id="api-connection-summary-permissions" class="settings-connection-summary-value">Save settings to validate this API key.</span>
-            </div>
-          </div>
-          <div class="settings-connection-actions">
-            <button id="api-logout" class="settings-logout-btn" type="button">Log out</button>
-            <span class="settings-logout-hint">Clears the saved API key on this device and returns to the connection screen.</span>
-          </div>
-        <section class="settings-panel settings-panel-wide">
-          <div class="settings-panel-head">
-            <strong>DLC</strong>
-            <span>DLC and plugin management is available in the Admin panel (requires an admin API key).</span>
-          </div>
-        </section>
-      </div>
-      <div class="settings-actions settings-page-actions">
-        <div id="settings-page-status" class="settings-page-status" data-tone="neutral" aria-live="polite">
-          <span id="settings-page-status-text" class="settings-page-status-text">Settings ready.</span>
-          <span id="settings-page-status-time" class="settings-page-status-time" hidden></span>
-        </div>
-        <button id="save-settings" type="button">Save Settings</button>
-      </div>
-    </div>
-  </section>
+  <section id="settings-section" hidden></section>
   <section id="admin-section" hidden>
     <div class="settings-page-shell">
       <div class="settings-page-hero">
@@ -3037,35 +3039,35 @@
   <script src="app/ui-theme.js?v=20260911-scroll-perf"></script>
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
-  <script src="app/app-config.js?v=20260919-logout"></script>
+  <script src="app/app-config.js?v=20260919-demo-personal"></script>
   <script src="app/data-service.js?v=20260917-postshare"></script>
   <script src="app/ui-overlay.js?v=20260911-generic"></script>
   <script src="app/ui-popover-menu.js?v=20260915-tree-3d"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
-  <script src="app/ui-library-marks.js?v=20260917-mark-overlay-z"></script>
+  <script src="app/ui-library-marks.js?v=20260919-demo-personal"></script>
   <script src="app/plugins-host.js?v=20260919-native-shell"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260918-compare-system"></script>
+  <script src="app/lazy-sections.js?v=20260919-demo-personal"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
-  <script src="app/ui-settings.js?v=20260917-cleanup"></script>
+  <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
   <script src="app/ui-dlc-shop.js?v=20260918-music-playlist-fix"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
   <script src="app/ui-navigation.js?v=20260917-bookmark-shine"></script>
 
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
-  <script src="app/ui-section-state.js?v=20260919-can-go-back"></script>
+  <script src="app/ui-section-state.js?v=20260919-profile-settings"></script>
   <script src="app/ui-planner.js?v=20260917-planetarysub"></script>
-  <script src="app/ui-inbox.js?v=20260915-reply"></script>
+  <script src="app/ui-inbox.js?v=20260919-demo-personal"></script>
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
   <script src="app.js?v=20260919-account-login"></script>
-  <script src="app/auth-signup.js?v=20260919-account-login"></script>
+  <script src="app/auth-signup.js?v=20260919-reset-captcha"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>

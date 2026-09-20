@@ -53,6 +53,7 @@
   const sectionHistory = [];
   let restoringHistory = false;
   let historyUiBound = false;
+  let pendingProfileTab = null;
 
   const SECTION_LABELS = {
     home: "Home",
@@ -261,7 +262,11 @@
 
   function setActiveSection(nextSection) {
     const previousSection = activeSection;
-    const requestedSection = VALID_SECTIONS.has(nextSection) ? nextSection : "home";
+    const wantsSettings = nextSection === "settings";
+    const requestedSection = VALID_SECTIONS.has(wantsSettings ? "settings" : nextSection)
+      ? (wantsSettings ? "profile" : nextSection)
+      : "home";
+    pendingProfileTab = wantsSettings ? "settings" : null;
     const normalized = config.isSectionAccessible?.(requestedSection) === false
       ? "home"
       : requestedSection;
@@ -438,6 +443,7 @@
     setPressed(elements.openEnochianEl, isEnochianOpen);
     setPressed(elements.openProfileEl, isProfileOpen);
     setPressed(elements.openAdminEl, isAdminOpen);
+    if (pendingProfileTab) window.ProfileUi?.setProfileTab?.(pendingProfileTab);
 
     if (isPlannerOpen) {
       window.TarotPlannerUi?.render?.();
@@ -667,6 +673,9 @@
     }
     if (sectionId === "profile") {
       ensure.ensureProfileSection?.();
+      const tab = pendingProfileTab;
+      pendingProfileTab = null;
+      if (tab) window.ProfileUi?.setProfileTab?.(tab);
       return;
     }
     if (sectionId === "gods") {

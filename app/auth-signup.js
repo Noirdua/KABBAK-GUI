@@ -44,6 +44,15 @@
     const verifyEl = document.getElementById("connection-gate-verify");
     const resendEl = document.getElementById("connection-gate-resend");
 
+    const forgotSwitchEl = document.getElementById("connection-gate-forgot-switch");
+    const forgotIdentifierEl = document.getElementById("connection-gate-forgot-identifier");
+    const forgotSubmitEl = document.getElementById("connection-gate-forgot-submit");
+    const forgotCancelEl = document.getElementById("connection-gate-forgot-cancel");
+    const resetCodeEl = document.getElementById("connection-gate-reset-code");
+    const resetPasswordEl = document.getElementById("connection-gate-reset-password");
+    const resetSubmitEl = document.getElementById("connection-gate-reset-submit");
+    const resetCancelEl = document.getElementById("connection-gate-reset-cancel");
+
     if (!panelEl || !signupEl || !signinEl) {
       return;
     }
@@ -92,7 +101,7 @@
     }
 
     function setBusy(busy) {
-      [signupEl, signinEl, verifyEl, resendEl, captchaRefreshEl].forEach((button) => {
+      [signupEl, signinEl, verifyEl, resendEl, captchaRefreshEl, forgotSubmitEl].forEach((button) => {
         if (button) button.disabled = busy;
       });
       panelEl.classList.toggle("is-busy", busy);
@@ -142,7 +151,10 @@
       panelEl.querySelectorAll("[data-account-step]").forEach((stepEl) => {
         stepEl.hidden = stepEl.dataset.accountStep !== name;
       });
-      if (name === "signup" && !state.challengeReady && baseUrl()) {
+      const captchaEl = document.getElementById("connection-gate-captcha");
+      const needsCaptcha = name === "signup" || name === "forgot";
+      if (captchaEl) captchaEl.hidden = !needsCaptcha;
+      if (needsCaptcha && baseUrl() && (name === "forgot" || !state.challengeReady)) {
         void refreshChallenge();
       }
     }
@@ -325,6 +337,87 @@
       }
     }
 
+    async function submitForgot() {
+      const identifier = String(forgotIdentifierEl?.value || "").trim();
+      const answer = String(captchaAnswerEl?.value || "").trim();
+      if (!identifier) { setStatus("Enter your username or email.", "error"); forgotIdentifierEl?.focus(); return; }
+      if (!answer) { setStatus("Answer the captcha question.", "error"); captchaAnswerEl?.focus(); return; }
+
+      setBusy(true);
+      setStatus("Sending a reset code…", "pending");
+      try {
+        if (!state.challengeReady) {
+          setStatus("Fetching a fresh captcha…", "pending");
+          const ready = await refreshChallenge();
+          setStatus(ready
+            ? "A new captcha was issued — answer it and press Email me a reset code again."
+            : "The captcha could not load from this server.",
+          ready ? "pending" : "error");
+          return;
+        }
+        const result = await apiPost("/auth/forgot", {
+          identifier,
+          captchaToken: state.captchaToken,
+          captchaAnswer: answer
+        });
+        if (!result.ok) {
+          if (result.error === "captcha_failed") {
+            await refreshChallenge();
+          }
+          setStatus(result.message, "error");
+          return;
+        }
+        state.identifier = identifier;
+        if (resetCodeEl) resetCodeEl.value = "";
+        if (resetPasswordEl) resetPasswordEl.value = "";
+        showStep("reset");
+        if (result.data?.devCode) {
+          if (resetCodeEl) resetCodeEl.value = String(result.data.devCode);
+          setStatus("Email is not configured on this server, so the reset code is filled in for testing.", "pending");
+        } else {
+          setStatus("If that account exists, a reset code is on its way. Enter it below.", "success");
+        }
+      } catch (error) {
+        setStatus(`Could not request a reset: ${error?.message || error}`, "error");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function submitReset() {
+      const code = String(resetCodeEl?.value || "").trim();
+      const password = String(resetPasswordEl?.value || "");
+      if (!code) { setStatus("Enter the reset code from your email.", "error"); resetCodeEl?.focus(); return; }
+      if (password.length < 8) { setStatus("New password must be at least 8 characters.", "error"); resetPasswordEl?.focus(); return; }
+
+      setBusy(true);
+      setStatus("Updating your password…", "pending");
+      try {
+        const result = await apiPost("/auth/reset", { identifier: state.identifier, code, password });
+        if (!result.ok) {
+          setStatus(result.message, "error");
+          return;
+        }
+        const username = result.data?.account?.username;
+        if (username) {
+          if (loginUsernameEl) loginUsernameEl.value = username;
+          rememberUsername(username);
+        }
+        const apiKey = result.data?.apiKey;
+        if (apiKey) {
+          finishConnect(apiKey, result.data?.expiresAt);
+          return;
+        }
+        if (resetPasswordEl) resetPasswordEl.value = "";
+        showStep("login");
+        setStatus("Password updated. Sign in with your new password.", "success");
+      } catch (error) {
+        setStatus(`Password reset failed: ${error?.message || error}`, "error");
+      } finally {
+        setBusy(false);
+      }
+    }
+
     async function refreshProviders() {
       const base = baseUrl();
       if (!base) return;
@@ -369,6 +462,19 @@
     signupSwitchEl?.addEventListener("click", () => {
       showStep("signup");
       signupUsernameEl?.focus();
+    });
+    forgotSwitchEl?.addEventListener("click", () => {
+      const identifier = String(loginUsernameEl?.value || "").trim() || readRememberedUsername();
+      if (forgotIdentifierEl && identifier) forgotIdentifierEl.value = identifier;
+      showStep("forgot");
+      forgotIdentifierEl?.focus();
+    });
+    forgotSubmitEl?.addEventListener("click", () => { void submitForgot(); });
+    forgotCancelEl?.addEventListener("click", () => { showStep("login"); });
+    resetSubmitEl?.addEventListener("click", () => { void submitReset(); });
+    resetCancelEl?.addEventListener("click", () => { showStep("login"); });
+    resetPasswordEl?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") { event.preventDefault(); void submitReset(); }
     });
 
     signupPasswordEl?.addEventListener("keydown", (event) => {

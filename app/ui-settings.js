@@ -30,12 +30,9 @@
   let cachedProfileLocation = null;
   let profileLocationPromise = null;
 
-  let lastNonSettingsSection = "home";
-
   function getElements() {
     return {
       openSettingsEl: document.getElementById("open-settings"),
-      closeSettingsEl: document.getElementById("close-settings"),
       nowLocationLabelEl: document.getElementById("now-location-label"),
       nowLocationCoordsEl: document.getElementById("now-location-coords"),
       nowLocationEditEl: document.getElementById("now-location-edit"),
@@ -917,10 +914,6 @@
   }
 
   function openSettingsPopup() {
-    const activeSection = typeof config.getActiveSection === "function" ? config.getActiveSection() : "home";
-    if (activeSection && activeSection !== "settings") {
-      lastNonSettingsSection = activeSection;
-    }
     applySettingsToInputs(loadSavedSettings());
     syncUiSkinSelect();
     syncTarotDeckInputOptions();
@@ -929,10 +922,6 @@
       probeResult: lastConnectionProbeResult
     });
     config.setActiveSection?.("settings");
-  }
-
-  function closeSettingsPopup() {
-    config.setActiveSection?.(lastNonSettingsSection || "home");
   }
 
   async function handleSaveSettings() {
@@ -972,8 +961,9 @@
       );
       const didPersist = saveSettings(normalized);
       emitSettingsUpdated(normalized);
-      if (typeof config.getActiveSection === "function" && config.getActiveSection() !== "home" && config.getActiveSection() !== "settings") {
-        config.onReopenActiveSection?.(config.getActiveSection());
+      const activeSection = typeof config.getActiveSection === "function" ? config.getActiveSection() : "home";
+      if (activeSection && activeSection !== "home" && activeSection !== "profile") {
+        config.onReopenActiveSection?.(activeSection);
       }
       if (connectionChanged && typeof config.onConnectionSaved === "function") {
         await config.onConnectionSaved(connectionResult, connectionSettings);
@@ -1046,9 +1036,10 @@
   function openProfileLocation() {
     const sectionState = window.TarotSectionStateUi;
     if (typeof sectionState?.setActiveSection === "function") {
-      sectionState.setActiveSection("profile");
+      sectionState.setActiveSection("settings");
     } else {
       document.dispatchEvent(new CustomEvent("nav:profile"));
+      window.ProfileUi?.setProfileTab?.("settings");
     }
     window.setTimeout(() => {
       document.getElementById("profile-location-lat")?.scrollIntoView?.({ block: "center", behavior: "smooth" });
@@ -1060,7 +1051,6 @@
       saveSettingsEl,
       nowSettingsSaveEl,
       openSettingsEl,
-      closeSettingsEl,
       detailTextScaleEl,
       menuLayoutEl,
       nowTimeFormatEl,
@@ -1146,23 +1136,9 @@
     if (openSettingsEl) {
       openSettingsEl.addEventListener("click", (event) => {
         event.stopPropagation();
-        if ((config.getActiveSection?.() || "home") !== "settings") {
-          openSettingsPopup();
-        } else {
-          closeSettingsPopup();
-        }
+        openSettingsPopup();
       });
     }
-
-    if (closeSettingsEl) {
-      closeSettingsEl.addEventListener("click", closeSettingsPopup);
-    }
-
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && (config.getActiveSection?.() || "home") === "settings") {
-        closeSettingsPopup();
-      }
-    });
 
     document.addEventListener("connection:updated", () => {
       syncConnectionInputs();
@@ -1283,7 +1259,6 @@
     ...(window.TarotSettingsUi || {}),
     init,
     openSettingsPopup,
-    closeSettingsPopup,
     loadInitialSettingsAndApply,
     mergeServerDefaults,
     buildNatalContext,
