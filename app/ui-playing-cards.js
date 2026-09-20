@@ -156,7 +156,7 @@
       return true;
     }
     try {
-      await window.TarotLazySections?.loadScript?.("app/ui-tarot-lightbox.js?v=20260919-demo-personal");
+      await window.TarotLazySections?.loadScript?.("app/ui-tarot-lightbox.js?v=20260919-actions-webp");
     } catch (_error) {
       // Fall through to the availability check below.
     }

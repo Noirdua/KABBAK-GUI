@@ -4714,6 +4714,8 @@
 
   window.TarotUiLightbox = {
     ...(window.TarotUiLightbox || {}),
-    open
+    open,
+    isOpen: () => lightboxState.isOpen === true,
+    exportCurrentView: exportCurrentLightboxView
   };
 })();

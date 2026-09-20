@@ -200,6 +200,39 @@
     renderList(document.getElementById("profile-library-notes"), library.notes, "No notes yet.");
   }
 
+  function resolveExportTarget(host) {
+    if (window.TarotUiLightbox?.isOpen?.() === true) {
+      return { kind: "lightbox" };
+    }
+    const panel = host.closest(".detail-panel");
+    if (panel) {
+      return {
+        kind: "element",
+        element: panel,
+        sectionId: host.closest("section[id]")?.id || "detail"
+      };
+    }
+    return null;
+  }
+
+  async function exportHostAsWebp(host, spec, buttonEl) {
+    const target = resolveExportTarget(host);
+    if (!target) {
+      throw new Error("Nothing to export.");
+    }
+    if (target.kind === "lightbox") {
+      if (typeof window.TarotUiLightbox?.exportCurrentView !== "function") {
+        throw new Error("Lightbox export is unavailable.");
+      }
+      await window.TarotUiLightbox.exportCurrentView();
+      return;
+    }
+    if (typeof window.TarotChromeUi?.exportDetailPaneAsWebp !== "function") {
+      throw new Error("Export is unavailable.");
+    }
+    await window.TarotChromeUi.exportDetailPaneAsWebp(target.element, target.sectionId, buttonEl);
+  }
+
   function attachControls(host, spec) {
     if (!(host instanceof HTMLElement) || !spec?.type || !spec?.key) {
       return;
@@ -232,6 +265,9 @@
     });
     bar.appendChild(actionsBtn);
     host.appendChild(bar);
+    host.closest(".detail-panel")?.querySelectorAll(".detail-export-btn").forEach((button) => {
+      button.remove();
+    });
   }
 
   // Evidence state is per post, but the store keeps a convenience copy so the
@@ -302,6 +338,21 @@
         // The store is only a convenience pool for the composer.
       }
     };
+    const exportBtn = el("button", "kabbak-mark-btn", "Export WebP");
+    exportBtn.type = "button";
+    exportBtn.addEventListener("click", async () => {
+      exportBtn.disabled = true;
+      exportBtn.textContent = "Exporting...";
+      try {
+        await exportHostAsWebp(host, spec, exportBtn);
+        window.TaroOverlay.close();
+      } catch (error) {
+        exportBtn.disabled = false;
+        exportBtn.textContent = "Export WebP";
+        status.textContent = error?.message || "Could not export WebP.";
+      }
+    });
+
     evidenceBtn.addEventListener("click", async () => {
       picker.hidden = false;
       picker.textContent = "";
@@ -368,7 +419,7 @@
       }
     });
 
-    body.append(bookmarkBtn, noteArea, saveNote, evidenceBtn, picker, status);
+    body.append(bookmarkBtn, noteArea, saveNote, exportBtn, evidenceBtn, picker, status);
     window.TaroOverlay.open({
       title: spec.title || "Actions",
       size: "small",
