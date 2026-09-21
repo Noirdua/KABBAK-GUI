@@ -58,21 +58,14 @@
       degreeValueEl: document.getElementById("num-pad-degree-value"),
       degreeRangeEl: document.getElementById("num-pad-degree-range"),
       sectionEl: document.getElementById("num-pad-section"),
-      mobileFiltersEl: document.getElementById("num-pad-mobile-filters"),
       mobileChainsEl: document.getElementById("num-pad-mobile-chains"),
-      mobileActionsEl: document.getElementById("num-pad-mobile-actions"),
       chainsBackdropEl: document.getElementById("num-pad-chains-backdrop"),
-      actionSheetEl: document.getElementById("num-pad-action-sheet"),
+      settingsPanelEl: document.getElementById("num-pad-settings-panel"),
       actionFactorsEl: document.getElementById("num-pad-action-factors"),
-      actionBackdropEl: document.getElementById("num-pad-action-backdrop"),
-      actionCloseEl: document.getElementById("num-pad-action-close"),
       actionTargetEl: document.getElementById("num-pad-action-target"),
       actionFillEl: document.getElementById("num-pad-action-fill"),
       actionDrawEl: document.getElementById("num-pad-action-draw"),
       actionKeypadEl: document.getElementById("num-pad-action-keypad"),
-      filterSheetEl: document.getElementById("num-pad-filter-sheet"),
-      filterBackdropEl: document.getElementById("num-pad-filter-backdrop"),
-      filterCloseEl: document.getElementById("num-pad-filter-close"),
       filterGridSlotEl: document.getElementById("num-pad-filter-grid-slot"),
       filterChainSlotEl: document.getElementById("num-pad-filter-chain-slot"),
       openNumPadEl: document.getElementById("open-numbers-num-pad")
@@ -855,8 +848,10 @@
   }
 
   function isCompactNumPad() {
+    // Match the phone-skin breakpoint so small screens dock the toolbars into
+    // the filter sheet instead of showing them inline.
     return typeof window.matchMedia === "function"
-      && window.matchMedia("(max-width: 760px)").matches;
+      && window.matchMedia("(max-width: 900px), (hover: none) and (pointer: coarse)").matches;
   }
 
   function dockFilterToolbars(inSheet) {
@@ -882,48 +877,62 @@
     }
   }
 
-  function setFiltersOpen(open) {
-    const { sectionEl, filterSheetEl, mobileFiltersEl } = getElements();
-    state.filtersOpen = Boolean(open);
-    if (state.filtersOpen) {
-      state.chainsOpen = false;
-      state.actionsOpen = false;
+  // Grid/chain display options and chain actions live in one shared-overlay
+  // settings panel (app/ui-page-settings.js). Both the old "filters" and
+  // "actions" entry points now open that single panel.
+  function openNumPadSettings() {
+    const { sectionEl, settingsPanelEl } = getElements();
+    const trigger = document.getElementById("num-pad-settings");
+    if (!settingsPanelEl || !trigger) {
+      return;
     }
+
+    state.filtersOpen = true;
+    state.actionsOpen = true;
+    state.chainsOpen = false;
     if (sectionEl) {
-      sectionEl.classList.toggle("is-filters-open", state.filtersOpen);
-      sectionEl.classList.toggle("is-chains-open", state.chainsOpen);
-      sectionEl.classList.toggle("is-actions-open", state.actionsOpen);
+      sectionEl.classList.remove("is-chains-open");
     }
-    if (filterSheetEl) {
-      filterSheetEl.hidden = !state.filtersOpen;
-    }
-    if (mobileFiltersEl) {
-      mobileFiltersEl.setAttribute("aria-expanded", state.filtersOpen ? "true" : "false");
-    }
-    dockFilterToolbars(state.filtersOpen);
+    renderActionFactors();
+    dockFilterToolbars(true);
     applyMobileChrome();
+
+    window.TaroOverlay?.openPageSettings?.({
+      title: "Num Pad Settings",
+      panel: settingsPanelEl,
+      trigger,
+      restoreTo: sectionEl || settingsPanelEl.parentElement,
+      onClose: () => {
+        state.filtersOpen = false;
+        state.actionsOpen = false;
+        dockFilterToolbars(false);
+        applyMobileChrome();
+      }
+    });
+  }
+
+  function closeNumPadSettings() {
+    window.TaroOverlay?.close?.();
+  }
+
+  function setFiltersOpen(open) {
+    if (open) {
+      openNumPadSettings();
+    } else {
+      closeNumPadSettings();
+    }
   }
 
   function setChainsOpen(open) {
-    const { sectionEl, mobileChainsEl, filterSheetEl, mobileFiltersEl } = getElements();
+    const { sectionEl, mobileChainsEl } = getElements();
     state.chainsOpen = Boolean(open);
     if (state.chainsOpen) {
-      if (state.filtersOpen) {
-        state.filtersOpen = false;
-        dockFilterToolbars(false);
-        if (filterSheetEl) {
-          filterSheetEl.hidden = true;
-        }
-        if (mobileFiltersEl) {
-          mobileFiltersEl.setAttribute("aria-expanded", "false");
-        }
-      }
+      closeNumPadSettings();
+      state.filtersOpen = false;
       state.actionsOpen = false;
     }
     if (sectionEl) {
-      sectionEl.classList.toggle("is-filters-open", state.filtersOpen);
       sectionEl.classList.toggle("is-chains-open", state.chainsOpen);
-      sectionEl.classList.toggle("is-actions-open", state.actionsOpen);
     }
     if (mobileChainsEl) {
       mobileChainsEl.setAttribute("aria-expanded", state.chainsOpen ? "true" : "false");
@@ -985,25 +994,8 @@
   }
 
   function setActionsOpen(open) {
-    const { sectionEl, actionSheetEl, mobileActionsEl } = getElements();
-    state.actionsOpen = Boolean(open);
-    if (state.actionsOpen) {
-      state.chainsOpen = false;
-      if (state.filtersOpen) {
-        setFiltersOpen(false);
-      }
-    }
-    if (sectionEl) {
-      sectionEl.classList.toggle("is-actions-open", state.actionsOpen);
-      sectionEl.classList.toggle("is-chains-open", state.chainsOpen);
-    }
-    if (actionSheetEl) {
-      actionSheetEl.hidden = !state.actionsOpen;
-    }
-    if (mobileActionsEl) {
-      mobileActionsEl.setAttribute("aria-expanded", state.actionsOpen ? "true" : "false");
-    }
-    applyMobileChrome();
+    // Actions are part of the same Num Pad settings panel.
+    setFiltersOpen(open);
   }
 
   function resolvePickedChain() {
@@ -1054,6 +1046,11 @@
   }
 
   function handleKeydown(event) {
+    // The shared settings overlay handles Escape in the capture phase; without
+    // this the same keypress would also fall through and reset the pad.
+    if (event.defaultPrevented || window.TaroOverlay?.isOpen?.()) {
+      return;
+    }
     if (!isNumPadActive() || event.altKey || event.ctrlKey || event.metaKey) {
       return;
     }
@@ -1184,22 +1181,24 @@
         });
       }
       const {
-        mobileFiltersEl,
         mobileChainsEl,
-        mobileActionsEl,
-        filterBackdropEl,
-        filterCloseEl,
         chainsBackdropEl,
         actionFactorsEl,
-        actionBackdropEl,
-        actionCloseEl,
         actionFillEl,
         actionDrawEl,
         actionKeypadEl
       } = getElements();
-      if (mobileFiltersEl) {
-        mobileFiltersEl.addEventListener("click", () => {
-          setFiltersOpen(!state.filtersOpen);
+      // The settings panel is opened through openNumPadSettings() so the panel
+      // toolbars are docked and the action list rebuilt (the shared listener
+      // would otherwise just move the panel).
+      const numPadSettingsEl = document.getElementById("num-pad-settings");
+      if (numPadSettingsEl) {
+        numPadSettingsEl.addEventListener("click", () => {
+          if (state.filtersOpen || state.actionsOpen) {
+            closeNumPadSettings();
+          } else {
+            openNumPadSettings();
+          }
         });
       }
       if (mobileChainsEl) {
@@ -1207,34 +1206,9 @@
           setChainsOpen(!state.chainsOpen);
         });
       }
-      if (mobileActionsEl) {
-        mobileActionsEl.addEventListener("click", () => {
-          setActionsOpen(!state.actionsOpen);
-        });
-      }
       if (chainsBackdropEl) {
         chainsBackdropEl.addEventListener("click", () => {
           setChainsOpen(false);
-        });
-      }
-      if (filterBackdropEl) {
-        filterBackdropEl.addEventListener("click", () => {
-          setFiltersOpen(false);
-        });
-      }
-      if (filterCloseEl) {
-        filterCloseEl.addEventListener("click", () => {
-          setFiltersOpen(false);
-        });
-      }
-      if (actionBackdropEl) {
-        actionBackdropEl.addEventListener("click", () => {
-          setActionsOpen(false);
-        });
-      }
-      if (actionCloseEl) {
-        actionCloseEl.addEventListener("click", () => {
-          setActionsOpen(false);
         });
       }
       if (actionFactorsEl) {

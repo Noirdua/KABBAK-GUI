@@ -74,8 +74,6 @@
       listEl: document.getElementById("alpha-reference-list"),
       detailNameEl: document.getElementById("alpha-reference-detail-name"),
       detailSubEl: document.getElementById("alpha-reference-detail-sub"),
-      settingsBtnEl: document.getElementById("alpha-reference-settings-btn"),
-      settingsPopoverEl: document.getElementById("alpha-reference-settings-popover"),
       showInfoEl: document.getElementById("alpha-reference-show-info"),
       fontSizeSelectEl: document.getElementById("alpha-reference-font-size-select"),
       searchFormEl: document.getElementById("alpha-reference-search-form"),
@@ -805,8 +803,6 @@
       searchInputEl,
       searchSubmitEl,
       searchClearEl,
-      settingsBtnEl,
-      settingsPopoverEl,
       showInfoEl,
       fontSizeSelectEl
     } = getElements();
@@ -834,32 +830,8 @@
       searchSubmitEl.style.display = "none";
     }
 
-    if (settingsBtnEl instanceof HTMLButtonElement && settingsPopoverEl instanceof HTMLElement) {
-      settingsBtnEl.addEventListener("click", () => {
-        const isOpen = settingsPopoverEl.hidden === false;
-        settingsPopoverEl.hidden = isOpen;
-        settingsBtnEl.setAttribute("aria-expanded", isOpen ? "false" : "true");
-      });
-
-      const closeBtn = settingsPopoverEl.querySelector(".alpha-text-settings-close");
-      if (closeBtn instanceof HTMLButtonElement) {
-        closeBtn.addEventListener("click", () => {
-          settingsPopoverEl.hidden = true;
-          settingsBtnEl.setAttribute("aria-expanded", "false");
-        });
-      }
-
-      document.addEventListener("click", (event) => {
-        if (settingsPopoverEl.hidden) {
-          return;
-        }
-        const target = event.target;
-        if (target instanceof Node && !settingsPopoverEl.contains(target) && target !== settingsBtnEl) {
-          settingsPopoverEl.hidden = true;
-          settingsBtnEl.setAttribute("aria-expanded", "false");
-        }
-      });
-    }
+    // Reference settings use the shared page-settings button/overlay
+    // (app/ui-page-settings.js) via data-page-settings attributes.
 
     showInfoEl?.addEventListener("change", () => {
       state.showReferenceInfo = Boolean(showInfoEl.checked);

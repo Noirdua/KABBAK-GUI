@@ -136,5 +136,57 @@
     return Boolean(active);
   }
 
-  window.TaroOverlay = { open, close, isOpen };
+  // Shared "page settings" overlay. A page hands in its settings panel and
+  // trigger; the panel is shown in the standard overlay and restored afterwards.
+  // Pressing the trigger again closes it.
+  let activePageSettings = null;
+
+  function openPageSettings(options = {}) {
+    const {
+      title = "Settings",
+      panel = null,
+      size = "small",
+      actions = null,
+      trigger = null,
+      restoreTo = null,
+      onClose = null
+    } = options;
+    if (!(panel instanceof Node)) return null;
+
+    if (activePageSettings && activePageSettings.panel === panel) {
+      close();
+      return null;
+    }
+
+    const parent = restoreTo instanceof Node ? restoreTo : panel.parentElement;
+    panel.hidden = false;
+    if (trigger instanceof Element) {
+      trigger.setAttribute("aria-expanded", "true");
+    }
+
+    const controller = open({
+      title,
+      size,
+      body: panel,
+      actions: actions || [{ label: "Done", primary: true }],
+      onClose: () => {
+        activePageSettings = null;
+        if (parent instanceof Node) {
+          parent.appendChild(panel);
+        }
+        panel.hidden = true;
+        if (trigger instanceof Element) {
+          trigger.setAttribute("aria-expanded", "false");
+        }
+        if (typeof onClose === "function") {
+          onClose();
+        }
+      }
+    });
+
+    activePageSettings = { panel };
+    return controller;
+  }
+
+  window.TaroOverlay = { open, close, isOpen, openPageSettings };
 })();

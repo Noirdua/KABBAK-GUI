@@ -21,12 +21,11 @@
       methodEl: null,
       optionsButtonEl: null,
       optionsSummaryEl: null,
-      optionsAnchorEl: null,
-      optionsPanelEl: null,
       keyboardEl: null,
       keyboardScriptEl: null,
       keyboardGridEl: null,
-      keyboardActionsEl: null
+      keyboardActionsEl: null,
+      keyboardToggleEl: null
     })
   };
 
@@ -111,12 +110,11 @@
       methodEl: null,
       optionsButtonEl: null,
       optionsSummaryEl: null,
-      optionsAnchorEl: null,
-      optionsPanelEl: null,
       keyboardEl: null,
       keyboardScriptEl: null,
       keyboardGridEl: null,
-      keyboardActionsEl: null
+      keyboardActionsEl: null,
+      keyboardToggleEl: null
     };
   }
 
@@ -855,42 +853,76 @@
     return state.methodOptions;
   }
 
+  const MODE_LABELS = {
+    forward: "Gematria",
+    reverse: "Reverse Lookup",
+    dictionary: "Dictionary",
+    anagram: "Anagram Maker"
+  };
+
   function renderOptionsSummary() {
     const { optionsSummaryEl, cipherEl } = getElements();
     if (!optionsSummaryEl) return;
+    // Tool, script, and ciphers all live in the settings overlay now, so the
+    // summary is the only place that shows the current selection inline.
+    const scriptSelectEl = document.getElementById("alpha-script-select");
+    const scriptLabel = scriptSelectEl?.selectedOptions?.[0]?.textContent || "";
+    const modeLabel = MODE_LABELS[state.activeMode] || MODE_LABELS.forward;
+
+    let detail;
     if (state.reverseLanguage === "english") {
       const cipherName = cipherEl?.selectedOptions?.[0]?.textContent || "Cipher";
       const count = getSelectedReverseCipherIds().length;
-      optionsSummaryEl.textContent = `English · ${cipherName}${count ? ` · ${count} cipher${count === 1 ? "" : "s"}` : ""}`;
-      return;
+      detail = `English · ${cipherName}${count ? ` · ${count} cipher${count === 1 ? "" : "s"}` : ""}`;
+    } else {
+      const options = getMethodOptions(state.reverseLanguage);
+      const method = options.find((option) => option.id === getSelectedMethod());
+      const languageLabel = state.reverseLanguage === "hebrew" ? "Hebrew (Strong's)" : "Greek (Strong's)";
+      detail = `${languageLabel} · ${method?.label || "Method"}`;
     }
-    const options = getMethodOptions(state.reverseLanguage);
-    const method = options.find((option) => option.id === getSelectedMethod());
-    const languageLabel = state.reverseLanguage === "hebrew" ? "Hebrew (Strong's)" : "Greek (Strong's)";
-    optionsSummaryEl.textContent = `${languageLabel} · ${method?.label || "Method"}`;
+
+    optionsSummaryEl.textContent = [modeLabel, detail, scriptLabel].filter(Boolean).join(" · ");
   }
 
-  function openOptionsOverlay() {
-    const { optionsPanelEl, optionsAnchorEl, optionsButtonEl } = getElements();
-    if (!optionsPanelEl) return;
-    if (!window.TaroOverlay?.open) {
-      optionsPanelEl.hidden = !optionsPanelEl.hidden;
-      return;
+  // On-screen keyboard show/hide, remembered per device. Phones start with it
+  // hidden so the lookup input and results get the screen.
+  const KEYBOARD_PREF_KEY = "kabbak-alpha-keyboard";
+
+  function defaultKeyboardVisible() {
+    try {
+      return !window.matchMedia("(max-width: 900px), (hover: none) and (pointer: coarse)").matches;
+    } catch (_error) {
+      return true;
     }
-    optionsPanelEl.hidden = false;
-    const controller = window.TaroOverlay.open({
-      title: "Word Lookup Options",
-      size: "small",
-      body: optionsPanelEl,
-      actions: [{ label: "Done", primary: true }],
-      onClose: () => {
-        optionsAnchorEl?.appendChild(optionsPanelEl);
-        optionsPanelEl.hidden = true;
-        optionsButtonEl?.setAttribute("aria-expanded", "false");
+  }
+
+  function keyboardVisible() {
+    try {
+      const raw = window.localStorage.getItem(KEYBOARD_PREF_KEY);
+      if (raw === "1") return true;
+      if (raw === "0") return false;
+    } catch (_error) {}
+    return defaultKeyboardVisible();
+  }
+
+  function setKeyboardVisible(show) {
+    try {
+      window.localStorage.setItem(KEYBOARD_PREF_KEY, show ? "1" : "0");
+    } catch (_error) {}
+    updateModeUi();
+    renderOptionsSummary();
+  }
+
+  // The settings button/panel are wired by app/ui-page-settings.js; refresh the
+  // inline summary after the shared overlay closes.
+  function bindOptionsSummaryRefresh() {
+    const { optionsButtonEl } = getElements();
+    if (!optionsButtonEl) return;
+    document.addEventListener("page-settings:closed", (event) => {
+      if (event.target === optionsButtonEl) {
         renderOptionsSummary();
       }
     });
-    optionsButtonEl?.setAttribute("aria-expanded", controller ? "true" : "false");
   }
 
   function updateModeUi() {
@@ -981,7 +1013,7 @@
     }
 
     if (keyboardEl) {
-      keyboardEl.hidden = reverseMode;
+      keyboardEl.hidden = reverseMode || !keyboardVisible();
     }
 
     if (keyboardScriptEl) {
@@ -1003,6 +1035,8 @@
     if (!reverseMode) {
       renderKeyboardLayout();
     }
+
+    renderOptionsSummary();
   }
 
   function parseReverseLookupValue(rawValue) {
@@ -1665,10 +1699,17 @@
   }
 
   function bindGematriaListeners() {
-    const { cipherEl, inputEl, modeEls, reverseCiphersEl, reverseLanguageEl, methodEl, optionsButtonEl, keyboardScriptEl, keyboardGridEl, keyboardActionsEl } = getElements();
+    const { cipherEl, inputEl, modeEls, reverseCiphersEl, reverseLanguageEl, methodEl, optionsButtonEl, keyboardScriptEl, keyboardGridEl, keyboardActionsEl, keyboardToggleEl } = getElements();
     if (state.listenersBound || !cipherEl || !inputEl) {
       return;
     }
+
+    if (keyboardToggleEl) {
+      keyboardToggleEl.checked = keyboardVisible();
+      keyboardToggleEl.addEventListener("change", () => setKeyboardVisible(keyboardToggleEl.checked));
+    }
+    // Script moved into the settings overlay; keep the summary in step.
+    document.getElementById("alpha-script-select")?.addEventListener("change", renderOptionsSummary);
 
     cipherEl.addEventListener("change", () => {
       state.activeCipherId = String(cipherEl.value || "").trim();
@@ -1727,7 +1768,7 @@
       renderGematriaResult();
     });
 
-    optionsButtonEl?.addEventListener("click", openOptionsOverlay);
+    bindOptionsSummaryRefresh();
 
     keyboardScriptEl?.addEventListener("change", () => {
       state.keyboardScriptId = String(keyboardScriptEl.value || "english").trim() || "english";

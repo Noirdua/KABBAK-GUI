@@ -133,8 +133,6 @@
   let readerFontSizeSelectEl;
   let gematriaCipherSelectEl;
   let exportButtonEl;
-  let settingsBtnEl;
-  let settingsPopoverEl;
   let lexiconPopupEl;
   let lexiconPopupTitleEl;
   let lexiconPopupSubtitleEl;
@@ -175,8 +173,6 @@
     readerFontSizeSelectEl = document.getElementById("alpha-text-font-size-select");
     gematriaCipherSelectEl = document.getElementById("alpha-text-gematria-cipher-select");
     exportButtonEl = document.querySelector("#alphabet-text-section .detail-export-btn");
-    settingsBtnEl = document.getElementById("alpha-text-settings-btn");
-    settingsPopoverEl = document.getElementById("alpha-text-settings-popover");
     translationSelectEl = document.getElementById("alpha-text-translation-select");
     translationControlEl = translationSelectEl?.closest?.(".alpha-text-control") || null;
     compareSelectEl = document.getElementById("alpha-text-compare-select");
@@ -2687,34 +2683,8 @@
       });
     }
 
-    if (settingsBtnEl instanceof HTMLButtonElement && settingsPopoverEl instanceof HTMLElement) {
-      settingsBtnEl.addEventListener("click", () => {
-        const isOpen = settingsPopoverEl.hidden === false;
-        settingsPopoverEl.hidden = isOpen;
-        settingsBtnEl.setAttribute("aria-expanded", isOpen ? "false" : "true");
-      });
-
-      const closeBtn = settingsPopoverEl.querySelector(".alpha-text-settings-close");
-      if (closeBtn instanceof HTMLButtonElement) {
-        closeBtn.addEventListener("click", () => {
-          settingsPopoverEl.hidden = true;
-          settingsBtnEl.setAttribute("aria-expanded", "false");
-        });
-      }
-
-      document.addEventListener("click", (event) => {
-        if (settingsPopoverEl.hidden) {
-          return;
-        }
-        const target = event.target;
-        if (target instanceof Node) {
-          if (!settingsPopoverEl.contains(target) && target !== settingsBtnEl) {
-            settingsPopoverEl.hidden = true;
-            settingsBtnEl.setAttribute("aria-expanded", "false");
-          }
-        }
-      });
-    }
+    // Reader settings use the shared page-settings button/overlay
+    // (app/ui-page-settings.js) via data-page-settings attributes.
 
     state.initialized = true;
   }

@@ -60,8 +60,9 @@
   let gematriaModeEls, gematriaMatchesEl, gematriaInputLabelEl, gematriaCipherLabelEl;
   let gematriaReverseCiphersEl, gematriaReverseCipherHintEl;
   let gematriaLanguageFieldEl, gematriaLanguageEl, gematriaMethodFieldEl, gematriaMethodEl;
-  let gematriaOptionsBtnEl, gematriaOptionsSummaryEl, gematriaOptionsAnchorEl, gematriaOptionsPanelEl;
+  let gematriaOptionsBtnEl, gematriaOptionsSummaryEl;
   let gematriaKeyboardEl, gematriaKeyboardScriptEl, gematriaKeyboardGridEl, gematriaKeyboardActionsEl;
+  let gematriaKeyboardToggleEl;
 
   function getElements() {
     alphabetLettersSectionEl = document.getElementById("alphabet-letters-section");
@@ -99,12 +100,11 @@
     gematriaMethodEl = document.getElementById("alpha-gematria-method");
     gematriaOptionsBtnEl = document.getElementById("alpha-gematria-options");
     gematriaOptionsSummaryEl = document.getElementById("alpha-gematria-options-summary");
-    gematriaOptionsAnchorEl = document.getElementById("alpha-gematria-options-anchor");
-    gematriaOptionsPanelEl = document.getElementById("alpha-gematria-options-panel");
     gematriaKeyboardEl = document.getElementById("alpha-gematria-keyboard");
     gematriaKeyboardScriptEl = document.getElementById("alpha-gematria-keyboard-script");
     gematriaKeyboardGridEl = document.getElementById("alpha-gematria-keyboard-grid");
     gematriaKeyboardActionsEl = document.getElementById("alpha-gematria-keyboard-actions");
+    gematriaKeyboardToggleEl = document.getElementById("alpha-gematria-keyboard-toggle");
   }
 
   function getGematriaElements() {
@@ -126,12 +126,11 @@
       methodEl: gematriaMethodEl,
       optionsButtonEl: gematriaOptionsBtnEl,
       optionsSummaryEl: gematriaOptionsSummaryEl,
-      optionsAnchorEl: gematriaOptionsAnchorEl,
-      optionsPanelEl: gematriaOptionsPanelEl,
       keyboardEl: gematriaKeyboardEl,
       keyboardScriptEl: gematriaKeyboardScriptEl,
       keyboardGridEl: gematriaKeyboardGridEl,
-      keyboardActionsEl: gematriaKeyboardActionsEl
+      keyboardActionsEl: gematriaKeyboardActionsEl,
+      keyboardToggleEl: gematriaKeyboardToggleEl
     };
   }
 

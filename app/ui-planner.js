@@ -146,17 +146,10 @@
     return window.TarotAppCalendar || null;
   }
 
-  // Phone chrome folds the view switcher, filters, and actions into one sheet.
-  function setPlannerSettingsOpen(open) {
-    const sheet = el("planner-settings-sheet");
-    if (!sheet) {
-      return;
-    }
-    sheet.hidden = !open;
-    el("planner-settings")?.setAttribute("aria-expanded", open ? "true" : "false");
-    // The phone skin's page layer sits below the bottom rail; promote it while
-    // the sheet is open so the rail cannot cover the sheet.
-    document.documentElement.classList.toggle("kabbak-planner-sheet-open", open === true);
+  // Calendar settings use the shared page-settings overlay
+  // (app/ui-page-settings.js); actions inside it close it before doing their work.
+  function closePlannerSettings() {
+    window.TaroOverlay?.close?.();
   }
 
   // Built in JS (not static HTML) so it always appears even if the page shell is
@@ -1515,16 +1508,12 @@
     el("planner-new")?.addEventListener("click", () => openEditor(null));
     el("planner-feed-toggle")?.addEventListener("click", openFeed);
 
-    el("planner-settings")?.addEventListener("click", () => {
-      setPlannerSettingsOpen(el("planner-settings-sheet")?.hidden === true);
-    });
-    el("planner-settings-backdrop")?.addEventListener("click", () => setPlannerSettingsOpen(false));
     el("planner-settings-subscribe")?.addEventListener("click", () => {
-      setPlannerSettingsOpen(false);
+      closePlannerSettings();
       openFeed();
     });
     el("planner-settings-new")?.addEventListener("click", () => {
-      setPlannerSettingsOpen(false);
+      closePlannerSettings();
       openEditor(null);
     });
 
@@ -1535,7 +1524,7 @@
           view = next;
           sideDate = null;
           render();
-          setPlannerSettingsOpen(false);
+          closePlannerSettings();
         }
       });
     });
@@ -1600,13 +1589,6 @@
       calendar.on("clickDayname", onCalendarDateClick);
     }
 
-    // Never leave the sheet (and its page-layer promotion) open behind another
-    // section when the user navigates away.
-    document.addEventListener("section:changed", (event) => {
-      if (String(event?.detail?.activeSection || "") !== "planner") {
-        setPlannerSettingsOpen(false);
-      }
-    });
   }
 
   window.TarotPlannerUi = {

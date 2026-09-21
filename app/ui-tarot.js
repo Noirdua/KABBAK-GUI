@@ -40,7 +40,7 @@
     },
     houseExportInProgress: false,
     houseExportFormat: "png",
-    houseSettingsOpen: false,
+
     magickDataset: null,
     referenceData: null,
     monthRefsByCardId: new Map(),
@@ -606,14 +606,8 @@
       elements.tarotHouseViewEl.classList.toggle("is-house-focus", Boolean(state.houseFocusMode));
     }
 
-    if (elements?.tarotHouseSettingsToggleEl) {
-      elements.tarotHouseSettingsToggleEl.setAttribute("aria-expanded", state.houseSettingsOpen ? "true" : "false");
-      elements.tarotHouseSettingsToggleEl.textContent = state.houseSettingsOpen ? "Hide Settings" : "Settings";
-    }
-
-    if (elements?.tarotHouseSettingsPanelEl) {
-      elements.tarotHouseSettingsPanelEl.hidden = !state.houseSettingsOpen;
-    }
+    // House settings use the shared page-settings button/overlay
+    // (app/ui-page-settings.js) via data-page-settings attributes.
 
     if (elements?.tarotHouseTopCardsVisibleEl) {
       elements.tarotHouseTopCardsVisibleEl.checked = Boolean(state.houseTopCardsVisible);
@@ -1455,40 +1449,6 @@
           syncHouseControls(elements);
         });
       }
-
-      if (elements.tarotHouseSettingsToggleEl) {
-        elements.tarotHouseSettingsToggleEl.addEventListener("click", (event) => {
-          event.stopPropagation();
-          state.houseSettingsOpen = !state.houseSettingsOpen;
-          syncHouseControls(elements);
-        });
-      }
-
-      if (elements.tarotHouseSettingsPanelEl) {
-        elements.tarotHouseSettingsPanelEl.addEventListener("click", (event) => {
-          event.stopPropagation();
-        });
-      }
-
-      document.addEventListener("click", (event) => {
-        if (!state.houseSettingsOpen) {
-          return;
-        }
-
-        const target = event.target;
-        if (!(target instanceof Node)) {
-          return;
-        }
-
-        const settingsPanelEl = elements.tarotHouseSettingsPanelEl;
-        const settingsToggleEl = elements.tarotHouseSettingsToggleEl;
-        if (settingsPanelEl?.contains(target) || settingsToggleEl?.contains(target)) {
-          return;
-        }
-
-        state.houseSettingsOpen = false;
-        syncHouseControls(elements);
-      });
 
       [
         [elements.tarotHouseTopInfoHebrewEl, "hebrew"],

@@ -1762,7 +1762,6 @@
     bindPathDisplayToggle(elements.pathAstrologyToggleEl, "showPathAstrology");
     bindPathDisplayToggle(elements.pathTarotToggleEl, "showPathTarotCards");
     bindPathDisplayToggle(elements.treeSpinToggleEl, "treeSpin");
-    window.UiPopoverMenu?.bind(elements.treeToolbarEl);
     bindDetailNavigation(elements);
     bindBrowserDetailNavigation(elements);
     bindPathsDetailNavigation(elements);

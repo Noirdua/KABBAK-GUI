@@ -328,6 +328,7 @@
     framesPanelRenameId: "",
     layoutMenuOpen: false,
     gridFocusMode: true,
+    focusOffsetListenerBound: false,
     currentLayoutId: "frames",
     customLayouts: [],
     customCards: new Map(),
@@ -1282,6 +1283,24 @@
     tarotFrameOverviewEl.hidden = !state.layoutGuideVisible;
   }
 
+  // The immersive frame fills everything below the visible chrome. Measure it so
+  // a wrapped phone header, the phone skin's app bar, or the desktop top bar all
+  // line up and the nav menu stays reachable.
+  function updateGridFocusTopOffset() {
+    const topbar = document.querySelector(".topbar");
+    const phoneTop = document.querySelector(".layout-phone-top");
+    const phoneRail = document.querySelector(".layout-phone-rail-wrap");
+    let top = 0;
+    if (topbar instanceof HTMLElement && window.getComputedStyle(topbar).display !== "none") {
+      top = topbar.offsetHeight || 0;
+    } else if (phoneTop instanceof HTMLElement) {
+      top = phoneTop.offsetHeight || 0;
+    }
+    const bottom = phoneRail instanceof HTMLElement ? (phoneRail.offsetHeight || 0) : 0;
+    document.documentElement.style.setProperty("--tarot-frame-focus-top", `${Math.round(top)}px`);
+    document.documentElement.style.setProperty("--tarot-frame-focus-bottom", `${Math.round(bottom)}px`);
+  }
+
   function applyGridFocusModeUi() {
     const {
       tarotFrameSectionEl,
@@ -1292,6 +1311,16 @@
 
     if (tarotFrameSectionEl instanceof HTMLElement) {
       tarotFrameSectionEl.classList.toggle("is-grid-focus", Boolean(state.gridFocusMode));
+    }
+
+    if (state.gridFocusMode) {
+      updateGridFocusTopOffset();
+      if (!state.focusOffsetListenerBound) {
+        state.focusOffsetListenerBound = true;
+        window.addEventListener("resize", () => {
+          if (state.gridFocusMode) updateGridFocusTopOffset();
+        }, { passive: true });
+      }
     }
 
     document.body.classList.toggle("is-tarot-frame-focus-lock", Boolean(state.gridFocusMode));

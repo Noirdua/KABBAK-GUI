@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260920-gate-server">
+  <link rel="stylesheet" href="app/styles.css?v=20260921-review-fixes">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -1362,7 +1362,7 @@
           <div class="tarot-house-card-head">
             <strong>House of Cards</strong>
             <div class="tarot-house-card-actions">
-              <button id="tarot-house-settings-toggle" class="tarot-house-action-btn tarot-house-settings-toggle" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="tarot-house-settings-panel">Settings</button>
+              <button id="tarot-house-settings-toggle" class="tarot-house-action-btn tarot-house-settings-toggle page-settings-btn" type="button" data-page-settings data-settings-panel="#tarot-house-settings-panel" data-settings-title="House of Cards Settings" aria-haspopup="dialog" aria-expanded="false"><span class="page-settings-btn-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
             </div>
             <div id="tarot-house-settings-panel" class="tarot-house-settings-panel" role="dialog" aria-label="House of Cards settings" hidden>
               <label class="tarot-house-toggle" for="tarot-house-top-cards-visible">
@@ -2305,53 +2305,52 @@
     <div class="kab-tree-stage">
       <header class="kab-tree-stage-header">
         <p class="kab-tree-facts">10 Sephirot · 22 Paths · 1 Da'at · 3 Pillars · 4 Worlds</p>
-        <div id="kab-tree-toolbar" class="kab-tree-stage-actions" aria-label="Tree controls" data-popover-toolbar>
-          <label class="kab-tree-chip" for="kab-tree-spin-toggle">
-            <input id="kab-tree-spin-toggle" type="checkbox" checked>
-            <span>Spin</span>
-          </label>
-          <div class="kab-tree-menu" data-popover>
-            <button id="kab-tree-view-toggle" class="kab-tree-chip kab-tree-menu-toggle" type="button" aria-haspopup="true" aria-expanded="false" data-popover-toggle>View ▾</button>
-            <div id="kab-tree-view-panel" class="kab-tree-popover" hidden data-popover-panel>
-              <button id="kab-tree-zoom-out" class="kab-tree-chip kab-tree-popover-item kab-tree-popover-action" type="button" data-popover-keep-open>Zoom out</button>
-              <button id="kab-tree-zoom-in" class="kab-tree-chip kab-tree-popover-item kab-tree-popover-action" type="button" data-popover-keep-open>Zoom in</button>
-              <button id="kab-tree-fit" class="kab-tree-chip kab-tree-popover-item kab-tree-popover-action" type="button" data-popover-keep-open>Fit to pane</button>
-              <button id="kab-tree-view-reset" class="kab-tree-chip kab-tree-popover-item kab-tree-popover-action" type="button" data-popover-keep-open>Reset view</button>
-              <div id="kab-tree-zoom-readout" class="kab-tree-zoom-readout">100%</div>
-            </div>
-          </div>
-          <div class="kab-tree-menu" data-popover>
-            <button id="kab-tree-display-toggle" class="kab-tree-chip kab-tree-menu-toggle" type="button" aria-haspopup="true" aria-expanded="false" data-popover-toggle>Display ▾</button>
-            <div id="kab-tree-display-panel" class="kab-tree-popover" hidden data-popover-panel>
-              <label class="kab-tree-chip kab-tree-popover-item" for="kab-tree-sephirot-toggle">
-                <input id="kab-tree-sephirot-toggle" type="checkbox" checked>
-                <span>Show sephirot</span>
-              </label>
-              <label class="kab-tree-chip kab-tree-popover-item" for="kab-tree-paths-toggle">
-                <input id="kab-tree-paths-toggle" type="checkbox" checked>
-                <span>Show paths</span>
-              </label>
-              <label class="kab-tree-chip kab-tree-popover-item" for="kab-path-letter-toggle">
-                <input id="kab-path-letter-toggle" type="checkbox" checked>
-                <span>Path letters</span>
-              </label>
-              <label class="kab-tree-chip kab-tree-popover-item" for="kab-path-number-toggle">
-                <input id="kab-path-number-toggle" type="checkbox" checked>
-                <span>Path numbers</span>
-              </label>
-              <label class="kab-tree-chip kab-tree-popover-item" for="kab-path-astrology-toggle">
-                <input id="kab-path-astrology-toggle" type="checkbox">
-                <span>Path astrology</span>
-              </label>
-              <label class="kab-tree-chip kab-tree-popover-item" for="kab-path-tarot-toggle">
-                <input id="kab-path-tarot-toggle" type="checkbox">
-                <span>Path tarot cards</span>
-              </label>
-            </div>
-          </div>
+        <div id="kab-tree-toolbar" class="kab-tree-stage-actions" aria-label="Tree controls">
           <button id="kab-tree-export-webp" class="kab-export-btn" type="button">Export WebP</button>
+          <button id="kab-tree-settings" class="page-settings-btn" type="button" data-page-settings data-settings-panel="#kab-tree-settings-panel" data-settings-title="Tree Settings" aria-haspopup="dialog" aria-expanded="false"><span class="page-settings-btn-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
         </div>
       </header>
+      <div id="kab-tree-settings-panel" class="kab-tree-settings-panel" hidden>
+        <p class="kab-tree-settings-heading">View</p>
+        <label class="kab-tree-chip" for="kab-tree-spin-toggle">
+          <input id="kab-tree-spin-toggle" type="checkbox" checked>
+          <span>Spin</span>
+        </label>
+        <div id="kab-tree-view-panel" class="kab-tree-popover">
+          <button id="kab-tree-zoom-out" class="kab-tree-chip kab-tree-popover-item kab-tree-popover-action" type="button">Zoom out</button>
+          <button id="kab-tree-zoom-in" class="kab-tree-chip kab-tree-popover-item kab-tree-popover-action" type="button">Zoom in</button>
+          <button id="kab-tree-fit" class="kab-tree-chip kab-tree-popover-item kab-tree-popover-action" type="button">Fit to pane</button>
+          <button id="kab-tree-view-reset" class="kab-tree-chip kab-tree-popover-item kab-tree-popover-action" type="button">Reset view</button>
+          <div id="kab-tree-zoom-readout" class="kab-tree-zoom-readout">100%</div>
+        </div>
+        <p class="kab-tree-settings-heading">Display</p>
+        <div id="kab-tree-display-panel" class="kab-tree-popover">
+          <label class="kab-tree-chip kab-tree-popover-item" for="kab-tree-sephirot-toggle">
+            <input id="kab-tree-sephirot-toggle" type="checkbox" checked>
+            <span>Show sephirot</span>
+          </label>
+          <label class="kab-tree-chip kab-tree-popover-item" for="kab-tree-paths-toggle">
+            <input id="kab-tree-paths-toggle" type="checkbox" checked>
+            <span>Show paths</span>
+          </label>
+          <label class="kab-tree-chip kab-tree-popover-item" for="kab-path-letter-toggle">
+            <input id="kab-path-letter-toggle" type="checkbox" checked>
+            <span>Path letters</span>
+          </label>
+          <label class="kab-tree-chip kab-tree-popover-item" for="kab-path-number-toggle">
+            <input id="kab-path-number-toggle" type="checkbox" checked>
+            <span>Path numbers</span>
+          </label>
+          <label class="kab-tree-chip kab-tree-popover-item" for="kab-path-astrology-toggle">
+            <input id="kab-path-astrology-toggle" type="checkbox">
+            <span>Path astrology</span>
+          </label>
+          <label class="kab-tree-chip kab-tree-popover-item" for="kab-path-tarot-toggle">
+            <input id="kab-path-tarot-toggle" type="checkbox">
+            <span>Path tarot cards</span>
+          </label>
+        </div>
+      </div>
       <div id="kab-tree-viewport" class="kab-tree-viewport">
         <div id="kab-tree-world" class="kab-tree-world">
           <div id="kab-tree-container" class="kab-tree-container"></div>
@@ -2369,36 +2368,31 @@
         <div class="meta-card alpha-gematria-card">
           <strong>Word Lookup</strong>
           <div class="alpha-gematria-toolbar">
-            <fieldset class="alpha-tool-mode-group" aria-label="Alphabet tool mode">
-              <label class="alpha-tool-mode-option" for="alpha-tool-mode-gematria">
-                <input id="alpha-tool-mode-gematria" name="alpha-tool-mode" type="radio" value="forward" checked>
-                <span>Gematria</span>
-              </label>
-              <label class="alpha-tool-mode-option" for="alpha-tool-mode-reverse">
-                <input id="alpha-tool-mode-reverse" name="alpha-tool-mode" type="radio" value="reverse">
-                <span>Reverse Lookup</span>
-              </label>
-              <label class="alpha-tool-mode-option" for="alpha-tool-mode-dictionary">
-                <input id="alpha-tool-mode-dictionary" name="alpha-tool-mode" type="radio" value="dictionary">
-                <span>Dictionary</span>
-              </label>
-              <label class="alpha-tool-mode-option" for="alpha-tool-mode-anagram">
-                <input id="alpha-tool-mode-anagram" name="alpha-tool-mode" type="radio" value="anagram">
-                <span>Anagram Maker</span>
-              </label>
-            </fieldset>
-            <label class="alpha-script-field" for="alpha-script-select">
-              <span>Hebrew Script</span>
-              <select id="alpha-script-select" class="alpha-script-select" aria-label="Hebrew letter script">
-                <option value="ashuri">Ashuri (Square)</option>
-                <option value="rashi">Rashi</option>
-              </select>
-            </label>
-            <button id="alpha-gematria-options" type="button" class="alpha-gematria-options-btn" aria-haspopup="dialog" aria-expanded="false">Options</button>
+            <button id="alpha-gematria-options" class="page-settings-btn" type="button" data-page-settings data-settings-panel="#alpha-gematria-options-panel" data-settings-title="Word Lookup Options" aria-haspopup="dialog" aria-expanded="false"><span class="page-settings-btn-icon" aria-hidden="true">⚙</span><span>Lookup settings</span></button>
           </div>
           <div id="alpha-gematria-options-summary" class="alpha-gematria-options-summary" aria-live="polite"></div>
-          <div id="alpha-gematria-options-anchor" hidden></div>
           <div id="alpha-gematria-options-panel" class="alpha-gematria-options-panel" hidden>
+            <div class="alpha-gematria-field alpha-gematria-field-mode">
+              <span>Tool</span>
+              <fieldset class="alpha-tool-mode-group" aria-label="Alphabet tool mode">
+                <label class="alpha-tool-mode-option" for="alpha-tool-mode-gematria">
+                  <input id="alpha-tool-mode-gematria" name="alpha-tool-mode" type="radio" value="forward" checked>
+                  <span>Gematria</span>
+                </label>
+                <label class="alpha-tool-mode-option" for="alpha-tool-mode-reverse">
+                  <input id="alpha-tool-mode-reverse" name="alpha-tool-mode" type="radio" value="reverse">
+                  <span>Reverse Lookup</span>
+                </label>
+                <label class="alpha-tool-mode-option" for="alpha-tool-mode-dictionary">
+                  <input id="alpha-tool-mode-dictionary" name="alpha-tool-mode" type="radio" value="dictionary">
+                  <span>Dictionary</span>
+                </label>
+                <label class="alpha-tool-mode-option" for="alpha-tool-mode-anagram">
+                  <input id="alpha-tool-mode-anagram" name="alpha-tool-mode" type="radio" value="anagram">
+                  <span>Anagram Maker</span>
+                </label>
+              </fieldset>
+            </div>
             <div class="alpha-gematria-field alpha-gematria-field-language" id="alpha-gematria-language-field">
               <span>Language</span>
               <select id="alpha-gematria-language" class="alpha-gematria-language" aria-label="Word lookup language">
@@ -2417,6 +2411,17 @@
               <div id="alpha-gematria-reverse-ciphers" class="alpha-gematria-reverse-ciphers" role="group" aria-label="Reverse lookup ciphers" hidden></div>
               <div id="alpha-gematria-reverse-cipher-hint" class="alpha-gematria-reverse-cipher-hint" hidden>Select one or more ciphers to narrow reverse lookup results.</div>
             </div>
+            <div class="alpha-gematria-field alpha-gematria-field-script">
+              <span>Hebrew script</span>
+              <select id="alpha-script-select" class="alpha-script-select" aria-label="Hebrew letter script">
+                <option value="ashuri">Ashuri (Square)</option>
+                <option value="rashi">Rashi</option>
+              </select>
+            </div>
+            <label class="alpha-gematria-field alpha-gematria-field-keyboard" for="alpha-gematria-keyboard-toggle">
+              <span>On-screen keyboard</span>
+              <span class="alpha-gematria-toggle"><input id="alpha-gematria-keyboard-toggle" type="checkbox" checked> Show keyboard</span>
+            </label>
           </div>
           <div class="alpha-gematria-controls">
           <label class="alpha-gematria-field" for="alpha-gematria-input">
@@ -2520,15 +2525,11 @@
           <div class="detail-sequence-nav" aria-label="Browse sections">
             <div class="detail-pane-export-controls">
               <button type="button" class="detail-sequence-btn detail-export-btn">Export WebP</button>
-              <button type="button" class="detail-sequence-btn" id="alpha-text-settings-btn" aria-label="Reader settings" aria-haspopup="true" aria-expanded="false">Settings</button>
+              <button type="button" class="page-settings-btn" id="alpha-text-settings-btn" data-page-settings data-settings-panel="#alpha-text-settings-popover" data-settings-title="Reader Settings" aria-haspopup="dialog" aria-expanded="false"><span class="page-settings-btn-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
             </div>
           </div>
-          <div id="alpha-text-settings-popover" class="alpha-text-settings-popover" hidden aria-hidden="true">
+          <div id="alpha-text-settings-popover" class="alpha-text-settings-popover" hidden>
             <div class="alpha-text-settings-popover-inner">
-              <div class="alpha-text-settings-popover-head">
-                <strong>Reader Settings</strong>
-                <button type="button" class="alpha-text-settings-close" aria-label="Close settings">×</button>
-              </div>
               <div class="alpha-text-reader-toggle-list">
                 <label class="alpha-text-reader-toggle" for="alpha-text-show-verse-heads">
                   <input id="alpha-text-show-verse-heads" type="checkbox" checked>
@@ -2628,15 +2629,11 @@
           </div>
           <div class="detail-sequence-nav" aria-label="Reference options">
             <div class="detail-pane-export-controls">
-              <button type="button" class="detail-sequence-btn" id="alpha-reference-settings-btn" aria-label="Reference settings" aria-haspopup="true" aria-expanded="false">Settings</button>
+              <button type="button" class="page-settings-btn" id="alpha-reference-settings-btn" data-page-settings data-settings-panel="#alpha-reference-settings-popover" data-settings-title="Reference Settings" aria-haspopup="dialog" aria-expanded="false"><span class="page-settings-btn-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
             </div>
           </div>
-          <div id="alpha-reference-settings-popover" class="alpha-text-settings-popover" hidden aria-hidden="true">
+          <div id="alpha-reference-settings-popover" class="alpha-text-settings-popover" hidden>
             <div class="alpha-text-settings-popover-inner">
-              <div class="alpha-text-settings-popover-head">
-                <strong>Reference Settings</strong>
-                <button type="button" class="alpha-text-settings-close" aria-label="Close settings">×</button>
-              </div>
               <div class="alpha-text-reader-toggle-list">
                 <label class="alpha-text-reader-toggle" for="alpha-reference-show-info">
                   <input id="alpha-reference-show-info" type="checkbox" checked>
@@ -2677,72 +2674,69 @@
         <div class="list-header">
           <span class="list-count">6 Walls · 12 Edges · 8 Corners · 1 Center · 3 Mothers</span>
         </div>
-        <div id="cube-toolbar" class="cube-toolbar" aria-label="Cube controls" data-popover-toolbar>
-          <div class="cube-menu" data-popover>
-            <button id="cube-menu-move-toggle" class="cube-toolbar-btn cube-menu-toggle" type="button" aria-haspopup="true" aria-expanded="false" data-popover-toggle>Move ▾</button>
-            <div id="cube-menu-move" class="cube-popover" hidden data-popover-panel>
-              <div class="cube-popover-grid">
-                <button id="cube-rotate-left" class="cube-rotation-btn" type="button" title="Rotate left">←</button>
-                <button id="cube-rotate-right" class="cube-rotation-btn" type="button" title="Rotate right">→</button>
-                <button id="cube-rotate-up" class="cube-rotation-btn" type="button" title="Rotate up">↑</button>
-                <button id="cube-rotate-down" class="cube-rotation-btn" type="button" title="Rotate down">↓</button>
-              </div>
-              <button id="cube-rotate-reset" class="cube-rotation-btn" type="button" title="Reset view">Reset view</button>
-            </div>
-          </div>
-          <div class="cube-menu" data-popover>
-            <button id="cube-menu-view-toggle" class="cube-toolbar-btn cube-menu-toggle" type="button" aria-haspopup="true" aria-expanded="false" data-popover-toggle>View ▾</button>
-            <div id="cube-menu-view" class="cube-popover" hidden data-popover-panel>
-              <label class="cube-spin-toggle-control" for="cube-spin-toggle">
-                <input id="cube-spin-toggle" type="checkbox">
-                <span>Spin</span>
-              </label>
-              <div class="cube-popover-grid">
-                <button id="cube-view-iso" class="cube-rotation-btn" type="button" title="Isometric view">Iso</button>
-                <button id="cube-view-front" class="cube-rotation-btn" type="button" title="Face the north wall">Front</button>
-                <button id="cube-view-top" class="cube-rotation-btn" type="button" title="Look down from above">Top</button>
-                <button id="cube-zoom-out" class="cube-rotation-btn" type="button" title="Zoom out">−</button>
-                <button id="cube-zoom-in" class="cube-rotation-btn" type="button" title="Zoom in">+</button>
-              </div>
-              <div id="cube-rotation-readout" class="cube-rotation-readout">X 0° · Y 0° · 1.00×</div>
-            </div>
-          </div>
+        <div id="cube-toolbar" class="cube-toolbar" aria-label="Cube controls">
           <button id="cube-focus-toggle" class="cube-toolbar-btn cube-focus-toggle" type="button" aria-pressed="false">Focus Cube</button>
           <button id="cube-export-webp" class="cube-toolbar-btn cube-export-btn" type="button">Export WebP</button>
-          <div class="cube-menu" data-popover>
-            <button id="cube-menu-display-toggle" class="cube-toolbar-btn cube-menu-toggle" type="button" aria-haspopup="true" aria-expanded="false" data-popover-toggle>Display ▾</button>
-            <div id="cube-menu-display" class="cube-popover" hidden data-popover-panel>
-              <div class="cube-marker-mode-control">
-                <label for="cube-marker-mode" class="cube-marker-mode-label">Markers</label>
-                <select id="cube-marker-mode" class="cube-marker-mode-select" aria-label="Cube marker display mode">
-                  <option value="both" selected>Letter + Astrology</option>
-                  <option value="letter">Letter only</option>
-                  <option value="astro">Astrology only</option>
-                  <option value="tarot">Tarot Cards</option>
-                </select>
-              </div>
-              <label class="cube-faces-toggle-control" for="cube-faces-toggle">
-                <input id="cube-faces-toggle" type="checkbox" checked>
-                <span>Show wall faces</span>
-              </label>
-              <label class="cube-edges-toggle-control" for="cube-edges-toggle">
-                <input id="cube-edges-toggle" type="checkbox" checked>
-                <span>Show cube edges</span>
-              </label>
-              <label class="cube-connector-toggle-control" for="cube-connector-toggle">
-                <input id="cube-connector-toggle" type="checkbox" checked>
-                <span>Show mother connector lines</span>
-              </label>
-              <label class="cube-primal-toggle-control" for="cube-primal-toggle">
-                <input id="cube-primal-toggle" type="checkbox" checked>
-                <span>Show primal point</span>
-              </label>
-              <label class="cube-sides-toggle-control" for="cube-sides-toggle">
-                <input id="cube-sides-toggle" type="checkbox" checked>
-                <span>Transparent sides</span>
-              </label>
-              <div class="cube-legend">Drag to rotate · scroll or pinch to zoom · click a wall or edge</div>
+          <button id="cube-settings" class="page-settings-btn" type="button" data-page-settings data-settings-panel="#cube-settings-panel" data-settings-title="Cube Settings" aria-haspopup="dialog" aria-expanded="false"><span class="page-settings-btn-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
+        </div>
+        <div id="cube-settings-panel" class="cube-settings-panel" hidden>
+          <p class="cube-settings-heading">Move</p>
+          <div id="cube-menu-move" class="cube-popover">
+            <div class="cube-popover-grid">
+              <button id="cube-rotate-left" class="cube-rotation-btn" type="button" title="Rotate left">←</button>
+              <button id="cube-rotate-right" class="cube-rotation-btn" type="button" title="Rotate right">→</button>
+              <button id="cube-rotate-up" class="cube-rotation-btn" type="button" title="Rotate up">↑</button>
+              <button id="cube-rotate-down" class="cube-rotation-btn" type="button" title="Rotate down">↓</button>
             </div>
+            <button id="cube-rotate-reset" class="cube-rotation-btn" type="button" title="Reset view">Reset view</button>
+          </div>
+          <p class="cube-settings-heading">View</p>
+          <div id="cube-menu-view" class="cube-popover">
+            <label class="cube-spin-toggle-control" for="cube-spin-toggle">
+              <input id="cube-spin-toggle" type="checkbox">
+              <span>Spin</span>
+            </label>
+            <div class="cube-popover-grid">
+              <button id="cube-view-iso" class="cube-rotation-btn" type="button" title="Isometric view">Iso</button>
+              <button id="cube-view-front" class="cube-rotation-btn" type="button" title="Face the north wall">Front</button>
+              <button id="cube-view-top" class="cube-rotation-btn" type="button" title="Look down from above">Top</button>
+              <button id="cube-zoom-out" class="cube-rotation-btn" type="button" title="Zoom out">−</button>
+              <button id="cube-zoom-in" class="cube-rotation-btn" type="button" title="Zoom in">+</button>
+            </div>
+            <div id="cube-rotation-readout" class="cube-rotation-readout">X 0° · Y 0° · 1.00×</div>
+          </div>
+          <p class="cube-settings-heading">Display</p>
+          <div id="cube-menu-display" class="cube-popover">
+            <div class="cube-marker-mode-control">
+              <label for="cube-marker-mode" class="cube-marker-mode-label">Markers</label>
+              <select id="cube-marker-mode" class="cube-marker-mode-select" aria-label="Cube marker display mode">
+                <option value="both" selected>Letter + Astrology</option>
+                <option value="letter">Letter only</option>
+                <option value="astro">Astrology only</option>
+                <option value="tarot">Tarot Cards</option>
+              </select>
+            </div>
+            <label class="cube-faces-toggle-control" for="cube-faces-toggle">
+              <input id="cube-faces-toggle" type="checkbox" checked>
+              <span>Show wall faces</span>
+            </label>
+            <label class="cube-edges-toggle-control" for="cube-edges-toggle">
+              <input id="cube-edges-toggle" type="checkbox" checked>
+              <span>Show cube edges</span>
+            </label>
+            <label class="cube-connector-toggle-control" for="cube-connector-toggle">
+              <input id="cube-connector-toggle" type="checkbox" checked>
+              <span>Show mother connector lines</span>
+            </label>
+            <label class="cube-primal-toggle-control" for="cube-primal-toggle">
+              <input id="cube-primal-toggle" type="checkbox" checked>
+              <span>Show primal point</span>
+            </label>
+            <label class="cube-sides-toggle-control" for="cube-sides-toggle">
+              <input id="cube-sides-toggle" type="checkbox" checked>
+              <span>Transparent sides</span>
+            </label>
+            <div class="cube-legend">Drag to rotate · scroll or pinch to zoom · click a wall or edge</div>
           </div>
         </div>
         <div id="cube-view-container" class="kab-tree-container"></div>
@@ -2842,9 +2836,8 @@
           <span id="num-pad-status" class="list-count">Keys 1–9</span>
         </div>
         <div class="num-pad-chrome">
-          <button id="num-pad-mobile-filters" class="num-pad-toggle" type="button" aria-expanded="false" aria-controls="num-pad-filter-sheet">Filters</button>
           <button id="num-pad-mobile-chains" class="num-pad-toggle" type="button" aria-expanded="false" aria-controls="num-pad-chains">Chains</button>
-          <button id="num-pad-mobile-actions" class="num-pad-toggle" type="button" aria-expanded="false" aria-controls="num-pad-action-sheet">Actions</button>
+          <button id="num-pad-settings" class="page-settings-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="num-pad-settings-panel"><span class="page-settings-btn-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
         </div>
       </header>
       <div class="num-pad-body">
@@ -2891,35 +2884,18 @@
           <aside id="num-pad-chains" class="num-pad-chains" aria-label="Number chains"></aside>
         </div>
       </div>
-      <div id="num-pad-filter-sheet" class="num-pad-sheet" hidden>
-        <button id="num-pad-filter-backdrop" class="num-pad-sheet-backdrop" type="button" aria-label="Close filters"></button>
-        <div class="num-pad-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="num-pad-filter-title">
-          <div class="num-pad-sheet-head">
-            <strong id="num-pad-filter-title">Filters</strong>
-            <button id="num-pad-filter-close" class="num-pad-toggle" type="button">Done</button>
-          </div>
-          <div id="num-pad-filter-grid-slot" class="num-pad-sheet-slot" data-slot="grid">
-            <span class="num-pad-sheet-label">Grid</span>
-          </div>
-          <div id="num-pad-filter-chain-slot" class="num-pad-sheet-slot" data-slot="chain">
-            <span class="num-pad-sheet-label">Chains</span>
-          </div>
-        </div>
-      </div>
-      <div id="num-pad-action-sheet" class="num-pad-sheet" hidden>
-        <button id="num-pad-action-backdrop" class="num-pad-sheet-backdrop" type="button" aria-label="Close actions"></button>
-        <div class="num-pad-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="num-pad-action-title">
-          <div class="num-pad-sheet-head">
-            <strong id="num-pad-action-title">Actions</strong>
-            <button id="num-pad-action-close" class="num-pad-toggle" type="button">Done</button>
-          </div>
-          <p id="num-pad-action-target" class="num-pad-sheet-label">Pick a chain first</p>
-          <div id="num-pad-action-factors" class="num-pad-action-factors" role="group" aria-label="Pick a chain"></div>
-          <div class="num-pad-action-buttons">
-            <button id="num-pad-action-fill" class="num-pad-toggle" type="button">Fill</button>
-            <button id="num-pad-action-draw" class="num-pad-toggle" type="button">Draw</button>
-            <button id="num-pad-action-keypad" class="num-pad-reset" type="button">Keypad</button>
-          </div>
+      <div id="num-pad-settings-panel" class="num-pad-settings-panel" hidden>
+        <p class="num-pad-sheet-label">Grid display</p>
+        <div id="num-pad-filter-grid-slot" class="num-pad-sheet-slot" data-slot="grid"></div>
+        <p class="num-pad-sheet-label">Chain display</p>
+        <div id="num-pad-filter-chain-slot" class="num-pad-sheet-slot" data-slot="chain"></div>
+        <p class="num-pad-sheet-label">Chain actions</p>
+        <p id="num-pad-action-target" class="num-pad-sheet-label">Pick a chain first</p>
+        <div id="num-pad-action-factors" class="num-pad-action-factors" role="group" aria-label="Pick a chain"></div>
+        <div class="num-pad-action-buttons">
+          <button id="num-pad-action-fill" class="num-pad-toggle" type="button">Fill</button>
+          <button id="num-pad-action-draw" class="num-pad-toggle" type="button">Draw</button>
+          <button id="num-pad-action-keypad" class="num-pad-reset" type="button">Keypad</button>
         </div>
       </div>
     </div>
@@ -2959,7 +2935,7 @@
           <button class="planner-view-btn" type="button" data-planner-view="agenda" role="tab">Agenda</button>
         </div>
         <div class="planner-actions">
-          <button id="planner-settings" class="planner-icon-btn planner-settings-btn" type="button" aria-label="Calendar options" aria-expanded="false" aria-controls="planner-settings-sheet">⚙</button>
+          <button id="planner-settings" class="page-settings-btn planner-settings-btn" type="button" data-page-settings data-settings-panel="#planner-settings-panel" data-settings-title="Calendar Settings" aria-haspopup="dialog" aria-expanded="false"><span class="page-settings-btn-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
           <button id="planner-feed-toggle" class="planner-btn" type="button">Subscribe</button>
           <button id="planner-new" class="planner-btn planner-primary" type="button">New event</button>
         </div>
@@ -2974,23 +2950,19 @@
         </aside>
       </div>
       <div id="planner-status" class="planner-status" aria-live="polite"></div>
-      <div id="planner-settings-sheet" class="planner-settings-sheet" hidden>
-        <button id="planner-settings-backdrop" class="planner-settings-backdrop" type="button" aria-label="Close calendar options"></button>
-        <div class="planner-settings-card" role="dialog" aria-labelledby="planner-settings-title">
-          <strong id="planner-settings-title">Calendar</strong>
-          <p class="planner-filter-label">View</p>
-          <div class="planner-views planner-settings-views" role="tablist" aria-label="Calendar view">
-            <button class="planner-view-btn" type="button" data-planner-view="month" role="tab">Month</button>
-            <button class="planner-view-btn" type="button" data-planner-view="week" role="tab">Week</button>
-            <button class="planner-view-btn" type="button" data-planner-view="day" role="tab">Day</button>
-            <button class="planner-view-btn" type="button" data-planner-view="agenda" role="tab">Agenda</button>
-          </div>
-          <p class="planner-filter-label">Show</p>
-          <div id="planner-settings-filters" class="planner-settings-filters"></div>
-          <div class="planner-settings-actions">
-            <button id="planner-settings-subscribe" class="planner-btn" type="button">Subscribe</button>
-            <button id="planner-settings-new" class="planner-btn planner-primary" type="button">New event</button>
-          </div>
+      <div id="planner-settings-panel" class="planner-settings-panel" hidden>
+        <p class="planner-filter-label">View</p>
+        <div class="planner-views planner-settings-views" role="tablist" aria-label="Calendar view">
+          <button class="planner-view-btn" type="button" data-planner-view="month" role="tab">Month</button>
+          <button class="planner-view-btn" type="button" data-planner-view="week" role="tab">Week</button>
+          <button class="planner-view-btn" type="button" data-planner-view="day" role="tab">Day</button>
+          <button class="planner-view-btn" type="button" data-planner-view="agenda" role="tab">Agenda</button>
+        </div>
+        <p class="planner-filter-label">Show</p>
+        <div id="planner-settings-filters" class="planner-settings-filters"></div>
+        <div class="planner-settings-actions">
+          <button id="planner-settings-subscribe" class="planner-btn" type="button">Subscribe</button>
+          <button id="planner-settings-new" class="planner-btn planner-primary" type="button">New event</button>
         </div>
       </div>
     </div>
@@ -3099,8 +3071,8 @@
   <script src="app/astro-calcs.js"></script>
   <script src="app/app-config.js?v=20260920-server-btn"></script>
   <script src="app/data-service.js?v=20260920-lan-cors"></script>
-  <script src="app/ui-overlay.js?v=20260911-generic"></script>
-  <script src="app/ui-popover-menu.js?v=20260915-tree-3d"></script>
+  <script src="app/ui-overlay.js?v=20260921-page-settings"></script>
+  <script src="app/ui-page-settings.js?v=20260921-review-fixes"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
   <script src="app/ui-library-marks.js?v=20260919-actions-webp"></script>
   <script src="app/plugins-host.js?v=20260920-phone-settings"></script>
@@ -3109,7 +3081,7 @@
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260920-pdt"></script>
+  <script src="app/lazy-sections.js?v=20260921-review-fixes"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
@@ -3120,7 +3092,7 @@
 
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
   <script src="app/ui-section-state.js?v=20260920-review-fixes"></script>
-  <script src="app/ui-planner.js?v=20260920-phone-sheet"></script>
+  <script src="app/ui-planner.js?v=20260921-page-settings"></script>
   <script src="app/ui-inbox.js?v=20260920-polish"></script>
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>

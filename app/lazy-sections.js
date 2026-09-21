@@ -24,7 +24,7 @@
       "app/ui-tarot-card-derivations.js?v=20260307b",
       "app/ui-tarot-detail.js?v=20260805-no-active-deck",
       "app/ui-tarot-relation-display.js?v=20260307b",
-      "app/ui-tarot.js?v=20260918-compare-system",
+      "app/ui-tarot.js?v=20260921-page-settings",
       "app/ui-tarot-spread.js?v=20260905-reverse-off",
       "app/tarot-database-builders.js?v=20260424-decan-ranges-01",
       "app/tarot-database-assembly.js?v=20260402-princess-links-01",
@@ -32,7 +32,7 @@
     ],
     tarotFrame: [
       "node_modules/html2canvas/dist/html2canvas.min.js",
-      "app/ui-tarot-frame.js?v=20260919-demo-personal"
+      "app/ui-tarot-frame.js?v=20260921-frame-chrome"
     ],
     tarotHouse: [
       "app/ui-tarot-house.js?v=20260401-house-top-date-01"
@@ -73,24 +73,24 @@
       "app/ui-rosicrucian-cross.js",
       "app/ui-kabbalah-detail.js?v=20260820-template",
       "app/ui-kabbalah-views.js?v=20260915-spin-astro",
-      "app/ui-kabbalah.js?v=20260915-spin-astro"
+      "app/ui-kabbalah.js?v=20260921-review-fixes"
     ],
     cube: [
       "app/ui-cube-detail.js?v=20260915-cube-ux",
       "app/ui-cube-chassis.js?v=20260915-no-hidden-hits",
       "app/ui-cube-math.js?v=20260915-spin-astro",
       "app/ui-cube-selection.js?v=20260915-cube-ux",
-      "app/ui-cube.js?v=20260915-spin-astro"
+      "app/ui-cube.js?v=20260921-review-fixes"
     ],
     alphabet: [
-      "app/ui-alphabet-gematria.js?v=20260917-word-options",
+      "app/ui-alphabet-gematria.js?v=20260921-review-fixes",
       "app/ui-alphabet-browser.js?v=20260531-greek-gematria-04",
       "app/ui-alphabet-references.js",
       "app/ui-alphabet-detail.js?v=20260822-rashi",
       "app/ui-alphabet-kabbalah.js",
-      "app/ui-alphabet.js?v=20260917-word-options",
-      "app/ui-alphabet-text.js?v=20260917-quote-meta",
-      "app/ui-alphabet-reference.js?v=20260913-syn-cells"
+      "app/ui-alphabet.js?v=20260921-review-fixes",
+      "app/ui-alphabet-text.js?v=20260921-clean-sweep",
+      "app/ui-alphabet-reference.js?v=20260921-clean-sweep"
     ],
     scriber: [
       "app/ui-scriber.js?v=20260902-scriber-17"
@@ -128,7 +128,7 @@
     numPad: [
       "app/ui-num-pad-grid.js?v=20260826-num-pad",
       "app/ui-num-pad-model.js?v=20260902-grid-degree",
-      "app/ui-num-pad.js?v=20260915-numpad-actions"
+      "app/ui-num-pad.js?v=20260921-review-fixes"
     ],
     natal: [
       "app/ui-natal.js?v=20260917-natal-place"

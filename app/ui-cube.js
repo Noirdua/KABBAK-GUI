@@ -773,11 +773,6 @@
     }
   }
 
-  // "Move / View / Display" popovers keep the toolbar compact (shared helper).
-  function bindCubePopovers(elements) {
-    window.UiPopoverMenu?.bind(elements?.toolbarEl);
-  }
-
   function bindRotationControls(elements) {
     if (state.controlsBound) {
       return;
@@ -794,7 +789,6 @@
     elements.zoomInEl?.addEventListener("click", () => zoomAndRender(1.12));
     elements.zoomOutEl?.addEventListener("click", () => zoomAndRender(0.9));
     bindViewportInteractions(elements);
-    bindCubePopovers(elements);
     elements.focusToggleEl?.addEventListener("click", () => {
       state.focusMode = !state.focusMode;
       syncFocusControls(getElements());
