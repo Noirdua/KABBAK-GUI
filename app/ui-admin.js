@@ -70,6 +70,16 @@
       settingTrialAccessEl: document.getElementById("admin-setting-trial-access"),
       settingPublicApiUrlEl: document.getElementById("admin-setting-public-api-url"),
       settingMailTransportStateEl: document.getElementById("admin-setting-mail-transport-state"),
+      settingResendWebhookSecretEl: document.getElementById("admin-setting-resend-webhook-secret"),
+      settingResendWebhookSecretStateEl: document.getElementById("admin-setting-resend-webhook-secret-state"),
+      settingResendWebhookSecretClearEl: document.getElementById("admin-setting-resend-webhook-secret-clear"),
+      settingResendWebhookUrlEl: document.getElementById("admin-setting-resend-webhook-url"),
+      settingEmailWebhookTokenEl: document.getElementById("admin-setting-email-webhook-token"),
+      settingEmailWebhookTokenStateEl: document.getElementById("admin-setting-email-webhook-token-state"),
+      settingEmailWebhookTokenClearEl: document.getElementById("admin-setting-email-webhook-token-clear"),
+      settingEmailWebhookUrlEl: document.getElementById("admin-setting-email-webhook-url"),
+      emailEventsRefreshEl: document.getElementById("admin-email-events-refresh"),
+      emailEventsListEl: document.getElementById("admin-email-events-list"),
       mailTestToEl: document.getElementById("admin-mail-test-to"),
       mailTestSendEl: document.getElementById("admin-mail-test-send"),
       mailTestStatusEl: document.getElementById("admin-mail-test-status"),
@@ -1901,6 +1911,15 @@
       settingFaviconUrlEl,
       settingMailTransportEl,
       settingMailTransportStateEl,
+      settingResendWebhookSecretEl,
+      settingResendWebhookSecretStateEl,
+      settingResendWebhookSecretClearEl,
+      settingResendWebhookUrlEl,
+      settingEmailWebhookTokenEl,
+      settingEmailWebhookTokenStateEl,
+      settingEmailWebhookTokenClearEl,
+      settingEmailWebhookUrlEl,
+      emailEventsListEl,
       settingMailFromEl,
       settingMailFromNameEl,
       settingMailLocalEl,
@@ -1980,6 +1999,22 @@
           : "No transport is configured on this server yet.";
       }
       syncMailMethodFields();
+      if (settingResendWebhookSecretEl) settingResendWebhookSecretEl.value = "";
+      if (settingResendWebhookSecretStateEl) {
+        settingResendWebhookSecretStateEl.textContent = settings?.resendWebhookSecretSet
+          ? "set — enter a new value to replace, or clear below"
+          : "not set";
+      }
+      if (settingResendWebhookSecretClearEl) settingResendWebhookSecretClearEl.checked = false;
+      if (settingEmailWebhookTokenEl) settingEmailWebhookTokenEl.value = "";
+      if (settingEmailWebhookTokenStateEl) {
+        settingEmailWebhookTokenStateEl.textContent = settings?.emailWebhookTokenSet
+          ? "set — enter a new value to replace, or clear below"
+          : "not set";
+      }
+      if (settingEmailWebhookTokenClearEl) settingEmailWebhookTokenClearEl.checked = false;
+      syncWebhookEndpoints();
+      void loadEmailEvents();
       if (settingMailFromEl) {
         const parts = splitMailFrom(settings?.mailFrom || "");
         if (settingMailFromNameEl) settingMailFromNameEl.value = parts.name;
@@ -2104,6 +2139,54 @@
     }
   }
 
+  function webhookBase() {
+    return String(window.TarotDataService?.getApiBaseUrl?.() || window.TarotAppConfig?.apiBaseUrl || "")
+      .trim()
+      .replace(/\/+$/, "");
+  }
+
+  // Show the exact URLs the provider should call.
+  function syncWebhookEndpoints() {
+    const { settingResendWebhookUrlEl, settingEmailWebhookUrlEl } = getElements();
+    const base = webhookBase();
+    if (settingResendWebhookUrlEl) {
+      settingResendWebhookUrlEl.textContent = `Endpoint: ${base || ""}/api/v1/webhooks/email/resend`;
+    }
+    if (settingEmailWebhookUrlEl) {
+      settingEmailWebhookUrlEl.textContent = `Endpoint: ${base || ""}/api/v1/webhooks/email/generic (send x-webhook-token)`;
+    }
+  }
+
+  async function loadEmailEvents() {
+    const { emailEventsListEl } = getElements();
+    if (!emailEventsListEl) return;
+    try {
+      const result = await requestJson("GET", "/api/v1/admin/email-events?limit=50");
+      const events = Array.isArray(result?.events) ? result.events : [];
+      if (!events.length) {
+        emailEventsListEl.textContent = "No webhook events yet. Add the endpoint in your provider and send a test email.";
+        return;
+      }
+      emailEventsListEl.innerHTML = "";
+      events.forEach((event) => {
+        const row = document.createElement("div");
+        row.className = "admin-email-event";
+        const when = String(event.receivedAt || "").replace("T", " ").slice(0, 19);
+        row.innerHTML = `
+          <span class="admin-email-event-type">${escapeHtml(event.type || "unknown")}</span>
+          <span class="admin-email-event-recipient">${escapeHtml(event.recipient || "-")}</span>
+          <span class="admin-email-event-time">${escapeHtml(when)}</span>
+        `;
+        if (event.reason) {
+          row.title = String(event.reason);
+        }
+        emailEventsListEl.appendChild(row);
+      });
+    } catch (error) {
+      emailEventsListEl.textContent = `Could not load email events. ${error?.message || ""}`;
+    }
+  }
+
   function syncMailFromPreview() {
     const { settingMailFromEl, settingMailFromNameEl, settingMailLocalEl, settingMailDomainEl } = getElements();
     if (!settingMailFromEl) return;
@@ -2146,6 +2229,12 @@
       settingSmtpPassEl,
       settingSmtpPassStateEl,
       settingSmtpPassClearEl,
+      settingResendWebhookSecretEl,
+      settingResendWebhookSecretStateEl,
+      settingResendWebhookSecretClearEl,
+      settingEmailWebhookTokenEl,
+      settingEmailWebhookTokenStateEl,
+      settingEmailWebhookTokenClearEl,
       settingEmailDevFallbackEl,
       settingSignupEnabledEl,
       settingTrialDaysEl,
@@ -2230,6 +2319,18 @@
       } else if (smtpPass) {
         body.smtpPass = smtpPass;
       }
+      const resendWebhookSecret = String(settingResendWebhookSecretEl?.value || "").trim();
+      if (settingResendWebhookSecretClearEl?.checked) {
+        body.resendWebhookSecret = null;
+      } else if (resendWebhookSecret) {
+        body.resendWebhookSecret = resendWebhookSecret;
+      }
+      const emailWebhookToken = String(settingEmailWebhookTokenEl?.value || "").trim();
+      if (settingEmailWebhookTokenClearEl?.checked) {
+        body.emailWebhookToken = null;
+      } else if (emailWebhookToken) {
+        body.emailWebhookToken = emailWebhookToken;
+      }
 
       // Signup & trials
       body.signupEnabled = settingSignupEnabledEl?.value !== "false";
@@ -2257,6 +2358,16 @@
           ? "set — enter a new value to replace, or clear below"
           : "not set";
       }
+      if (settingResendWebhookSecretStateEl && typeof savedSettings?.resendWebhookSecretSet === "boolean") {
+        settingResendWebhookSecretStateEl.textContent = savedSettings.resendWebhookSecretSet
+          ? "set — enter a new value to replace, or clear below"
+          : "not set";
+      }
+      if (settingEmailWebhookTokenStateEl && typeof savedSettings?.emailWebhookTokenSet === "boolean") {
+        settingEmailWebhookTokenStateEl.textContent = savedSettings.emailWebhookTokenSet
+          ? "set — enter a new value to replace, or clear below"
+          : "not set";
+      }
       if (settingSecretEl) settingSecretEl.value = "";
       if (settingSecretClearEl) settingSecretClearEl.checked = false;
       if (settingResendKeyEl) settingResendKeyEl.value = "";
@@ -2265,6 +2376,10 @@
       if (settingSmtpUrlClearEl) settingSmtpUrlClearEl.checked = false;
       if (settingSmtpPassEl) settingSmtpPassEl.value = "";
       if (settingSmtpPassClearEl) settingSmtpPassClearEl.checked = false;
+      if (settingResendWebhookSecretEl) settingResendWebhookSecretEl.value = "";
+      if (settingResendWebhookSecretClearEl) settingResendWebhookSecretClearEl.checked = false;
+      if (settingEmailWebhookTokenEl) settingEmailWebhookTokenEl.value = "";
+      if (settingEmailWebhookTokenClearEl) settingEmailWebhookTokenClearEl.checked = false;
       // Apply the tab title to this browser immediately; everyone else gets it
       // on their next page load (the shell reads /api/v1/branding at boot).
       const savedTitle = String(body.browserTitle || "").trim();
@@ -2393,7 +2508,10 @@
       field?.addEventListener("input", syncMailFromPreview);
     });
     settingMailTransportEl?.addEventListener("change", syncMailMethodFields);
-    const { mailTestToEl, mailTestSendEl, mailTestStatusEl } = getElements();
+    const { mailTestToEl, mailTestSendEl, mailTestStatusEl, emailEventsRefreshEl } = getElements();
+    emailEventsRefreshEl?.addEventListener("click", () => {
+      void loadEmailEvents();
+    });
     if (mailTestSendEl) {
       mailTestSendEl.addEventListener("click", async () => {
         const to = String(mailTestToEl?.value || "").trim();

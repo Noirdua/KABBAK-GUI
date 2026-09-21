@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260921-mail-method">
+  <link rel="stylesheet" href="app/styles.css?v=20260921-webhooks">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -1014,6 +1014,12 @@
               <label class="settings-field">API version                  <input type="text" value="Resend REST v1 (/emails)" readonly>
                 <span class="settings-field-hint">Profile supplied by the provider</span>
               </label>
+              <div class="settings-field">Webhook signing secret                  <input id="admin-setting-resend-webhook-secret" type="password" placeholder="whsec_… (leave blank to keep current)" autocomplete="new-password">
+                <span id="admin-setting-resend-webhook-secret-state" class="settings-field-hint">not set</span>
+                <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
+                  <input id="admin-setting-resend-webhook-secret-clear" type="checkbox"> Clear saved secret                </label>
+                <span id="admin-setting-resend-webhook-url" class="settings-field-hint">Endpoint: /api/v1/webhooks/email/resend</span>
+              </div>
             </div>
             <div id="admin-mail-smtp-fields" class="settings-grid admin-client-create-grid admin-mail-method-fields" hidden>
               <div class="settings-field">SMTP URL                  <input id="admin-setting-smtp-url" type="password" placeholder="smtp://user:pass@host:587 (optional)" autocomplete="new-password">
@@ -1060,6 +1066,18 @@
               </div>
               <span id="admin-mail-test-status" class="settings-field-hint" aria-live="polite">Confirms the transport this server uses and reports what the provider said.</span>
             </label>
+            <div class="settings-field">Generic webhook token              <input id="admin-setting-email-webhook-token" type="password" placeholder="(leave blank to keep current)" autocomplete="new-password">
+              <span id="admin-setting-email-webhook-token-state" class="settings-field-hint">not set</span>
+              <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
+                <input id="admin-setting-email-webhook-token-clear" type="checkbox"> Clear saved token              </label>
+              <span id="admin-setting-email-webhook-url" class="settings-field-hint">Endpoint: /api/v1/webhooks/email/generic (send x-webhook-token)</span>
+            </div>
+            <div class="settings-field settings-field-full">Recent email events              <div class="dlc-shop-actions" style="margin-top:6px;">
+                <button id="admin-email-events-refresh" class="dlc-shop-btn" type="button">Refresh events</button>
+              </div>
+              <div id="admin-email-events-list" class="admin-email-events" aria-live="polite">No events loaded.</div>
+              <span class="settings-field-hint">Delivery, bounce, and complaint callbacks from the provider webhook.</span>
+            </div>
           </div>
           <div class="settings-panel-head" style="margin-top:14px;">
             <strong>Signup &amp; trials</strong>
@@ -3188,7 +3206,7 @@
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260921-mail-fields"></script>
+  <script src="app/lazy-sections.js?v=20260921-webhooks"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
