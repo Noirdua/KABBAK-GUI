@@ -446,6 +446,13 @@
           </div>
           <section class="profile-settings-group" data-personal-feature>
             <h3>Account</h3>
+            <label class="profile-settings-row" for="profile-account-username">Username
+              <input id="profile-account-username" type="text" readonly>
+            </label>
+            <label class="profile-settings-row" for="profile-account-email">Email
+              <input id="profile-account-email" type="email" readonly>
+            </label>
+            <p class="profile-settings-hint">Your username and email are private. Your email is only ever sent a code — it is never shown to other users, in the directory, or on shared pages. Camera/location data stays on your profile too.</p>
             <label class="profile-settings-row" for="profile-display-name">Display name
               <input id="profile-display-name" type="text" maxlength="100" placeholder="Your name">
             </label>
@@ -3206,7 +3213,7 @@
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260921-webhooks"></script>
+  <script src="app/lazy-sections.js?v=20260921-account-identity"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>

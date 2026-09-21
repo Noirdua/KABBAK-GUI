@@ -138,7 +138,7 @@
     ],
     profile: [
       "app/ui-post-editor.js?v=20260917-quote-meta",
-      "app/ui-profile.js?v=20260920-pdt"
+      "app/ui-profile.js?v=20260921-account-identity"
     ]
   };
 

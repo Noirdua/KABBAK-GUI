@@ -109,6 +109,8 @@
       locationDetectBtn: document.getElementById("profile-location-detect"),
       locationSaveBtn: document.getElementById("profile-location-save"),
       locationStatusEl: document.getElementById("profile-location-status"),
+      accountUsernameEl: document.getElementById("profile-account-username"),
+      accountEmailEl: document.getElementById("profile-account-email"),
       displayNameEl: document.getElementById("profile-display-name"),
       displayNameSaveBtn: document.getElementById("profile-display-name-save"),
       displayNameStatusEl: document.getElementById("profile-display-name-status"),
@@ -3639,8 +3641,9 @@
       const { clientLabelEl } = getElements();
       state.clientId = String(summary?.clientId || "").trim();
       state.authName = String(summary?.authName || "").trim();
-      state.displayName = String(summary?.displayName || "").trim();
-      syncDisplayNameUi();
+    state.displayName = String(summary?.displayName || "").trim();
+    syncDisplayNameUi();
+    syncAccountIdentityUi(summary);
       updateClientLabel();
       state.bio = String(summary?.bio || "");
       syncBioUi();
@@ -3884,6 +3887,19 @@
     const { displayNameEl } = getElements();
     if (displayNameEl) {
       displayNameEl.value = String(state.displayName || "");
+    }
+  }
+
+  // The owner's own identity (never returned for another user's profile).
+  function syncAccountIdentityUi(summary) {
+    const { accountUsernameEl, accountEmailEl } = getElements();
+    const username = String(summary?.username || "").trim();
+    const email = String(summary?.email || "").trim();
+    if (accountUsernameEl) {
+      accountUsernameEl.value = username ? `@${username}` : "(no account — operator key)";
+    }
+    if (accountEmailEl) {
+      accountEmailEl.value = email || "(not available for this key)";
     }
   }
 
