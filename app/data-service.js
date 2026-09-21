@@ -1398,6 +1398,19 @@
     return requestJson("GET", buildApiUrl("/api/v1/directory"));
   }
 
+  async function fetchDirectoryProfile(clientId) {
+    return requestJson("GET", buildApiUrl(`/api/v1/profile/directory/users/${encodeURIComponent(clientId)}`));
+  }
+
+  // <img> cannot send headers, so directory avatars/banners carry the apiKey on
+  // the query string like other media.
+  function buildDirectoryImageUrl(clientId, kind = "avatar") {
+    return buildApiUrl(
+      `/api/v1/profile/directory/users/${encodeURIComponent(clientId)}/${encodeURIComponent(kind)}`,
+      { apiKey: getApiKey() }
+    );
+  }
+
   async function sendAdminMessage(message) {
     return requestJson("POST", buildApiUrl("/api/v1/admin/messages/send"), message);
   }
@@ -1465,6 +1478,8 @@
     fetchAdminMessages,
     fetchAdminRoles,
     fetchDirectory,
+    fetchDirectoryProfile,
+    buildDirectoryImageUrl,
     acceptGameSession,
     createGameSession,
     declineGameSession,

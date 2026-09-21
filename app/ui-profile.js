@@ -5015,6 +5015,22 @@
     }
   }
 
+  // Never surface a raw cli_* id when the user has a display name or username.
+  function peerLabel(entry = {}) {
+    const displayName = String(entry.displayName || entry.name || "").trim();
+    if (displayName && !displayName.startsWith("cli_")) {
+      return displayName;
+    }
+    const username = String(entry.username || "").trim();
+    if (username) {
+      return `@${username}`;
+    }
+    if (displayName) {
+      return displayName;
+    }
+    return String(entry.clientId || "Anonymous").trim() || "Anonymous";
+  }
+
   function userRelationship(clientId) {
     const id = String(clientId || "").trim();
     if (!id) return "none";
@@ -5092,7 +5108,7 @@
       }
       pending.forEach((entry) => {
         const row = makeEl("div", "profile-friend-row");
-        row.appendChild(makeEl("strong", "", entry.name || entry.clientId));
+        row.appendChild(makeEl("strong", "", peerLabel(entry)));
         friendActionButtons(entry.direction === "incoming" ? "incoming" : "outgoing", entry.clientId, { compact: true })
           .forEach((button) => row.appendChild(button));
         friendsRequestsEl.appendChild(row);
@@ -5106,7 +5122,7 @@
       }
       friends.forEach((entry) => {
         const row = makeEl("div", "profile-friend-row");
-        row.appendChild(makeEl("strong", "", entry.name || entry.clientId));
+        row.appendChild(makeEl("strong", "", peerLabel(entry)));
         friendActionButtons("friends", entry.clientId, { compact: true })
           .forEach((button) => row.appendChild(button));
         friendsListEl.appendChild(row);
@@ -5233,30 +5249,63 @@
     directoryDetailEl.hidden = true;
   }
 
-  function openDirectoryUser(user) {
+  async function openDirectoryUser(user) {
     const { directoryDetailEl } = getElements();
     if (!directoryDetailEl || !user) return;
     state.selectedDirectoryUser = String(user.clientId || "");
     state.selectedDirectoryUserData = user;
     directoryDetailEl.textContent = "";
+    directoryDetailEl.hidden = false;
+
+    // The directory row is a summary; fetch the public profile for avatar,
+    // status, and the resolved username (never email or location).
+    let profile = null;
+    try {
+      profile = await window.TarotDataService?.fetchDirectoryProfile?.(user.clientId);
+    } catch (_error) {
+      profile = null;
+    }
+    if (profile && !profile.displayName) {
+      profile.displayName = user.displayName;
+    }
+    const view = profile || user;
+    state.selectedDirectoryUserData = { ...user, ...(profile || {}) };
 
     const head = makeEl("div", "profile-directory-detail-head");
-    head.appendChild(makeEl("strong", "", user.displayName || "Anonymous"));
+    if (view.hasAvatar && window.TarotDataService?.buildDirectoryImageUrl) {
+      const avatar = document.createElement("img");
+      avatar.className = "profile-directory-avatar";
+      avatar.alt = "";
+      avatar.loading = "lazy";
+      avatar.src = window.TarotDataService.buildDirectoryImageUrl(user.clientId, "avatar");
+      head.appendChild(avatar);
+    }
+    const nameWrap = makeEl("div", "profile-directory-detail-name");
+    nameWrap.appendChild(makeEl("strong", "", peerLabel(view)));
+    if (view.username) {
+      nameWrap.appendChild(makeEl("span", "profile-directory-handle", `@${view.username}`));
+    }
+    if (view.tagline) {
+      nameWrap.appendChild(makeEl("span", "profile-directory-detail-meta", view.tagline));
+    }
+    head.appendChild(nameWrap);
     const close = makeEl("button", "profile-btn", "Close");
     close.type = "button";
     close.addEventListener("click", closeDirectoryDetail);
     head.appendChild(close);
     directoryDetailEl.appendChild(head);
 
-    if (user.bio) {
-      directoryDetailEl.appendChild(makeEl("p", "profile-directory-detail-bio", user.bio));
+    if (view.bio) {
+      directoryDetailEl.appendChild(makeEl("p", "profile-directory-detail-bio", view.bio));
     }
-    if (user.memberSince) {
-      const since = new Date(user.memberSince);
+    if (view.memberSince) {
+      const since = new Date(view.memberSince);
       if (!Number.isNaN(since.getTime())) {
-        directoryDetailEl.appendChild(
-          makeEl("span", "profile-directory-detail-meta", `Member since ${since.toLocaleDateString()}`)
-        );
+        const meta = [`Member since ${since.toLocaleDateString()}`];
+        if (Number.isFinite(Number(view.postsCount)) && Number(view.postsCount) > 0) {
+          meta.push(`${view.postsCount} shared ${view.postsCount === 1 ? "entry" : "entries"}`);
+        }
+        directoryDetailEl.appendChild(makeEl("span", "profile-directory-detail-meta", meta.join(" · ")));
       }
     }
 
@@ -5271,7 +5320,7 @@
 
     const posts = makeEl("button", "profile-btn", "Shared entries");
     posts.type = "button";
-    posts.addEventListener("click", () => void openUserPosts(user.clientId, user.displayName));
+    posts.addEventListener("click", () => void openUserPosts(user.clientId, peerLabel(view)));
     actions.appendChild(posts);
 
     const message = makeEl("button", "profile-btn", "Send message");
@@ -5320,7 +5369,10 @@
         const row = document.createElement("button");
         row.type = "button";
         row.className = `profile-directory-row${state.selectedDirectoryUser === user.clientId ? " is-active" : ""}`;
-        row.appendChild(makeEl("strong", "", user.displayName || "Anonymous"));
+        row.appendChild(makeEl("strong", "", peerLabel(user)));
+        if (user.username) {
+          row.appendChild(makeEl("span", "profile-directory-handle", `@${user.username}`));
+        }
         if (user.bio) {
           row.appendChild(makeEl("span", "profile-directory-bio", user.bio));
         }
@@ -5332,7 +5384,9 @@
         } else if (relationship === "incoming") {
           row.appendChild(makeEl("span", "profile-friend-badge", "Wants to connect"));
         }
-        row.addEventListener("click", () => openDirectoryUser(user));
+        row.addEventListener("click", () => {
+          void openDirectoryUser(user);
+        });
         directoryListEl.appendChild(row);
       });
     } catch (error) {

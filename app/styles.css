@@ -12911,6 +12911,25 @@
     .admin-mail-method-fields[hidden] {
       display: none !important;
     }
+    /* Public directory entries and the profile detail panel. */
+    .profile-directory-handle {
+      font-size: 12px;
+      color: var(--tt-text-muted);
+    }
+    .profile-directory-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      object-fit: cover;
+      flex: 0 0 auto;
+    }
+    .profile-directory-detail-name {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
     /* Roles as "permissions" checkboxes (Admin → Users). */
     .admin-permission-grid {
       display: flex;
