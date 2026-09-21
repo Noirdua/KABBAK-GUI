@@ -989,7 +989,7 @@
                 <option value="resend">Resend</option>
                 <option value="smtp">SMTP</option>
               </select>
-              <span class="settings-field-hint">Env: KABBAK_MAIL_TRANSPORT</span>
+              <span id="admin-setting-mail-transport-state" class="settings-field-hint">Env: KABBAK_MAIL_TRANSPORT</span>
             </label>
             <label class="settings-field">Sender (From)              <input id="admin-setting-mail-from" type="text" maxlength="200" placeholder="KABBAK <no-reply@example.com>">
               <span class="settings-field-hint">Env: KABBAK_MAIL_FROM — must be verified by the provider</span>
@@ -1033,6 +1033,12 @@
                 <option value="false">off</option>
               </select>
               <span class="settings-field-hint">Env: KABBAK_EMAIL_DEV_FALLBACK — returns the code as devCode</span>
+            </label>
+            <label class="settings-field settings-field-full">Send a test email              <div class="dlc-shop-actions" style="margin-top:6px;">
+                <input id="admin-mail-test-to" type="email" placeholder="you@example.com" style="flex:1 1 auto;min-width:0;">
+                <button id="admin-mail-test-send" class="dlc-shop-btn" type="button">Send test</button>
+              </div>
+              <span id="admin-mail-test-status" class="settings-field-hint" aria-live="polite">Confirms the transport this server uses and reports what the provider said.</span>
             </label>
           </div>
           <div class="settings-panel-head" style="margin-top:14px;">
@@ -3162,7 +3168,7 @@
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260921-admin-settings"></script>
+  <script src="app/lazy-sections.js?v=20260921-mail-test"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>

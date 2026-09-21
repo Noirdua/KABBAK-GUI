@@ -63,6 +63,10 @@
       settingTrialDaysEl: document.getElementById("admin-setting-trial-days"),
       settingTrialAccessEl: document.getElementById("admin-setting-trial-access"),
       settingPublicApiUrlEl: document.getElementById("admin-setting-public-api-url"),
+      settingMailTransportStateEl: document.getElementById("admin-setting-mail-transport-state"),
+      mailTestToEl: document.getElementById("admin-mail-test-to"),
+      mailTestSendEl: document.getElementById("admin-mail-test-send"),
+      mailTestStatusEl: document.getElementById("admin-mail-test-status"),
       settingsSaveBtn: document.getElementById("admin-settings-save"),
       envReadonlyEl: document.getElementById("admin-env-readonly"),
       logLevelEl: document.getElementById("admin-log-level"),
@@ -1956,6 +1960,12 @@
         const value = String(settings?.mailTransport || "auto");
         settingMailTransportEl.value = ["auto", "resend", "smtp"].includes(value) ? value : "auto";
       }
+      if (settingMailTransportStateEl) {
+        const effective = String(settings?.mailTransportEffective || "");
+        settingMailTransportStateEl.textContent = settings?.mailConfigured
+          ? `Env: KABBAK_MAIL_TRANSPORT — this server is sending via ${effective || "unknown"}.`
+          : "Env: KABBAK_MAIL_TRANSPORT — no transport is configured on this server yet.";
+      }
       if (settingMailFromEl) {
         settingMailFromEl.value = String(settings?.mailFrom || "");
       }
@@ -2273,6 +2283,44 @@
     if (settingsSaveBtn) {
       settingsSaveBtn.addEventListener("click", () => {
         void saveServerSettings();
+      });
+    }
+    const { mailTestToEl, mailTestSendEl, mailTestStatusEl } = getElements();
+    if (mailTestSendEl) {
+      mailTestSendEl.addEventListener("click", async () => {
+        const to = String(mailTestToEl?.value || "").trim();
+        if (!to || !to.includes("@")) {
+          if (mailTestStatusEl) mailTestStatusEl.textContent = "Enter a recipient address first.";
+          mailTestToEl?.focus();
+          return;
+        }
+        mailTestSendEl.disabled = true;
+        if (mailTestStatusEl) mailTestStatusEl.textContent = `Sending to ${to}…`;
+        try {
+          const result = await requestJson("POST", "/api/v1/admin/mail-test", { to });
+          const transport = result?.transport || "none";
+          if (result?.delivered) {
+            if (mailTestStatusEl) {
+              mailTestStatusEl.textContent = `Sent via ${transport} from ${result.from || "(no sender)"}. Check the inbox and spam.`;
+            }
+          } else if (result?.configured === false) {
+            if (mailTestStatusEl) {
+              mailTestStatusEl.textContent = "Not sent: this server has no email transport configured (set a Resend key or SMTP above, then Save).";
+            }
+          } else if (result?.status === 403 || result?.status === 422) {
+            if (mailTestStatusEl) {
+              mailTestStatusEl.textContent = `Resend rejected the recipient (HTTP ${result.status}). A @resend.dev sender can only email your own account address — verify a domain and set that sender.`;
+            }
+          } else {
+            if (mailTestStatusEl) {
+              mailTestStatusEl.textContent = `Not sent via ${transport}: ${result?.reason || "unknown error"}${result?.status ? ` (HTTP ${result.status})` : ""}. Check the server log.`;
+            }
+          }
+        } catch (error) {
+          if (mailTestStatusEl) mailTestStatusEl.textContent = `Test failed: ${error?.message || error}`;
+        } finally {
+          mailTestSendEl.disabled = false;
+        }
       });
     }
     const { settingOverlayFileEl, settingOverlayClearEl, settingOverlayUrlEl } = getElements();
