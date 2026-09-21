@@ -12900,6 +12900,17 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
     }
+    /* Nested group inside a settings grid (e.g. the email API/SMTP panels). */
+    .admin-mail-method-fields {
+      grid-column: 1 / -1;
+      padding: 12px;
+      border: 1px solid var(--tt-border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--tt-surface) 45%, transparent);
+    }
+    .admin-mail-method-fields[hidden] {
+      display: none !important;
+    }
     .settings-field {
       display: flex;
       flex-direction: column;

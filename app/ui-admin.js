@@ -43,6 +43,9 @@
       settingFaviconFileEl: document.getElementById("admin-setting-favicon-file"),
       settingFaviconClearEl: document.getElementById("admin-setting-favicon-clear"),
       settingMailTransportEl: document.getElementById("admin-setting-mail-transport"),
+      settingMailProviderEl: document.getElementById("admin-setting-mail-provider"),
+      mailApiFieldsEl: document.getElementById("admin-mail-api-fields"),
+      mailSmtpFieldsEl: document.getElementById("admin-mail-smtp-fields"),
       settingMailFromEl: document.getElementById("admin-setting-mail-from"),
       settingMailFromNameEl: document.getElementById("admin-setting-mail-from-name"),
       settingMailLocalEl: document.getElementById("admin-setting-mail-local"),
@@ -1960,15 +1963,19 @@
         settingFaviconUrlEl.value = String(settings?.faviconUrl || "");
       }
       if (settingMailTransportEl) {
-        const value = String(settings?.mailTransport || "auto");
-        settingMailTransportEl.value = ["auto", "resend", "smtp"].includes(value) ? value : "auto";
+        const stored = String(settings?.mailTransport || "auto");
+        const effective = String(settings?.mailTransportEffective || "");
+        settingMailTransportEl.value = stored === "smtp" || (stored === "auto" && effective === "smtp")
+          ? "smtp"
+          : "resend";
       }
       if (settingMailTransportStateEl) {
         const effective = String(settings?.mailTransportEffective || "");
         settingMailTransportStateEl.textContent = settings?.mailConfigured
-          ? `Env: KABBAK_MAIL_TRANSPORT — this server is sending via ${effective || "unknown"}.`
-          : "Env: KABBAK_MAIL_TRANSPORT — no transport is configured on this server yet.";
+          ? `This server is currently sending via ${effective || "unknown"}.`
+          : "No transport is configured on this server yet.";
       }
+      syncMailMethodFields();
       if (settingMailFromEl) {
         const parts = splitMailFrom(settings?.mailFrom || "");
         if (settingMailFromNameEl) settingMailFromNameEl.value = parts.name;
@@ -1986,7 +1993,7 @@
         settingResendKeyClearEl.checked = false;
       }
       if (settingResendUrlEl) {
-        settingResendUrlEl.value = String(settings?.resendApiUrl || "");
+        settingResendUrlEl.value = String(settings?.resendApiUrl || "").trim() || DEFAULT_RESEND_URL;
       }
       if (settingSmtpUrlEl) {
         settingSmtpUrlEl.value = "";
@@ -2079,6 +2086,20 @@
     return display ? `${display} <${address}@${host}>` : `${address}@${host}`;
   }
 
+  const DEFAULT_RESEND_URL = "https://api.resend.com/emails";
+  const MAIL_FROM_RE = /^(?:[^<>]{1,80}\s+<\s*[^<>@\s]+@[^<>\s]+\.[^<>\s]+\s*>|[^<>@\s]+@[^<>\s]+\.[^<>\s]+)$/;
+
+  // Either/or: show only the fields for the chosen transport.
+  function syncMailMethodFields() {
+    const { settingMailTransportEl, mailApiFieldsEl, mailSmtpFieldsEl, settingResendUrlEl } = getElements();
+    const method = String(settingMailTransportEl?.value || "resend");
+    if (mailApiFieldsEl) mailApiFieldsEl.hidden = method !== "resend";
+    if (mailSmtpFieldsEl) mailSmtpFieldsEl.hidden = method === "resend";
+    if (method === "resend" && settingResendUrlEl && !String(settingResendUrlEl.value || "").trim()) {
+      settingResendUrlEl.value = DEFAULT_RESEND_URL;
+    }
+  }
+
   function syncMailFromPreview() {
     const { settingMailFromEl, settingMailFromNameEl, settingMailLocalEl, settingMailDomainEl } = getElements();
     if (!settingMailFromEl) return;
@@ -2155,8 +2176,8 @@
         body.profileEncryptionSecret = secret;
       }
 
-      // Email
-      body.mailTransport = settingMailTransportEl?.value || "auto";
+      // Email — either/or: API (Resend) or SMTP.
+      body.mailTransport = settingMailTransportEl?.value === "smtp" ? "smtp" : "resend";
       const mailLocal = String(settingMailLocalEl?.value || "").trim().replace(/^@+/, "");
       const mailDomain = String(settingMailDomainEl?.value || "").trim().replace(/^@+/, "");
       if ((mailLocal && !mailDomain) || (!mailLocal && mailDomain)) {
@@ -2165,7 +2186,14 @@
         return;
       }
       body.mailFrom = buildMailFrom(settingMailFromNameEl?.value, mailLocal, mailDomain);
-      body.resendApiUrl = String(settingResendUrlEl?.value || "").trim();
+      if (body.mailFrom && !MAIL_FROM_RE.test(body.mailFrom)) {
+        setStatus(`Sender "${body.mailFrom}" is not valid. Use e.g. no-reply@example.com with an optional name.`, true);
+        settingsSaveBtn.disabled = false;
+        return;
+      }
+      if (body.mailTransport === "resend") {
+        body.resendApiUrl = String(settingResendUrlEl?.value || "").trim() || DEFAULT_RESEND_URL;
+      }
       body.smtpHost = String(settingSmtpHostEl?.value || "").trim();
       const smtpPort = Number(settingSmtpPortEl?.value);
       if (Number.isFinite(smtpPort) && smtpPort > 0) {
@@ -2205,7 +2233,23 @@
       body.trialAccessLevel = settingTrialAccessEl?.value || "premium";
       body.publicApiUrl = String(settingPublicApiUrlEl?.value || "").trim();
 
-      await requestJson("PATCH", "/api/v1/admin/settings", body);
+      const savedSettings = await requestJson("PATCH", "/api/v1/admin/settings", body);
+      // Reflect the saved secret state immediately (do not rely on a second GET).
+      if (settingResendKeyStateEl && typeof savedSettings?.resendApiKeySet === "boolean") {
+        settingResendKeyStateEl.textContent = savedSettings.resendApiKeySet
+          ? "set — enter a new value to replace, or clear below"
+          : "not set";
+      }
+      if (settingSmtpUrlStateEl && typeof savedSettings?.smtpUrlSet === "boolean") {
+        settingSmtpUrlStateEl.textContent = savedSettings.smtpUrlSet
+          ? "set — enter a new value to replace, or clear below"
+          : "not set";
+      }
+      if (settingSmtpPassStateEl && typeof savedSettings?.smtpPassSet === "boolean") {
+        settingSmtpPassStateEl.textContent = savedSettings.smtpPassSet
+          ? "set — enter a new value to replace, or clear below"
+          : "not set";
+      }
       if (settingSecretEl) settingSecretEl.value = "";
       if (settingSecretClearEl) settingSecretClearEl.checked = false;
       if (settingResendKeyEl) settingResendKeyEl.value = "";
@@ -2337,10 +2381,11 @@
         void saveServerSettings();
       });
     }
-    const { settingMailFromNameEl, settingMailLocalEl, settingMailDomainEl } = getElements();
+    const { settingMailFromNameEl, settingMailLocalEl, settingMailDomainEl, settingMailTransportEl } = getElements();
     [settingMailFromNameEl, settingMailLocalEl, settingMailDomainEl].forEach((field) => {
       field?.addEventListener("input", syncMailFromPreview);
     });
+    settingMailTransportEl?.addEventListener("change", syncMailMethodFields);
     const { mailTestToEl, mailTestSendEl, mailTestStatusEl } = getElements();
     if (mailTestSendEl) {
       mailTestSendEl.addEventListener("click", async () => {

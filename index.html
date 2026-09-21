@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260921-review-fixes">
+  <link rel="stylesheet" href="app/styles.css?v=20260921-mail-method">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -984,13 +984,64 @@
             <span>Verification codes and password resets. Resend or SMTP; secrets are stored but never shown again.</span>
           </div>
           <div class="settings-grid admin-client-create-grid">
-            <label class="settings-field">Transport              <select id="admin-setting-mail-transport">
-                <option value="auto">auto (Resend when key set, else SMTP)</option>
-                <option value="resend">Resend</option>
+            <label class="settings-field">Method              <select id="admin-setting-mail-transport">
+                <option value="resend">API — Resend</option>
                 <option value="smtp">SMTP</option>
               </select>
-              <span id="admin-setting-mail-transport-state" class="settings-field-hint">Env: KABBAK_MAIL_TRANSPORT</span>
+              <span id="admin-setting-mail-transport-state" class="settings-field-hint">Choose one. Env: KABBAK_MAIL_TRANSPORT</span>
             </label>
+            <label class="settings-field">Dev code fallback              <select id="admin-setting-email-dev-fallback">
+                <option value="auto">auto (on only when unconfigured, non-production)</option>
+                <option value="true">on</option>
+                <option value="false">off</option>
+              </select>
+              <span class="settings-field-hint">Env: KABBAK_EMAIL_DEV_FALLBACK — returns the code as devCode</span>
+            </label>
+            <div id="admin-mail-api-fields" class="settings-grid admin-client-create-grid admin-mail-method-fields">
+              <label class="settings-field">Provider                  <select id="admin-setting-mail-provider">
+                    <option value="resend">Resend (api.resend.com)</option>
+                  </select>
+                  <span class="settings-field-hint">API transport. The URL and endpoint are prefilled.</span>
+              </label>
+              <div class="settings-field">API key                  <input id="admin-setting-resend-key" type="password" placeholder="re_… (leave blank to keep current)" autocomplete="new-password">
+                <span id="admin-setting-resend-key-state" class="settings-field-hint">not set</span>
+                <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
+                  <input id="admin-setting-resend-key-clear" type="checkbox"> Clear saved key                </label>
+              </div>
+              <label class="settings-field">API URL                  <input id="admin-setting-resend-url" type="url" maxlength="300" placeholder="https://api.resend.com/emails">
+                <span class="settings-field-hint">Env: KABBAK_RESEND_API_URL — prefilled for Resend</span>
+              </label>
+              <label class="settings-field">API version                  <input type="text" value="Resend REST v1 (/emails)" readonly>
+                <span class="settings-field-hint">Profile supplied by the provider</span>
+              </label>
+            </div>
+            <div id="admin-mail-smtp-fields" class="settings-grid admin-client-create-grid admin-mail-method-fields" hidden>
+              <div class="settings-field">SMTP URL                  <input id="admin-setting-smtp-url" type="password" placeholder="smtp://user:pass@host:587 (optional)" autocomplete="new-password">
+                <span id="admin-setting-smtp-url-state" class="settings-field-hint">not set</span>
+                <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
+                  <input id="admin-setting-smtp-url-clear" type="checkbox"> Clear saved URL                </label>
+              </div>
+              <label class="settings-field">SMTP host                  <input id="admin-setting-smtp-host" type="text" maxlength="200" placeholder="smtp.example.com">
+                <span class="settings-field-hint">Env: KABBAK_SMTP_HOST</span>
+              </label>
+              <label class="settings-field">SMTP port                  <input id="admin-setting-smtp-port" type="number" min="1" max="65535" step="1" placeholder="587">
+                <span class="settings-field-hint">Env: KABBAK_SMTP_PORT</span>
+              </label>
+              <label class="settings-field">SMTP secure                  <select id="admin-setting-smtp-secure">
+                  <option value="false">off (STARTTLS)</option>
+                  <option value="true">on (implicit TLS)</option>
+                </select>
+                <span class="settings-field-hint">Env: KABBAK_SMTP_SECURE</span>
+              </label>
+              <label class="settings-field">SMTP user                  <input id="admin-setting-smtp-user" type="text" maxlength="200" autocomplete="off">
+                <span class="settings-field-hint">Env: KABBAK_SMTP_USER</span>
+              </label>
+              <div class="settings-field">SMTP password                  <input id="admin-setting-smtp-pass" type="password" placeholder="(leave blank to keep current)" autocomplete="new-password">
+                <span id="admin-setting-smtp-pass-state" class="settings-field-hint">not set</span>
+                <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
+                  <input id="admin-setting-smtp-pass-clear" type="checkbox"> Clear saved password                </label>
+              </div>
+            </div>
             <label class="settings-field">Sender name              <input id="admin-setting-mail-from-name" type="text" maxlength="80" placeholder="KABBAK">
               <span class="settings-field-hint">Display name (optional)</span>
             </label>
@@ -998,50 +1049,10 @@
               <span class="settings-field-hint">The part before the @</span>
             </label>
             <label class="settings-field">Sender domain              <input id="admin-setting-mail-domain" type="text" maxlength="160" placeholder="mail.example.com">
-              <span class="settings-field-hint">A domain verified by your provider (Resend/SMTP)</span>
+              <span class="settings-field-hint">A domain verified by your provider</span>
             </label>
             <label class="settings-field settings-field-full">From address (built from the fields above)              <input id="admin-setting-mail-from" type="text" readonly placeholder="KABBAK <no-reply@mail.example.com>">
               <span class="settings-field-hint">Env: KABBAK_MAIL_FROM — this is the value saved and sent</span>
-            </label>
-            <div class="settings-field">Resend API key              <input id="admin-setting-resend-key" type="password" placeholder="(leave blank to keep current)" autocomplete="new-password">
-              <span id="admin-setting-resend-key-state" class="settings-field-hint">not set</span>
-              <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
-                <input id="admin-setting-resend-key-clear" type="checkbox"> Clear saved key              </label>
-            </div>
-            <label class="settings-field">Resend API URL              <input id="admin-setting-resend-url" type="url" maxlength="300" placeholder="https://api.resend.com/emails">
-              <span class="settings-field-hint">Env: KABBAK_RESEND_API_URL</span>
-            </label>
-            <div class="settings-field">SMTP URL              <input id="admin-setting-smtp-url" type="password" placeholder="(leave blank to keep current)" autocomplete="new-password">
-              <span id="admin-setting-smtp-url-state" class="settings-field-hint">not set</span>
-              <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
-                <input id="admin-setting-smtp-url-clear" type="checkbox"> Clear saved URL              </label>
-            </div>
-            <label class="settings-field">SMTP host              <input id="admin-setting-smtp-host" type="text" maxlength="200" placeholder="smtp.example.com">
-              <span class="settings-field-hint">Env: KABBAK_SMTP_HOST</span>
-            </label>
-            <label class="settings-field">SMTP port              <input id="admin-setting-smtp-port" type="number" min="1" max="65535" step="1" placeholder="587">
-              <span class="settings-field-hint">Env: KABBAK_SMTP_PORT</span>
-            </label>
-            <label class="settings-field">SMTP secure              <select id="admin-setting-smtp-secure">
-                <option value="false">off (STARTTLS)</option>
-                <option value="true">on (implicit TLS)</option>
-              </select>
-              <span class="settings-field-hint">Env: KABBAK_SMTP_SECURE</span>
-            </label>
-            <label class="settings-field">SMTP user              <input id="admin-setting-smtp-user" type="text" maxlength="200" autocomplete="off">
-              <span class="settings-field-hint">Env: KABBAK_SMTP_USER</span>
-            </label>
-            <div class="settings-field">SMTP password              <input id="admin-setting-smtp-pass" type="password" placeholder="(leave blank to keep current)" autocomplete="new-password">
-              <span id="admin-setting-smtp-pass-state" class="settings-field-hint">not set</span>
-              <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
-                <input id="admin-setting-smtp-pass-clear" type="checkbox"> Clear saved password              </label>
-            </div>
-            <label class="settings-field">Dev code fallback              <select id="admin-setting-email-dev-fallback">
-                <option value="auto">auto (on only when unconfigured, non-production)</option>
-                <option value="true">on</option>
-                <option value="false">off</option>
-              </select>
-              <span class="settings-field-hint">Env: KABBAK_EMAIL_DEV_FALLBACK — returns the code as devCode</span>
             </label>
             <label class="settings-field settings-field-full">Send a test email              <div class="dlc-shop-actions" style="margin-top:6px;">
                 <input id="admin-mail-test-to" type="email" placeholder="you@example.com" style="flex:1 1 auto;min-width:0;">
@@ -3177,7 +3188,7 @@
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260921-sender-builder"></script>
+  <script src="app/lazy-sections.js?v=20260921-mail-method"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
