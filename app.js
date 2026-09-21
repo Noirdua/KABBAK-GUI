@@ -1306,6 +1306,7 @@ document.addEventListener("connection:updated", () => {
   syncProfileVisibility();
   syncAdminVisibility();
   applyAdminDeepLink();
+  void refreshServerBranding();
 });
 
 document.addEventListener("section:changed", (event) => {
@@ -1437,6 +1438,20 @@ syncProfileVisibility();
 syncAdminVisibility();
 applyAdminDeepLink();
 
+// Server branding (title, header label, logo, favicon, overlay) belongs to the
+// server we end up connected to. The boot attempt runs before the gate knows a
+// base URL, so re-run it once the connection lands and whenever it changes.
+let brandingBaseUrl = "";
+
+async function refreshServerBranding() {
+  const base = String(window.TarotDataService?.getApiBaseUrl?.() || "").trim();
+  if (!base || base === brandingBaseUrl) {
+    return;
+  }
+  brandingBaseUrl = base;
+  await window.TarotAppConfig?.loadConfigDefaults?.();
+}
+
 (async () => {
   // Server config seeds branding, theme, menu layout, and other defaults
   // before the first settings apply / connection attempt.
@@ -1464,6 +1479,8 @@ applyAdminDeepLink();
     // 401s. They re-run once the connection (or background reconnect) lands.
     return;
   }
+  // Now that we know the server, load its branding/customizations.
+  await refreshServerBranding();
   // Warm reference data only. Section modules load on first navigation.
   await window.TarotAppRuntime?.ensureReferenceData?.();
   window.TarotLazySections?.scheduleIdleWarmup?.(["planets", "cycles", "zodiac"]);

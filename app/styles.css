@@ -12911,6 +12911,12 @@
     .admin-mail-method-fields[hidden] {
       display: none !important;
     }
+    /* Trial account identity (username + private email) in Admin → Users. */
+    .admin-user-account {
+      font-size: 12px;
+      color: var(--tt-text-muted);
+      word-break: break-word;
+    }
     /* Inbound provider webhook events (Admin → Server → Email). */
     .admin-email-events {
       display: grid;

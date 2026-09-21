@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260921-webhooks">
+  <link rel="stylesheet" href="app/styles.css?v=20260921-branding">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -968,6 +968,12 @@
             </div>
             <label class="settings-field">Browser tab title              <input id="admin-setting-browser-title" type="text" maxlength="100" placeholder="KABBAK">
               <span class="settings-field-hint">Env: KABBAK_BROWSER_TITLE — blank uses the app default</span>
+            </label>
+            <label class="settings-field">Header label              <input id="admin-setting-branding-home" type="text" maxlength="100" placeholder="KABBAK">
+              <span class="settings-field-hint">Env: KABBAK_BRANDING_HOME_LABEL — text on the top-bar home button</span>
+            </label>
+            <label class="settings-field">Logo URL              <input id="admin-setting-branding-logo" type="url" maxlength="500" placeholder="https://…/logo.png">
+              <span class="settings-field-hint">Env: KABBAK_BRANDING_LOGO_URL — top-bar logo; blank keeps the plain home button</span>
             </label>
             <label class="settings-field settings-field-full">Favicon              <input id="admin-setting-favicon-url" type="url" maxlength="500" placeholder="https://… or leave blank for the default icon">
               <span class="settings-field-hint">Browser tab icon. Upload a .ico or image, or paste a URL.</span>
@@ -3201,7 +3207,7 @@
   <script src="app/ui-theme.js?v=20260911-scroll-perf"></script>
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js"></script>
-  <script src="app/app-config.js?v=20260920-server-btn"></script>
+  <script src="app/app-config.js?v=20260921-branding"></script>
   <script src="app/data-service.js?v=20260920-lan-cors"></script>
   <script src="app/ui-overlay.js?v=20260921-page-settings"></script>
   <script src="app/ui-page-settings.js?v=20260921-review-fixes"></script>
@@ -3213,7 +3219,7 @@
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260921-account-identity"></script>
+  <script src="app/lazy-sections.js?v=20260921-branding"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
@@ -3228,7 +3234,7 @@
   <script src="app/ui-inbox.js?v=20260920-polish"></script>
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20260920-server-btn"></script>
+  <script src="app.js?v=20260921-branding"></script>
   <script src="app/auth-signup.js?v=20260921-email-status"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">

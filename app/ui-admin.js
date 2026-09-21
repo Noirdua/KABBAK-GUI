@@ -36,6 +36,8 @@
       settingSecretStateEl: document.getElementById("admin-setting-secret-state"),
       settingSecretClearEl: document.getElementById("admin-setting-secret-clear"),
       settingBrowserTitleEl: document.getElementById("admin-setting-browser-title"),
+      settingBrandingHomeEl: document.getElementById("admin-setting-branding-home"),
+      settingBrandingLogoEl: document.getElementById("admin-setting-branding-logo"),
       settingOverlayUrlEl: document.getElementById("admin-setting-overlay-url"),
       settingOverlayFileEl: document.getElementById("admin-setting-overlay-file"),
       settingOverlayClearEl: document.getElementById("admin-setting-overlay-clear"),
@@ -1336,6 +1338,7 @@
           <div class="admin-client-main">
             <strong>${escapeHtml(displayName)}</strong>
             <span class="admin-client-id">${escapeHtml(client.id)}</span>
+            ${client.isTrialAccount ? `<span class="admin-user-account">@${escapeHtml(client.username || "?")} · ${escapeHtml(client.email || "no email")} · ${client.trialActive ? "trial active" : (client.trialKeyPresent ? "trial expired" : "no key")}</span>` : ""}
             ${client.bio ? `<span class="admin-user-bio">${escapeHtml(String(client.bio).slice(0, 160))}</span>` : ""}
           </div>
           <span class="admin-client-access">${escapeHtml(client.accessLevel || "—")}</span>
@@ -1907,6 +1910,8 @@
       settingSecretStateEl,
       settingSecretClearEl,
       settingBrowserTitleEl,
+      settingBrandingHomeEl,
+      settingBrandingLogoEl,
       settingOverlayUrlEl,
       settingFaviconUrlEl,
       settingMailTransportEl,
@@ -1978,6 +1983,12 @@
       }
       if (settingBrowserTitleEl) {
         settingBrowserTitleEl.value = String(settings?.browserTitle || "");
+      }
+      if (settingBrandingHomeEl) {
+        settingBrandingHomeEl.value = String(settings?.brandingHomeLabel || "");
+      }
+      if (settingBrandingLogoEl) {
+        settingBrandingLogoEl.value = String(settings?.brandingLogoUrl || "");
       }
       if (settingOverlayUrlEl) {
         settingOverlayUrlEl.value = String(settings?.overlayBackgroundUrl || "");
@@ -2208,6 +2219,8 @@
       settingSecretEl,
       settingSecretClearEl,
       settingBrowserTitleEl,
+      settingBrandingHomeEl,
+      settingBrandingLogoEl,
       settingOverlayUrlEl,
       settingFaviconUrlEl,
       settingMailTransportEl,
@@ -2254,6 +2267,8 @@
           .filter(Boolean),
         autoMigrateEnabled: settingAutoMigrateEl?.value === "true",
         browserTitle: String(settingBrowserTitleEl?.value || "").trim(),
+        brandingHomeLabel: String(settingBrandingHomeEl?.value || "").trim(),
+        brandingLogoUrl: String(settingBrandingLogoEl?.value || "").trim(),
         overlayBackgroundUrl: String(settingOverlayUrlEl?.value || "").trim(),
         faviconUrl: String(settingFaviconUrlEl?.value || "").trim()
       };

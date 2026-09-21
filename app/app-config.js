@@ -395,7 +395,7 @@
   }
 
   async function resolveLogoUrl(logoSetting) {
-    if (logoSetting === "" || logoSetting == null) {
+    if (logoSetting === "" || logoSetting === undefined || logoSetting === false) {
       return "";
     }
     if (typeof logoSetting === "string" && logoSetting) {
@@ -497,6 +497,18 @@
           if (brandingResponse.ok) {
             const brandingPayload = await brandingResponse.json().catch(() => null);
             const remoteTitle = String(brandingPayload?.title || "").trim();
+            const remoteHomeLabel = String(brandingPayload?.homeLabel || "").trim();
+            const remoteLogo = String(brandingPayload?.logoUrl || "").trim();
+            if (remoteTitle || remoteHomeLabel || remoteLogo) {
+              brandingConfig = normalizeBranding({
+                title: remoteTitle || undefined,
+                homeLabel: remoteHomeLabel || undefined,
+                logo: remoteLogo || undefined
+              });
+              window.TarotAppConfig.branding = { ...brandingConfig };
+              const logoUrl = await resolveLogoUrl(brandingConfig.logo);
+              applyBranding(brandingConfig, logoUrl);
+            }
             if (remoteTitle) {
               document.title = remoteTitle;
             }
