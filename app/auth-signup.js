@@ -119,6 +119,19 @@
       return String(baseUrlEl?.value || "").trim().replace(/\/+$/, "");
     }
 
+    // The Server editor writes baseUrlEl; fall back to the saved connection and
+    // the data service so the captcha/login still work when the hidden input was
+    // never populated on this device.
+    function resolvedBaseUrl() {
+      const typed = baseUrl();
+      if (typed) return typed;
+      const configured = String(
+        window.TarotAppConfig?.getConnectionSettings?.()?.apiBaseUrl || ""
+      ).trim().replace(/\/+$/, "");
+      if (configured) return configured;
+      return String(window.TarotDataService?.getApiBaseUrl?.() || "").trim().replace(/\/+$/, "");
+    }
+
     function defaultProtocol() {
       return window.location.protocol === "https:" ? "https:" : "http:";
     }
@@ -253,13 +266,17 @@
       setServerHint(`Saved ${next}.`);
       void probeServerHealth();
       void refreshProviders();
+      // If the captcha step is already open, load its challenge now that we
+      // finally have a server address.
+      if ((state.step === "signup" || state.step === "forgot") && !state.challengeReady) {
+        void refreshChallenge();
+      }
     }
 
     async function apiPost(path, body) {
-      const base = baseUrl();
+      const base = resolvedBaseUrl();
       if (!base) {
-        setStatus("Enter the API Base URL first.", "error");
-        baseUrlEl?.focus();
+        setStatus("Set the API server first — tap Server.", "error");
         return { ok: false, offline: true };
       }
 
@@ -298,7 +315,15 @@
       const captchaEl = document.getElementById("connection-gate-captcha");
       const needsCaptcha = name === "signup" || name === "forgot";
       if (captchaEl) captchaEl.hidden = !needsCaptcha;
-      if (needsCaptcha && baseUrl() && (name === "forgot" || !state.challengeReady)) {
+      if (!needsCaptcha) {
+        return;
+      }
+      if (!resolvedBaseUrl()) {
+        // Never leave the prompt parked on "Loading challenge…".
+        if (captchaPromptEl) captchaPromptEl.textContent = "Set the server address first (tap Server)";
+        return;
+      }
+      if (name === "forgot" || !state.challengeReady) {
         void refreshChallenge();
       }
     }
@@ -328,9 +353,19 @@
       if (captchaChoicesEl) captchaChoicesEl.innerHTML = "";
       if (captchaAnswerEl) captchaAnswerEl.value = "";
 
-      const result = await apiPost("/auth/challenge");
+      let result;
+      try {
+        result = await apiPost("/auth/challenge");
+      } catch (error) {
+        result = { ok: false, message: error?.message || "Could not load the challenge." };
+      }
       if (!result.ok) {
-        if (captchaPromptEl) captchaPromptEl.textContent = "Challenge unavailable";
+        // Always leave a terminal message so the prompt can never stay "Loading…".
+        if (captchaPromptEl) {
+          captchaPromptEl.textContent = result.message
+            ? `Challenge unavailable — ${result.message}`
+            : "Challenge unavailable — press New to retry";
+        }
         return false;
       }
       state.captchaToken = result.data?.token || "";
