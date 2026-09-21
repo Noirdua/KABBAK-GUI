@@ -346,6 +346,19 @@
       });
     }
 
+    // Signup/resend succeed server-side even when the provider rejects the
+    // message, so never claim the email was sent when it was not.
+    function describeEmailFailure(data) {
+      if (data?.emailConfigured === false) {
+        return "Email is not configured on the server. Set it up in Admin → Server → Email.";
+      }
+      const status = Number(data?.emailStatus);
+      if (status === 403 || status === 422) {
+        return "The provider rejected that recipient. A Resend test sender can only email your own account address — verify a domain and set the sender in Admin → Server → Email.";
+      }
+      return "The server could not send the verification email. Check Admin → Server → Email.";
+    }
+
     async function refreshChallenge() {
       state.challengeReady = false;
       state.captchaToken = "";
@@ -435,6 +448,8 @@
         if (result.data?.devCode) {
           if (verifyCodeEl) verifyCodeEl.value = String(result.data.devCode);
           setStatus("Email sending is not configured on this server, so the code is filled in for testing. Press Verify.", "pending");
+        } else if (result.data?.emailDelivered === false) {
+          setStatus(`Account created, but the verification email did not send. ${describeEmailFailure(result.data)} You can press Resend code to try again.`, "error");
         } else {
           setStatus("Account created. Check your email for the 6-digit code.", "success");
         }
@@ -477,6 +492,8 @@
         if (result.data?.devCode) {
           if (verifyCodeEl) verifyCodeEl.value = String(result.data.devCode);
           setStatus("New code generated (shown here because email is not configured).", "pending");
+        } else if (result.data?.emailDelivered === false) {
+          setStatus(`The new code could not be emailed. ${describeEmailFailure(result.data)}`, "error");
         } else {
           setStatus("A new code is on its way. Check your email.", "success");
         }
