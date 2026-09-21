@@ -134,7 +134,7 @@
       "app/ui-natal.js?v=20260917-natal-place"
     ],
     admin: [
-      "app/ui-admin.js?v=20260920-dlc-cache"
+      "app/ui-admin.js?v=20260921-admin-settings"
     ],
     profile: [
       "app/ui-post-editor.js?v=20260917-quote-meta",

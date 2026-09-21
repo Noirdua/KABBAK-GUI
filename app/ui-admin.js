@@ -42,6 +42,27 @@
       settingFaviconUrlEl: document.getElementById("admin-setting-favicon-url"),
       settingFaviconFileEl: document.getElementById("admin-setting-favicon-file"),
       settingFaviconClearEl: document.getElementById("admin-setting-favicon-clear"),
+      settingMailTransportEl: document.getElementById("admin-setting-mail-transport"),
+      settingMailFromEl: document.getElementById("admin-setting-mail-from"),
+      settingResendKeyEl: document.getElementById("admin-setting-resend-key"),
+      settingResendKeyStateEl: document.getElementById("admin-setting-resend-key-state"),
+      settingResendKeyClearEl: document.getElementById("admin-setting-resend-key-clear"),
+      settingResendUrlEl: document.getElementById("admin-setting-resend-url"),
+      settingSmtpUrlEl: document.getElementById("admin-setting-smtp-url"),
+      settingSmtpUrlStateEl: document.getElementById("admin-setting-smtp-url-state"),
+      settingSmtpUrlClearEl: document.getElementById("admin-setting-smtp-url-clear"),
+      settingSmtpHostEl: document.getElementById("admin-setting-smtp-host"),
+      settingSmtpPortEl: document.getElementById("admin-setting-smtp-port"),
+      settingSmtpSecureEl: document.getElementById("admin-setting-smtp-secure"),
+      settingSmtpUserEl: document.getElementById("admin-setting-smtp-user"),
+      settingSmtpPassEl: document.getElementById("admin-setting-smtp-pass"),
+      settingSmtpPassStateEl: document.getElementById("admin-setting-smtp-pass-state"),
+      settingSmtpPassClearEl: document.getElementById("admin-setting-smtp-pass-clear"),
+      settingEmailDevFallbackEl: document.getElementById("admin-setting-email-dev-fallback"),
+      settingSignupEnabledEl: document.getElementById("admin-setting-signup-enabled"),
+      settingTrialDaysEl: document.getElementById("admin-setting-trial-days"),
+      settingTrialAccessEl: document.getElementById("admin-setting-trial-access"),
+      settingPublicApiUrlEl: document.getElementById("admin-setting-public-api-url"),
       settingsSaveBtn: document.getElementById("admin-settings-save"),
       envReadonlyEl: document.getElementById("admin-env-readonly"),
       logLevelEl: document.getElementById("admin-log-level"),
@@ -1868,6 +1889,27 @@
       settingBrowserTitleEl,
       settingOverlayUrlEl,
       settingFaviconUrlEl,
+      settingMailTransportEl,
+      settingMailFromEl,
+      settingResendKeyEl,
+      settingResendKeyStateEl,
+      settingResendKeyClearEl,
+      settingResendUrlEl,
+      settingSmtpUrlEl,
+      settingSmtpUrlStateEl,
+      settingSmtpUrlClearEl,
+      settingSmtpHostEl,
+      settingSmtpPortEl,
+      settingSmtpSecureEl,
+      settingSmtpUserEl,
+      settingSmtpPassEl,
+      settingSmtpPassStateEl,
+      settingSmtpPassClearEl,
+      settingEmailDevFallbackEl,
+      settingSignupEnabledEl,
+      settingTrialDaysEl,
+      settingTrialAccessEl,
+      settingPublicApiUrlEl,
       envReadonlyEl
     } = getElements();
     if (!settingLogModeEl) return;
@@ -1910,6 +1952,71 @@
       if (settingFaviconUrlEl) {
         settingFaviconUrlEl.value = String(settings?.faviconUrl || "");
       }
+      if (settingMailTransportEl) {
+        const value = String(settings?.mailTransport || "auto");
+        settingMailTransportEl.value = ["auto", "resend", "smtp"].includes(value) ? value : "auto";
+      }
+      if (settingMailFromEl) {
+        settingMailFromEl.value = String(settings?.mailFrom || "");
+      }
+      if (settingResendKeyEl) {
+        settingResendKeyEl.value = "";
+      }
+      if (settingResendKeyStateEl) {
+        settingResendKeyStateEl.textContent = settings?.resendApiKeySet ? "set — enter a new value to replace, or clear below" : "not set";
+      }
+      if (settingResendKeyClearEl) {
+        settingResendKeyClearEl.checked = false;
+      }
+      if (settingResendUrlEl) {
+        settingResendUrlEl.value = String(settings?.resendApiUrl || "");
+      }
+      if (settingSmtpUrlEl) {
+        settingSmtpUrlEl.value = "";
+      }
+      if (settingSmtpUrlStateEl) {
+        settingSmtpUrlStateEl.textContent = settings?.smtpUrlSet ? "set — enter a new value to replace, or clear below" : "not set";
+      }
+      if (settingSmtpUrlClearEl) {
+        settingSmtpUrlClearEl.checked = false;
+      }
+      if (settingSmtpHostEl) {
+        settingSmtpHostEl.value = String(settings?.smtpHost || "");
+      }
+      if (settingSmtpPortEl) {
+        settingSmtpPortEl.value = settings?.smtpPort ? String(settings.smtpPort) : "";
+      }
+      if (settingSmtpSecureEl) {
+        settingSmtpSecureEl.value = settings?.smtpSecure ? "true" : "false";
+      }
+      if (settingSmtpUserEl) {
+        settingSmtpUserEl.value = String(settings?.smtpUser || "");
+      }
+      if (settingSmtpPassEl) {
+        settingSmtpPassEl.value = "";
+      }
+      if (settingSmtpPassStateEl) {
+        settingSmtpPassStateEl.textContent = settings?.smtpPassSet ? "set — enter a new value to replace, or clear below" : "not set";
+      }
+      if (settingSmtpPassClearEl) {
+        settingSmtpPassClearEl.checked = false;
+      }
+      if (settingEmailDevFallbackEl) {
+        const value = settings?.emailDevFallback;
+        settingEmailDevFallbackEl.value = value === true ? "true" : value === false ? "false" : "auto";
+      }
+      if (settingSignupEnabledEl) {
+        settingSignupEnabledEl.value = settings?.signupEnabled === false ? "false" : "true";
+      }
+      if (settingTrialDaysEl) {
+        settingTrialDaysEl.value = settings?.trialDays ? String(settings.trialDays) : "";
+      }
+      if (settingTrialAccessEl) {
+        settingTrialAccessEl.value = String(settings?.trialAccessLevel || "premium");
+      }
+      if (settingPublicApiUrlEl) {
+        settingPublicApiUrlEl.value = String(settings?.publicApiUrl || "");
+      }
       if (envReadonlyEl) {
         const env = settings?.envOnly || {};
         envReadonlyEl.innerHTML = "";
@@ -1943,6 +2050,24 @@
       settingBrowserTitleEl,
       settingOverlayUrlEl,
       settingFaviconUrlEl,
+      settingMailTransportEl,
+      settingMailFromEl,
+      settingResendKeyEl,
+      settingResendKeyClearEl,
+      settingResendUrlEl,
+      settingSmtpUrlEl,
+      settingSmtpUrlClearEl,
+      settingSmtpHostEl,
+      settingSmtpPortEl,
+      settingSmtpSecureEl,
+      settingSmtpUserEl,
+      settingSmtpPassEl,
+      settingSmtpPassClearEl,
+      settingEmailDevFallbackEl,
+      settingSignupEnabledEl,
+      settingTrialDaysEl,
+      settingTrialAccessEl,
+      settingPublicApiUrlEl,
       settingsSaveBtn
     } = getElements();
     if (!settingsSaveBtn) return;
@@ -1974,9 +2099,59 @@
       } else if (secret) {
         body.profileEncryptionSecret = secret;
       }
+
+      // Email
+      body.mailTransport = settingMailTransportEl?.value || "auto";
+      body.mailFrom = String(settingMailFromEl?.value || "").trim();
+      body.resendApiUrl = String(settingResendUrlEl?.value || "").trim();
+      body.smtpHost = String(settingSmtpHostEl?.value || "").trim();
+      const smtpPort = Number(settingSmtpPortEl?.value);
+      if (Number.isFinite(smtpPort) && smtpPort > 0) {
+        body.smtpPort = Math.round(smtpPort);
+      }
+      body.smtpSecure = settingSmtpSecureEl?.value === "true";
+      body.smtpUser = String(settingSmtpUserEl?.value || "").trim();
+      body.emailDevFallback = settingEmailDevFallbackEl?.value === "auto"
+        ? null
+        : settingEmailDevFallbackEl?.value === "true";
+
+      const resendKey = String(settingResendKeyEl?.value || "").trim();
+      if (settingResendKeyClearEl?.checked) {
+        body.resendApiKey = null;
+      } else if (resendKey) {
+        body.resendApiKey = resendKey;
+      }
+      const smtpUrl = String(settingSmtpUrlEl?.value || "").trim();
+      if (settingSmtpUrlClearEl?.checked) {
+        body.smtpUrl = null;
+      } else if (smtpUrl) {
+        body.smtpUrl = smtpUrl;
+      }
+      const smtpPass = String(settingSmtpPassEl?.value || "");
+      if (settingSmtpPassClearEl?.checked) {
+        body.smtpPass = null;
+      } else if (smtpPass) {
+        body.smtpPass = smtpPass;
+      }
+
+      // Signup & trials
+      body.signupEnabled = settingSignupEnabledEl?.value !== "false";
+      const trialDays = Number(settingTrialDaysEl?.value);
+      if (Number.isFinite(trialDays) && trialDays > 0) {
+        body.trialDays = Math.round(trialDays);
+      }
+      body.trialAccessLevel = settingTrialAccessEl?.value || "premium";
+      body.publicApiUrl = String(settingPublicApiUrlEl?.value || "").trim();
+
       await requestJson("PATCH", "/api/v1/admin/settings", body);
       if (settingSecretEl) settingSecretEl.value = "";
       if (settingSecretClearEl) settingSecretClearEl.checked = false;
+      if (settingResendKeyEl) settingResendKeyEl.value = "";
+      if (settingResendKeyClearEl) settingResendKeyClearEl.checked = false;
+      if (settingSmtpUrlEl) settingSmtpUrlEl.value = "";
+      if (settingSmtpUrlClearEl) settingSmtpUrlClearEl.checked = false;
+      if (settingSmtpPassEl) settingSmtpPassEl.value = "";
+      if (settingSmtpPassClearEl) settingSmtpPassClearEl.checked = false;
       // Apply the tab title to this browser immediately; everyone else gets it
       // on their next page load (the shell reads /api/v1/branding at boot).
       const savedTitle = String(body.browserTitle || "").trim();
