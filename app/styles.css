@@ -12911,6 +12911,26 @@
     .admin-mail-method-fields[hidden] {
       display: none !important;
     }
+    /* Roles as "permissions" checkboxes (Admin → Users). */
+    .admin-permission-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      margin-top: 4px;
+    }
+    .admin-permission-option {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--tt-text);
+      cursor: pointer;
+    }
+    .admin-client-edit-permissions {
+      display: grid;
+      gap: 4px;
+      grid-column: 1 / -1;
+    }
     /* Trial account identity (username + private email) in Admin → Users. */
     .admin-user-account {
       font-size: 12px;

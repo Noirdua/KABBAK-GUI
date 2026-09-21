@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260921-branding">
+  <link rel="stylesheet" href="app/styles.css?v=20260921-permissions">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -786,8 +786,9 @@
                 <option value="pro+">pro+</option>
               </select>
             </label>
-            <label class="settings-field">Tiers (comma separated)              <input id="admin-client-roles" type="text" maxlength="300" placeholder="e.g. mystic-moon, admin">
-            </label>
+            <div class="settings-field settings-field-full">Permissions              <div id="admin-client-roles" class="admin-permission-grid" role="group" aria-label="Permissions"></div>
+              <span id="admin-client-roles-hint" class="settings-field-hint">Optional roles defined in the Tiers tab.</span>
+            </div>
             <label class="settings-field settings-field-full">API Key (optional)              <input id="admin-client-key" type="text" maxlength="200" placeholder="auto-generated">
             </label>
           </div>
@@ -796,7 +797,7 @@
         <div class="settings-panel settings-panel-wide">
           <div class="settings-panel-head">
             <strong>Users</strong>
-            <span>Merged view: API keys, tiers, and profile activity. Presence reflects activity in the last 10 minutes.</span>
+            <span>Merged view: API keys, permissions (roles), and profile activity. Presence reflects activity in the last 10 minutes.</span>
           </div>
           <div id="admin-clients-table" class="admin-clients-table"></div>
         </div>
@@ -1090,6 +1091,23 @@
               </div>
               <div id="admin-email-events-list" class="admin-email-events" aria-live="polite">No events loaded.</div>
               <span class="settings-field-hint">Delivery, bounce, and complaint callbacks from the provider webhook.</span>
+            </div>
+          </div>
+          <div class="settings-panel-head" style="margin-top:14px;">
+            <strong>Payments (Stripe)</strong>
+            <span>Subscriptions grant the tier roles (and access level) of the tier whose provider plan id matches the Stripe price. Endpoint is public and signature-verified.</span>
+          </div>
+          <div class="settings-grid admin-client-create-grid">
+            <div class="settings-field">Stripe webhook signing secret              <input id="admin-setting-stripe-secret" type="password" placeholder="whsec_… (leave blank to keep current)" autocomplete="new-password">
+              <span id="admin-setting-stripe-secret-state" class="settings-field-hint">not set</span>
+              <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
+                <input id="admin-setting-stripe-secret-clear" type="checkbox"> Clear saved secret              </label>
+              <span id="admin-setting-stripe-url" class="settings-field-hint">Endpoint: /api/v1/webhooks/stripe</span>
+            </div>
+            <div class="settings-field">Recent payment events              <div class="dlc-shop-actions" style="margin-top:6px;">
+                <button id="admin-payment-events-refresh" class="dlc-shop-btn" type="button">Refresh events</button>
+              </div>
+              <div id="admin-payment-events-list" class="admin-email-events" aria-live="polite">No events loaded.</div>
             </div>
           </div>
           <div class="settings-panel-head" style="margin-top:14px;">
@@ -3219,7 +3237,7 @@
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260921-branding"></script>
+  <script src="app/lazy-sections.js?v=20260921-stripe"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>

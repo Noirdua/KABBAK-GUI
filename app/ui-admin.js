@@ -82,6 +82,12 @@
       settingEmailWebhookUrlEl: document.getElementById("admin-setting-email-webhook-url"),
       emailEventsRefreshEl: document.getElementById("admin-email-events-refresh"),
       emailEventsListEl: document.getElementById("admin-email-events-list"),
+      settingStripeSecretEl: document.getElementById("admin-setting-stripe-secret"),
+      settingStripeSecretStateEl: document.getElementById("admin-setting-stripe-secret-state"),
+      settingStripeSecretClearEl: document.getElementById("admin-setting-stripe-secret-clear"),
+      settingStripeUrlEl: document.getElementById("admin-setting-stripe-url"),
+      paymentEventsRefreshEl: document.getElementById("admin-payment-events-refresh"),
+      paymentEventsListEl: document.getElementById("admin-payment-events-list"),
       mailTestToEl: document.getElementById("admin-mail-test-to"),
       mailTestSendEl: document.getElementById("admin-mail-test-send"),
       mailTestStatusEl: document.getElementById("admin-mail-test-status"),
@@ -1311,10 +1317,81 @@
 
   // --- API Clients -----------------------------------------------------------
 
+  // Roles are surfaced as "permissions" checkboxes (ids unchanged: `roles`).
+  let permissionCatalog = null;
+  let permissionCatalogPromise = null;
+
+  async function loadPermissionCatalog() {
+    if (permissionCatalog) {
+      return permissionCatalog;
+    }
+    if (permissionCatalogPromise) {
+      return permissionCatalogPromise;
+    }
+    permissionCatalogPromise = requestJson("GET", "/api/v1/admin/roles")
+      .then((result) => {
+        const roles = Array.isArray(result?.roles) ? result.roles : [];
+        permissionCatalog = roles
+          .map((role) => ({
+            id: String(role.id || "").trim(),
+            label: String(role.label || role.name || role.id || "").trim()
+          }))
+          .filter((role) => role.id);
+        return permissionCatalog;
+      })
+      .catch(() => {
+        permissionCatalog = [];
+        return permissionCatalog;
+      })
+      .finally(() => {
+        permissionCatalogPromise = null;
+      });
+    return permissionCatalogPromise;
+  }
+
+  function renderPermissionCheckboxes(container, selectedIds = []) {
+    if (!container) return;
+    const selected = new Set((selectedIds || []).map((id) => String(id)));
+    container.textContent = "";
+    const roles = permissionCatalog || [];
+    if (!roles.length) {
+      const empty = document.createElement("span");
+      empty.className = "settings-field-hint";
+      empty.textContent = "No permissions defined yet — add them in the Tiers tab.";
+      container.appendChild(empty);
+      return;
+    }
+    roles.forEach((role) => {
+      const label = document.createElement("label");
+      label.className = "admin-permission-option";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = role.id;
+      input.checked = selected.has(role.id);
+      const text = document.createElement("span");
+      text.textContent = role.label || role.id;
+      label.append(input, text);
+      container.appendChild(label);
+    });
+  }
+
+  function readPermissionCheckboxes(container) {
+    if (!container) return [];
+    return Array.from(container.querySelectorAll("input[type='checkbox']"))
+      .filter((box) => box.checked)
+      .map((box) => box.value);
+  }
+
   async function loadClients() {
     const { clientsTable } = getElements();
     if (!clientsTable) return;
     try {
+      await loadPermissionCatalog();
+      const createRolesEl = document.getElementById("admin-client-roles");
+      if (createRolesEl && createRolesEl.dataset.ready !== "1") {
+        renderPermissionCheckboxes(createRolesEl, []);
+        createRolesEl.dataset.ready = "1";
+      }
       const payload = await requestJson("GET", "/api/v1/admin/users");
       const clients = Array.isArray(payload?.users) ? payload.users : [];
       clientsTable.innerHTML = "";
@@ -1376,7 +1453,9 @@
             setStatus(`Could not delete user. ${error?.message || ""}`, true);
           }
         });
-        row.querySelector('[data-action="edit"]').addEventListener("click", () => openClientEditor(row, client));
+        row.querySelector('[data-action="edit"]').addEventListener("click", () => {
+          void openClientEditor(row, client);
+        });
         clientsTable.appendChild(row);
       });
 
@@ -1386,12 +1465,13 @@
     }
   }
 
-  function openClientEditor(rowEl, client) {
+  async function openClientEditor(rowEl, client) {
     const existing = rowEl.querySelector(".admin-client-editor");
     if (existing) {
       existing.remove();
       return;
     }
+    await loadPermissionCatalog();
     const editor = document.createElement("div");
     editor.className = "admin-client-editor";
     editor.innerHTML = `
@@ -1401,17 +1481,21 @@
         <option value="premium"${client.accessLevel === "premium" ? " selected" : ""}>premium</option>
         <option value="pro+"${client.accessLevel === "pro+" ? " selected" : ""}>pro+</option>
       </select>
-      <input type="text" class="admin-client-edit-roles" maxlength="300" value="${escapeHtml((client.roles || []).join(", "))}" placeholder="Tiers (comma separated)">
+      <div class="admin-client-edit-permissions">
+        <span class="settings-field-hint">Permissions</span>
+        <div class="admin-permission-grid" data-role="permissions"></div>
+      </div>
       <button type="button" class="dlc-shop-btn" data-action="save">Save</button>
       <button type="button" class="dlc-shop-btn" data-action="cancel">Cancel</button>
     `;
+    renderPermissionCheckboxes(
+      editor.querySelector('[data-role="permissions"]'),
+      Array.isArray(client.roles) ? client.roles : []
+    );
     editor.querySelector('[data-action="save"]').addEventListener("click", async () => {
       const name = editor.querySelector(".admin-client-edit-name").value.trim();
       const accessLevel = editor.querySelector(".admin-client-edit-access").value;
-      const roles = editor.querySelector(".admin-client-edit-roles").value
-        .split(",")
-        .map((role) => role.trim())
-        .filter(Boolean);
+      const roles = readPermissionCheckboxes(editor.querySelector('[data-role="permissions"]'));
       try {
         await requestJson("PATCH", `/api/v1/admin/api-clients/${encodeURIComponent(client.id)}`, { name, accessLevel, roles });
         setStatus(`Updated ${client.id}.`);
@@ -1435,8 +1519,9 @@
         name: String(clientNameEl?.value || "").trim(),
         accessLevel: String(clientAccessEl?.value || "premium")
       };
-      if (rolesEl?.value.trim()) {
-        body.roles = rolesEl.value.split(",").map((role) => role.trim()).filter(Boolean);
+      const roles = readPermissionCheckboxes(rolesEl);
+      if (roles.length) {
+        body.roles = roles;
       }
       if (clientIdEl?.value.trim()) body.id = clientIdEl.value.trim();
       if (clientKeyEl?.value.trim()) body.key = clientKeyEl.value.trim();
@@ -1447,7 +1532,9 @@
         showKeyOnce(result?.apiKey, `New ${result?.client?.id || "client"}`);
         if (clientIdEl) clientIdEl.value = "";
         if (clientKeyEl) clientKeyEl.value = "";
-        if (rolesEl) rolesEl.value = "";
+        rolesEl?.querySelectorAll("input[type='checkbox']").forEach((box) => {
+          box.checked = false;
+        });
         await loadClients();
       } catch (error) {
         setStatus(`Could not create client. ${error?.message || ""}`, true);
@@ -1636,6 +1723,13 @@
           rolesListEl.appendChild(renderRoleCard(tier, catalog));
         });
       }
+    }
+
+    // Roles may have changed; refresh the permission checkboxes on next load.
+    permissionCatalog = null;
+    const createRolesEl = document.getElementById("admin-client-roles");
+    if (createRolesEl) {
+      delete createRolesEl.dataset.ready;
     }
 
     setStatus(`Tiers loaded (${catalog.baseTiers?.length || 0} base, ${catalog.customTiers?.length || 0} custom).`);
@@ -1924,6 +2018,9 @@
       settingEmailWebhookTokenStateEl,
       settingEmailWebhookTokenClearEl,
       settingEmailWebhookUrlEl,
+      settingStripeSecretEl,
+      settingStripeSecretStateEl,
+      settingStripeSecretClearEl,
       emailEventsListEl,
       settingMailFromEl,
       settingMailFromNameEl,
@@ -2024,8 +2121,16 @@
           : "not set";
       }
       if (settingEmailWebhookTokenClearEl) settingEmailWebhookTokenClearEl.checked = false;
+      if (settingStripeSecretEl) settingStripeSecretEl.value = "";
+      if (settingStripeSecretStateEl) {
+        settingStripeSecretStateEl.textContent = settings?.stripeWebhookSecretSet
+          ? "set — enter a new value to replace, or clear below"
+          : "not set";
+      }
+      if (settingStripeSecretClearEl) settingStripeSecretClearEl.checked = false;
       syncWebhookEndpoints();
       void loadEmailEvents();
+      void loadPaymentEvents();
       if (settingMailFromEl) {
         const parts = splitMailFrom(settings?.mailFrom || "");
         if (settingMailFromNameEl) settingMailFromNameEl.value = parts.name;
@@ -2158,13 +2263,46 @@
 
   // Show the exact URLs the provider should call.
   function syncWebhookEndpoints() {
-    const { settingResendWebhookUrlEl, settingEmailWebhookUrlEl } = getElements();
+    const { settingResendWebhookUrlEl, settingEmailWebhookUrlEl, settingStripeUrlEl } = getElements();
     const base = webhookBase();
     if (settingResendWebhookUrlEl) {
       settingResendWebhookUrlEl.textContent = `Endpoint: ${base || ""}/api/v1/webhooks/email/resend`;
     }
     if (settingEmailWebhookUrlEl) {
       settingEmailWebhookUrlEl.textContent = `Endpoint: ${base || ""}/api/v1/webhooks/email/generic (send x-webhook-token)`;
+    }
+    if (settingStripeUrlEl) {
+      settingStripeUrlEl.textContent = `Endpoint: ${base || ""}/api/v1/webhooks/stripe`;
+    }
+  }
+
+  async function loadPaymentEvents() {
+    const { paymentEventsListEl } = getElements();
+    if (!paymentEventsListEl) return;
+    try {
+      const result = await requestJson("GET", "/api/v1/admin/payments/events?limit=50");
+      const events = Array.isArray(result?.events) ? result.events : [];
+      if (!events.length) {
+        paymentEventsListEl.textContent = "No Stripe events yet. Add the endpoint in Stripe and subscribe to subscription/invoice events.";
+        return;
+      }
+      paymentEventsListEl.innerHTML = "";
+      events.forEach((event) => {
+        const row = document.createElement("div");
+        row.className = "admin-email-event";
+        const when = String(event.receivedAt || "").replace("T", " ").slice(0, 19);
+        const change = event.granted?.length
+          ? `+${event.granted.join(", ")}`
+          : (event.revoked?.length ? `−${event.revoked.join(", ")}` : (event.note || ""));
+        row.innerHTML = `
+          <span class="admin-email-event-type">${escapeHtml(event.type || "unknown")}</span>
+          <span class="admin-email-event-recipient">${escapeHtml(event.clientId || event.customerId || "—")} ${escapeHtml(change)}</span>
+          <span class="admin-email-event-time">${escapeHtml(when)}</span>
+        `;
+        paymentEventsListEl.appendChild(row);
+      });
+    } catch (error) {
+      paymentEventsListEl.textContent = `Could not load payment events. ${error?.message || ""}`;
     }
   }
 
@@ -2248,6 +2386,9 @@
       settingEmailWebhookTokenEl,
       settingEmailWebhookTokenStateEl,
       settingEmailWebhookTokenClearEl,
+      settingStripeSecretEl,
+      settingStripeSecretStateEl,
+      settingStripeSecretClearEl,
       settingEmailDevFallbackEl,
       settingSignupEnabledEl,
       settingTrialDaysEl,
@@ -2346,6 +2487,12 @@
       } else if (emailWebhookToken) {
         body.emailWebhookToken = emailWebhookToken;
       }
+      const stripeSecret = String(settingStripeSecretEl?.value || "").trim();
+      if (settingStripeSecretClearEl?.checked) {
+        body.stripeWebhookSecret = null;
+      } else if (stripeSecret) {
+        body.stripeWebhookSecret = stripeSecret;
+      }
 
       // Signup & trials
       body.signupEnabled = settingSignupEnabledEl?.value !== "false";
@@ -2383,6 +2530,11 @@
           ? "set — enter a new value to replace, or clear below"
           : "not set";
       }
+      if (settingStripeSecretStateEl && typeof savedSettings?.stripeWebhookSecretSet === "boolean") {
+        settingStripeSecretStateEl.textContent = savedSettings.stripeWebhookSecretSet
+          ? "set — enter a new value to replace, or clear below"
+          : "not set";
+      }
       if (settingSecretEl) settingSecretEl.value = "";
       if (settingSecretClearEl) settingSecretClearEl.checked = false;
       if (settingResendKeyEl) settingResendKeyEl.value = "";
@@ -2395,6 +2547,8 @@
       if (settingResendWebhookSecretClearEl) settingResendWebhookSecretClearEl.checked = false;
       if (settingEmailWebhookTokenEl) settingEmailWebhookTokenEl.value = "";
       if (settingEmailWebhookTokenClearEl) settingEmailWebhookTokenClearEl.checked = false;
+      if (settingStripeSecretEl) settingStripeSecretEl.value = "";
+      if (settingStripeSecretClearEl) settingStripeSecretClearEl.checked = false;
       // Apply the tab title to this browser immediately; everyone else gets it
       // on their next page load (the shell reads /api/v1/branding at boot).
       const savedTitle = String(body.browserTitle || "").trim();
@@ -2523,9 +2677,12 @@
       field?.addEventListener("input", syncMailFromPreview);
     });
     settingMailTransportEl?.addEventListener("change", syncMailMethodFields);
-    const { mailTestToEl, mailTestSendEl, mailTestStatusEl, emailEventsRefreshEl } = getElements();
+    const { mailTestToEl, mailTestSendEl, mailTestStatusEl, emailEventsRefreshEl, paymentEventsRefreshEl } = getElements();
     emailEventsRefreshEl?.addEventListener("click", () => {
       void loadEmailEvents();
+    });
+    paymentEventsRefreshEl?.addEventListener("click", () => {
+      void loadPaymentEvents();
     });
     if (mailTestSendEl) {
       mailTestSendEl.addEventListener("click", async () => {
