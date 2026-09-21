@@ -991,8 +991,17 @@
               </select>
               <span id="admin-setting-mail-transport-state" class="settings-field-hint">Env: KABBAK_MAIL_TRANSPORT</span>
             </label>
-            <label class="settings-field">Sender (From)              <input id="admin-setting-mail-from" type="text" maxlength="200" placeholder="KABBAK <no-reply@example.com>">
-              <span class="settings-field-hint">Env: KABBAK_MAIL_FROM — must be verified by the provider</span>
+            <label class="settings-field">Sender name              <input id="admin-setting-mail-from-name" type="text" maxlength="80" placeholder="KABBAK">
+              <span class="settings-field-hint">Display name (optional)</span>
+            </label>
+            <label class="settings-field">Sender address              <input id="admin-setting-mail-local" type="text" maxlength="80" placeholder="no-reply">
+              <span class="settings-field-hint">The part before the @</span>
+            </label>
+            <label class="settings-field">Sender domain              <input id="admin-setting-mail-domain" type="text" maxlength="160" placeholder="mail.example.com">
+              <span class="settings-field-hint">A domain verified by your provider (Resend/SMTP)</span>
+            </label>
+            <label class="settings-field settings-field-full">From address (built from the fields above)              <input id="admin-setting-mail-from" type="text" readonly placeholder="KABBAK <no-reply@mail.example.com>">
+              <span class="settings-field-hint">Env: KABBAK_MAIL_FROM — this is the value saved and sent</span>
             </label>
             <div class="settings-field">Resend API key              <input id="admin-setting-resend-key" type="password" placeholder="(leave blank to keep current)" autocomplete="new-password">
               <span id="admin-setting-resend-key-state" class="settings-field-hint">not set</span>
@@ -3168,7 +3177,7 @@
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260921-mail-test"></script>
+  <script src="app/lazy-sections.js?v=20260921-sender-builder"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>

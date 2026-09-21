@@ -44,6 +44,9 @@
       settingFaviconClearEl: document.getElementById("admin-setting-favicon-clear"),
       settingMailTransportEl: document.getElementById("admin-setting-mail-transport"),
       settingMailFromEl: document.getElementById("admin-setting-mail-from"),
+      settingMailFromNameEl: document.getElementById("admin-setting-mail-from-name"),
+      settingMailLocalEl: document.getElementById("admin-setting-mail-local"),
+      settingMailDomainEl: document.getElementById("admin-setting-mail-domain"),
       settingResendKeyEl: document.getElementById("admin-setting-resend-key"),
       settingResendKeyStateEl: document.getElementById("admin-setting-resend-key-state"),
       settingResendKeyClearEl: document.getElementById("admin-setting-resend-key-clear"),
@@ -1967,7 +1970,11 @@
           : "Env: KABBAK_MAIL_TRANSPORT — no transport is configured on this server yet.";
       }
       if (settingMailFromEl) {
-        settingMailFromEl.value = String(settings?.mailFrom || "");
+        const parts = splitMailFrom(settings?.mailFrom || "");
+        if (settingMailFromNameEl) settingMailFromNameEl.value = parts.name;
+        if (settingMailLocalEl) settingMailLocalEl.value = parts.local;
+        if (settingMailDomainEl) settingMailDomainEl.value = parts.domain;
+        syncMailFromPreview();
       }
       if (settingResendKeyEl) {
         settingResendKeyEl.value = "";
@@ -2047,6 +2054,41 @@
     }
   }
 
+  // KABBAK_MAIL_FROM is "email@domain" or "Display Name <email@domain>". The
+  // panel edits the parts separately and builds the value.
+  function splitMailFrom(value) {
+    const raw = String(value || "").trim();
+    const named = /^(.*?)\s*<\s*([^<>@\s]+)@([^<>\s]+)\s*>$/.exec(raw);
+    if (named) {
+      return { name: named[1].trim(), local: named[2], domain: named[3] };
+    }
+    const bare = /^([^<>@\s]+)@([^<>\s]+)$/.exec(raw);
+    if (bare) {
+      return { name: "", local: bare[1], domain: bare[2] };
+    }
+    return { name: "", local: "", domain: "" };
+  }
+
+  function buildMailFrom(name, local, domain) {
+    const display = String(name || "").trim();
+    const address = String(local || "").trim().replace(/^@+/, "");
+    const host = String(domain || "").trim().replace(/^@+/, "");
+    if (!address || !host) {
+      return "";
+    }
+    return display ? `${display} <${address}@${host}>` : `${address}@${host}`;
+  }
+
+  function syncMailFromPreview() {
+    const { settingMailFromEl, settingMailFromNameEl, settingMailLocalEl, settingMailDomainEl } = getElements();
+    if (!settingMailFromEl) return;
+    settingMailFromEl.value = buildMailFrom(
+      settingMailFromNameEl?.value,
+      settingMailLocalEl?.value,
+      settingMailDomainEl?.value
+    );
+  }
+
   async function saveServerSettings() {
     const {
       settingLogModeEl,
@@ -2062,6 +2104,9 @@
       settingFaviconUrlEl,
       settingMailTransportEl,
       settingMailFromEl,
+      settingMailFromNameEl,
+      settingMailLocalEl,
+      settingMailDomainEl,
       settingResendKeyEl,
       settingResendKeyClearEl,
       settingResendUrlEl,
@@ -2112,7 +2157,14 @@
 
       // Email
       body.mailTransport = settingMailTransportEl?.value || "auto";
-      body.mailFrom = String(settingMailFromEl?.value || "").trim();
+      const mailLocal = String(settingMailLocalEl?.value || "").trim().replace(/^@+/, "");
+      const mailDomain = String(settingMailDomainEl?.value || "").trim().replace(/^@+/, "");
+      if ((mailLocal && !mailDomain) || (!mailLocal && mailDomain)) {
+        setStatus("Sender needs both an address (the part before @) and a domain.", true);
+        settingsSaveBtn.disabled = false;
+        return;
+      }
+      body.mailFrom = buildMailFrom(settingMailFromNameEl?.value, mailLocal, mailDomain);
       body.resendApiUrl = String(settingResendUrlEl?.value || "").trim();
       body.smtpHost = String(settingSmtpHostEl?.value || "").trim();
       const smtpPort = Number(settingSmtpPortEl?.value);
@@ -2285,6 +2337,10 @@
         void saveServerSettings();
       });
     }
+    const { settingMailFromNameEl, settingMailLocalEl, settingMailDomainEl } = getElements();
+    [settingMailFromNameEl, settingMailLocalEl, settingMailDomainEl].forEach((field) => {
+      field?.addEventListener("input", syncMailFromPreview);
+    });
     const { mailTestToEl, mailTestSendEl, mailTestStatusEl } = getElements();
     if (mailTestSendEl) {
       mailTestSendEl.addEventListener("click", async () => {
