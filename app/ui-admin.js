@@ -82,12 +82,7 @@
       settingEmailWebhookUrlEl: document.getElementById("admin-setting-email-webhook-url"),
       emailEventsRefreshEl: document.getElementById("admin-email-events-refresh"),
       emailEventsListEl: document.getElementById("admin-email-events-list"),
-      settingStripeSecretEl: document.getElementById("admin-setting-stripe-secret"),
-      settingStripeSecretStateEl: document.getElementById("admin-setting-stripe-secret-state"),
-      settingStripeSecretClearEl: document.getElementById("admin-setting-stripe-secret-clear"),
-      settingStripeUrlEl: document.getElementById("admin-setting-stripe-url"),
-      paymentEventsRefreshEl: document.getElementById("admin-payment-events-refresh"),
-      paymentEventsListEl: document.getElementById("admin-payment-events-list"),
+
       mailTestToEl: document.getElementById("admin-mail-test-to"),
       mailTestSendEl: document.getElementById("admin-mail-test-send"),
       mailTestStatusEl: document.getElementById("admin-mail-test-status"),
@@ -2041,9 +2036,6 @@
       settingEmailWebhookTokenStateEl,
       settingEmailWebhookTokenClearEl,
       settingEmailWebhookUrlEl,
-      settingStripeSecretEl,
-      settingStripeSecretStateEl,
-      settingStripeSecretClearEl,
       emailEventsListEl,
       settingMailFromEl,
       settingMailFromNameEl,
@@ -2144,16 +2136,8 @@
           : "not set";
       }
       if (settingEmailWebhookTokenClearEl) settingEmailWebhookTokenClearEl.checked = false;
-      if (settingStripeSecretEl) settingStripeSecretEl.value = "";
-      if (settingStripeSecretStateEl) {
-        settingStripeSecretStateEl.textContent = settings?.stripeWebhookSecretSet
-          ? "set — enter a new value to replace, or clear below"
-          : "not set";
-      }
-      if (settingStripeSecretClearEl) settingStripeSecretClearEl.checked = false;
       syncWebhookEndpoints();
       void loadEmailEvents();
-      void loadPaymentEvents();
       if (settingMailFromEl) {
         const parts = splitMailFrom(settings?.mailFrom || "");
         if (settingMailFromNameEl) settingMailFromNameEl.value = parts.name;
@@ -2286,46 +2270,13 @@
 
   // Show the exact URLs the provider should call.
   function syncWebhookEndpoints() {
-    const { settingResendWebhookUrlEl, settingEmailWebhookUrlEl, settingStripeUrlEl } = getElements();
+    const { settingResendWebhookUrlEl, settingEmailWebhookUrlEl } = getElements();
     const base = webhookBase();
     if (settingResendWebhookUrlEl) {
       settingResendWebhookUrlEl.textContent = `Endpoint: ${base || ""}/api/v1/webhooks/email/resend`;
     }
     if (settingEmailWebhookUrlEl) {
       settingEmailWebhookUrlEl.textContent = `Endpoint: ${base || ""}/api/v1/webhooks/email/generic (send x-webhook-token)`;
-    }
-    if (settingStripeUrlEl) {
-      settingStripeUrlEl.textContent = `Endpoint: ${base || ""}/api/v1/webhooks/stripe`;
-    }
-  }
-
-  async function loadPaymentEvents() {
-    const { paymentEventsListEl } = getElements();
-    if (!paymentEventsListEl) return;
-    try {
-      const result = await requestJson("GET", "/api/v1/admin/payments/events?limit=50");
-      const events = Array.isArray(result?.events) ? result.events : [];
-      if (!events.length) {
-        paymentEventsListEl.textContent = "No Stripe events yet. Add the endpoint in Stripe and subscribe to subscription/invoice events.";
-        return;
-      }
-      paymentEventsListEl.innerHTML = "";
-      events.forEach((event) => {
-        const row = document.createElement("div");
-        row.className = "admin-email-event";
-        const when = String(event.receivedAt || "").replace("T", " ").slice(0, 19);
-        const change = event.granted?.length
-          ? `+${event.granted.join(", ")}`
-          : (event.revoked?.length ? `−${event.revoked.join(", ")}` : (event.note || ""));
-        row.innerHTML = `
-          <span class="admin-email-event-type">${escapeHtml(event.type || "unknown")}</span>
-          <span class="admin-email-event-recipient">${escapeHtml(event.clientId || event.customerId || "—")} ${escapeHtml(change)}</span>
-          <span class="admin-email-event-time">${escapeHtml(when)}</span>
-        `;
-        paymentEventsListEl.appendChild(row);
-      });
-    } catch (error) {
-      paymentEventsListEl.textContent = `Could not load payment events. ${error?.message || ""}`;
     }
   }
 
@@ -2409,9 +2360,6 @@
       settingEmailWebhookTokenEl,
       settingEmailWebhookTokenStateEl,
       settingEmailWebhookTokenClearEl,
-      settingStripeSecretEl,
-      settingStripeSecretStateEl,
-      settingStripeSecretClearEl,
       settingEmailDevFallbackEl,
       settingSignupEnabledEl,
       settingTrialDaysEl,
@@ -2510,12 +2458,7 @@
       } else if (emailWebhookToken) {
         body.emailWebhookToken = emailWebhookToken;
       }
-      const stripeSecret = String(settingStripeSecretEl?.value || "").trim();
-      if (settingStripeSecretClearEl?.checked) {
-        body.stripeWebhookSecret = null;
-      } else if (stripeSecret) {
-        body.stripeWebhookSecret = stripeSecret;
-      }
+
 
       // Signup & trials
       body.signupEnabled = settingSignupEnabledEl?.value !== "false";
@@ -2553,11 +2496,7 @@
           ? "set — enter a new value to replace, or clear below"
           : "not set";
       }
-      if (settingStripeSecretStateEl && typeof savedSettings?.stripeWebhookSecretSet === "boolean") {
-        settingStripeSecretStateEl.textContent = savedSettings.stripeWebhookSecretSet
-          ? "set — enter a new value to replace, or clear below"
-          : "not set";
-      }
+
       if (settingSecretEl) settingSecretEl.value = "";
       if (settingSecretClearEl) settingSecretClearEl.checked = false;
       if (settingResendKeyEl) settingResendKeyEl.value = "";
@@ -2570,8 +2509,7 @@
       if (settingResendWebhookSecretClearEl) settingResendWebhookSecretClearEl.checked = false;
       if (settingEmailWebhookTokenEl) settingEmailWebhookTokenEl.value = "";
       if (settingEmailWebhookTokenClearEl) settingEmailWebhookTokenClearEl.checked = false;
-      if (settingStripeSecretEl) settingStripeSecretEl.value = "";
-      if (settingStripeSecretClearEl) settingStripeSecretClearEl.checked = false;
+
       // Apply the tab title to this browser immediately; everyone else gets it
       // on their next page load (the shell reads /api/v1/branding at boot).
       const savedTitle = String(body.browserTitle || "").trim();
@@ -2700,12 +2638,9 @@
       field?.addEventListener("input", syncMailFromPreview);
     });
     settingMailTransportEl?.addEventListener("change", syncMailMethodFields);
-    const { mailTestToEl, mailTestSendEl, mailTestStatusEl, emailEventsRefreshEl, paymentEventsRefreshEl } = getElements();
+    const { mailTestToEl, mailTestSendEl, mailTestStatusEl, emailEventsRefreshEl } = getElements();
     emailEventsRefreshEl?.addEventListener("click", () => {
       void loadEmailEvents();
-    });
-    paymentEventsRefreshEl?.addEventListener("click", () => {
-      void loadPaymentEvents();
     });
     if (mailTestSendEl) {
       mailTestSendEl.addEventListener("click", async () => {

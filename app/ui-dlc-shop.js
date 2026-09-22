@@ -2287,6 +2287,154 @@
     });
   }
 
+  async function renderStripeSettings(settingsEl, plugin) {
+    const status = createSettingsStatus(settingsEl);
+    const service = window.TarotDataService;
+    const adminMode = isAdmin();
+    const body = document.createElement("div");
+    body.className = "dlc-plugin-settings-body";
+    settingsEl.appendChild(body);
+
+    const hint = document.createElement("span");
+    hint.className = "settings-field-hint";
+    hint.textContent = "Stripe subscriptions grant or revoke the tier roles (permissions) of the tier whose “Provider Plan Id” matches the Stripe price — or the roles named in the subscription's metadata.roles. Target a client with metadata.clientId on the subscription, or client_reference_id at checkout. Cancellation removes exactly the roles the subscription granted.";
+    body.appendChild(hint);
+
+    const base = String(service?.getApiBaseUrl?.() || "").replace(/\/+$/, "");
+    const endpoint = document.createElement("span");
+    endpoint.className = "settings-field-hint";
+    endpoint.textContent = `Endpoint: ${base}/api/v1/plugins/stripe/server/webhook`;
+    body.appendChild(endpoint);
+
+    const secretField = document.createElement("label");
+    secretField.className = "settings-field";
+    secretField.appendChild(document.createTextNode("Webhook signing secret"));
+    const secretInput = document.createElement("input");
+    secretInput.type = "password";
+    secretInput.autocomplete = "new-password";
+    secretInput.placeholder = "whsec_… (leave blank to keep current)";
+    secretField.appendChild(secretInput);
+    body.appendChild(secretField);
+
+    const secretState = document.createElement("span");
+    secretState.className = "settings-field-hint";
+    secretState.textContent = "not set";
+    body.appendChild(secretState);
+
+    const clearLabel = document.createElement("label");
+    clearLabel.className = "settings-field-hint";
+    clearLabel.style.display = "flex";
+    clearLabel.style.alignItems = "center";
+    clearLabel.style.gap = "6px";
+    const clearBox = document.createElement("input");
+    clearBox.type = "checkbox";
+    clearLabel.append(clearBox, document.createTextNode(" Clear saved secret"));
+    body.appendChild(clearLabel);
+
+    const levelLabel = document.createElement("label");
+    levelLabel.className = "settings-field-hint";
+    levelLabel.style.display = "flex";
+    levelLabel.style.alignItems = "center";
+    levelLabel.style.gap = "6px";
+    const levelBox = document.createElement("input");
+    levelBox.type = "checkbox";
+    levelBox.checked = true;
+    levelLabel.append(levelBox, document.createTextNode(" Apply the tier's access level, not just its roles"));
+    body.appendChild(levelLabel);
+
+    const actions = document.createElement("div");
+    actions.className = "dlc-shop-actions";
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.className = "dlc-shop-btn";
+    saveBtn.textContent = adminMode ? "Save Settings" : "Admin key required to edit";
+    saveBtn.disabled = !adminMode;
+    const refreshBtn = document.createElement("button");
+    refreshBtn.type = "button";
+    refreshBtn.className = "dlc-shop-btn";
+    refreshBtn.textContent = "Refresh events";
+    actions.append(saveBtn, refreshBtn);
+    body.appendChild(actions);
+
+    const eventsList = document.createElement("div");
+    eventsList.className = "admin-email-events";
+    eventsList.textContent = "No events loaded.";
+    body.appendChild(eventsList);
+
+    const settingsUrl = service.buildApiUrl(`/api/v1/plugins/${plugin.name}/server/settings`);
+    const eventsUrl = service.buildApiUrl(`/api/v1/plugins/${plugin.name}/server/events`);
+
+    async function loadSettings() {
+      try {
+        const payload = await service.requestJson("GET", settingsUrl);
+        secretState.textContent = payload?.webhookSecretSet
+          ? "set — enter a new value to replace, or clear below"
+          : "not set";
+        levelBox.checked = payload?.grantAccessLevel !== false;
+      } catch (error) {
+        status.set(`Could not load settings. ${error?.message || ""}`.trim(), true);
+      }
+    }
+
+    async function loadEvents() {
+      try {
+        const payload = await service.requestJson("GET", eventsUrl);
+        const events = Array.isArray(payload?.events) ? payload.events : [];
+        if (!events.length) {
+          eventsList.textContent = payload?.configured
+            ? "No events yet. Subscribe the endpoint to subscription and invoice events in Stripe."
+            : "No events yet. Set the webhook signing secret above first.";
+          return;
+        }
+        eventsList.textContent = "";
+        events.forEach((event) => {
+          const row = document.createElement("div");
+          row.className = "admin-email-event";
+          const when = String(event.receivedAt || "").replace("T", " ").slice(0, 19);
+          const change = event.granted?.length
+            ? `+${event.granted.join(", ")}`
+            : (event.revoked?.length ? `−${event.revoked.join(", ")}` : (event.note || ""));
+          row.innerHTML = `
+            <span class="admin-email-event-type">${escapeHtml(event.type || "unknown")}</span>
+            <span class="admin-email-event-recipient">${escapeHtml(event.clientId || event.customerId || "—")} ${escapeHtml(change)}</span>
+            <span class="admin-email-event-time">${escapeHtml(when)}</span>
+          `;
+          eventsList.appendChild(row);
+        });
+      } catch (error) {
+        eventsList.textContent = `Could not load events. ${error?.message || ""}`;
+      }
+    }
+
+    saveBtn.addEventListener("click", async () => {
+      if (!isAdmin()) {
+        status.set("Admin key required to save Stripe settings.", true);
+        return;
+      }
+      saveBtn.disabled = true;
+      try {
+        await service.requestJson("POST", settingsUrl, {
+          webhookSecret: clearBox.checked ? null : String(secretInput.value || ""),
+          grantAccessLevel: levelBox.checked
+        });
+        secretInput.value = "";
+        clearBox.checked = false;
+        status.set("Saved.");
+        await loadSettings();
+      } catch (error) {
+        status.set(`Could not save. ${error?.message || ""}`.trim(), true);
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+    refreshBtn.addEventListener("click", () => {
+      void loadEvents();
+    });
+
+    await loadSettings();
+    await loadEvents();
+  }
+
   async function renderGenericConfigSettings(settingsEl, plugin) {
     const status = createSettingsStatus(settingsEl);
     const service = window.TarotDataService;
@@ -2670,7 +2818,9 @@
               ? renderDemoUsersSettings
               : plugin?.name === "layout-phone"
                 ? renderLayoutPhoneSettings
-                : renderGenericConfigSettings;
+                : plugin?.name === "stripe"
+                  ? renderStripeSettings
+                  : renderGenericConfigSettings;
     void Promise.resolve(render(settingsEl, plugin)).then(() => renderPluginLogs(settingsEl, plugin));
   }
 

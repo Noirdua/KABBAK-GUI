@@ -1094,23 +1094,6 @@
             </div>
           </div>
           <div class="settings-panel-head" style="margin-top:14px;">
-            <strong>Payments (Stripe)</strong>
-            <span>Subscriptions grant the tier roles (and access level) of the tier whose provider plan id matches the Stripe price. Endpoint is public and signature-verified.</span>
-          </div>
-          <div class="settings-grid admin-client-create-grid">
-            <div class="settings-field">Stripe webhook signing secret              <input id="admin-setting-stripe-secret" type="password" placeholder="whsec_… (leave blank to keep current)" autocomplete="new-password">
-              <span id="admin-setting-stripe-secret-state" class="settings-field-hint">not set</span>
-              <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
-                <input id="admin-setting-stripe-secret-clear" type="checkbox"> Clear saved secret              </label>
-              <span id="admin-setting-stripe-url" class="settings-field-hint">Endpoint: /api/v1/webhooks/stripe</span>
-            </div>
-            <div class="settings-field">Recent payment events              <div class="dlc-shop-actions" style="margin-top:6px;">
-                <button id="admin-payment-events-refresh" class="dlc-shop-btn" type="button">Refresh events</button>
-              </div>
-              <div id="admin-payment-events-list" class="admin-email-events" aria-live="polite">No events loaded.</div>
-            </div>
-          </div>
-          <div class="settings-panel-head" style="margin-top:14px;">
             <strong>Signup &amp; trials</strong>
             <span>Self-serve account signup and trial key policy.</span>
           </div>
@@ -3244,7 +3227,7 @@
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
-  <script src="app/ui-dlc-shop.js?v=20260920-phone-settings"></script>
+  <script src="app/ui-dlc-shop.js?v=20260922-stripe-plugin"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
   <script src="app/ui-navigation.js?v=20260917-bookmark-shine"></script>
