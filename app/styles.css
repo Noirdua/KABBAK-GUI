@@ -12911,6 +12911,47 @@
     .admin-mail-method-fields[hidden] {
       display: none !important;
     }
+    /* Community topic actions collapse into one menu (phone-friendly). */
+    .community-topic-actions {
+      position: relative;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .community-actions-toggle {
+      white-space: nowrap;
+    }
+    .community-actions-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 30;
+      display: grid;
+      min-width: 160px;
+      padding: 6px;
+      border: 1px solid var(--tt-border);
+      border-radius: 12px;
+      background: var(--tt-bg);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+    }
+    .community-actions-menu[hidden] {
+      display: none !important;
+    }
+    .community-actions-item {
+      padding: 9px 12px;
+      border: 0;
+      border-radius: 8px;
+      background: none;
+      color: var(--tt-text);
+      font-size: 13px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .community-actions-item:hover,
+    .community-actions-item:focus-visible {
+      background: var(--tt-surface);
+    }
+
     /* Public directory entries and the profile detail panel. */
     .profile-directory-handle {
       font-size: 12px;

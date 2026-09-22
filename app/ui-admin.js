@@ -1408,6 +1408,10 @@
         row.dataset.clientId = client.id;
         const displayName = client.displayName || client.name || client.id;
         const isOnline = client.status === "online";
+        // Unverified signups have no client/key yet, so only Verify applies.
+        const isPendingAccount = client.isTrialAccount === true
+          && client.emailVerified === false
+          && client.trialKeyPresent !== true;
         const lastSeen = client.lastSeen ? String(client.lastSeen).replace("T", " ").slice(0, 19) : "never seen";
         const tiersText = (client.roles || []).map((role) => escapeHtml(role)).join(" · ");
         row.innerHTML = `
@@ -1415,7 +1419,7 @@
           <div class="admin-client-main">
             <strong>${escapeHtml(displayName)}</strong>
             <span class="admin-client-id">${escapeHtml(client.id)}</span>
-            ${client.isTrialAccount ? `<span class="admin-user-account">@${escapeHtml(client.username || "?")} · ${escapeHtml(client.email || "no email")} · ${client.trialActive ? "trial active" : (client.trialKeyPresent ? "trial expired" : "no key")}</span>` : ""}
+            ${client.isTrialAccount ? `<span class="admin-user-account">@${escapeHtml(client.username || "?")} · ${escapeHtml(client.email || "no email")} · ${client.trialActive ? "trial active" : (client.trialKeyPresent ? "trial expired" : "no key")}${client.emailVerified === false ? " · unverified" : ""}</span>` : ""}
             ${client.bio ? `<span class="admin-user-bio">${escapeHtml(String(client.bio).slice(0, 160))}</span>` : ""}
           </div>
           <span class="admin-client-access">${escapeHtml(client.accessLevel || "—")}</span>
@@ -1423,14 +1427,33 @@
           <span class="admin-client-key-preview">${escapeHtml(client.keyPreview || (client.hasKey ? "•••" : "no key"))}</span>
           <span class="admin-user-last-seen">${escapeHtml(lastSeen)}</span>
           <div class="admin-client-actions">
-            <button type="button" class="dlc-shop-btn" data-action="message">Message</button>
-            <button type="button" class="dlc-shop-btn" data-action="edit">Edit</button>
-            <button type="button" class="dlc-shop-btn" data-action="reset">Reset Key</button>
-            <button type="button" class="dlc-shop-btn" data-action="delete">Delete</button>
+            ${isPendingAccount
+              ? '<button type="button" class="dlc-shop-btn" data-action="verify">Verify</button>'
+              : `<button type="button" class="dlc-shop-btn" data-action="message">Message</button>
+                 <button type="button" class="dlc-shop-btn" data-action="edit">Edit</button>
+                 ${client.emailVerified === false ? '<button type="button" class="dlc-shop-btn" data-action="verify">Verify</button>' : ""}
+                 <button type="button" class="dlc-shop-btn" data-action="reset">Reset Key</button>
+                 <button type="button" class="dlc-shop-btn" data-action="delete">Delete</button>`}
           </div>
         `;
         row.querySelector('[data-action="message"]').addEventListener("click", () => {
           openMessageModal({ clientId: client.id, displayName });
+        });
+        row.querySelector('[data-action="verify"]')?.addEventListener("click", async () => {
+          const accountId = String(client.accountId || "").trim();
+          if (!accountId) {
+            setStatus("That account has no id to verify.", true);
+            return;
+          }
+          if (!window.confirm(`Verify @${client.username || client.id} by hand and issue their trial key? Use this when the code email could not be delivered.`)) return;
+          try {
+            const result = await requestJson("POST", `/api/v1/admin/accounts/${encodeURIComponent(accountId)}/verify`);
+            setStatus(`Verified ${client.username || client.id}.`);
+            showKeyOnce(result?.apiKey, `Trial key for ${client.username || client.id}`);
+            await loadClients();
+          } catch (error) {
+            setStatus(`Could not verify the account. ${error?.message || ""}`, true);
+          }
         });
         row.querySelector('[data-action="reset"]').addEventListener("click", async () => {
           if (!window.confirm(`Reset the API key for ${client.id}? The old key stops working immediately and the new key is shown only once.`)) return;

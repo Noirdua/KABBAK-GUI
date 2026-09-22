@@ -615,7 +615,7 @@
     }
 
     async function refreshProviders() {
-      const base = baseUrl();
+      const base = resolvedBaseUrl();
       if (!base) return;
       try {
         const response = await fetch(`${base}/api/v1/auth/providers`, { cache: "no-store" });
@@ -629,11 +629,20 @@
         const days = Number(data.trialDays) || 30;
         if (signupEl) signupEl.textContent = `Start ${days}-day trial`;
         state.devFallback = data.emailVerification?.devFallback === true;
-        if (data.signupEnabled === false) {
-          signupSwitchEl && (signupSwitchEl.hidden = true);
-          if (state.step === "signup") {
-            showStep("login");
-          }
+        // Signup and password reset both deliver a code by email, so they are
+        // only offered when this server can actually send one.
+        state.emailAvailable = data.emailAvailable !== false
+          && data.emailVerification?.configured !== false
+          && data.emailVerification?.devFallback !== false;
+        const signupAvailable = data.signupEnabled !== false;
+        const resetAvailable = data.passwordReset !== false && state.emailAvailable;
+        if (signupSwitchEl) signupSwitchEl.hidden = !signupAvailable;
+        if (forgotSwitchEl) forgotSwitchEl.hidden = !resetAvailable;
+        if (!signupAvailable && state.step === "signup") {
+          showStep("login");
+        }
+        if (!resetAvailable && state.step === "forgot") {
+          showStep("login");
         }
       } catch (_error) {}
     }

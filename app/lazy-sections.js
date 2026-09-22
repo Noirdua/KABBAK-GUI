@@ -109,7 +109,7 @@
       "app/quiz-connections.js"
     ],
     community: [
-      "app/ui-board.js?v=20260917-format"
+      "app/ui-board.js?v=20260921-board-actions"
     ],
     games: [
       "app/ui-games.js?v=20260917-stargame2"
@@ -134,7 +134,7 @@
       "app/ui-natal.js?v=20260917-natal-place"
     ],
     admin: [
-      "app/ui-admin.js?v=20260921-stripe"
+      "app/ui-admin.js?v=20260921-admin-verify"
     ],
     profile: [
       "app/ui-post-editor.js?v=20260917-quote-meta",

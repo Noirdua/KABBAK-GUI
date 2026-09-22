@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260921-directory">
+  <link rel="stylesheet" href="app/styles.css?v=20260921-board-actions">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -1506,7 +1506,7 @@
         </div>
         <div id="tarot-frame-overview" class="tarot-frame-overview-host"></div>
         <div id="tarot-frame-status" class="tarot-frame-status" aria-live="polite">Loading tarot cards...</div>
-        <button id="tarot-frame-focus-exit" class="tarot-frame-focus-exit" type="button" aria-expanded="false" aria-controls="tarot-frame-settings-panel">Settings</button>
+        <button id="tarot-frame-focus-exit" class="tarot-frame-focus-exit" type="button" data-page-settings-trigger aria-expanded="false" aria-controls="tarot-frame-settings-panel">Settings</button>
         <div id="tarot-frame-board" class="tarot-frame-board-grid"></div>
       </div>
     </div>
@@ -2200,11 +2200,14 @@
             <h2 id="community-topic-title">--</h2>
             <div id="community-topic-meta" class="community-topic-meta"></div>
             <div class="community-topic-actions">
-              <button id="community-topic-watch" class="settings-trigger" type="button">Watch</button>
-              <button id="community-topic-edit" class="settings-trigger" type="button">Edit</button>
-              <button id="community-topic-pin" class="settings-trigger" type="button">Pin</button>
-              <button id="community-topic-report" class="settings-trigger" type="button">Report</button>
-              <button id="community-topic-delete" class="settings-trigger" type="button">Delete</button>
+              <button id="community-topic-actions-toggle" class="settings-trigger community-actions-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="community-topic-actions-menu">Actions ▾</button>
+              <div id="community-topic-actions-menu" class="community-actions-menu" role="menu" aria-label="Topic actions" hidden>
+                <button id="community-topic-watch" class="community-actions-item" type="button" role="menuitem">Watch</button>
+                <button id="community-topic-edit" class="community-actions-item" type="button" role="menuitem">Edit</button>
+                <button id="community-topic-pin" class="community-actions-item" type="button" role="menuitem">Pin</button>
+                <button id="community-topic-report" class="community-actions-item" type="button" role="menuitem">Report</button>
+                <button id="community-topic-delete" class="community-actions-item" type="button" role="menuitem">Delete</button>
+              </div>
             </div>
           </div>
           <div id="community-topic-editor" class="community-topic-editor" hidden>
@@ -2993,7 +2996,7 @@
         </div>
         <div class="num-pad-chrome">
           <button id="num-pad-mobile-chains" class="num-pad-toggle" type="button" aria-expanded="false" aria-controls="num-pad-chains">Chains</button>
-          <button id="num-pad-settings" class="page-settings-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="num-pad-settings-panel"><span class="page-settings-btn-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
+          <button id="num-pad-settings" class="page-settings-btn" type="button" data-page-settings-trigger aria-haspopup="dialog" aria-expanded="false" aria-controls="num-pad-settings-panel"><span class="page-settings-btn-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
         </div>
       </header>
       <div class="num-pad-body">
@@ -3228,7 +3231,7 @@
   <script src="app/app-config.js?v=20260921-branding"></script>
   <script src="app/data-service.js?v=20260921-directory"></script>
   <script src="app/ui-overlay.js?v=20260921-page-settings"></script>
-  <script src="app/ui-page-settings.js?v=20260921-review-fixes"></script>
+  <script src="app/ui-page-settings.js?v=20260921-appbar-settings"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
   <script src="app/ui-library-marks.js?v=20260919-actions-webp"></script>
   <script src="app/plugins-host.js?v=20260920-phone-settings"></script>
@@ -3237,7 +3240,7 @@
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260921-directory"></script>
+  <script src="app/lazy-sections.js?v=20260921-appbar-settings"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
@@ -3253,7 +3256,7 @@
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
   <script src="app.js?v=20260921-branding"></script>
-  <script src="app/auth-signup.js?v=20260921-email-status"></script>
+  <script src="app/auth-signup.js?v=20260921-email-gate"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>

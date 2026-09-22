@@ -79,6 +79,32 @@
     return button;
   }
 
+  // One standard settings entry point per page, for skins that offer a single
+  // chrome button (e.g. the phone app bar). Markup-convention pages carry
+  // `data-page-settings`; pages with bespoke wiring mark their trigger with
+  // `data-page-settings-trigger`.
+  function findCurrentTrigger() {
+    const sectionId = String(window.TarotSectionStateUi?.getActiveSection?.() || "").trim();
+    if (!sectionId) return null;
+    const sectionEl = document.getElementById(`${sectionId}-section`);
+    if (!(sectionEl instanceof HTMLElement)) return null;
+    const trigger = sectionEl.querySelector("[data-page-settings], [data-page-settings-trigger]");
+    return trigger instanceof HTMLElement ? trigger : null;
+  }
+
+  function openCurrent() {
+    const trigger = findCurrentTrigger();
+    if (!trigger) {
+      return false;
+    }
+    trigger.click();
+    return true;
+  }
+
+  function hasCurrent() {
+    return Boolean(findCurrentTrigger());
+  }
+
   document.addEventListener("click", (event) => {
     const target = event.target instanceof Element
       ? event.target.closest("[data-page-settings]")
@@ -89,5 +115,5 @@
     }
   });
 
-  window.TaroPageSettings = { createButton, openFor };
+  window.TaroPageSettings = { createButton, openFor, openCurrent, hasCurrent };
 })();

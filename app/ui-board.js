@@ -358,6 +358,9 @@
     show(el("community-topic-view"), true);
     show(el("community-topic-editor"), false);
     show(el("community-topic-body"), true);
+    // Never leave the actions menu open behind a different topic.
+    el("community-topic-actions-menu")?.setAttribute("hidden", "hidden");
+    el("community-topic-actions-toggle")?.setAttribute("aria-expanded", "false");
     closeReport();
     const pinButton = el("community-topic-pin");
     if (pinButton) {
@@ -728,6 +731,34 @@
     });
     el("community-edit-cancel")?.addEventListener("click", cancelEditTopic);
     el("community-topic-report")?.addEventListener("click", () => openReport(null));
+
+    // One "Actions" button keeps the topic header compact on phones.
+    const actionsToggle = el("community-topic-actions-toggle");
+    const actionsMenu = el("community-topic-actions-menu");
+    const setActionsOpen = (open) => {
+      if (!actionsMenu || !actionsToggle) return;
+      actionsMenu.hidden = !open;
+      actionsToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+    actionsToggle?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setActionsOpen(actionsMenu?.hidden === true);
+    });
+    actionsMenu?.querySelectorAll(".community-actions-item").forEach((item) => {
+      item.addEventListener("click", () => setActionsOpen(false));
+    });
+    document.addEventListener("click", (event) => {
+      if (!actionsMenu || actionsMenu.hidden) return;
+      const target = event.target;
+      if (target instanceof Node && !actionsMenu.contains(target) && target !== actionsToggle) {
+        setActionsOpen(false);
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && actionsMenu && !actionsMenu.hidden) {
+        setActionsOpen(false);
+      }
+    });
     el("community-report-send")?.addEventListener("click", () => {
       void sendReport();
     });
