@@ -25,17 +25,17 @@
       "app/ui-tarot-detail.js?v=20260805-no-active-deck",
       "app/ui-tarot-relation-display.js?v=20260307b",
       "app/ui-tarot.js?v=20260921-page-settings",
-      "app/ui-tarot-spread.js?v=20260905-reverse-off",
+      "app/ui-tarot-spread.js?v=20260923-card-names",
       "app/tarot-database-builders.js?v=20260424-decan-ranges-01",
       "app/tarot-database-assembly.js?v=20260402-princess-links-01",
       "app/tarot-database.js?v=20260402-princess-links-01"
     ],
     tarotFrame: [
       "node_modules/html2canvas/dist/html2canvas.min.js",
-      "app/ui-tarot-frame.js?v=20260921-frame-chrome"
+      "app/ui-tarot-frame.js?v=20260923-card-names"
     ],
     tarotHouse: [
-      "app/ui-tarot-house.js?v=20260401-house-top-date-01"
+      "app/ui-tarot-house.js?v=20260923-card-names"
     ],
     planets: [
       "app/ui-planets-references.js?v=20260923-shared",

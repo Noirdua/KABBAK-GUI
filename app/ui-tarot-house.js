@@ -540,11 +540,19 @@
       return null;
     }
 
-    if (card.arcana === "Major") {
-      return buildTopInfoLabel(card);
+    const name = normalizeLabelText(config.getDisplayCardName(card) || card.name || "");
+    const label = card.arcana === "Major" ? buildTopInfoLabel(card) : buildBottomInfoLabel(card);
+    if (!name) {
+      return label;
     }
-
-    return buildBottomInfoLabel(card);
+    if (!label?.primary) {
+      return { primary: name, secondary: "", className: "" };
+    }
+    if (String(label.primary).toLowerCase() === name.toLowerCase()) {
+      return label;
+    }
+    const secondary = [label.secondary, name].filter(Boolean).join(" · ");
+    return { ...label, secondary };
   }
 
   function isHouseCardImageVisible(card) {
@@ -1155,7 +1163,7 @@
     const imageUrlByCardId = new Map();
     cards.forEach((card) => {
       const url = typeof config.resolveTarotCardImage === "function"
-        ? config.resolveTarotCardImage(card.name)
+        ? config.resolveTarotCardImage(card.name, buildHouseCardDeckOptions(card) || undefined)
         : null;
       imageUrlByCardId.set(card.id, url || "");
       if (url && !imageCache.has(url)) {

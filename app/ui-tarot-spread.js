@@ -130,7 +130,9 @@
     tarotSpreadMeaningsEl.innerHTML = raw(revealedEntries.map((entry) => {
       const positionLabel = String(entry.position.label || "").toUpperCase();
       const card = entry.card;
-      const cardName = card.name || "Unknown Card";
+      const cardName = window.TarotCardImages?.getTarotCardDisplayName?.(card.name, Number.isFinite(Number(card.number)) ? { trumpNumber: Number(card.number) } : undefined)
+        || card.name
+        || "Unknown Card";
       const meaningText = card.reversed ? (card.meanings?.reversed || card.summary || "--") : (card.meanings?.upright || card.summary || "--");
       const keywords = Array.isArray(card.keywords)
         ? card.keywords.map((keyword) => String(keyword || "").trim()).filter(Boolean)
@@ -241,8 +243,9 @@
     tarotSpreadBoardEl.innerHTML = raw(activeTarotSpreadDraw.map((entry, index) => {
       const position = entry.position;
       const card = entry.card;
-      const imgSrc = window.TarotCardImages?.resolveTarotCardThumbnail?.(card.name)
-        || window.TarotCardImages?.resolveTarotCardImage?.(card.name);
+      const imageOptions = Number.isFinite(Number(card.number)) ? { trumpNumber: Number(card.number) } : undefined;
+      const imgSrc = window.TarotCardImages?.resolveTarotCardThumbnail?.(card.name, imageOptions)
+        || window.TarotCardImages?.resolveTarotCardImage?.(card.name, imageOptions);
       const isRevealed = Boolean(entry.revealed);
       const cardBackAttr = cardBackImageSrc
         ? html` data-card-back-src="${cardBackImageSrc}"`
@@ -391,7 +394,8 @@
       return;
     }
 
-    const imageSrc = window.TarotCardImages?.resolveTarotCardImage?.(spreadEntry.card.name);
+    const imageOptions = Number.isFinite(Number(spreadEntry.card.number)) ? { trumpNumber: Number(spreadEntry.card.number) } : undefined;
+    const imageSrc = window.TarotCardImages?.resolveTarotCardImage?.(spreadEntry.card.name, imageOptions);
     if (imageSrc) {
       window.TarotUiLightbox?.open?.(imageSrc, `${spreadEntry.card.name} (${spreadEntry.position?.label || "Spread"})`);
     }

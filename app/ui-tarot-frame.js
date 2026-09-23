@@ -4802,13 +4802,15 @@
       return "";
     }
 
+    const displayName = normalizeLabelText(getDisplayCardName(card, slotId));
     const label = buildHouseLabel(card);
     const structuredLabel = normalizeLabelText([label?.primary, label?.secondary].filter(Boolean).join(" · "));
-    if (structuredLabel) {
-      return structuredLabel;
+    const parts = [displayName, structuredLabel].filter(Boolean);
+    if (parts.length) {
+      return parts.join(" · ");
     }
 
-    return getCardOverlayDate(card) || formatMonthDay(getRelation(card, "decan")?.data?.dateStart) || getDisplayCardName(card, slotId);
+    return getCardOverlayDate(card) || formatMonthDay(getRelation(card, "decan")?.data?.dateStart) || displayName;
   }
 
   function getCardOverlayLabel(card, slotId = "") {

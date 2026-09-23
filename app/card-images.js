@@ -228,6 +228,14 @@
       return normalized;
     }
 
+    const byName = Object.keys(sources).find((id) => {
+      const name = String(sources[id]?.name || sources[id]?.label || "").trim().toLowerCase();
+      return name && name === normalized;
+    });
+    if (byName) {
+      return byName;
+    }
+
     if (sources[DEFAULT_DECK_ID]) {
       return DEFAULT_DECK_ID;
     }
@@ -1136,18 +1144,60 @@
     return single ? [single] : [];
   }
 
-  function resolveMajorFiles(manifest, canonicalName) {
+  function resolveTrumpNumber(manifest, cardName, trumpNumber) {
+    const explicit = normalizeTrumpNumber(trumpNumber);
+    if (Number.isInteger(explicit)) {
+      return explicit;
+    }
+    const canonical = canonicalMajorName(cardName);
+    const fromName = trumpNumberByCanonicalName[canonical];
+    if (Number.isInteger(fromName)) {
+      return fromName;
+    }
+    const overrides = manifest?.majorNameOverridesByTrump;
+    if (!overrides || typeof overrides !== "object") {
+      return null;
+    }
+    const match = Object.keys(overrides).find((key) => canonicalMajorName(overrides[key]) === canonical);
+    return match ? normalizeTrumpNumber(match) : null;
+  }
+
+  function canonicalNameForTrump(trumpNumber) {
+    const trump = normalizeTrumpNumber(trumpNumber);
+    if (!Number.isInteger(trump)) {
+      return "";
+    }
+    return Object.keys(trumpNumberByCanonicalName).find((name) => trumpNumberByCanonicalName[name] === trump) || "";
+  }
+
+  function resolveMinorLookupName(manifest, cardName) {
+    const overrides = manifest?.minorNameOverrides;
+    if (!overrides || typeof overrides !== "object") {
+      return cardName;
+    }
+    const target = String(cardName || "").trim().toLowerCase();
+    const match = Object.keys(overrides).find((key) => String(overrides[key] || "").trim().toLowerCase() === target);
+    return match || cardName;
+  }
+
+  function resolveMajorFiles(manifest, cardName, trumpNumber) {
     const majorRule = manifest?.majors;
     if (!majorRule || typeof majorRule !== "object") {
       return [];
     }
 
+    const canonicalName = canonicalMajorName(cardName);
+    const trumpNo = resolveTrumpNumber(manifest, cardName, trumpNumber);
     if (majorRule.mode === "canonical-map") {
       const cards = majorRule.cards || {};
-      return normalizeCardFiles(cards[canonicalName]);
+      const byName = normalizeCardFiles(cards[canonicalName]);
+      if (byName.length) {
+        return byName;
+      }
+      const canonicalFromTrump = canonicalNameForTrump(trumpNo);
+      return canonicalFromTrump ? normalizeCardFiles(cards[canonicalFromTrump]) : [];
     }
 
-    const trumpNo = trumpNumberByCanonicalName[canonicalName];
     if (!Number.isInteger(trumpNo) || trumpNo < 0 || trumpNo > 21) {
       return [];
     }
@@ -1320,7 +1370,7 @@
     return file ? normalizeCardFiles(file) : [];
   }
 
-  function resolveCardRelativePaths(manifest, cardName) {
+  function resolveCardRelativePaths(manifest, cardName, trumpNumber) {
     if (!manifest) {
       return [];
     }
@@ -1333,13 +1383,12 @@
       return resolvePlayingCardFiles(manifest, cardName);
     }
 
-    const canonical = canonicalMajorName(cardName);
-    const majorFiles = resolveMajorFiles(manifest, canonical);
+    const majorFiles = resolveMajorFiles(manifest, cardName, trumpNumber);
     if (majorFiles.length) {
       return majorFiles;
     }
 
-    const parsedMinor = parseMinorCard(cardName);
+    const parsedMinor = parseMinorCard(resolveMinorLookupName(manifest, cardName));
     if (!parsedMinor) {
       return [];
     }
@@ -1348,17 +1397,17 @@
     return minorFile ? [minorFile] : [];
   }
 
-  function resolveCardRelativePath(manifest, cardName) {
-    return resolveCardRelativePaths(manifest, cardName)[0] || null;
+  function resolveCardRelativePath(manifest, cardName, trumpNumber) {
+    return resolveCardRelativePaths(manifest, cardName, trumpNumber)[0] || null;
   }
 
-  function resolveWithDeck(deckId, cardName, variant = "full") {
+  function resolveWithDeck(deckId, cardName, variant = "full", trumpNumber) {
     const manifest = getDeckManifest(deckId);
     if (!manifest) {
       return null;
     }
 
-    const relativePath = resolveCardRelativePath(manifest, cardName);
+    const relativePath = resolveCardRelativePath(manifest, cardName, trumpNumber);
     if (!relativePath) {
       return null;
     }
@@ -1371,8 +1420,8 @@
   }
 
   function resolveTarotCardImage(cardName, optionsOrDeckId) {
-    const { resolvedDeckId } = resolveDeckOptions(optionsOrDeckId);
-    const activePath = resolveWithDeck(resolvedDeckId, cardName);
+    const { resolvedDeckId, trumpNumber } = resolveDeckOptions(optionsOrDeckId);
+    const activePath = resolveWithDeck(resolvedDeckId, cardName, "full", trumpNumber);
     if (activePath) {
       return activePath;
     }
@@ -1387,7 +1436,8 @@
       return [];
     }
 
-    return resolveCardRelativePaths(manifest, cardName).map((relativePath, variantIndex) => ({
+    const { trumpNumber } = resolveDeckOptions(optionsOrDeckId);
+    return resolveCardRelativePaths(manifest, cardName, trumpNumber).map((relativePath, variantIndex) => ({
       variantIndex,
       relativePath,
       assetPath: toDeckAssetPath(manifest, relativePath),
@@ -1396,8 +1446,8 @@
   }
 
   function resolveTarotCardThumbnail(cardName, optionsOrDeckId) {
-    const { resolvedDeckId } = resolveDeckOptions(optionsOrDeckId);
-    const thumbnailPath = resolveWithDeck(resolvedDeckId, cardName, "thumbnail");
+    const { resolvedDeckId, trumpNumber } = resolveDeckOptions(optionsOrDeckId);
+    const thumbnailPath = resolveWithDeck(resolvedDeckId, cardName, "thumbnail", trumpNumber);
     if (thumbnailPath) {
       return thumbnailPath;
     }
@@ -1692,7 +1742,7 @@
 
   function resolveDisplayNameWithDeck(deckId, cardName, trumpNumber) {
     const manifest = getDeckManifest(deckId);
-    const fallbackName = String(cardName || "").trim();
+    let fallbackName = String(cardName || "").trim();
     if (!manifest) {
       return fallbackName;
     }
@@ -1732,6 +1782,21 @@
         }
         next = next.replace(new RegExp(`of ${from}\\b`, "ig"), `of ${custom}`);
       });
+      fallbackName = next;
+    }
+
+    const courtOverrides = manifest?.courtNameOverrides;
+    if (courtOverrides && typeof courtOverrides === "object") {
+      let next = fallbackName;
+      [["page", courtOverrides.page], ["knight", courtOverrides.knight], ["queen", courtOverrides.queen], ["king", courtOverrides.king],
+        ["princess", courtOverrides.princess], ["prince", courtOverrides.prince]]
+        .forEach(([rank, to]) => {
+          const custom = String(to || "").trim();
+          if (!custom) {
+            return;
+          }
+          next = next.replace(new RegExp(`^${rank}\\b`, "i"), custom);
+        });
       return next;
     }
 
