@@ -999,6 +999,7 @@
           </div>
           <div class="settings-grid admin-client-create-grid">
             <label class="settings-field">Method              <select id="admin-setting-mail-transport">
+                <option value="auto">Auto — Resend if a key is set, otherwise SMTP</option>
                 <option value="resend">API — Resend</option>
                 <option value="smtp">SMTP</option>
               </select>
@@ -3210,9 +3211,9 @@
   <script src="app/astro-symbols.js?v=20260915-astro-symbols"></script>
   <script src="app/ui-theme.js?v=20260911-scroll-perf"></script>
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
-  <script src="app/astro-calcs.js"></script>
-  <script src="app/app-config.js?v=20260921-branding"></script>
-  <script src="app/data-service.js?v=20260921-directory"></script>
+  <script src="app/astro-calcs.js?v=20260923-shared"></script>
+  <script src="app/app-config.js?v=20260923-shared"></script>
+  <script src="app/data-service.js?v=20260923-shared"></script>
   <script src="app/ui-overlay.js?v=20260921-page-settings"></script>
   <script src="app/ui-page-settings.js?v=20260921-appbar-settings"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
@@ -3223,23 +3224,23 @@
   <script src="app/card-images.js?v=20260917-court-aliases"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20260921-appbar-settings"></script>
+  <script src="app/lazy-sections.js?v=20260923-shared"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
-  <script src="app/ui-dlc-shop.js?v=20260922-stripe-plugin"></script>
+  <script src="app/ui-dlc-shop.js?v=20260923-logs"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
-  <script src="app/ui-navigation.js?v=20260917-bookmark-shine"></script>
+  <script src="app/ui-navigation.js?v=20260923-shared"></script>
 
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
   <script src="app/ui-section-state.js?v=20260920-review-fixes"></script>
-  <script src="app/ui-planner.js?v=20260921-page-settings"></script>
-  <script src="app/ui-inbox.js?v=20260920-polish"></script>
+  <script src="app/ui-planner.js?v=20260923-shared"></script>
+  <script src="app/ui-inbox.js?v=20260923-shared"></script>
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
   <script src="app.js?v=20260921-branding"></script>
-  <script src="app/auth-signup.js?v=20260921-email-gate"></script>
+  <script src="app/auth-signup.js?v=20260923-shared"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>

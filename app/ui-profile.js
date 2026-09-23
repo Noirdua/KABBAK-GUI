@@ -1170,12 +1170,7 @@
   }
 
   function escapeHtml(str) {
-    return String(str || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+    return window.HtmlSafe?.escapeHtml?.(str) ?? String(str || "");
   }
 
   function showAttachmentPreview(att) {
@@ -4581,9 +4576,13 @@
   // collected with "Add to post" lands in the bucket and can be inserted
   // anywhere in the thread.
   // Post HTML is sanitized server-side, so it is safe to render here.
-  function appendFormatted(parent, html, className) {
+  function appendFormatted(parent, html, className, options = {}) {
     const node = makeEl("div", className || "profile-post-rich");
-    node.innerHTML = String(html || "");
+    if (options.plain) {
+      node.textContent = String(html || "");
+    } else {
+      node.innerHTML = String(html || "");
+    }
     parent.appendChild(node);
     return node;
   }
@@ -4634,13 +4633,13 @@
     if (editable) {
       const bodyArea = makeEl("textarea", "profile-post-body-input");
       bodyArea.rows = 2;
-      bodyArea.maxLength = 999;
+      bodyArea.maxLength = post.type === "journal" ? 20000 : 999;
       bodyArea.value = post.body || "";
-      bodyArea.placeholder = "State the theory…";
+      bodyArea.placeholder = post.type === "journal" ? "Journal entry…" : "State the theory…";
       bodyArea.addEventListener("blur", () => onSavePost?.({ body: bodyArea.value }));
       card.appendChild(bodyArea);
     } else if (post.body) {
-      appendFormatted(card, post.body);
+      appendFormatted(card, post.body, "", { plain: post.type === "journal" });
     }
     appendAttachments(card, post.attachments);
 

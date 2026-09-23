@@ -5,7 +5,7 @@
  *   so browsers that disable HTTP caching don't redownload on every visit.
  * Precache is triggered manually from Profile > App Cache.
  */
-const CACHE_NAME = "kabbak-static-v3";
+const CACHE_NAME = "kabbak-static-v4";
 
 const STATIC_EXTENSION_PATTERN = /\.(?:js|css|woff2?|ttf|otf|png|jpe?g|webp|svg|gif|mp3)(\?.*)?$/i;
 

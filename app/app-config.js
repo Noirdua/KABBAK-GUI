@@ -92,6 +92,7 @@
     const tarotCapability = source?.capabilities?.tarot === true
       || (connected && !apiKeyRequired)
       || accessLevel === "premium"
+      || accessLevel === "pro+"
       || adminApiManagementCapability;
     const clientId = String(auth?.clientId || source?.clientId || "").trim();
     const demo = auth?.demo === true

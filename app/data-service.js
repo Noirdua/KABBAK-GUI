@@ -480,7 +480,8 @@
     return fetchJson(buildApiUrl("/api/v1/calendar/week-events", {
       latitude: geo?.latitude,
       longitude: geo?.longitude,
-      date: anchorDate instanceof Date ? anchorDate.toISOString() : anchorDate
+      date: anchorDate instanceof Date ? anchorDate.toISOString() : anchorDate,
+      utcOffsetMinutes: -new Date().getTimezoneOffset()
     }));
   }
 
@@ -517,7 +518,8 @@
     const requestPromise = fetchJson(buildApiUrl("/api/v1/now", {
       latitude: geo?.latitude,
       longitude: geo?.longitude,
-      date: timestamp instanceof Date ? timestamp.toISOString() : timestamp
+      date: timestamp instanceof Date ? timestamp.toISOString() : timestamp,
+      utcOffsetMinutes: -new Date().getTimezoneOffset()
     }))
       .then((snapshot) => {
         if (geoKey) {

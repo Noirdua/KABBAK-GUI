@@ -41,6 +41,7 @@
   // to the subscription layers plus the local planetary-hour layer.
   const PLANNER_FILTERS = [
     { id: "events", text: "My events" },
+    { id: "notes", text: "Journal" },
     { id: "astrology", text: "Astrology", configurable: true },
     { id: "moon", text: "Moon", configurable: true },
     { id: "holidays", text: "Holidays" },
@@ -346,6 +347,7 @@
   function filterIdForCalendarId(calendarId) {
     const id = String(calendarId || "user");
     if (id === "user") return "events";
+    if (id === "notes") return "notes";
     if (id === "astrology") return "astrology";
     if (id === "moon") return "moon";
     if (id === "holiday") return "holidays";
@@ -367,6 +369,7 @@
     if (source === "moon") return "moon";
     if (source === "astrology") return "astrology";
     if (source === "planetary") return "planetary";
+    if (source === "notes") return "notes";
     return "user";
   }
 
@@ -525,7 +528,7 @@
       } else if (source === "astrology") {
         calendarId = "astrology";
       } else if (source === "notes") {
-        calendarId = "user";
+        calendarId = "notes";
       }
     }
     // Planetary hours keep the per-planet calendar colors (native event look)
@@ -581,7 +584,10 @@
         return [];
       }
       const events = await window.TarotEventBuilder.buildWeekEvents(readGeo(), referenceData, focusDate);
-      return Array.isArray(events) ? events : [];
+      return (Array.isArray(events) ? events : []).filter((event) => {
+        const id = String(event?.calendarId || "");
+        return id === "planetary" || id.startsWith("planet-");
+      });
     } catch (_error) {
       return [];
     }
@@ -1316,7 +1322,7 @@
   }
 
   function syncFeedPrefsFromState() {
-    const layers = Array.isArray(feedState?.layers) ? feedState.layers : null;
+    const layers = feedState?.layersSaved === true && Array.isArray(feedState?.layers) ? feedState.layers : null;
     if (layers) {
       Object.keys(FEED_LAYER_IDS).forEach((layer) => {
         feedLayerPrefs[layer] = layers.includes(layer);
@@ -1430,9 +1436,11 @@
   async function changeFeed(action) {
     setFeedStatus("Updating…");
     try {
-      const payload = action === "enable"
-        ? { action, layers: selectedFeedLayers(), notesFormat: feedLayerPrefs.notesFormat }
-        : { action };
+      const payload = { action };
+      if (action === "enable" && feedState?.layersSaved === true) {
+        payload.layers = selectedFeedLayers();
+        payload.notesFormat = feedLayerPrefs.notesFormat;
+      }
       feedState = await window.TarotDataService.updateProfileCalendarFeed(payload);
       applyFeedState();
       setFeedStatus(feedState?.enabled ? "Feed is on. Changes appear after your calendar app refreshes." : "Feed is off.");

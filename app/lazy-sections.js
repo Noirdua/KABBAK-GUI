@@ -20,7 +20,7 @@
   const SCRIPT_GROUPS = {
     tarotCore: [
       "app/ui-tarot-lightbox.js?v=20260919-actions-webp",
-      "app/ui-tarot-relations.js",
+      "app/ui-tarot-relations.js?v=20260923-shared",
       "app/ui-tarot-card-derivations.js?v=20260307b",
       "app/ui-tarot-detail.js?v=20260805-no-active-deck",
       "app/ui-tarot-relation-display.js?v=20260307b",
@@ -38,7 +38,7 @@
       "app/ui-tarot-house.js?v=20260401-house-top-date-01"
     ],
     planets: [
-      "app/ui-planets-references.js",
+      "app/ui-planets-references.js?v=20260923-shared",
       "app/ui-planets.js?v=20260820-template"
     ],
     cycles: [
@@ -59,7 +59,7 @@
       "app/ui-audio-circle.js?v=20260820-template"
     ],
     iching: [
-      "app/ui-iching-references.js",
+      "app/ui-iching-references.js?v=20260923-shared",
       "app/ui-iching.js?v=20260914-deck-compare",
       "app/ui-iching-trigram.js?v=20260820-template",
       "app/ui-iching-bigram.js?v=20260820-template",
@@ -70,7 +70,7 @@
       "app/ui-playing-cards.js?v=20260916-deck-cycle"
     ],
     kabbalah: [
-      "app/ui-rosicrucian-cross.js",
+      "app/ui-rosicrucian-cross.js?v=20260923-shared",
       "app/ui-kabbalah-detail.js?v=20260820-template",
       "app/ui-kabbalah-views.js?v=20260915-spin-astro",
       "app/ui-kabbalah.js?v=20260921-review-fixes"
@@ -85,9 +85,9 @@
     alphabet: [
       "app/ui-alphabet-gematria.js?v=20260921-review-fixes",
       "app/ui-alphabet-browser.js?v=20260531-greek-gematria-04",
-      "app/ui-alphabet-references.js",
+      "app/ui-alphabet-references.js?v=20260923-shared",
       "app/ui-alphabet-detail.js?v=20260822-rashi",
-      "app/ui-alphabet-kabbalah.js",
+      "app/ui-alphabet-kabbalah.js?v=20260923-shared",
       "app/ui-alphabet.js?v=20260921-review-fixes",
       "app/ui-alphabet-text.js?v=20260921-clean-sweep",
       "app/ui-alphabet-reference.js?v=20260921-clean-sweep"
@@ -100,13 +100,13 @@
       "app/ui-zodiac.js?v=20260820-template"
     ],
     quiz: [
-      "app/ui-quiz-bank-builtins-domains.js",
-      "app/ui-quiz-bank-builtins.js",
-      "app/ui-quiz-bank.js",
+      "app/ui-quiz-bank-builtins-domains.js?v=20260923-shared",
+      "app/ui-quiz-bank-builtins.js?v=20260923-shared",
+      "app/ui-quiz-bank.js?v=20260923-shared",
       "app/ui-quiz.js?v=20260919-demo-personal",
-      "app/quiz-plugin-helpers.js",
-      "app/quiz-calendars.js",
-      "app/quiz-connections.js"
+      "app/quiz-plugin-helpers.js?v=20260923-shared",
+      "app/quiz-calendars.js?v=20260923-shared",
+      "app/quiz-connections.js?v=20260923-shared"
     ],
     community: [
       "app/ui-board.js?v=20260921-board-actions"
@@ -115,8 +115,8 @@
       "app/ui-games.js?v=20260917-stargame2"
     ],
     gods: [
-      "app/ui-gods-references.js",
-      "app/ui-gods.js"
+      "app/ui-gods-references.js?v=20260923-shared",
+      "app/ui-gods.js?v=20260923-shared"
     ],
     enochian: [
       "app/ui-enochian.js?v=20260820-template"
@@ -134,11 +134,11 @@
       "app/ui-natal.js?v=20260917-natal-place"
     ],
     admin: [
-      "app/ui-admin.js?v=20260921-admin-verify"
+      "app/ui-admin.js?v=20260923-shared"
     ],
     profile: [
       "app/ui-post-editor.js?v=20260917-quote-meta",
-      "app/ui-profile.js?v=20260921-directory"
+      "app/ui-profile.js?v=20260923-shared"
     ]
   };
 

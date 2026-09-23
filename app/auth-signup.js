@@ -299,7 +299,7 @@
           ok: false,
           status: response.status,
           error: payload?.error || "request_failed",
-          message: response.status === 404
+          message: response.status === 404 && !payload?.error
             ? "This API server is out of date and has no signup routes. Restart or update the API."
             : message
         };
@@ -629,13 +629,13 @@
         const days = Number(data.trialDays) || 30;
         if (signupEl) signupEl.textContent = `Start ${days}-day trial`;
         state.devFallback = data.emailVerification?.devFallback === true;
-        // Signup and password reset both deliver a code by email, so they are
-        // only offered when this server can actually send one.
-        state.emailAvailable = data.emailAvailable !== false
-          && data.emailVerification?.configured !== false
-          && data.emailVerification?.devFallback !== false;
-        const signupAvailable = data.signupEnabled !== false;
-        const resetAvailable = data.passwordReset !== false && state.emailAvailable;
+        // Trust the API flags. Requiring both configured and devFallback hid
+        // reset on a working mail server and in the normal dev-fallback case.
+        state.emailAvailable = data.emailAvailable === true
+          || data.emailVerification?.configured === true
+          || data.emailVerification?.devFallback === true;
+        const signupAvailable = data.signupEnabled === true || (data.signupEnabled !== false && state.emailAvailable);
+        const resetAvailable = data.passwordReset === true || (data.passwordReset !== false && state.emailAvailable);
         if (signupSwitchEl) signupSwitchEl.hidden = !signupAvailable;
         if (forgotSwitchEl) forgotSwitchEl.hidden = !resetAvailable;
         if (!signupAvailable && state.step === "signup") {

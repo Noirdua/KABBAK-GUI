@@ -443,9 +443,13 @@
     });
 
     void refreshBadge();
-    window.setInterval(() => {
-      void refreshBadge();
-    }, POLL_MS);
+    const poll = () => {
+      if (document.visibilityState === "visible" && isEnabled()) void refreshBadge();
+    };
+    window.setInterval(poll, POLL_MS);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") poll();
+    });
   }
 
   window.TarotInboxUi = { open: openModal, refresh: refreshBadge };

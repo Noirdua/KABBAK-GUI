@@ -14,12 +14,7 @@
   }
 
   function escapeHtml(str) {
-    return String(str || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+    return window.HtmlSafe?.escapeHtml?.(str) ?? String(str || "");
   }
 
   function isAdmin() {
@@ -2821,7 +2816,9 @@
                 : plugin?.name === "stripe"
                   ? renderStripeSettings
                   : renderGenericConfigSettings;
-    void Promise.resolve(render(settingsEl, plugin)).then(() => renderPluginLogs(settingsEl, plugin));
+    void Promise.resolve(render(settingsEl, plugin)).then(() => {
+      if (isAdmin()) renderPluginLogs(settingsEl, plugin);
+    });
   }
 
   // --- Create DLC (text first; plugin keeps the old scaffold) -----------------

@@ -145,27 +145,12 @@
       setActiveSection("home");
     });
 
-    bindClick(elements.openAudioEl, () => {
-      const activeSection = getActiveSection();
-      const isAudioSectionActive = activeSection === "audio-notes" || activeSection === "audio-circle";
-      setActiveSection(isAudioSectionActive ? "home" : "audio-notes");
-    });
-
     bindClick(elements.openAudioCircleEl, () => {
       setActiveSection("audio-circle");
     });
 
     bindClick(elements.openAudioNotesEl, () => {
       setActiveSection("audio-notes");
-    });
-
-    bindClick(elements.openTarotEl, () => {
-      if (getActiveSection() === "tarot") {
-        setActiveSection("home");
-      } else {
-        setActiveSection("tarot");
-        config.tarotSpreadUi?.showCardsView?.();
-      }
     });
 
     bindClick(elements.openTarotCardsEl, () => {
@@ -198,10 +183,6 @@
       setActiveSection(getActiveSection() === "tarot-house" ? "home" : "tarot-house");
     });
 
-    bindClick(elements.openAstronomyEl, () => {
-      setActiveSection(getActiveSection() === "astronomy" ? "home" : "astronomy");
-    });
-
     bindClick(elements.openPlanetsEl, () => {
       setActiveSection(getActiveSection() === "planets" ? "home" : "planets");
     });
@@ -222,10 +203,6 @@
       setActiveSection(getActiveSection() === "tattvas" ? "home" : "tattvas");
     });
 
-    bindClick(elements.openIChingEl, () => {
-      setActiveSection(getActiveSection() === "iching" ? "home" : "iching");
-    });
-
     bindClick(elements.openIChingHexagramsEl, () => {
       setActiveSection("iching");
     });
@@ -244,10 +221,6 @@
 
     bindClick(elements.openPlayingCardsEl, () => {
       setActiveSection(getActiveSection() === "playing-cards" ? "home" : "playing-cards");
-    });
-
-    bindClick(elements.openKabbalahEl, () => {
-      setActiveSection(getActiveSection() === "kabbalah" ? "home" : "kabbalah");
     });
 
     bindClick(elements.openKabbalahSephirotEl, () => {
@@ -292,15 +265,6 @@
 
     bindClick(elements.openAlphabetReferenceEl, () => {
       setActiveSection(getActiveSection() === "alphabet-reference" ? "home" : "alphabet-reference");
-    });
-
-    bindClick(elements.openNumbersEl, () => {
-      const active = getActiveSection();
-      const onNumbersMenu = active === "numbers" || active === "num-pad";
-      setActiveSection(onNumbersMenu ? "home" : "numbers");
-      if (!onNumbersMenu) {
-        config.showNumbersBrowseView?.(false);
-      }
     });
 
     bindClick(elements.openNumbersBrowseEl, () => {

@@ -101,12 +101,7 @@
   }
 
   function escapeHtml(str) {
-    return String(str || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+    return window.HtmlSafe?.escapeHtml?.(str) ?? String(str || "");
   }
 
   function isAdmin() {
@@ -427,6 +422,7 @@
       const finish = (value) => {
         if (settled) return;
         settled = true;
+        document.removeEventListener("keydown", onKey);
         overlay.remove();
         resolve(value);
       };
@@ -436,12 +432,10 @@
       overlay.addEventListener("mousedown", (event) => {
         if (event.target === overlay) finish(null);
       });
-      document.addEventListener("keydown", function onKey(event) {
-        if (event.key === "Escape") {
-          document.removeEventListener("keydown", onKey);
-          finish(null);
-        }
-      });
+      function onKey(event) {
+        if (event.key === "Escape") finish(null);
+      }
+      document.addEventListener("keydown", onKey);
       document.body.appendChild(overlay);
     });
   }
@@ -1431,7 +1425,7 @@
                  <button type="button" class="dlc-shop-btn" data-action="delete">Delete</button>`}
           </div>
         `;
-        row.querySelector('[data-action="message"]').addEventListener("click", () => {
+        row.querySelector('[data-action="message"]')?.addEventListener("click", () => {
           openMessageModal({ clientId: client.id, displayName });
         });
         row.querySelector('[data-action="verify"]')?.addEventListener("click", async () => {
@@ -1450,7 +1444,7 @@
             setStatus(`Could not verify the account. ${error?.message || ""}`, true);
           }
         });
-        row.querySelector('[data-action="reset"]').addEventListener("click", async () => {
+        row.querySelector('[data-action="reset"]')?.addEventListener("click", async () => {
           if (!window.confirm(`Reset the API key for ${client.id}? The old key stops working immediately and the new key is shown only once.`)) return;
           try {
             const result = await requestJson("POST", `/api/v1/admin/api-clients/${encodeURIComponent(client.id)}/rotate-key`);
@@ -1461,7 +1455,7 @@
             setStatus(`Could not reset key. ${error?.message || ""}`, true);
           }
         });
-        row.querySelector('[data-action="delete"]').addEventListener("click", async () => {
+        row.querySelector('[data-action="delete"]')?.addEventListener("click", async () => {
           if (!window.confirm(`Delete user ${client.id}? Their key, profile, and API access stop immediately.`)) return;
           try {
             await requestJson("DELETE", `/api/v1/admin/api-clients/${encodeURIComponent(client.id)}`);
@@ -1471,7 +1465,7 @@
             setStatus(`Could not delete user. ${error?.message || ""}`, true);
           }
         });
-        row.querySelector('[data-action="edit"]').addEventListener("click", () => {
+        row.querySelector('[data-action="edit"]')?.addEventListener("click", () => {
           void openClientEditor(row, client);
         });
         clientsTable.appendChild(row);
@@ -2110,10 +2104,9 @@
       }
       if (settingMailTransportEl) {
         const stored = String(settings?.mailTransport || "auto");
-        const effective = String(settings?.mailTransportEffective || "");
-        settingMailTransportEl.value = stored === "smtp" || (stored === "auto" && effective === "smtp")
-          ? "smtp"
-          : "resend";
+        settingMailTransportEl.value = stored === "smtp" || stored === "resend" || stored === "auto"
+          ? stored
+          : "auto";
       }
       if (settingMailTransportStateEl) {
         const effective = String(settings?.mailTransportEffective || "");
@@ -2399,8 +2392,8 @@
         body.profileEncryptionSecret = secret;
       }
 
-      // Email — either/or: API (Resend) or SMTP.
-      body.mailTransport = settingMailTransportEl?.value === "smtp" ? "smtp" : "resend";
+      const mailTransport = String(settingMailTransportEl?.value || "auto");
+      body.mailTransport = mailTransport === "smtp" || mailTransport === "resend" ? mailTransport : "auto";
       const mailLocal = String(settingMailLocalEl?.value || "").trim().replace(/^@+/, "");
       const mailDomain = String(settingMailDomainEl?.value || "").trim().replace(/^@+/, "");
       if ((mailLocal && !mailDomain) || (!mailLocal && mailDomain)) {
