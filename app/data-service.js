@@ -164,6 +164,36 @@
     } catch (_error) {}
   }
 
+  function bootstrapStorageKey(path) {
+    const value = String(path || "");
+    if (!/\/api\/v1\/bootstrap\/(?:reference-data|magick-manifest|magick-dataset)(?:\?|$)/.test(value)) {
+      return "";
+    }
+    return value.split("?")[0];
+  }
+
+  function readBootstrapCache(key) {
+    try {
+      const raw = window.sessionStorage.getItem(`kabbak-bootstrap:${key}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function writeBootstrapCache(key, etag, data) {
+    try {
+      window.sessionStorage.setItem(`kabbak-bootstrap:${key}`, JSON.stringify({ etag, data }));
+    } catch (_error) {}
+  }
+
+  function unwrapPayload(payload) {
+    if (payload && typeof payload === "object" && "data" in payload) {
+      return payload.data;
+    }
+    return payload;
+  }
+
   async function fetchJson(path, { timeoutMs = 30000 } = {}) {
     if (!path) {
       throw new Error("API connection is not configured.");
@@ -171,13 +201,22 @@
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const bootstrapKey = bootstrapStorageKey(path);
+    const cachedBootstrap = bootstrapKey ? readBootstrapCache(bootstrapKey) : null;
 
     try {
+      const headers = buildRequestHeaders() || {};
+      if (cachedBootstrap?.etag) {
+        headers["If-None-Match"] = cachedBootstrap.etag;
+      }
       const response = await fetch(path, {
         cache: "no-store",
-        headers: buildRequestHeaders(),
+        headers,
         signal: controller.signal
       });
+      if (response.status === 304 && cachedBootstrap) {
+        return cachedBootstrap.data;
+      }
       if (!response.ok) {
         emitAuthLost(response.status);
         const error = new Error(`Failed to load ${path} (${response.status})`);
@@ -186,11 +225,12 @@
       }
 
       const payload = await response.json();
-      // The API wraps successful responses in { data, meta }; unwrap the data.
-      if (payload && typeof payload === "object" && "data" in payload) {
-        return payload.data;
+      const data = unwrapPayload(payload);
+      if (bootstrapKey) {
+        const etag = response.headers.get("etag");
+        if (etag) writeBootstrapCache(bootstrapKey, etag, data);
       }
-      return payload;
+      return data;
     } catch (error) {
       if (!error?.status) emitNetworkLost();
       throw error;
