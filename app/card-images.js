@@ -245,6 +245,9 @@
   }
 
   function normalizeTrumpNumber(value) {
+    if (value == null || value === "") {
+      return null;
+    }
     const parsed = Number(value);
     if (!Number.isInteger(parsed) || parsed < 0 || parsed > 21) {
       return null;
