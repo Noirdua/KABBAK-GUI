@@ -5940,9 +5940,6 @@
       ? { left: originBox.left, top: originBox.top, width: originBox.width, height: originBox.height }
       : null;
     const originCardEl = getSlotElement(slotId)?.querySelector(".tarot-frame-card");
-    if (originCardEl instanceof HTMLElement) {
-      originCardEl.classList.add("is-lightbox-origin");
-    }
     const restoreOriginCard = () => {
       originCardEl?.classList.remove("is-lightbox-origin");
     };
@@ -5975,6 +5972,7 @@
         deckId: getResolvedSlotDeckId(slotId),
         rotated: isSlotFlipped(slotId),
         originRect,
+        originEl: originCardEl,
         onClose: restoreOriginCard,
         resolveCardVariants: () => variants
       });
@@ -5987,6 +5985,7 @@
         deckId: getResolvedSlotDeckId(slotId),
         rotated: isSlotFlipped(slotId),
         originRect,
+        originEl: originCardEl,
         onClose: restoreOriginCard
       });
       return;
@@ -6012,6 +6011,7 @@
       deckId: getResolvedSlotDeckId(slotId),
       rotated: isSlotFlipped(slotId),
       originRect,
+      originEl: originCardEl,
       onClose: restoreOriginCard
     });
   }

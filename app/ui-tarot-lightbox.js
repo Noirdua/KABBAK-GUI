@@ -3792,6 +3792,7 @@
       lightboxState.primaryRotated = false;
       lightboxState.overlayRotated = false;
       lightboxState.originRect = null;
+      lightboxState.originEl = null;
       if (frameEl) {
         frameEl.style.transition = "";
         frameEl.style.transform = "none";
@@ -4408,7 +4409,7 @@
     flyer.style.top = `${rect.top}px`;
     flyer.style.width = `${rect.width}px`;
     flyer.style.height = `${rect.height}px`;
-    flyer.style.objectFit = "cover";
+    flyer.style.objectFit = "contain";
     flyer.style.objectPosition = "center";
     flyer.style.zIndex = "3";
     flyer.style.pointerEvents = "none";
@@ -4450,6 +4451,65 @@
       width,
       height
     };
+  }
+
+  const LIGHTBOX_FLY_OPEN_MS = 480;
+  const LIGHTBOX_FLY_CLOSE_MS = 380;
+  const LIGHTBOX_FLY_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+
+  function hideLightboxOrigin() {
+    lightboxState.originEl?.classList.add("is-lightbox-origin");
+  }
+
+  function flyerMotion(originRect, dest, rotated) {
+    const dx = (originRect.left + originRect.width / 2) - (dest.left + dest.width / 2);
+    const dy = (originRect.top + originRect.height / 2) - (dest.top + dest.height / 2);
+    const scaleX = dest.width > 0 ? originRect.width / dest.width : 1;
+    const scaleY = dest.height > 0 ? originRect.height / dest.height : scaleX;
+    const scale = Math.min(scaleX, scaleY);
+    const rot = rotated ? " rotate(180deg)" : "";
+    return {
+      from: `translate3d(${dx}px, ${dy}px, 0) scale(${scale})${rot}`,
+      to: rotated ? "rotate(180deg)" : "translate3d(0, 0, 0)"
+    };
+  }
+
+  function placeFlyer(flyer, dest) {
+    flyer.style.left = `${dest.left}px`;
+    flyer.style.top = `${dest.top}px`;
+    flyer.style.width = `${dest.width}px`;
+    flyer.style.height = `${dest.height}px`;
+  }
+
+  function revealFrameUnderFlyer(flyer) {
+    const previousTransition = imageEl?.style.transition || "";
+    if (imageEl) {
+      imageEl.style.transition = "none";
+    }
+    if (frameEl) {
+      frameEl.style.opacity = "1";
+    }
+    if (toolbarEl) {
+      toolbarEl.style.opacity = "1";
+    }
+    requestAnimationFrame(() => {
+      if (!flyer.isConnected) {
+        if (imageEl) {
+          imageEl.style.transition = previousTransition;
+        }
+        return;
+      }
+      const fade = flyer.animate(
+        [{ opacity: 1 }, { opacity: 0 }],
+        { duration: 160, easing: "ease-out", fill: "forwards" }
+      );
+      fade.finished.catch(() => {}).finally(() => {
+        flyer.remove();
+        if (imageEl) {
+          imageEl.style.transition = previousTransition;
+        }
+      });
+    });
   }
 
   function playLightboxOpenAnimation(originRect) {
@@ -4498,63 +4558,43 @@
       }
       frameEl.style.opacity = "0";
       backdropEl.style.opacity = "0";
+
+      const flyer = createLightboxFlyer(dest, src, rotated);
+      const motion = flyerMotion(originRect, dest, rotated);
+      flyer.style.transform = motion.from;
       backdropEl.animate?.(
         [{ opacity: 0 }, { opacity: 1 }],
-        { duration: 280, easing: "ease-out", fill: "forwards" }
+        { duration: LIGHTBOX_FLY_OPEN_MS, easing: LIGHTBOX_FLY_EASE, fill: "forwards" }
       );
 
-      // FLIP on transform only (GPU-composited). Position the flyer at the final
-      // frame and pull it back to the card with translate+scale, then release.
-      // transform-origin is center, so translate by CENTER deltas (top-left deltas
-      // would offset the start by half the size difference).
-      const flyer = createLightboxFlyer(dest, src, rotated);
-      const dx = (originRect.left + originRect.width / 2) - (dest.left + dest.width / 2);
-      const dy = (originRect.top + originRect.height / 2) - (dest.top + dest.height / 2);
-      const s = dest.width > 0 ? (originRect.width / dest.width) : 1;
-      const rot = rotated ? " rotate(180deg)" : "";
-      const fromTransform = `translate3d(${dx}px, ${dy}px, 0) scale(${s})${rot}`;
-      const toTransform = rotated ? "rotate(180deg)" : "none";
-      flyer.style.transform = fromTransform;
-
-      const startFly = () => {
-        const animation = flyer.animate(
-          [
-            { transform: fromTransform },
-            { transform: toTransform }
-          ],
-          {
-            duration: 420,
-            easing: "cubic-bezier(0.16, 0.84, 0.32, 1)",
-            fill: "forwards"
-          }
-        );
-
-        animation.finished.catch(() => {}).then(() => {
-          if (!lightboxState.isOpen) {
-            flyer.remove();
-            return;
-          }
-          // Hand off on next frame + brief fade of flyer to avoid any style-jank or pop exactly on last anim frame.
-          requestAnimationFrame(() => {
-            frameEl.style.opacity = "1";
-            if (toolbarEl) {
-              toolbarEl.style.opacity = "1";
+      requestAnimationFrame(() => {
+        const liveDest = getContainedImageRect(imageEl) || dest;
+        placeFlyer(flyer, liveDest);
+        const liveMotion = flyerMotion(originRect, liveDest, rotated);
+        flyer.style.transform = liveMotion.from;
+        hideLightboxOrigin();
+        requestAnimationFrame(() => {
+          const animation = flyer.animate(
+            [
+              { transform: liveMotion.from, borderRadius: "6px" },
+              { transform: liveMotion.to, borderRadius: "12px" }
+            ],
+            {
+              duration: LIGHTBOX_FLY_OPEN_MS,
+              easing: LIGHTBOX_FLY_EASE,
+              fill: "forwards"
             }
-            if (flyer.animate) {
-              const fade = flyer.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 60, easing: "linear", fill: "forwards" });
-              fade.finished.catch(() => {}).finally(() => flyer.remove());
-            } else {
+          );
+
+          animation.finished.catch(() => {}).then(() => {
+            if (!lightboxState.isOpen) {
               flyer.remove();
+              return;
             }
+            revealFrameUnderFlyer(flyer);
           });
         });
-      };
-
-      if (typeof flyer.decode === "function") {
-        flyer.decode().catch(() => {}).then(startFly);
-      } else {
-        startFly();
-      }
+      });
     });
   }
 
@@ -4579,29 +4619,23 @@
     }
     backdropEl?.animate?.(
       [{ opacity: 1 }, { opacity: 0 }],
-      { duration: 240, easing: "ease-in", fill: "forwards" }
+      { duration: LIGHTBOX_FLY_CLOSE_MS, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" }
     );
 
     clearLightboxFlyer();
     const flyer = createLightboxFlyer(dest, src, rotated);
-    // Center deltas because the flyer's transform-origin is center.
-    const dx = (originRect.left + originRect.width / 2) - (dest.left + dest.width / 2);
-    const dy = (originRect.top + originRect.height / 2) - (dest.top + dest.height / 2);
-    const s = dest.width > 0 ? (originRect.width / dest.width) : 1;
-    const rot = rotated ? " rotate(180deg)" : "";
-    const fromTransform = rotated ? "rotate(180deg)" : "none";
-    const toTransform = `translate3d(${dx}px, ${dy}px, 0) scale(${s})${rot}`;
-    flyer.style.transform = fromTransform;
+    const motion = flyerMotion(originRect, dest, rotated);
+    flyer.style.transform = motion.to;
 
     return new Promise((resolve) => {
-      const startFly = () => {
+      requestAnimationFrame(() => {
         const animation = flyer.animate(
           [
-            { transform: fromTransform },
-            { transform: toTransform }
+            { transform: motion.to, borderRadius: "12px" },
+            { transform: motion.from, borderRadius: "6px" }
           ],
           {
-            duration: 320,
+            duration: LIGHTBOX_FLY_CLOSE_MS,
             easing: "cubic-bezier(0.4, 0, 0.2, 1)",
             fill: "forwards"
           }
@@ -4611,13 +4645,7 @@
           flyer.remove();
           resolve();
         });
-      };
-
-      if (typeof flyer.decode === "function") {
-        flyer.decode().catch(() => {}).then(startFly);
-      } else {
-        startFly();
-      }
+      });
     });
   }
 
@@ -4690,6 +4718,7 @@
     lightboxState.primaryRotated = Boolean(request.rotated);
     lightboxState.overlayRotated = false;
     lightboxState.originRect = normalizeOriginRect(request.originRect);
+    lightboxState.originEl = request.originEl instanceof HTMLElement ? request.originEl : null;
     lightboxState.onClose = typeof request.onClose === "function" ? request.onClose : null;
     setInfoPanelOpen(getPersistedInfoPanelVisibility(), { persist: false });
     lightboxState.mobileInfoView = "primary";
