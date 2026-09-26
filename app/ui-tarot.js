@@ -886,7 +886,7 @@
 
   function resolveRawCardVariants(card, deckIdToResolve = "") {
     const resolvedDeckId = String(deckIdToResolve || getActiveDeck?.() || "").trim().toLowerCase();
-    const trumpNumber = Number.isFinite(Number(card?.number)) ? Number(card.number) : undefined;
+    const trumpNumber = card?.arcana === "Major" && Number.isFinite(Number(card?.number)) ? Number(card.number) : undefined;
     const resolveVariants = window.TarotCardImages?.resolveTarotCardVariants;
     if (typeof resolveVariants !== "function") {
       return [];
@@ -947,7 +947,7 @@
       return [];
     }
 
-    const trumpNumber = Number.isFinite(Number(card?.number)) ? Number(card.number) : undefined;
+    const trumpNumber = card?.arcana === "Major" && Number.isFinite(Number(card?.number)) ? Number(card.number) : undefined;
     const activeDeckId = String(getActiveDeck?.() || "").trim().toLowerCase();
 
     return getRegisteredDeckList()
@@ -990,7 +990,7 @@
     }
 
     const resolvedDeckId = String(deckIdToResolve || getActiveDeck?.() || "").trim();
-    const trumpNumber = Number.isFinite(Number(card?.number)) ? Number(card.number) : undefined;
+    const trumpNumber = card?.arcana === "Major" && Number.isFinite(Number(card?.number)) ? Number(card.number) : undefined;
     const deckOptions = resolvedDeckId ? { deckId: resolvedDeckId, trumpNumber } : { trumpNumber };
     const src = typeof resolveTarotCardImage === "function"
       ? resolveTarotCardImage(card.name, deckOptions)
