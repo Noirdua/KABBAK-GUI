@@ -5934,12 +5934,19 @@
       return;
     }
 
-    const originEl = getSlotElement(slotId)?.querySelector(".tarot-frame-card-image, .tarot-frame-card");
+    const originImage = getSlotElement(slotId)?.querySelector(".tarot-frame-card-image");
+    const previewSrc = originImage instanceof HTMLImageElement
+      ? String(originImage.currentSrc || originImage.src || "").trim()
+      : "";
+    const originEl = originImage || getSlotElement(slotId)?.querySelector(".tarot-frame-card");
     const originBox = originEl instanceof HTMLElement ? originEl.getBoundingClientRect() : null;
     const originRect = originBox && originBox.width > 0
       ? { left: originBox.left, top: originBox.top, width: originBox.width, height: originBox.height }
       : null;
     const originCardEl = getSlotElement(slotId)?.querySelector(".tarot-frame-card");
+    if (originCardEl instanceof HTMLElement) {
+      originCardEl.classList.add("is-lightbox-origin");
+    }
     const restoreOriginCard = () => {
       originCardEl?.classList.remove("is-lightbox-origin");
     };
@@ -5973,6 +5980,7 @@
         rotated: isSlotFlipped(slotId),
         originRect,
         originEl: originCardEl,
+        previewSrc,
         onClose: restoreOriginCard,
         resolveCardVariants: () => variants
       });
@@ -5986,6 +5994,7 @@
         rotated: isSlotFlipped(slotId),
         originRect,
         originEl: originCardEl,
+        previewSrc,
         onClose: restoreOriginCard
       });
       return;
@@ -6012,6 +6021,7 @@
       rotated: isSlotFlipped(slotId),
       originRect,
       originEl: originCardEl,
+      previewSrc,
       onClose: restoreOriginCard
     });
   }

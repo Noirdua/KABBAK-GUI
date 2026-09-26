@@ -1179,6 +1179,8 @@
       onSelectCardId,
       rotated: Boolean(options?.rotated),
       originRect: options?.originRect || null,
+      originEl: options?.originEl instanceof HTMLElement ? options.originEl : null,
+      previewSrc: String(options?.previewSrc || "").trim(),
       onClose: typeof options?.onClose === "function" ? options.onClose : null
     });
   }

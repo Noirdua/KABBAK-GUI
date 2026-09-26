@@ -156,7 +156,7 @@
       return true;
     }
     try {
-      await window.TarotLazySections?.loadScript?.("app/ui-tarot-lightbox.js?v=20260925-fly");
+      await window.TarotLazySections?.loadScript?.("app/ui-tarot-lightbox.js?v=20260925-overlay-restore");
     } catch (_error) {
       // Fall through to the availability check below.
     }
