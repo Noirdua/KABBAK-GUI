@@ -761,12 +761,15 @@ function syncConnectionGateInputs(connectionSettings = getConnectionSettings()) 
   const editorEl = document.getElementById("connection-gate-server-editor");
   const hostEl = document.getElementById("connection-gate-server-host");
   const portEl = document.getElementById("connection-gate-server-port");
-  const editingServer = editorEl && !editorEl.hidden
-    || document.activeElement === hostEl
+  const userEditing = document.activeElement === hostEl
     || document.activeElement === portEl
     || document.activeElement === connectionGateBaseUrlEl;
+  if (!normalizedConnectionSettings.apiBaseUrl) {
+    const existing = String(connectionGateBaseUrlEl?.value || "").trim();
+    if (existing) normalizedConnectionSettings.apiBaseUrl = existing;
+  }
 
-  if (connectionGateBaseUrlEl && !editingServer) {
+  if (connectionGateBaseUrlEl && !userEditing && normalizedConnectionSettings.apiBaseUrl) {
     connectionGateBaseUrlEl.value = normalizedConnectionSettings.apiBaseUrl;
     window.TarotAuthSignup?.syncServerFields?.();
   }
@@ -1458,8 +1461,10 @@ async function refreshServerBranding() {
 }
 
 (async () => {
-  // Server config seeds branding, theme, menu layout, and other defaults
-  // before the first settings apply / connection attempt.
+  const gateUrl = String(document.getElementById("connection-gate-base-url")?.value || "").trim();
+  if (gateUrl && !window.TarotAppConfig?.getApiBaseUrl?.()) {
+    window.TarotAppConfig?.updateConnectionSettings?.({ apiBaseUrl: gateUrl }, { asDefault: true });
+  }
   await window.TarotAppConfig?.loadConfigDefaults?.();
 
   const serverDefaults = window.TarotAppConfig?.getServerDefaults?.() || {};

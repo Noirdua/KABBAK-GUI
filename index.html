@@ -304,6 +304,92 @@
       <div id="connection-gate-status" class="connection-gate-status" aria-live="polite">Sign in, or create an account to start a trial.</div>
     </div>
   </div>
+  <script>
+  (function () {
+    function applyServer(raw, lock) {
+      var value = String(raw || "").trim().replace(/\/+$/, "");
+      if (!value) return "";
+      var url;
+      try {
+        url = new URL(/^[a-z]+:\/\//i.test(value) ? value : "http://" + value);
+      } catch (error) {
+        return "";
+      }
+      if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+      if (!url.port && url.protocol === "http:") url.port = "3100";
+      var shown = url.protocol + "//" + url.host;
+      var hostEl = document.getElementById("connection-gate-server-host");
+      var portEl = document.getElementById("connection-gate-server-port");
+      var protocolEl = document.getElementById("connection-gate-server-protocol");
+      var baseEl = document.getElementById("connection-gate-base-url");
+      var labelEl = document.getElementById("connection-gate-server-label");
+      var editorEl = document.getElementById("connection-gate-server-editor");
+      var toggleEl = document.getElementById("connection-gate-server-toggle");
+      var copyEl = document.getElementById("connection-gate-copy");
+      var applyEl = document.getElementById("connection-gate-server-apply");
+      if (baseEl) baseEl.value = shown;
+      if (hostEl) hostEl.value = url.hostname;
+      if (protocolEl) protocolEl.value = url.protocol;
+      if (portEl) portEl.value = url.port;
+      if (labelEl) labelEl.textContent = url.host;
+      if (editorEl) editorEl.hidden = false;
+      if (toggleEl) toggleEl.setAttribute("aria-expanded", "true");
+      if (copyEl) copyEl.textContent = "Sign in with your username and password.";
+      if (lock) {
+        if (hostEl) hostEl.readOnly = true;
+        if (portEl) portEl.readOnly = true;
+        if (protocolEl) protocolEl.disabled = true;
+        if (applyEl) applyEl.hidden = true;
+        document.documentElement.setAttribute("data-kabbak-server-locked", "1");
+      }
+      try {
+        if (window.TarotAppConfig && typeof window.TarotAppConfig.updateConnectionSettings === "function") {
+          window.TarotAppConfig.updateConnectionSettings({ apiBaseUrl: shown }, { asDefault: true });
+        }
+      } catch (error) {}
+      return shown;
+    }
+    var seeded = "";
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", "config.json?_=" + Date.now(), false);
+      xhr.send(null);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        var config = JSON.parse(xhr.responseText);
+        seeded = config && config.apiBaseUrl ? String(config.apiBaseUrl) : "";
+        if (seeded) applyServer(seeded, true);
+      }
+    } catch (error) {}
+    var probes = [];
+    function pushProbe(url) {
+      var value = String(url || "").trim().replace(/\/+$/, "");
+      if (value && probes.indexOf(value) < 0) probes.push(value);
+    }
+    pushProbe(seeded);
+    if (location.hostname) {
+      pushProbe((location.protocol === "https:" ? "https:" : "http:") + "//" + location.hostname + ":3100");
+    }
+    pushProbe("http://127.0.0.1:3100");
+    pushProbe("http://localhost:3100");
+    function probe(index) {
+      if (index >= probes.length) return;
+      fetch(probes[index] + "/api/v1/branding", { cache: "no-store" }).then(function (response) {
+        if (!response.ok) throw new Error("branding");
+        return response.json();
+      }).then(function (payload) {
+        var published = payload && payload.apiBaseUrl ? String(payload.apiBaseUrl) : "";
+        if (published) applyServer(published, true);
+        else {
+          var current = document.getElementById("connection-gate-base-url");
+          if (!current || !current.value) applyServer(probes[index], true);
+        }
+      }).catch(function () {
+        probe(index + 1);
+      });
+    }
+    probe(0);
+  })();
+  </script>
   <section id="profile-section" hidden>
     <div class="profile-shell">
       <div id="profile-hub" class="profile-hub profile-social-hub">
@@ -3252,7 +3338,7 @@
   <script src="app/ui-inbox.js?v=20260923-shared"></script>
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20261002-gate-prefill"></script>
+  <script src="app.js?v=20261002-gate-lock"></script>
   <script src="app/auth-signup.js?v=20261002-gate-prefill"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">

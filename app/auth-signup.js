@@ -165,7 +165,7 @@
       }
       const protocol = String(serverProtocolEl?.value || parsed.protocol || defaultProtocol());
       const rawPort = String(serverPortEl?.value || "").trim();
-      const port = rawPort || (protocol === "https:" ? "443" : "80");
+      const port = rawPort || (protocol === "https:" ? "443" : "3100");
       const isDefault = (protocol === "https:" && port === "443")
         || (protocol === "http:" && port === "80");
       return isDefault ? `${protocol}//${host}` : `${protocol}//${host}:${port}`;
