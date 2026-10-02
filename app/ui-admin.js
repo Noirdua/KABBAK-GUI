@@ -71,7 +71,10 @@
       settingTrialDaysEl: document.getElementById("admin-setting-trial-days"),
       settingTrialAccessEl: document.getElementById("admin-setting-trial-access"),
       settingPublicApiUrlEl: document.getElementById("admin-setting-public-api-url"),
-      settingClientApiUrlEl: document.getElementById("admin-setting-client-api-url"),
+      settingClientApiHostEl: document.getElementById("admin-setting-client-api-host"),
+      settingClientApiPortEl: document.getElementById("admin-setting-client-api-port"),
+      settingClientApiProtocolEl: document.getElementById("admin-setting-client-api-protocol"),
+      settingClientApiPreviewEl: document.getElementById("admin-setting-client-api-preview"),
       settingMailTransportStateEl: document.getElementById("admin-setting-mail-transport-state"),
       settingResendWebhookSecretEl: document.getElementById("admin-setting-resend-webhook-secret"),
       settingResendWebhookSecretStateEl: document.getElementById("admin-setting-resend-webhook-secret-state"),
@@ -2016,6 +2019,58 @@
     settingsSaveStatusEl.style.color = isError ? "var(--tt-danger, #f87171)" : "";
   }
 
+  function parseClientApiFields(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return { protocol: "http:", host: "", port: "" };
+    try {
+      const url = new URL(/^[a-z]+:\/\//i.test(raw) ? raw : `http://${raw}`);
+      return {
+        protocol: url.protocol === "https:" ? "https:" : "http:",
+        host: url.hostname,
+        port: url.port
+      };
+    } catch (_error) {
+      return { protocol: "http:", host: raw, port: "" };
+    }
+  }
+
+  function composeClientApiFields(protocol, host, port) {
+    const cleanHost = String(host || "").trim()
+      .replace(/^[a-z]+:\/\//i, "")
+      .split("/")[0]
+      .split(":")[0];
+    if (!cleanHost) return "";
+    const proto = protocol === "https:" ? "https:" : "http:";
+    const cleanPort = String(port || "").trim() || (proto === "https:" ? "443" : "3100");
+    if (!/^\d+$/.test(cleanPort) || Number(cleanPort) < 1 || Number(cleanPort) > 65535) return null;
+    const isDefault = (proto === "https:" && cleanPort === "443") || (proto === "http:" && cleanPort === "80");
+    return isDefault ? `${proto}//${cleanHost}` : `${proto}//${cleanHost}:${cleanPort}`;
+  }
+
+  function syncClientApiPreview() {
+    const { settingClientApiHostEl, settingClientApiPortEl, settingClientApiProtocolEl, settingClientApiPreviewEl } = getElements();
+    if (!settingClientApiPreviewEl) return;
+    const composed = composeClientApiFields(
+      settingClientApiProtocolEl?.value,
+      settingClientApiHostEl?.value,
+      settingClientApiPortEl?.value
+    );
+    settingClientApiPreviewEl.textContent = composed
+      ? `Gate prefills ${composed}.`
+      : composed === null
+        ? "Port must be 1–65535."
+        : "Not set. config.json is used until a host is saved.";
+  }
+
+  function fillClientApiFields(value) {
+    const { settingClientApiHostEl, settingClientApiPortEl, settingClientApiProtocolEl } = getElements();
+    const parsed = parseClientApiFields(value);
+    if (settingClientApiProtocolEl) settingClientApiProtocolEl.value = parsed.protocol;
+    if (settingClientApiHostEl) settingClientApiHostEl.value = parsed.host;
+    if (settingClientApiPortEl) settingClientApiPortEl.value = parsed.port;
+    syncClientApiPreview();
+  }
+
   function normalizeClientApiBaseUrlInput(value) {
     let normalized = String(value || "").trim().replace(/\/+$/, "");
     if (!normalized) return "";
@@ -2086,7 +2141,9 @@
       settingTrialDaysEl,
       settingTrialAccessEl,
       settingPublicApiUrlEl,
-      settingClientApiUrlEl,
+      settingClientApiHostEl,
+      settingClientApiPortEl,
+      settingClientApiProtocolEl,
       envReadonlyEl
     } = getElements();
     if (!settingLogModeEl) return;
@@ -2230,8 +2287,8 @@
       if (settingPublicApiUrlEl) {
         settingPublicApiUrlEl.value = String(settings?.publicApiUrl || "");
       }
-      if (settingClientApiUrlEl && settings && Object.prototype.hasOwnProperty.call(settings, "clientApiBaseUrl")) {
-        settingClientApiUrlEl.value = String(settings.clientApiBaseUrl || "");
+      if (settings && Object.prototype.hasOwnProperty.call(settings, "clientApiBaseUrl")) {
+        fillClientApiFields(settings.clientApiBaseUrl);
       }
       if (envReadonlyEl) {
         const env = settings?.envOnly || {};
@@ -2396,7 +2453,9 @@
       settingTrialDaysEl,
       settingTrialAccessEl,
       settingPublicApiUrlEl,
-      settingClientApiUrlEl,
+      settingClientApiHostEl,
+      settingClientApiPortEl,
+      settingClientApiProtocolEl,
       settingsSaveBtn
     } = getElements();
     if (!settingsSaveBtn) return;
@@ -2502,14 +2561,18 @@
       }
       body.trialAccessLevel = settingTrialAccessEl?.value || "premium";
       body.publicApiUrl = String(settingPublicApiUrlEl?.value || "").trim();
-      const clientApiBaseUrl = normalizeClientApiBaseUrlInput(settingClientApiUrlEl?.value);
+      const clientApiBaseUrl = composeClientApiFields(
+        settingClientApiProtocolEl?.value,
+        settingClientApiHostEl?.value,
+        settingClientApiPortEl?.value
+      );
       if (clientApiBaseUrl === null) {
-        setSettingsSaveStatus("Default connection URL must look like http://localhost:3100.", true);
-        setStatus("Default connection URL must look like http://localhost:3100.", true);
+        setSettingsSaveStatus("Default connection port must be 1–65535.", true);
+        setStatus("Default connection port must be 1–65535.", true);
         settingsSaveBtn.disabled = false;
         return;
       }
-      if (settingClientApiUrlEl) settingClientApiUrlEl.value = clientApiBaseUrl;
+      fillClientApiFields(clientApiBaseUrl);
       body.clientApiBaseUrl = clientApiBaseUrl;
 
       const savedSettings = await requestJson("PATCH", "/api/v1/admin/settings", body);
@@ -2571,9 +2634,7 @@
         window.TarotDataService?.getApiBaseUrl?.() || window.TarotAppConfig?.apiBaseUrl
       );
       if (savedSettings && Object.prototype.hasOwnProperty.call(savedSettings, "clientApiBaseUrl")) {
-        if (settingClientApiUrlEl) {
-          settingClientApiUrlEl.value = String(savedSettings.clientApiBaseUrl || "");
-        }
+        fillClientApiFields(savedSettings.clientApiBaseUrl);
         setSettingsSaveStatus("Saved.");
         setStatus("Server settings saved — applied immediately.");
       } else {
@@ -2688,6 +2749,11 @@
         void saveServerSettings();
       });
     }
+    const { settingClientApiHostEl, settingClientApiPortEl, settingClientApiProtocolEl } = getElements();
+    [settingClientApiHostEl, settingClientApiPortEl, settingClientApiProtocolEl].forEach((field) => {
+      field?.addEventListener("input", syncClientApiPreview);
+      field?.addEventListener("change", syncClientApiPreview);
+    });
     const { settingMailFromNameEl, settingMailLocalEl, settingMailDomainEl, settingMailTransportEl } = getElements();
     [settingMailFromNameEl, settingMailLocalEl, settingMailDomainEl].forEach((field) => {
       field?.addEventListener("input", syncMailFromPreview);

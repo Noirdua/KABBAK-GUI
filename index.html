@@ -199,7 +199,7 @@
     <div class="connection-gate-card" role="dialog" aria-modal="true" aria-labelledby="connection-gate-title">
       <div class="connection-gate-eyebrow">Account</div>
       <h1 id="connection-gate-title" class="connection-gate-title">Sign in to KABBAK</h1>
-      <p class="connection-gate-copy">Sign in with your username and password. Tap Server to set the API address.</p>
+      <p id="connection-gate-copy" class="connection-gate-copy">Sign in with your username and password. Tap Server to set the API address.</p>
       <div class="connection-gate-server">
         <button id="connection-gate-server-toggle" class="connection-gate-server-btn" type="button" data-health="unknown" aria-expanded="false" aria-controls="connection-gate-server-editor">
           <span class="connection-gate-server-dot" aria-hidden="true"></span>
@@ -934,8 +934,17 @@
             <span>Editable values apply immediately and persist across restarts. Only port and host require a restart.</span>
           </div>
           <div class="settings-grid admin-client-create-grid">
-            <label class="settings-field settings-field-full">Default connection URL              <input id="admin-setting-client-api-url" type="url" maxlength="300" placeholder="http://localhost:3100">
-              <span class="settings-field-hint">Prefills the connection gate when a visitor has not chosen a server. Overrides GUI config.json when set; blank keeps config.json. Not the email-link URL. Env: KABBAK_CLIENT_API_BASE_URL</span>
+            <label class="settings-field">Default connection host              <input id="admin-setting-client-api-host" type="text" maxlength="200" placeholder="localhost" autocomplete="off" spellcheck="false">
+              <span class="settings-field-hint">Prefills the connection gate, including a private window. Env: KABBAK_CLIENT_API_BASE_URL</span>
+            </label>
+            <label class="settings-field">Default connection port              <input id="admin-setting-client-api-port" type="number" min="1" max="65535" step="1" placeholder="3100">
+              <span class="settings-field-hint">Blank uses 3100 for http and 443 for https.</span>
+            </label>
+            <label class="settings-field">Default connection protocol              <select id="admin-setting-client-api-protocol">
+                <option value="http:">http://</option>
+                <option value="https:">https://</option>
+              </select>
+              <span id="admin-setting-client-api-preview" class="settings-field-hint">Not set. config.json is used until a host is saved.</span>
             </label>
             <label class="settings-field">Request Log Mode              <select id="admin-setting-log-mode">
                 <option value="errors">errors (default)</option>
@@ -3216,7 +3225,7 @@
   <script src="app/ui-theme.js?v=20260911-scroll-perf"></script>
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js?v=20260923-shared"></script>
-  <script src="app/app-config.js?v=20261002-client-api-url"></script>
+  <script src="app/app-config.js?v=20261002-gate-prefill"></script>
   <script src="app/data-service.js?v=20260925-bootstrap-etag"></script>
   <script src="app/ui-overlay.js?v=20260921-page-settings"></script>
   <script src="app/ui-page-settings.js?v=20260921-appbar-settings"></script>
@@ -3228,7 +3237,7 @@
   <script src="app/card-images.js?v=20260925-ceremonial"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20261002-settings-save"></script>
+  <script src="app/lazy-sections.js?v=20261002-gate-prefill"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
@@ -3243,8 +3252,8 @@
   <script src="app/ui-inbox.js?v=20260923-shared"></script>
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20260921-branding"></script>
-  <script src="app/auth-signup.js?v=20260923-shared"></script>
+  <script src="app.js?v=20261002-gate-prefill"></script>
+  <script src="app/auth-signup.js?v=20261002-gate-prefill"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>

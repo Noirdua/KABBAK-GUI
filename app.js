@@ -790,7 +790,12 @@ function setConnectionGateStatus(text, tone = "default") {
 }
 
 function showConnectionGate(message, tone = "default", connectionSettings = null) {
-  syncConnectionGateInputs(connectionSettings || getConnectionSettings());
+  const known = window.TarotAppConfig?.getConnectionSettings?.() || {};
+  const incoming = connectionSettings || known;
+  syncConnectionGateInputs({
+    apiBaseUrl: incoming?.apiBaseUrl || known.apiBaseUrl || "",
+    apiKey: incoming?.apiKey || known.apiKey || ""
+  });
   if (connectionGateEl) {
     connectionGateEl.hidden = false;
   }

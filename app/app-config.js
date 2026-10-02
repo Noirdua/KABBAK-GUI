@@ -602,18 +602,36 @@
       const savedBaseUrl = normalizeBaseUrl(
         window.TarotAppConfig?.getApiBaseUrl?.() || readConfiguredConnectionSettings().apiBaseUrl
       );
-      let branding = await fetchBrandingPayload(savedBaseUrl);
-      if (!branding && fileApiBaseUrl && fileApiBaseUrl !== savedBaseUrl) {
-        branding = await fetchBrandingPayload(fileApiBaseUrl);
+      const bootstrapUrls = [];
+      const pushBootstrap = (value) => {
+        const url = normalizeBaseUrl(value);
+        if (url && !bootstrapUrls.includes(url)) bootstrapUrls.push(url);
+      };
+      pushBootstrap(savedBaseUrl);
+      pushBootstrap(fileApiBaseUrl);
+      if (!isNativeShell() && isLoopbackHost(window.location.hostname)) {
+        pushBootstrap("http://127.0.0.1:3100");
+        pushBootstrap("http://localhost:3100");
+      } else if (!isNativeShell() && window.location.hostname) {
+        const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+        pushBootstrap(`${protocol}//${window.location.hostname}:3100`);
       }
-      if (!branding) {
-        const origin = normalizeBaseUrl(window.location.origin);
-        if (origin && origin !== savedBaseUrl && origin !== fileApiBaseUrl) {
-          branding = await fetchBrandingPayload(origin);
-        }
+      pushBootstrap(window.location.origin);
+      let branding = null;
+      for (const candidate of bootstrapUrls) {
+        branding = await fetchBrandingPayload(candidate);
+        if (branding) break;
       }
       const serverApiBaseUrl = normalizeBaseUrl(branding?.payload?.apiBaseUrl);
-      const publishedApiBaseUrl = /^https?:\/\//i.test(serverApiBaseUrl) ? serverApiBaseUrl : "";
+      const publishedPort = String(branding?.payload?.apiPort || "").trim();
+      let publishedApiBaseUrl = /^https?:\/\//i.test(serverApiBaseUrl) ? serverApiBaseUrl : "";
+      if (publishedApiBaseUrl && publishedPort) {
+        try {
+          const published = new URL(publishedApiBaseUrl);
+          if (!published.port) published.port = publishedPort;
+          publishedApiBaseUrl = normalizeBaseUrl(published.href);
+        } catch (_error) {}
+      }
       if (publishedApiBaseUrl && publishedApiBaseUrl !== branding?.base) {
         const preferred = await fetchBrandingPayload(publishedApiBaseUrl);
         if (preferred) branding = preferred;
@@ -624,7 +642,10 @@
 
       if (shouldApplyConnectionDefault()) {
         const learnedServerDefault = Boolean(branding);
-        const nextUrl = publishedApiBaseUrl || fileApiBaseUrl;
+        const loopbackFallback = !isNativeShell() && isLoopbackHost(window.location.hostname)
+          ? "http://localhost:3100"
+          : "";
+        const nextUrl = publishedApiBaseUrl || fileApiBaseUrl || loopbackFallback;
         const saved = readConfiguredConnectionSettings();
         const nextKey = nextUrl
           ? (saved.apiKey || normalizeApiKey(fileConfig?.apiKey))

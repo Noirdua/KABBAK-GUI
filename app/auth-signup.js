@@ -74,6 +74,7 @@
       devFallback: false
     };
     let probeTimer = 0;
+    let serverEditorTouched = false;
 
     function readRememberedUsername() {
       try {
@@ -168,6 +169,36 @@
       const isDefault = (protocol === "https:" && port === "443")
         || (protocol === "http:" && port === "80");
       return isDefault ? `${protocol}//${host}` : `${protocol}//${host}:${port}`;
+    }
+
+    function applyKnownServer() {
+      const configured = String(window.TarotAppConfig?.getApiBaseUrl?.() || "")
+        .trim()
+        .replace(/\/+$/, "");
+      if (configured && baseUrlEl && document.activeElement !== baseUrlEl && document.activeElement !== serverHostEl && document.activeElement !== serverPortEl) {
+        baseUrlEl.value = configured;
+      }
+      syncServerFields();
+      if (serverPortEl && !String(serverPortEl.value || "").trim() && baseUrl()) {
+        const protocol = String(serverProtocolEl?.value || defaultProtocol());
+        serverPortEl.value = protocol === "https:" ? "443" : "3100";
+        if (serverLabelEl && serverHostEl?.value) {
+          serverLabelEl.textContent = `${serverHostEl.value}:${serverPortEl.value}`;
+        }
+      }
+      if (!serverEditorTouched && baseUrl() && serverEditorEl) {
+        serverEditorEl.hidden = false;
+        serverToggleEl?.setAttribute("aria-expanded", "true");
+      }
+      const copyEl = document.getElementById("connection-gate-copy");
+      if (copyEl) {
+        const label = serverLabelEl?.textContent && serverLabelEl.textContent !== "Server"
+          ? serverLabelEl.textContent
+          : baseUrl();
+        copyEl.textContent = baseUrl()
+          ? `Sign in with your username and password. Server ${label} is filled in.`
+          : "Sign in with your username and password. Tap Server to set the API address.";
+      }
     }
 
     function syncServerFields() {
@@ -716,8 +747,80 @@
     }
     showStep("login");
     setAdvancedOpen(false);
-    syncServerFields();
+    function withPort(rawUrl, port) {
+      const value = String(rawUrl || "").trim().replace(/\/+$/, "");
+      if (!value) return "";
+      try {
+        const url = new URL(/^[a-z]+:\/\//i.test(value) ? value : `http://${value}`);
+        if (port && !url.port) url.port = String(port);
+        if (!url.port && url.protocol === "http:") url.port = "3100";
+        return `${url.protocol}//${url.host}`;
+      } catch (_error) {
+        return value;
+      }
+    }
+
+    async function prefillServerFromDefaults() {
+      if (baseUrl() || window.TarotAppConfig?.getApiBaseUrl?.()) {
+        applyKnownServer();
+        void probeServerHealth();
+        return;
+      }
+      const native = document.documentElement.getAttribute("data-kabbak-native") === "1"
+        || window.Capacitor?.isNativePlatform?.() === true;
+      const pageHost = String(window.location.hostname || "");
+      const loopback = pageHost === "localhost" || pageHost === "127.0.0.1" || pageHost === "::1";
+      const candidates = [];
+      const pushCandidate = (value) => {
+        const url = String(value || "").trim().replace(/\/+$/, "");
+        if (url && !candidates.includes(url)) candidates.push(url);
+      };
+      try {
+        const response = await fetch(`config.json?_=${Date.now()}`, { cache: "no-cache" });
+        if (response.ok) {
+          const config = await response.json().catch(() => null);
+          pushCandidate(config?.apiBaseUrl);
+        }
+      } catch (_error) {}
+      if (!native && loopback) {
+        pushCandidate("http://127.0.0.1:3100");
+        pushCandidate("http://localhost:3100");
+      } else if (!native && pageHost) {
+        const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+        pushCandidate(`${protocol}//${pageHost}:3100`);
+      }
+      let chosen = "";
+      for (const candidate of candidates) {
+        try {
+          const response = await fetch(`${candidate}/api/v1/branding`, { cache: "no-cache" });
+          if (!response.ok) continue;
+          const payload = await response.json().catch(() => null);
+          chosen = withPort(payload?.apiBaseUrl || candidate, payload?.apiPort);
+          if (chosen) break;
+        } catch (_error) {}
+      }
+      if (!chosen && !native && loopback) chosen = "http://localhost:3100";
+      if (!chosen || baseUrl()) return;
+      if (baseUrlEl) baseUrlEl.value = chosen;
+      window.TarotAppConfig?.updateConnectionSettings?.({
+        apiBaseUrl: chosen
+      }, { asDefault: true });
+      applyKnownServer();
+      void probeServerHealth();
+    }
+
+    applyKnownServer();
+    void prefillServerFromDefaults();
+    document.addEventListener("connection:updated", () => {
+      applyKnownServer();
+      void probeServerHealth();
+    });
+    document.addEventListener("config:defaults-loaded", () => {
+      applyKnownServer();
+      void probeServerHealth();
+    });
     serverToggleEl?.addEventListener("click", () => {
+      serverEditorTouched = true;
       const open = Boolean(serverEditorEl?.hidden);
       if (serverEditorEl) serverEditorEl.hidden = !open;
       serverToggleEl.setAttribute("aria-expanded", open ? "true" : "false");
