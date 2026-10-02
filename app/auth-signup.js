@@ -171,6 +171,10 @@
       return isDefault ? `${protocol}//${host}` : `${protocol}//${host}:${port}`;
     }
 
+    function isServerLocked() {
+      return document.documentElement.getAttribute("data-kabbak-server-locked") === "1";
+    }
+
     function applyKnownServer() {
       const configured = String(window.TarotAppConfig?.getApiBaseUrl?.() || "")
         .trim()
@@ -186,7 +190,11 @@
           serverLabelEl.textContent = `${serverHostEl.value}:${serverPortEl.value}`;
         }
       }
-      if (!serverEditorTouched && baseUrl() && serverEditorEl) {
+      if (serverEditorEl && isServerLocked()) {
+        // Locked to the server default: no editable server fields.
+        serverEditorEl.hidden = true;
+        serverToggleEl?.setAttribute("aria-expanded", "false");
+      } else if (!serverEditorTouched && baseUrl() && serverEditorEl) {
         serverEditorEl.hidden = false;
         serverToggleEl?.setAttribute("aria-expanded", "true");
       }
@@ -820,6 +828,7 @@
       void probeServerHealth();
     });
     serverToggleEl?.addEventListener("click", () => {
+      if (isServerLocked()) return;
       serverEditorTouched = true;
       const open = Boolean(serverEditorEl?.hidden);
       if (serverEditorEl) serverEditorEl.hidden = !open;

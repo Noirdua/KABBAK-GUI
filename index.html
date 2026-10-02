@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20260921-board-actions">
+  <link rel="stylesheet" href="app/styles.css?v=20261002-gate-collapse">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     /* The splash only shows on the first load of a tab session. Refreshes
@@ -332,15 +332,23 @@
       if (protocolEl) protocolEl.value = url.protocol;
       if (portEl) portEl.value = url.port;
       if (labelEl) labelEl.textContent = url.host;
-      if (editorEl) editorEl.hidden = false;
-      if (toggleEl) toggleEl.setAttribute("aria-expanded", "true");
       if (copyEl) copyEl.textContent = "Sign in with your username and password.";
       if (lock) {
+        // Locked to the server default: show only the status light + name.
+        if (editorEl) editorEl.hidden = true;
+        if (applyEl) applyEl.hidden = true;
         if (hostEl) hostEl.readOnly = true;
         if (portEl) portEl.readOnly = true;
         if (protocolEl) protocolEl.disabled = true;
-        if (applyEl) applyEl.hidden = true;
+        if (toggleEl) {
+          toggleEl.setAttribute("aria-expanded", "false");
+          toggleEl.setAttribute("data-locked", "1");
+          toggleEl.setAttribute("aria-disabled", "true");
+        }
         document.documentElement.setAttribute("data-kabbak-server-locked", "1");
+      } else {
+        if (editorEl) editorEl.hidden = false;
+        if (toggleEl) toggleEl.setAttribute("aria-expanded", "true");
       }
       try {
         if (window.TarotAppConfig && typeof window.TarotAppConfig.updateConnectionSettings === "function") {
@@ -3353,7 +3361,7 @@
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
   <script src="app.js?v=20261002-gate-lock"></script>
-  <script src="app/auth-signup.js?v=20261002-gate-prefill"></script>
+  <script src="app/auth-signup.js?v=20261002-gate-collapse"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>

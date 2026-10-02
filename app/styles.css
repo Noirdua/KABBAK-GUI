@@ -866,6 +866,12 @@
     .connection-gate-server-btn[data-health="bad"] .connection-gate-server-dot {
       background: #f87171;
     }
+    .connection-gate-server-btn[data-locked="1"] {
+      cursor: default;
+    }
+    .connection-gate-server-btn[data-locked="1"]:hover {
+      background: var(--tt-bg-deep);
+    }
     .connection-gate-server-editor {
       display: grid;
       grid-template-columns: 1fr 1fr;
