@@ -88,6 +88,7 @@
       mailTestSendEl: document.getElementById("admin-mail-test-send"),
       mailTestStatusEl: document.getElementById("admin-mail-test-status"),
       settingsSaveBtn: document.getElementById("admin-settings-save"),
+      settingsSaveStatusEl: document.getElementById("admin-settings-save-status"),
       envReadonlyEl: document.getElementById("admin-env-readonly"),
       logLevelEl: document.getElementById("admin-log-level"),
       logGroupEl: document.getElementById("admin-log-group"),
@@ -2005,7 +2006,37 @@
 
   // --- Server settings & logs -------------------------------------------------
 
-  async function loadServerSettings() {
+  let serverSettingsRequest = 0;
+
+  function setSettingsSaveStatus(text, isError = false) {
+    const { settingsSaveStatusEl } = getElements();
+    if (!settingsSaveStatusEl) return;
+    settingsSaveStatusEl.textContent = text || "";
+    settingsSaveStatusEl.dataset.tone = isError ? "error" : "neutral";
+    settingsSaveStatusEl.style.color = isError ? "var(--tt-danger, #f87171)" : "";
+  }
+
+  function normalizeClientApiBaseUrlInput(value) {
+    let normalized = String(value || "").trim().replace(/\/+$/, "");
+    if (!normalized) return "";
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(normalized)) {
+      normalized = `http://${normalized}`;
+    }
+    let parsed = null;
+    try {
+      parsed = new URL(normalized);
+    } catch (_error) {
+      parsed = null;
+    }
+    if (!parsed || (parsed.protocol !== "http:" && parsed.protocol !== "https:") || !parsed.hostname) {
+      return null;
+    }
+    const pathName = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/, "");
+    return `${parsed.origin}${pathName}${parsed.search}`.replace(/\/api\/v1$/i, "");
+  }
+
+  async function loadServerSettings(options = {}) {
+    const requestId = ++serverSettingsRequest;
     const {
       settingLogModeEl,
       settingAllowNullEl,
@@ -2061,6 +2092,7 @@
     if (!settingLogModeEl) return;
     try {
       const settings = await requestJson("GET", "/api/v1/admin/settings");
+      if (requestId !== serverSettingsRequest) return;
       settingLogModeEl.value = settings?.requestLogMode === "all" || settings?.requestLogMode === "none"
         ? settings.requestLogMode
         : "errors";
@@ -2198,8 +2230,8 @@
       if (settingPublicApiUrlEl) {
         settingPublicApiUrlEl.value = String(settings?.publicApiUrl || "");
       }
-      if (settingClientApiUrlEl) {
-        settingClientApiUrlEl.value = String(settings?.clientApiBaseUrl || "");
+      if (settingClientApiUrlEl && settings && Object.prototype.hasOwnProperty.call(settings, "clientApiBaseUrl")) {
+        settingClientApiUrlEl.value = String(settings.clientApiBaseUrl || "");
       }
       if (envReadonlyEl) {
         const env = settings?.envOnly || {};
@@ -2215,8 +2247,9 @@
           envReadonlyEl.appendChild(row);
         });
       }
-      setStatus("Server settings loaded.");
+      if (!options.quiet) setStatus("Server settings loaded.");
     } catch (error) {
+      if (requestId !== serverSettingsRequest || options.quiet) return;
       setStatus(`Could not load server settings. ${error?.message || ""}`, true);
     }
   }
@@ -2367,7 +2400,9 @@
       settingsSaveBtn
     } = getElements();
     if (!settingsSaveBtn) return;
+    const requestId = ++serverSettingsRequest;
     settingsSaveBtn.disabled = true;
+    setSettingsSaveStatus("Saving…");
     try {
       const body = {
         requestLogMode: settingLogModeEl?.value || "errors",
@@ -2467,9 +2502,18 @@
       }
       body.trialAccessLevel = settingTrialAccessEl?.value || "premium";
       body.publicApiUrl = String(settingPublicApiUrlEl?.value || "").trim();
-      body.clientApiBaseUrl = String(settingClientApiUrlEl?.value || "").trim();
+      const clientApiBaseUrl = normalizeClientApiBaseUrlInput(settingClientApiUrlEl?.value);
+      if (clientApiBaseUrl === null) {
+        setSettingsSaveStatus("Default connection URL must look like http://localhost:3100.", true);
+        setStatus("Default connection URL must look like http://localhost:3100.", true);
+        settingsSaveBtn.disabled = false;
+        return;
+      }
+      if (settingClientApiUrlEl) settingClientApiUrlEl.value = clientApiBaseUrl;
+      body.clientApiBaseUrl = clientApiBaseUrl;
 
       const savedSettings = await requestJson("PATCH", "/api/v1/admin/settings", body);
+      if (requestId !== serverSettingsRequest) return;
       // Reflect the saved secret state immediately (do not rely on a second GET).
       if (settingResendKeyStateEl && typeof savedSettings?.resendApiKeySet === "boolean") {
         settingResendKeyStateEl.textContent = savedSettings.resendApiKeySet
@@ -2526,10 +2570,21 @@
         body.faviconUrl,
         window.TarotDataService?.getApiBaseUrl?.() || window.TarotAppConfig?.apiBaseUrl
       );
-      await loadServerSettings();
-      setStatus("Server settings saved — applied immediately.");
+      if (savedSettings && Object.prototype.hasOwnProperty.call(savedSettings, "clientApiBaseUrl")) {
+        if (settingClientApiUrlEl) {
+          settingClientApiUrlEl.value = String(savedSettings.clientApiBaseUrl || "");
+        }
+        setSettingsSaveStatus("Saved.");
+        setStatus("Server settings saved — applied immediately.");
+      } else {
+        setSettingsSaveStatus("Other settings saved. Restart the API, then save the connection URL again.", true);
+        setStatus("Restart the API so Default connection URL can be stored, then save again.", true);
+      }
+      await loadServerSettings({ quiet: true });
     } catch (error) {
-      setStatus(`Could not save server settings. ${error?.message || ""}`, true);
+      const message = error?.message || "Could not save server settings.";
+      setSettingsSaveStatus(message, true);
+      setStatus(`Could not save server settings. ${message}`, true);
     } finally {
       settingsSaveBtn.disabled = false;
     }
