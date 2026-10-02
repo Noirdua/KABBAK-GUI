@@ -233,13 +233,37 @@
     }
 
     if (!storedBaseUrl) {
-      storedBaseUrl = "";
+      const fileUrl = normalizeBaseUrl(readSameOriginConfigSync()?.apiBaseUrl);
+      if (/^https?:\/\//i.test(fileUrl)) storedBaseUrl = fileUrl;
     }
 
     return normalizeConnectionSettings({
       apiBaseUrl: storedBaseUrl,
       apiKey: storedApiKey
     });
+  }
+
+  function readSameOriginConfigSync() {
+    try {
+      const request = new XMLHttpRequest();
+      request.open("GET", `config.json?_=${Date.now()}`, false);
+      request.send(null);
+      if (request.status < 200 || request.status >= 300) return null;
+      const parsed = JSON.parse(request.responseText);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function hasStoredBaseUrl() {
+    try {
+      if (String(window.localStorage.getItem(apiBaseUrlStorageKey) || "").trim()) return true;
+    } catch (_error) {}
+    try {
+      if (String(window.sessionStorage.getItem(apiBaseUrlStorageKey) || "").trim()) return true;
+    } catch (_error) {}
+    return false;
   }
 
   function getConnectionStorageHealth() {
@@ -525,7 +549,7 @@
 
   function shouldApplyConnectionDefault() {
     if (hasQueryApiBaseUrl()) return false;
-    if (!readConfiguredConnectionSettings().apiBaseUrl) return true;
+    if (!hasStoredBaseUrl()) return true;
     return readBaseUrlOrigin() === "default";
   }
 
