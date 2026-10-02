@@ -5,7 +5,11 @@
  *   so browsers that disable HTTP caching don't redownload on every visit.
  * Precache is triggered manually from Profile > App Cache.
  */
-const CACHE_NAME = "kabbak-static-v4";
+const CACHE_NAME = "kabbak-static-v5";
+
+// Connection bootstrap must always be live so a server-set default reaches new
+// visitors; never cache these.
+const NEVER_CACHE_PATTERN = /(?:^|\/)config\.json$/i;
 
 const STATIC_EXTENSION_PATTERN = /\.(?:js|css|woff2?|ttf|otf|png|jpe?g|webp|svg|gif|mp3)(\?.*)?$/i;
 
@@ -53,7 +57,7 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || url.origin !== self.location.origin) {
     return;
   }
-  if (url.pathname.startsWith("/api/")) {
+  if (url.pathname.startsWith("/api/") || NEVER_CACHE_PATTERN.test(url.pathname)) {
     return;
   }
 
