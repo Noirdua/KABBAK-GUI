@@ -934,6 +934,9 @@
             <span>Editable values apply immediately and persist across restarts. Only port and host require a restart.</span>
           </div>
           <div class="settings-grid admin-client-create-grid">
+            <label class="settings-field settings-field-full">Default connection URL              <input id="admin-setting-client-api-url" type="url" maxlength="300" placeholder="http://localhost:3100">
+              <span class="settings-field-hint">Prefills the connection gate when a visitor has not chosen a server. Overrides GUI config.json when set; blank keeps config.json. Not the email-link URL. Env: KABBAK_CLIENT_API_BASE_URL</span>
+            </label>
             <label class="settings-field">Request Log Mode              <select id="admin-setting-log-mode">
                 <option value="errors">errors (default)</option>
                 <option value="all">all</option>
@@ -3212,7 +3215,7 @@
   <script src="app/ui-theme.js?v=20260911-scroll-perf"></script>
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js?v=20260923-shared"></script>
-  <script src="app/app-config.js?v=20260923-shared"></script>
+  <script src="app/app-config.js?v=20261002-client-api-url"></script>
   <script src="app/data-service.js?v=20260925-bootstrap-etag"></script>
   <script src="app/ui-overlay.js?v=20260921-page-settings"></script>
   <script src="app/ui-page-settings.js?v=20260921-appbar-settings"></script>

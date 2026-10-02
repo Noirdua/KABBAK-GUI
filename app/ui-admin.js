@@ -71,6 +71,7 @@
       settingTrialDaysEl: document.getElementById("admin-setting-trial-days"),
       settingTrialAccessEl: document.getElementById("admin-setting-trial-access"),
       settingPublicApiUrlEl: document.getElementById("admin-setting-public-api-url"),
+      settingClientApiUrlEl: document.getElementById("admin-setting-client-api-url"),
       settingMailTransportStateEl: document.getElementById("admin-setting-mail-transport-state"),
       settingResendWebhookSecretEl: document.getElementById("admin-setting-resend-webhook-secret"),
       settingResendWebhookSecretStateEl: document.getElementById("admin-setting-resend-webhook-secret-state"),
@@ -2054,6 +2055,7 @@
       settingTrialDaysEl,
       settingTrialAccessEl,
       settingPublicApiUrlEl,
+      settingClientApiUrlEl,
       envReadonlyEl
     } = getElements();
     if (!settingLogModeEl) return;
@@ -2195,6 +2197,9 @@
       }
       if (settingPublicApiUrlEl) {
         settingPublicApiUrlEl.value = String(settings?.publicApiUrl || "");
+      }
+      if (settingClientApiUrlEl) {
+        settingClientApiUrlEl.value = String(settings?.clientApiBaseUrl || "");
       }
       if (envReadonlyEl) {
         const env = settings?.envOnly || {};
@@ -2358,6 +2363,7 @@
       settingTrialDaysEl,
       settingTrialAccessEl,
       settingPublicApiUrlEl,
+      settingClientApiUrlEl,
       settingsSaveBtn
     } = getElements();
     if (!settingsSaveBtn) return;
@@ -2461,6 +2467,7 @@
       }
       body.trialAccessLevel = settingTrialAccessEl?.value || "premium";
       body.publicApiUrl = String(settingPublicApiUrlEl?.value || "").trim();
+      body.clientApiBaseUrl = String(settingClientApiUrlEl?.value || "").trim();
 
       const savedSettings = await requestJson("PATCH", "/api/v1/admin/settings", body);
       // Reflect the saved secret state immediately (do not rely on a second GET).

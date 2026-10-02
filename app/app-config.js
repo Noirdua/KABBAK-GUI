@@ -1,5 +1,6 @@
 (function () {
   const apiBaseUrlStorageKey = "tarot-time-api-base-url";
+  const apiBaseUrlOriginKey = "tarot-time-api-base-url-origin";
   const apiKeyStorageKey = "tarot-time-api-key";
   const defaultConnectionAccess = Object.freeze({
     connected: false,
@@ -471,6 +472,110 @@
     homeButton.textContent = homeLabel;
   }
 
+  function isNativeShell() {
+    return document.documentElement.getAttribute("data-kabbak-native") === "1"
+      || window.Capacitor?.isNativePlatform?.() === true;
+  }
+
+  function isLoopbackHost(hostname) {
+    const host = String(hostname || "").replace(/^\[|\]$/g, "").toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  }
+
+  function isLoopbackUrl(value) {
+    try {
+      return isLoopbackHost(new URL(value).hostname);
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function usableFileApiBaseUrl(value) {
+    const url = normalizeBaseUrl(value);
+    if (!url || !/^https?:\/\//i.test(url)) return "";
+    if ((isNativeShell() || !isLoopbackHost(window.location.hostname)) && isLoopbackUrl(url)) {
+      return "";
+    }
+    return url;
+  }
+
+  function readBaseUrlOrigin() {
+    try {
+      const local = String(window.localStorage.getItem(apiBaseUrlOriginKey) || "").trim();
+      if (local) return local;
+    } catch (_error) {}
+    try {
+      return String(window.sessionStorage.getItem(apiBaseUrlOriginKey) || "").trim();
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function writeBaseUrlOrigin(origin) {
+    const value = String(origin || "");
+    try {
+      if (value) window.localStorage.setItem(apiBaseUrlOriginKey, value);
+      else window.localStorage.removeItem(apiBaseUrlOriginKey);
+    } catch (_error) {}
+    try {
+      if (value) window.sessionStorage.setItem(apiBaseUrlOriginKey, value);
+      else window.sessionStorage.removeItem(apiBaseUrlOriginKey);
+    } catch (_error) {}
+  }
+
+  function shouldApplyConnectionDefault() {
+    if (hasQueryApiBaseUrl()) return false;
+    if (!readConfiguredConnectionSettings().apiBaseUrl) return true;
+    return readBaseUrlOrigin() === "default";
+  }
+
+  async function readFileConfig() {
+    try {
+      const response = await fetch(`config.json?_=${Date.now()}`, { cache: "no-cache" });
+      if (!response.ok) return null;
+      const config = await response.json().catch(() => null);
+      return config && typeof config === "object" ? config : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  async function fetchBrandingPayload(baseUrl) {
+    const base = normalizeBaseUrl(baseUrl);
+    if (!base) return null;
+    try {
+      const response = await fetch(`${base}/api/v1/branding`, { cache: "no-cache" });
+      if (!response.ok) return null;
+      const payload = await response.json().catch(() => null);
+      if (!payload || typeof payload !== "object") return null;
+      return { payload, base };
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  async function applyRemoteBranding(brandingPayload, baseUrl) {
+    if (!brandingPayload) return;
+    const remoteTitle = String(brandingPayload.title || "").trim();
+    const remoteHomeLabel = String(brandingPayload.homeLabel || "").trim();
+    const remoteLogo = String(brandingPayload.logoUrl || "").trim();
+    if (remoteTitle || remoteHomeLabel || remoteLogo) {
+      brandingConfig = normalizeBranding({
+        title: remoteTitle || undefined,
+        homeLabel: remoteHomeLabel || undefined,
+        logo: remoteLogo || undefined
+      });
+      window.TarotAppConfig.branding = { ...brandingConfig };
+      const logoUrl = await resolveLogoUrl(brandingConfig.logo);
+      applyBranding(brandingConfig, logoUrl);
+    }
+    if (remoteTitle) {
+      document.title = remoteTitle;
+    }
+    applyOverlayBackground(brandingPayload.overlayBackgroundUrl, baseUrl);
+    applyFavicon(brandingPayload.faviconUrl, baseUrl);
+  }
+
   function hasUserSavedSettings() {
     try {
       return Boolean(String(window.localStorage.getItem(SETTINGS_STORAGE_KEY) || "").trim());
@@ -489,35 +594,47 @@
       applyBranding(brandingConfig, "");
       window.TarotAppConfig.branding = { ...brandingConfig };
 
-      const remoteBrandingApiBaseUrl = normalizeBaseUrl(
+      const fileConfig = await readFileConfig();
+      if (fileConfig?.features) {
+        window.TarotAppConfig?.updateFeatures?.(fileConfig.features);
+      }
+      const fileApiBaseUrl = usableFileApiBaseUrl(fileConfig?.apiBaseUrl);
+      const savedBaseUrl = normalizeBaseUrl(
         window.TarotAppConfig?.getApiBaseUrl?.() || readConfiguredConnectionSettings().apiBaseUrl
       );
-      if (remoteBrandingApiBaseUrl) {
-        try {
-          const brandingResponse = await fetch(`${remoteBrandingApiBaseUrl}/api/v1/branding`, { cache: "no-cache" });
-          if (brandingResponse.ok) {
-            const brandingPayload = await brandingResponse.json().catch(() => null);
-            const remoteTitle = String(brandingPayload?.title || "").trim();
-            const remoteHomeLabel = String(brandingPayload?.homeLabel || "").trim();
-            const remoteLogo = String(brandingPayload?.logoUrl || "").trim();
-            if (remoteTitle || remoteHomeLabel || remoteLogo) {
-              brandingConfig = normalizeBranding({
-                title: remoteTitle || undefined,
-                homeLabel: remoteHomeLabel || undefined,
-                logo: remoteLogo || undefined
-              });
-              window.TarotAppConfig.branding = { ...brandingConfig };
-              const logoUrl = await resolveLogoUrl(brandingConfig.logo);
-              applyBranding(brandingConfig, logoUrl);
-            }
-            if (remoteTitle) {
-              document.title = remoteTitle;
-            }
-            applyOverlayBackground(brandingPayload?.overlayBackgroundUrl, remoteBrandingApiBaseUrl);
-            applyFavicon(brandingPayload?.faviconUrl, remoteBrandingApiBaseUrl);
-          }
-        } catch (_error) {
-          // Optional enhancement; the static branding title stays in place.
+      let branding = await fetchBrandingPayload(savedBaseUrl);
+      if (!branding && fileApiBaseUrl && fileApiBaseUrl !== savedBaseUrl) {
+        branding = await fetchBrandingPayload(fileApiBaseUrl);
+      }
+      if (!branding) {
+        const origin = normalizeBaseUrl(window.location.origin);
+        if (origin && origin !== savedBaseUrl && origin !== fileApiBaseUrl) {
+          branding = await fetchBrandingPayload(origin);
+        }
+      }
+      const serverApiBaseUrl = normalizeBaseUrl(branding?.payload?.apiBaseUrl);
+      const publishedApiBaseUrl = /^https?:\/\//i.test(serverApiBaseUrl) ? serverApiBaseUrl : "";
+      if (publishedApiBaseUrl && publishedApiBaseUrl !== branding?.base) {
+        const preferred = await fetchBrandingPayload(publishedApiBaseUrl);
+        if (preferred) branding = preferred;
+      }
+      if (branding) {
+        await applyRemoteBranding(branding.payload, branding.base);
+      }
+
+      if (shouldApplyConnectionDefault()) {
+        const learnedServerDefault = Boolean(branding);
+        const nextUrl = publishedApiBaseUrl || fileApiBaseUrl;
+        const saved = readConfiguredConnectionSettings();
+        const nextKey = nextUrl
+          ? (saved.apiKey || normalizeApiKey(fileConfig?.apiKey))
+          : saved.apiKey;
+        const canReplace = Boolean(nextUrl) || learnedServerDefault;
+        if (canReplace && (nextUrl !== saved.apiBaseUrl || nextKey !== saved.apiKey)) {
+          window.TarotAppConfig?.updateConnectionSettings?.({
+            apiBaseUrl: nextUrl,
+            apiKey: nextKey
+          }, { asDefault: true });
         }
       }
 
@@ -650,7 +767,7 @@
 
       return { ...previous };
     },
-    updateConnectionSettings(nextSettings = {}) {
+    updateConnectionSettings(nextSettings = {}, options = {}) {
       const previous = this.getConnectionSettings();
       const current = normalizeConnectionSettings({
         ...previous,
@@ -660,6 +777,13 @@
 
       this.apiBaseUrl = current.apiBaseUrl;
       this.apiKey = current.apiKey;
+      if (options.asDefault === true) {
+        writeBaseUrlOrigin(current.apiBaseUrl ? "default" : "");
+      } else if (current.apiBaseUrl) {
+        writeBaseUrlOrigin("user");
+      } else {
+        writeBaseUrlOrigin("");
+      }
 
       if (previous.apiBaseUrl !== current.apiBaseUrl || previous.apiKey !== current.apiKey) {
         document.dispatchEvent(new CustomEvent("connection:updated", {

@@ -27,9 +27,9 @@ npm install
 npm run start
 ```
 
-The app opens in your browser (typically at `http://127.0.0.1:8080`). On localhost it pre-fills `http://localhost:3100`. Enter an API key in the connection gate (or Settings). The browser remembers URL and key.
+The app opens in your browser (typically at `http://127.0.0.1:8080`). `config.json` `apiBaseUrl` prefills the connection gate when the visitor has not chosen a server. Admins can set the same default in Admin → Server (Default connection URL); that value wins over `config.json` when set. Enter an API key in the connection gate (or Settings). The browser remembers a URL the visitor chose.
 
-Create keys in the API Admin panel, or set them in the API `.env` (`KABBAK_API_KEY` / `KABBAK_API_KEYS`). For a keyless local server use `KABBAK_NO_AUTH=1`. Branding, theme, and other site defaults are edited in Admin / Settings — there is no client `config.json` to copy.
+Create keys in the API Admin panel, or set them in the API `.env` (`KABBAK_API_KEY` / `KABBAK_API_KEYS`). For a keyless local server use `KABBAK_NO_AUTH=1`. Branding, theme, and other site defaults are edited in Admin / Settings. `config.json` is only the connection-URL fallback.
 
 ## NPM Scripts
 
