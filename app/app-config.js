@@ -547,6 +547,31 @@
     } catch (_error) {}
   }
 
+  // A GUI served from gui.example.com is commonly paired with an API at
+  // api.example.com on the same server. Probe those siblings so a fresh
+  // visitor can discover the server default without a local config.json.
+  function apiSiblingCandidates(protocol, hostname) {
+    const parts = String(hostname || "").split(".");
+    if (parts.length < 3) return [];
+    const root = parts.slice(1).join(".");
+    return [`${protocol}//api.${root}`, `${protocol}//${root}`];
+  }
+
+  // When the API publishes a base URL that reuses the host we actually reached,
+  // prefer that reachable origin: a proxy often fronts TLS on 443 while the
+  // operator typed the internal port (e.g. :3100), which browsers cannot use.
+  function preferReachableBase(published, reached) {
+    if (!published) return "";
+    try {
+      const pub = new URL(published);
+      const base = new URL(reached);
+      if (pub.hostname && base.hostname && pub.hostname.toLowerCase() === base.hostname.toLowerCase()) {
+        return base.origin;
+      }
+    } catch (_error) {}
+    return published;
+  }
+
   function shouldApplyConnectionDefault() {
     if (hasQueryApiBaseUrl()) return false;
     if (!hasStoredBaseUrl()) return true;
@@ -638,6 +663,7 @@
         pushBootstrap("http://localhost:3100");
       } else if (!isNativeShell() && window.location.hostname) {
         const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+        apiSiblingCandidates(protocol, window.location.hostname).forEach(pushBootstrap);
         pushBootstrap(`${protocol}//${window.location.hostname}:3100`);
       }
       pushBootstrap(window.location.origin);
@@ -656,8 +682,9 @@
           publishedApiBaseUrl = normalizeBaseUrl(published.href);
         } catch (_error) {}
       }
-      if (publishedApiBaseUrl && publishedApiBaseUrl !== branding?.base) {
-        const preferred = await fetchBrandingPayload(publishedApiBaseUrl);
+      const reachableApiBaseUrl = preferReachableBase(publishedApiBaseUrl, branding?.base);
+      if (reachableApiBaseUrl && reachableApiBaseUrl !== branding?.base) {
+        const preferred = await fetchBrandingPayload(reachableApiBaseUrl);
         if (preferred) branding = preferred;
       }
       if (branding) {
@@ -669,7 +696,7 @@
         const loopbackFallback = !isNativeShell() && isLoopbackHost(window.location.hostname)
           ? "http://localhost:3100"
           : "";
-        const nextUrl = publishedApiBaseUrl || fileApiBaseUrl || loopbackFallback;
+        const nextUrl = reachableApiBaseUrl || fileApiBaseUrl || loopbackFallback;
         const saved = readConfiguredConnectionSettings();
         const nextKey = nextUrl
           ? (saved.apiKey || normalizeApiKey(fileConfig?.apiKey))

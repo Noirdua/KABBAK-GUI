@@ -365,12 +365,27 @@
       var value = String(url || "").trim().replace(/\/+$/, "");
       if (value && probes.indexOf(value) < 0) probes.push(value);
     }
+    var pageProtocol = location.protocol === "https:" ? "https:" : "http:";
     pushProbe(seeded);
+    pushProbe(location.origin);
     if (location.hostname) {
-      pushProbe((location.protocol === "https:" ? "https:" : "http:") + "//" + location.hostname + ":3100");
+      var labels = String(location.hostname).split(".");
+      if (labels.length >= 3) {
+        var root = labels.slice(1).join(".");
+        pushProbe(pageProtocol + "//api." + root);
+        pushProbe(pageProtocol + "//" + root);
+      }
+      pushProbe(pageProtocol + "//" + location.hostname + ":3100");
     }
     pushProbe("http://127.0.0.1:3100");
     pushProbe("http://localhost:3100");
+    function isReachableBase(published, candidate) {
+      try {
+        return new URL(published).hostname.toLowerCase() === new URL(candidate).hostname.toLowerCase();
+      } catch (error) {
+        return false;
+      }
+    }
     function probe(index) {
       if (index >= probes.length) return;
       fetch(probes[index] + "/api/v1/branding", { cache: "no-store" }).then(function (response) {
@@ -378,11 +393,10 @@
         return response.json();
       }).then(function (payload) {
         var published = payload && payload.apiBaseUrl ? String(payload.apiBaseUrl) : "";
-        if (published) applyServer(published, true);
-        else {
-          var current = document.getElementById("connection-gate-base-url");
-          if (!current || !current.value) applyServer(probes[index], true);
-        }
+        // Prefer the candidate origin we actually reached when the published
+        // base reuses the same host (drops an internal port like :3100).
+        var chosen = published && !isReachableBase(published, probes[index]) ? published : probes[index];
+        applyServer(chosen, true);
       }).catch(function () {
         probe(index + 1);
       });
@@ -3311,7 +3325,7 @@
   <script src="app/ui-theme.js?v=20260911-scroll-perf"></script>
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js?v=20260923-shared"></script>
-  <script src="app/app-config.js?v=20261002-gate-config"></script>
+  <script src="app/app-config.js?v=20261002-api-discovery"></script>
   <script src="app/data-service.js?v=20260925-bootstrap-etag"></script>
   <script src="app/ui-overlay.js?v=20260921-page-settings"></script>
   <script src="app/ui-page-settings.js?v=20260921-appbar-settings"></script>
