@@ -1205,7 +1205,88 @@
     syncSavedSettingsStatus();
     setConnectionSummary(lastConnectionProbeResult);
     bindInteractions();
+    bindAppKeys();
     void loadProfileLocation();
+  }
+
+  function bindAppKeys() {
+    const list = document.getElementById("app-keys-list");
+    const nameEl = document.getElementById("app-key-name");
+    const createEl = document.getElementById("app-key-create");
+    const statusEl = document.getElementById("app-key-status");
+    if (!list || !createEl || list.dataset.bound === "1") return;
+    list.dataset.bound = "1";
+    const setStatus = (text, isError = false) => {
+      if (!statusEl) return;
+      statusEl.textContent = text;
+      statusEl.classList.toggle("is-error", isError);
+    };
+    const render = (keys) => {
+      list.replaceChildren();
+      if (!keys.length) {
+        const empty = document.createElement("p");
+        empty.className = "profile-settings-hint";
+        empty.textContent = "No app keys yet.";
+        list.appendChild(empty);
+        return;
+      }
+      keys.forEach((key) => {
+        const row = document.createElement("div");
+        row.className = "app-key-row";
+        const label = document.createElement("span");
+        label.className = "app-key-name";
+        label.textContent = key.name || key.id;
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "dlc-shop-btn";
+        remove.textContent = "Delete";
+        remove.addEventListener("click", async () => {
+          if (!window.confirm(`Delete the app key “${key.name || key.id}”? Apps using it will stop working.`)) return;
+          remove.disabled = true;
+          try {
+            await window.TarotDataService.requestJson("DELETE", window.TarotDataService.buildApiUrl(`/api/v1/profile/app-keys/${encodeURIComponent(key.id)}`));
+            await refresh();
+            setStatus("App key deleted. This device is still signed in.");
+          } catch (error) {
+            setStatus(error?.message || "Could not delete the app key.", true);
+            remove.disabled = false;
+          }
+        });
+        row.append(label, remove);
+        list.appendChild(row);
+      });
+    };
+    const refresh = async () => {
+      const payload = await window.TarotDataService.requestJson("GET", window.TarotDataService.buildApiUrl("/api/v1/profile/app-keys"));
+      render(Array.isArray(payload?.keys) ? payload.keys : []);
+    };
+    createEl.addEventListener("click", async () => {
+      const name = String(nameEl?.value || "").trim();
+      if (!name) {
+        setStatus("Name the key first.", true);
+        return;
+      }
+      createEl.disabled = true;
+      try {
+        const created = await window.TarotDataService.requestJson("POST", window.TarotDataService.buildApiUrl("/api/v1/profile/app-keys"), { name });
+        if (nameEl) nameEl.value = "";
+        await refresh();
+        statusEl.replaceChildren();
+        statusEl.append("Copy this key now. It will not be shown again.");
+        const secret = document.createElement("div");
+        secret.className = "app-key-secret";
+        secret.textContent = created?.apiKey || "";
+        statusEl.appendChild(secret);
+      } catch (error) {
+        setStatus(error?.message || "Could not create the app key.", true);
+      } finally {
+        createEl.disabled = false;
+      }
+    });
+    document.addEventListener("connection:updated", () => {
+      void refresh().catch(() => {});
+    });
+    void refresh().catch(() => {});
   }
 
   function loadInitialSettingsAndApply() {

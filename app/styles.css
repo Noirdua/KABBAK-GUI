@@ -4123,6 +4123,35 @@
       background: rgba(239, 68, 68, 0.22);
       color: #fecaca;
     }
+    .app-keys-list {
+      display: grid;
+      gap: 6px;
+      margin: 8px 0;
+    }
+    .app-key-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--tt-border);
+      border-radius: 8px;
+      background: var(--tt-surface);
+    }
+    .app-key-name {
+      font-size: 13px;
+      color: var(--tt-text);
+    }
+    .app-key-secret {
+      margin-top: 6px;
+      padding: 8px;
+      border-radius: 8px;
+      background: var(--tt-bg-deep);
+      color: var(--tt-text);
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      word-break: break-all;
+    }
     .settings-logout-hint {
       color: var(--tt-text-muted);
       font-size: 12px;

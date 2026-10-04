@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20261003-cal-settings">
+  <link rel="stylesheet" href="app/styles.css?v=20261003-app-keys">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     #app-loading-screen {
@@ -785,6 +785,16 @@
               <button id="api-logout" class="settings-logout-btn" type="button">Log out</button>
               <span class="settings-logout-hint">Clears the saved API key on this device and returns to the connection screen.</span>
             </div>
+            <h3>App keys</h3>
+            <p class="profile-settings-hint">Named keys for KABBAK Bot and other apps. They use this account and are not the login key. Deleting one does not sign this device out. The secret is shown once.</p>
+            <div id="app-keys-list" class="app-keys-list"></div>
+            <label class="profile-settings-row profile-settings-row-stack" for="app-key-name">New key name
+              <input id="app-key-name" type="text" maxlength="40" placeholder="KABBAK Bot">
+            </label>
+            <div class="settings-connection-actions">
+              <button id="app-key-create" class="settings-button-primary" type="button">Create app key</button>
+            </div>
+            <p id="app-key-status" class="profile-settings-hint" aria-live="polite"></p>
           </section>
           <section class="profile-settings-group">
             <h3>DLC</h3>
@@ -3429,7 +3439,7 @@
   <script src="app/lazy-sections.js?v=20261003-board-menu"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
-  <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
+  <script src="app/ui-settings.js?v=20261003-app-keys"></script>
   <script src="app/ui-dlc-shop.js?v=20261003-phone-menu"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
