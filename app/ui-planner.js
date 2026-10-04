@@ -257,6 +257,10 @@
 
   // Per-calendar settings: which moon phases, and how fine-grained astrology is.
   async function openFilterConfig(kind, anchor) {
+    if (filterPopoverEl && filterPopoverEl.dataset.kind === kind) {
+      closeFilterPopover();
+      return;
+    }
     closeFilterPopover();
     try {
       feedState = await window.TarotDataService.fetchProfileCalendarFeed();
@@ -308,6 +312,17 @@
       });
     }
 
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "planner-filter-close";
+    close.textContent = "Close";
+    close.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      closeFilterPopover();
+    });
+    popover.appendChild(close);
+    popover.dataset.kind = kind;
     (anchor.parentElement || anchor).appendChild(popover);
     filterPopoverEl = popover;
     window.setTimeout(() => {
@@ -367,7 +382,7 @@
     const source = occurrence?.source || "user";
     if (source === "holiday") return "holiday";
     if (source === "moon") return "moon";
-    if (source === "astrology") return "astrology";
+    if (source === "astrology" || source === "day-card") return "astrology";
     if (source === "planetary") return "planetary";
     if (source === "notes") return "notes";
     return "user";
@@ -447,6 +462,7 @@
   // calendar (user events use their own category, notes use dream/journal).
   const SUBSCRIPTION_SOURCE_BY_CATEGORY = {
     astrology: "astrology",
+    "day-card": "day-card",
     moon: "moon",
     holiday: "holiday",
     notes: "notes",
@@ -525,7 +541,7 @@
         calendarId = "holiday";
       } else if (source === "moon") {
         calendarId = "moon";
-      } else if (source === "astrology") {
+      } else       if (source === "astrology" || source === "day-card") {
         calendarId = "astrology";
       } else if (source === "notes") {
         calendarId = "notes";
@@ -537,9 +553,11 @@
     const color = occurrence.editable === false
       ? STATE_ICON[source] || "#cbd5e1"
       : categoryColor(occurrence);
-    const textColor = source === "moon" || source === "holiday" || source === "astrology"
-      ? "#1f2937"
-      : "#ffffff";
+    const isDayCard = source === "day-card" || String(occurrence.category || "") === "day-card";
+    const textColor = isDayCard
+      ? "#f4f4f5"
+      : (source === "moon" || source === "holiday" || source === "astrology" ? "#1f2937" : "#ffffff");
+    const chipColor = isDayCard ? "#312e81" : color;
     const title = occurrence.title || "(untitled)";
 
     if (occurrence.allDay === true) {
@@ -551,8 +569,8 @@
         start: `${occurrence.date}T00:00:00`,
         end: `${isoDate(addDays(parseIsoDate(occurrence.date) || focusDate, 1))}T00:00:00`,
         category: "allday",
-        backgroundColor: nativeColors ? undefined : color,
-        borderColor: nativeColors ? undefined : color,
+        backgroundColor: nativeColors ? undefined : chipColor,
+        borderColor: nativeColors ? undefined : chipColor,
         color: nativeColors ? undefined : textColor,
         raw: occurrence
       }];
@@ -566,8 +584,8 @@
       start: `${occurrence.date}T${segment.startTime}:00`,
       end: `${occurrence.date}T${segment.endTime || segment.startTime}:00`,
       category: "time",
-      backgroundColor: nativeColors ? undefined : color,
-      borderColor: nativeColors ? undefined : color,
+      backgroundColor: nativeColors ? undefined : chipColor,
+      borderColor: nativeColors ? undefined : chipColor,
       color: nativeColors ? undefined : textColor,
       raw: occurrence
     }));

@@ -17148,12 +17148,15 @@
     .toastui-calendar-weekday-event-dot + .toastui-calendar-weekday-event-title {
       color: inherit;
     }
-    #planner-section .toastui-calendar-layout.toastui-calendar-month .toastui-calendar-event-time,
-    #planner-section .toastui-calendar-layout.toastui-calendar-month .toastui-calendar-event-time-content,
-    #planner-section .toastui-calendar-layout.toastui-calendar-month .toastui-calendar-weekday-event-title,
-    #planner-section .toastui-calendar-layout.toastui-calendar-month .toastui-calendar-weekday-event-dot + .toastui-calendar-weekday-event-title,
-    #planner-section .toastui-calendar-layout.toastui-calendar-month .toastui-calendar-template-alldayTitle {
-      color: var(--tt-text) !important;
+    .planner-filter-close {
+      margin-top: 8px;
+      border: 0;
+      background: transparent;
+      color: var(--tt-text-muted);
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      padding: 0;
     }
     .planner-side {
       min-height: 0;
