@@ -1136,6 +1136,54 @@
             </label>
           </div>
           <div class="settings-panel-head" style="margin-top:14px;">
+            <strong>New visitor defaults</strong>
+            <span>Used when someone has not saved their own menu, look, or palette yet. Blank keeps the app default.</span>
+          </div>
+          <div class="settings-grid admin-client-create-grid">
+            <label class="settings-field">Menu layout
+              <select id="admin-setting-gui-menu">
+                <option value="">App default</option>
+                <option value="drawer">Side drawer</option>
+                <option value="panel">Drop-down panel</option>
+              </select>
+            </label>
+            <label class="settings-field">Color palette
+              <select id="admin-setting-gui-theme">
+                <option value="">App default</option>
+                <option value="midnight">Midnight</option>
+                <option value="amethyst">Amethyst</option>
+                <option value="emerald">Emerald</option>
+                <option value="crimson">Crimson</option>
+                <option value="ocean">Ocean</option>
+                <option value="solar">Solar</option>
+                <option value="matrix">Matrix</option>
+              </select>
+            </label>
+            <label class="settings-field">Look
+              <select id="admin-setting-gui-look">
+                <option value="">App default</option>
+                <option value="default">Classic</option>
+                <option value="neon">Neon</option>
+                <option value="wood">Wood</option>
+                <option value="paper">Paper</option>
+                <option value="stone">Stone</option>
+                <option value="velvet">Velvet</option>
+              </select>
+            </label>
+            <label class="settings-field">Time format
+              <select id="admin-setting-gui-time">
+                <option value="">App default</option>
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+                <option value="seconds">Seconds</option>
+              </select>
+            </label>
+            <label class="settings-field settings-field-full">Layout skin
+              <input id="admin-setting-gui-skin" type="text" maxlength="80" placeholder="layout-phone">
+              <span class="settings-field-hint">Installed skin id, such as layout-default, layout-phone, layout-dock, or mindmap-layout. Blank keeps the app default.</span>
+            </label>
+          </div>
+          <div class="settings-panel-head" style="margin-top:14px;">
             <strong>Email</strong>
             <span>Verification codes and password resets. Resend or SMTP; secrets are stored but never shown again.</span>
           </div>
@@ -3355,7 +3403,7 @@
   <script src="app/ui-theme.js?v=20260911-scroll-perf"></script>
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js?v=20260923-shared"></script>
-  <script src="app/app-config.js?v=20261003-boot-branding"></script>
+  <script src="app/app-config.js?v=20261003-gui-defaults"></script>
   <script src="app/data-service.js?v=20260925-bootstrap-etag"></script>
   <script src="app/ui-overlay.js?v=20260921-page-settings"></script>
   <script src="app/ui-page-settings.js?v=20260921-appbar-settings"></script>
@@ -3367,7 +3415,7 @@
   <script src="app/card-images.js?v=20260925-ceremonial"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20261003-admin-option"></script>
+  <script src="app/lazy-sections.js?v=20261003-gui-defaults"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
@@ -3382,7 +3430,7 @@
   <script src="app/ui-inbox.js?v=20260923-shared"></script>
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20261003-boot-branding"></script>
+  <script src="app.js?v=20261003-gui-defaults"></script>
   <script src="app/auth-signup.js?v=20261002-gate-collapse"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">

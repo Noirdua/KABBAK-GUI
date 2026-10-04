@@ -696,8 +696,47 @@
     }
     applyOverlayBackground(brandingPayload.overlayBackgroundUrl, baseUrl);
     applyFavicon(brandingPayload.faviconUrl, baseUrl);
+    applyPublishedGuiDefaults(brandingPayload);
     writeBrandingCache(brandingPayload, baseUrl, logoUrl);
     appliedBrandingBase = base;
+  }
+
+  function hasStoredLook() {
+    try {
+      return Boolean(String(window.localStorage.getItem("tarot-time-app-look-v1") || "").trim());
+    } catch {
+      return false;
+    }
+  }
+
+  function hasStoredSkin() {
+    try {
+      return Boolean(String(window.localStorage.getItem("kabbak-active-skin") || "").trim());
+    } catch {
+      return false;
+    }
+  }
+
+  function applyPublishedGuiDefaults(payload) {
+    const gui = payload?.guiDefaults && typeof payload.guiDefaults === "object" ? payload.guiDefaults : null;
+    if (!gui) return;
+    const source = {};
+    if (gui.menuLayout) source.menuLayout = gui.menuLayout;
+    if (gui.timeFormat) source.timeFormat = gui.timeFormat;
+    if (gui.themeId) source.themeId = gui.themeId;
+    serverDefaults = Object.freeze(normalizeServerDefaults(source));
+    window.TarotAppConfig.serverDefaults = { ...serverDefaults };
+    const lookId = String(gui.lookId || "").trim();
+    if (lookId && !hasStoredLook()) {
+      window.TarotUiLook?.applyLook?.(lookId, { persist: true });
+    }
+    const skinId = String(gui.skinId || "").trim();
+    if (skinId && !hasStoredSkin()) {
+      try {
+        window.localStorage.setItem("kabbak-active-skin", skinId);
+      } catch {
+      }
+    }
   }
 
   async function applyConnectedBranding(baseUrl) {

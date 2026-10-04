@@ -44,6 +44,11 @@
       settingFaviconUrlEl: document.getElementById("admin-setting-favicon-url"),
       settingFaviconFileEl: document.getElementById("admin-setting-favicon-file"),
       settingFaviconClearEl: document.getElementById("admin-setting-favicon-clear"),
+      settingGuiMenuEl: document.getElementById("admin-setting-gui-menu"),
+      settingGuiThemeEl: document.getElementById("admin-setting-gui-theme"),
+      settingGuiLookEl: document.getElementById("admin-setting-gui-look"),
+      settingGuiTimeEl: document.getElementById("admin-setting-gui-time"),
+      settingGuiSkinEl: document.getElementById("admin-setting-gui-skin"),
       settingMailTransportEl: document.getElementById("admin-setting-mail-transport"),
       settingMailProviderEl: document.getElementById("admin-setting-mail-provider"),
       mailApiFieldsEl: document.getElementById("admin-mail-api-fields"),
@@ -2162,6 +2167,11 @@
       settingClientApiHostEl,
       settingClientApiPortEl,
       settingClientApiProtocolEl,
+      settingGuiMenuEl,
+      settingGuiThemeEl,
+      settingGuiLookEl,
+      settingGuiTimeEl,
+      settingGuiSkinEl,
       envReadonlyEl
     } = getElements();
     if (!settingLogModeEl) return;
@@ -2199,6 +2209,12 @@
       if (settingBrowserTitleEl) {
         settingBrowserTitleEl.value = String(settings?.browserTitle || "");
       }
+      const guiDefaults = settings?.guiDefaults && typeof settings.guiDefaults === "object" ? settings.guiDefaults : {};
+      if (settingGuiMenuEl) settingGuiMenuEl.value = String(guiDefaults.menuLayout || "");
+      if (settingGuiThemeEl) settingGuiThemeEl.value = String(guiDefaults.themeId || "");
+      if (settingGuiLookEl) settingGuiLookEl.value = String(guiDefaults.lookId || "");
+      if (settingGuiTimeEl) settingGuiTimeEl.value = String(guiDefaults.timeFormat || "");
+      if (settingGuiSkinEl) settingGuiSkinEl.value = String(guiDefaults.skinId || "");
       if (settingBrandingHomeEl) {
         settingBrandingHomeEl.value = String(settings?.brandingHomeLabel || "");
       }
@@ -2474,6 +2490,11 @@
       settingClientApiHostEl,
       settingClientApiPortEl,
       settingClientApiProtocolEl,
+      settingGuiMenuEl,
+      settingGuiThemeEl,
+      settingGuiLookEl,
+      settingGuiTimeEl,
+      settingGuiSkinEl,
       settingsSaveBtn
     } = getElements();
     if (!settingsSaveBtn) return;
@@ -2493,7 +2514,14 @@
         brandingHomeLabel: String(settingBrandingHomeEl?.value || "").trim(),
         brandingLogoUrl: String(settingBrandingLogoEl?.value || "").trim(),
         overlayBackgroundUrl: String(settingOverlayUrlEl?.value || "").trim(),
-        faviconUrl: String(settingFaviconUrlEl?.value || "").trim()
+        faviconUrl: String(settingFaviconUrlEl?.value || "").trim(),
+        guiDefaults: {
+          menuLayout: String(settingGuiMenuEl?.value || "").trim(),
+          themeId: String(settingGuiThemeEl?.value || "").trim(),
+          lookId: String(settingGuiLookEl?.value || "").trim(),
+          timeFormat: String(settingGuiTimeEl?.value || "").trim(),
+          skinId: String(settingGuiSkinEl?.value || "").trim()
+        }
       };
       const bodyLimit = String(settingBodyLimitEl?.value || "").trim();
       if (bodyLimit) {

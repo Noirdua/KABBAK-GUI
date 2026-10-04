@@ -1505,6 +1505,12 @@ document.addEventListener("connection:access-updated", () => {
   const connected = await ensureConnectedApp(null, { reveal: false, deferWarm: true });
   if (connected) {
     await refreshServerBranding();
+    if (!window.TarotAppConfig?.hasUserSavedSettings?.()) {
+      const publishedDefaults = window.TarotAppConfig?.getServerDefaults?.() || {};
+      initialSettings = settingsUi.mergeServerDefaults?.(publishedDefaults) || initialSettings;
+      currentSettings = { ...initialSettings };
+      appRuntime.applySettings?.(initialSettings);
+    }
   }
   hideLoadingScreen();
   if (!connected) {
