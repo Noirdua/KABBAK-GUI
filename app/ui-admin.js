@@ -1330,7 +1330,7 @@
             id: String(role.id || "").trim(),
             label: String(role.label || role.name || role.id || "").trim()
           }))
-          .filter((role) => role.id);
+          .filter((role) => role.id && role.id !== "admin");
         return permissionCatalog;
       })
       .catch(() => {
@@ -1376,6 +1376,22 @@
       .map((box) => box.value);
   }
 
+  function isClientAdmin(client) {
+    return (client?.roles || []).includes("admin") || (client?.scopes || []).includes("api:admin");
+  }
+
+  function buildAdminClientPatch(client, selectedAccess, extraRoles = []) {
+    const makeAdmin = selectedAccess === "admin";
+    const accessLevel = makeAdmin
+      ? (client?.accessLevel === "pro+" ? "pro+" : "premium")
+      : selectedAccess;
+    const roles = extraRoles.filter((role) => role && role !== "admin");
+    if (makeAdmin) roles.push("admin");
+    const scopes = (Array.isArray(client?.scopes) ? client.scopes : []).filter((scope) => scope !== "api:admin");
+    if (makeAdmin) scopes.push("api:admin");
+    return { accessLevel, roles, scopes };
+  }
+
   async function loadClients() {
     const { clientsTable } = getElements();
     if (!clientsTable) return;
@@ -1407,7 +1423,8 @@
           && client.emailVerified === false
           && client.trialKeyPresent !== true;
         const lastSeen = client.lastSeen ? String(client.lastSeen).replace("T", " ").slice(0, 19) : "never seen";
-        const tiersText = (client.roles || []).map((role) => escapeHtml(role)).join(" · ");
+        const isAdminUser = (client.roles || []).includes("admin") || (client.scopes || []).includes("api:admin");
+        const tiersText = (client.roles || []).filter((role) => role !== "admin").map((role) => escapeHtml(role)).join(" · ");
         row.innerHTML = `
           <span class="admin-user-status ${isOnline ? "is-online" : ""}">${isOnline ? "●" : "○"}</span>
           <div class="admin-client-main">
@@ -1416,7 +1433,7 @@
             ${client.isTrialAccount ? `<span class="admin-user-account">@${escapeHtml(client.username || "?")} · ${escapeHtml(client.email || "no email")} · ${client.trialActive ? "trial active" : (client.trialKeyPresent ? "trial expired" : "no key")}${client.emailVerified === false ? " · unverified" : ""}</span>` : ""}
             ${client.bio ? `<span class="admin-user-bio">${escapeHtml(String(client.bio).slice(0, 160))}</span>` : ""}
           </div>
-          <span class="admin-client-access">${escapeHtml(client.accessLevel || "—")}</span>
+          <span class="admin-client-access">${escapeHtml(isAdminUser ? "admin" : (client.accessLevel || "—"))}</span>
           ${tiersText ? `<span class="admin-role-caps">${tiersText}</span>` : ""}
           <span class="admin-client-key-preview">${escapeHtml(client.keyPreview || (client.hasKey ? "•••" : "no key"))}</span>
           <span class="admin-user-last-seen">${escapeHtml(lastSeen)}</span>
@@ -1495,9 +1512,10 @@
     editor.innerHTML = `
       <input type="text" class="admin-client-edit-name" maxlength="100" value="${escapeHtml(client.name || "")}" placeholder="Name">
       <select class="admin-client-edit-access">
-        <option value="basic"${client.accessLevel === "basic" ? " selected" : ""}>basic</option>
-        <option value="premium"${client.accessLevel === "premium" ? " selected" : ""}>premium</option>
-        <option value="pro+"${client.accessLevel === "pro+" ? " selected" : ""}>pro+</option>
+        <option value="basic"${!isClientAdmin(client) && client.accessLevel === "basic" ? " selected" : ""}>basic</option>
+        <option value="premium"${!isClientAdmin(client) && client.accessLevel === "premium" ? " selected" : ""}>premium</option>
+        <option value="pro+"${!isClientAdmin(client) && client.accessLevel === "pro+" ? " selected" : ""}>pro+</option>
+        <option value="admin"${isClientAdmin(client) ? " selected" : ""}>admin</option>
       </select>
       <div class="admin-client-edit-permissions">
         <span class="settings-field-hint">Permissions</span>
@@ -1512,10 +1530,10 @@
     );
     editor.querySelector('[data-action="save"]').addEventListener("click", async () => {
       const name = editor.querySelector(".admin-client-edit-name").value.trim();
-      const accessLevel = editor.querySelector(".admin-client-edit-access").value;
-      const roles = readPermissionCheckboxes(editor.querySelector('[data-role="permissions"]'));
+      const selectedAccess = editor.querySelector(".admin-client-edit-access").value;
+      const adminPatch = buildAdminClientPatch(client, selectedAccess, readPermissionCheckboxes(editor.querySelector('[data-role="permissions"]')));
       try {
-        await requestJson("PATCH", `/api/v1/admin/api-clients/${encodeURIComponent(client.id)}`, { name, accessLevel, roles });
+        await requestJson("PATCH", `/api/v1/admin/api-clients/${encodeURIComponent(client.id)}`, { name, ...adminPatch });
         setStatus(`Updated ${client.id}.`);
         editor.remove();
         await loadClients();
@@ -1533,14 +1551,13 @@
     clientCreateBtn.addEventListener("click", async () => {
       const { clientNameEl, clientIdEl, clientAccessEl, clientKeyEl } = getElements();
       const rolesEl = document.getElementById("admin-client-roles");
+      const selectedAccess = String(clientAccessEl?.value || "premium");
+      const adminPatch = buildAdminClientPatch({ scopes: [] }, selectedAccess, readPermissionCheckboxes(rolesEl));
       const body = {
         name: String(clientNameEl?.value || "").trim(),
-        accessLevel: String(clientAccessEl?.value || "premium")
+        accessLevel: adminPatch.accessLevel
       };
-      const roles = readPermissionCheckboxes(rolesEl);
-      if (roles.length) {
-        body.roles = roles;
-      }
+      if (adminPatch.roles.length) body.roles = adminPatch.roles;
       if (clientIdEl?.value.trim()) body.id = clientIdEl.value.trim();
       if (clientKeyEl?.value.trim()) body.key = clientKeyEl.value.trim();
       clientCreateBtn.disabled = true;
