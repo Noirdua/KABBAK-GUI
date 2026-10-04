@@ -2685,7 +2685,238 @@
     await load();
   }
 
-  function renderLayoutPhoneSettings(settingsEl) {
+  const PHONE_RAIL_DEFAULTS = [
+    { id: "home", label: "Home", icon: "home", section: "home", navId: "open-home" },
+    { id: "tarot", label: "Tarot", icon: "tarot", section: "tarot", navId: "open-tarot-cards" },
+    { id: "calendar", label: "Calendar", icon: "calendar", section: "planner", navId: "open-calendar" },
+    { id: "kabbalah", label: "Kabbalah", icon: "kabbalah", section: "kabbalah", navId: "open-kabbalah-sephirot" },
+    { id: "iching", label: "I Ching", icon: "iching", section: "iching", navId: "open-iching-hexagrams" },
+    { id: "planets", label: "Planets", icon: "planet", section: "planets", navId: "open-planets" },
+    { id: "alphabet", label: "Alphabet", icon: "alphabet", section: "alphabet", navId: "open-alphabet-word" },
+    { id: "numbers", label: "Numbers", icon: "numbers", section: "numbers", navId: "open-numbers-browse" },
+    { id: "community", label: "Community", icon: "community", section: "community", navId: "open-community" },
+    { id: "quiz", label: "Quiz", icon: "quiz", section: "quiz", navId: "open-quiz" },
+    { id: "games", label: "Games", icon: "games", section: "games", navId: "open-games" },
+    { id: "profile", label: "You", icon: "you", section: "profile", navId: "open-profile" }
+  ];
+  const PHONE_RAIL_ICONS = ["home", "tarot", "calendar", "kabbalah", "iching", "planet", "alphabet", "numbers", "community", "quiz", "games", "you", "more"];
+
+  function phoneSectionForNav(navId) {
+    const known = PHONE_RAIL_DEFAULTS.find((item) => item.navId === navId);
+    if (known) return known.section;
+    return String(navId || "").replace(/^open-/, "");
+  }
+
+  async function renderPhoneMenuEditor(body, status) {
+    const heading = document.createElement("h3");
+    heading.textContent = "Bottom bar";
+    body.appendChild(heading);
+    const hint = document.createElement("span");
+    hint.className = "settings-field-hint";
+    hint.textContent = "Choose what sits on the phone bottom bar, its order, and its label. Anything left off stays in More. Saved for everyone using Phone Layout.";
+    body.appendChild(hint);
+
+    const list = document.createElement("div");
+    list.className = "dlc-phone-menu";
+    body.appendChild(list);
+
+    let rows = PHONE_RAIL_DEFAULTS.map((item) => ({ ...item, enabled: true }));
+    try {
+      const payload = await window.TarotDataService.requestJson(
+        "GET",
+        window.TarotDataService.buildApiUrl("/api/v1/plugins/layout-phone/config")
+      );
+      const saved = Array.isArray(payload?.config?.rail) ? payload.config.rail : [];
+      if (saved.length) {
+        rows = saved.map((item) => ({
+          id: String(item?.id || "").trim(),
+          label: String(item?.label || "").trim(),
+          icon: String(item?.icon || "more").trim() || "more",
+          section: String(item?.section || "").trim(),
+          navId: String(item?.navId || "").trim(),
+          enabled: item?.enabled !== false
+        })).filter((item) => item.id && item.navId);
+      }
+    } catch (_error) {}
+
+    const admin = isAdmin();
+    const addRow = document.createElement("div");
+    addRow.className = "dlc-phone-menu-add";
+    const addSelect = document.createElement("select");
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "dlc-shop-btn";
+    addBtn.textContent = "Add to bar";
+    addBtn.disabled = !admin;
+
+    function refreshAddOptions() {
+      const taken = new Set(rows.map((item) => item.navId));
+      addSelect.replaceChildren();
+      const blank = document.createElement("option");
+      blank.value = "";
+      blank.textContent = "Add a page…";
+      addSelect.appendChild(blank);
+      collectTopbarUnits().forEach((unit) => {
+        if (!unit.id || taken.has(unit.id) || unit.id === "open-home-menu") return;
+        const option = document.createElement("option");
+        option.value = unit.id;
+        option.textContent = unit.label || unit.id;
+        addSelect.appendChild(option);
+      });
+      addSelect.disabled = !admin;
+    }
+
+    function renderRows() {
+      list.replaceChildren();
+      rows.forEach((item, index) => {
+        const row = document.createElement("div");
+        row.className = "dlc-phone-menu-row";
+        const enabled = document.createElement("input");
+        enabled.type = "checkbox";
+        enabled.checked = item.enabled !== false;
+        enabled.disabled = !admin || item.id === "home";
+        enabled.addEventListener("change", () => {
+          item.enabled = enabled.checked;
+        });
+        const label = document.createElement("input");
+        label.type = "text";
+        label.maxLength = 24;
+        label.value = item.label || item.id;
+        label.disabled = !admin;
+        label.addEventListener("input", () => {
+          item.label = label.value;
+        });
+        const icon = document.createElement("select");
+        PHONE_RAIL_ICONS.forEach((name) => {
+          const option = document.createElement("option");
+          option.value = name;
+          option.textContent = name;
+          if (name === item.icon) option.selected = true;
+          icon.appendChild(option);
+        });
+        icon.disabled = !admin;
+        icon.addEventListener("change", () => {
+          item.icon = icon.value;
+        });
+        const up = document.createElement("button");
+        up.type = "button";
+        up.className = "dlc-shop-btn";
+        up.textContent = "Up";
+        up.disabled = !admin || index === 0;
+        up.addEventListener("click", () => {
+          const previous = rows[index - 1];
+          rows[index - 1] = item;
+          rows[index] = previous;
+          renderRows();
+        });
+        const down = document.createElement("button");
+        down.type = "button";
+        down.className = "dlc-shop-btn";
+        down.textContent = "Down";
+        down.disabled = !admin || index === rows.length - 1;
+        down.addEventListener("click", () => {
+          const next = rows[index + 1];
+          rows[index + 1] = item;
+          rows[index] = next;
+          renderRows();
+        });
+        row.append(enabled, label, icon, up, down);
+        if (item.id !== "home" && !PHONE_RAIL_DEFAULTS.some((entry) => entry.id === item.id)) {
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "dlc-shop-btn";
+          remove.textContent = "Remove";
+          remove.disabled = !admin;
+          remove.addEventListener("click", () => {
+            rows.splice(index, 1);
+            renderRows();
+            refreshAddOptions();
+          });
+          row.appendChild(remove);
+        }
+        list.appendChild(row);
+      });
+      refreshAddOptions();
+    }
+
+    addBtn.addEventListener("click", () => {
+      const navId = addSelect.value;
+      if (!navId) return;
+      const unit = collectTopbarUnits().find((entry) => entry.id === navId);
+      const known = PHONE_RAIL_DEFAULTS.find((entry) => entry.navId === navId);
+      rows.push({
+        id: known?.id || navId.replace(/^open-/, ""),
+        label: known?.label || unit?.label || navId,
+        icon: known?.icon || "more",
+        section: known?.section || phoneSectionForNav(navId),
+        navId,
+        enabled: true
+      });
+      renderRows();
+    });
+    addRow.append(addSelect, addBtn);
+    body.appendChild(addRow);
+
+    const actions = document.createElement("div");
+    actions.className = "dlc-phone-menu-actions";
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "settings-button-primary";
+    save.textContent = "Save bottom bar";
+    save.disabled = !admin;
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "dlc-shop-btn";
+    reset.textContent = "Reset";
+    reset.disabled = !admin;
+    actions.append(save, reset);
+    body.appendChild(actions);
+    if (!admin) {
+      const locked = document.createElement("span");
+      locked.className = "settings-field-hint";
+      locked.textContent = "An admin key is required to change the phone menu.";
+      body.appendChild(locked);
+    }
+
+    async function persist(nextRows) {
+      const current = await window.TarotDataService.requestJson(
+        "GET",
+        window.TarotDataService.buildApiUrl("/api/v1/plugins/layout-phone/config")
+      );
+      const config = {
+        ...(current?.config && typeof current.config === "object" ? current.config : {}),
+        rail: nextRows
+      };
+      await window.TarotDataService.requestJson(
+        "POST",
+        window.TarotDataService.buildApiUrl("/api/v1/plugins/layout-phone/config"),
+        { config }
+      );
+      document.dispatchEvent(new CustomEvent("taro-plugin-config-updated", {
+        detail: { pluginName: "layout-phone", config }
+      }));
+    }
+
+    save.addEventListener("click", async () => {
+      save.disabled = true;
+      try {
+        await persist(rows.map((item) => ({ ...item, label: String(item.label || item.id).trim() || item.id })));
+        status.set("Bottom bar saved.");
+      } catch (error) {
+        status.set(error?.message || "Could not save the bottom bar.", true);
+      } finally {
+        save.disabled = !admin;
+      }
+    });
+    reset.addEventListener("click", () => {
+      rows = PHONE_RAIL_DEFAULTS.map((item) => ({ ...item, enabled: true }));
+      renderRows();
+      status.set("Reset in the editor. Save to apply it.");
+    });
+    renderRows();
+  }
+
+  async function renderLayoutPhoneSettings(settingsEl) {
     const status = createSettingsStatus(settingsEl);
     const body = document.createElement("div");
     body.className = "dlc-plugin-settings-body";
@@ -2782,6 +3013,8 @@
       } catch (_error) {}
       status.set("Saved. Reload the page to apply the layout choice.");
     });
+
+    await renderPhoneMenuEditor(body, status);
   }
 
   function openPluginSettings(cardEl, plugin) {

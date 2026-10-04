@@ -64,6 +64,14 @@
       color-scheme: dark;
     }
 
+    /* Windows paints the open list white even when the page is dark, so option
+       text must be dark or country and other selects disappear. */
+    select option,
+    select optgroup {
+      background-color: #ffffff;
+      color: #18181b;
+    }
+
     /* One consistent keyboard focus ring across chrome, menus, and panels.
        :where() keeps specificity at zero so component styles can override. */
     :where(button, a[href], summary, [role="button"], [role="menuitem"], [role="tab"], [tabindex]):focus-visible {
@@ -1015,6 +1023,26 @@
     .connection-gate-account-fields input:focus {
       outline: none;
       border-color: var(--tt-brand);
+    }
+    .connection-gate-password {
+      position: relative;
+    }
+    .connection-gate-password input {
+      padding-right: 64px;
+    }
+    .connection-gate-password-toggle {
+      position: absolute;
+      top: 50%;
+      right: 8px;
+      transform: translateY(-50%);
+      border: 0;
+      background: transparent;
+      color: var(--tt-text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
     }
     .connection-gate-account-actions {
       display: flex;
@@ -2080,7 +2108,27 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .dlc-menu-editor-actions {
+    .dlc-phone-menu {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.dlc-phone-menu-row,
+.dlc-phone-menu-add,
+.dlc-phone-menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.dlc-phone-menu-row input[type="text"] {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.dlc-menu-editor-actions {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
@@ -8951,8 +8999,8 @@
     }
 
     .alpha-lookup-shell select option {
-      background: var(--tt-bg-deepest);
-      color: var(--tt-text);
+      background-color: #ffffff;
+      color: #18181b;
     }
     .alpha-gematria-options-summary {
       margin: 6px 0 2px;

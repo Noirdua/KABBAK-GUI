@@ -2113,6 +2113,44 @@
     return `${parsed.origin}${pathName}${parsed.search}`.replace(/\/api\/v1$/i, "");
   }
 
+  async function fillGuiSkinOptions(selectedId = "") {
+    const { settingGuiSkinEl } = getElements();
+    if (!(settingGuiSkinEl instanceof HTMLSelectElement)) return;
+    const skins = new Map();
+    const addSkin = (id, label) => {
+      const value = String(id || "").trim();
+      if (!value || value === "default") return;
+      if (!skins.has(value)) skins.set(value, String(label || value).trim() || value);
+    };
+    (window.TaroTimePluginHost?.listSkins?.() || []).forEach((skin) => {
+      addSkin(skin.id, skin.name || skin.id);
+    });
+    try {
+      const payload = await requestJson("GET", "/api/v1/plugins");
+      (Array.isArray(payload?.plugins) ? payload.plugins : []).forEach((plugin) => {
+        if (plugin?.role !== "skin" && plugin?.kind !== "skin") return;
+        addSkin(plugin.id || plugin.name, plugin.title || plugin.name || plugin.id);
+      });
+    } catch (_error) {}
+    const selected = String(selectedId || "").trim();
+    if (selected) addSkin(selected, selected);
+    const previous = settingGuiSkinEl.value;
+    settingGuiSkinEl.replaceChildren();
+    const blank = document.createElement("option");
+    blank.value = "";
+    blank.textContent = "App default";
+    settingGuiSkinEl.appendChild(blank);
+    Array.from(skins.entries())
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .forEach(([id, label]) => {
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = label === id ? label : `${label} (${id})`;
+        settingGuiSkinEl.appendChild(option);
+      });
+    settingGuiSkinEl.value = skins.has(selected) ? selected : (skins.has(previous) ? previous : "");
+  }
+
   async function loadServerSettings(options = {}) {
     const requestId = ++serverSettingsRequest;
     const {
@@ -2210,6 +2248,7 @@
         settingBrowserTitleEl.value = String(settings?.browserTitle || "");
       }
       const guiDefaults = settings?.guiDefaults && typeof settings.guiDefaults === "object" ? settings.guiDefaults : {};
+      await fillGuiSkinOptions(String(guiDefaults.skinId || ""));
       if (settingGuiMenuEl) settingGuiMenuEl.value = String(guiDefaults.menuLayout || "");
       if (settingGuiThemeEl) settingGuiThemeEl.value = String(guiDefaults.themeId || "");
       if (settingGuiLookEl) settingGuiLookEl.value = String(guiDefaults.lookId || "");

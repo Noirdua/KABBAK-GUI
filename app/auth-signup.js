@@ -65,6 +65,18 @@
       return;
     }
 
+    panelEl.querySelectorAll(".connection-gate-password-toggle").forEach((button) => {
+      const field = button.parentElement?.querySelector("input");
+      if (!field) return;
+      button.addEventListener("click", () => {
+        const showing = field.type === "text";
+        field.type = showing ? "password" : "text";
+        button.textContent = showing ? "Show" : "Hide";
+        button.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+        button.setAttribute("aria-pressed", showing ? "false" : "true");
+      });
+    });
+
     const state = {
       step: "login",
       username: "",

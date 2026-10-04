@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20261002-gate-collapse">
+  <link rel="stylesheet" href="app/styles.css?v=20261003-select-contrast">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     #app-loading-screen {
@@ -248,7 +248,10 @@
         <div class="connection-gate-step" data-account-step="login">
           <div class="connection-gate-account-fields">
             <input id="connection-gate-login-username" name="kabbak-username" type="text" autocomplete="off" placeholder="Username" aria-label="Username" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
-            <input id="connection-gate-login-password" name="kabbak-password" type="password" autocomplete="off" placeholder="Password" aria-label="Password" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
+            <div class="connection-gate-password">
+              <input id="connection-gate-login-password" name="kabbak-password" type="password" autocomplete="off" placeholder="Password" aria-label="Password" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
+              <button class="connection-gate-password-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button>
+            </div>
           </div>
           <div class="connection-gate-account-actions">
             <button id="connection-gate-signin" type="button">Sign in</button>
@@ -261,7 +264,10 @@
           <div class="connection-gate-account-fields">
             <input id="connection-gate-signup-username" type="text" autocomplete="username" placeholder="Username (public, 3-24 chars)" aria-label="Username">
             <input id="connection-gate-signup-email" type="email" inputmode="email" autocomplete="email" placeholder="Email (private, for verification)" aria-label="Email">
-            <input id="connection-gate-signup-password" type="password" autocomplete="new-password" placeholder="Password (8+ characters)" aria-label="Password">
+            <div class="connection-gate-password">
+              <input id="connection-gate-signup-password" type="password" autocomplete="new-password" placeholder="Password (8+ characters)" aria-label="Password">
+              <button class="connection-gate-password-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button>
+            </div>
           </div>
           <div class="connection-gate-account-actions">
             <button id="connection-gate-signup" type="button">Start 30-day trial</button>
@@ -294,7 +300,10 @@
           <p class="connection-gate-verify-copy">Enter the 6-digit reset code we emailed you, then choose a new password.</p>
           <div class="connection-gate-account-fields">
             <input id="connection-gate-reset-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" aria-label="Reset code">
-            <input id="connection-gate-reset-password" type="password" autocomplete="new-password" placeholder="New password (8+ characters)" aria-label="New password">
+            <div class="connection-gate-password">
+              <input id="connection-gate-reset-password" type="password" autocomplete="new-password" placeholder="New password (8+ characters)" aria-label="New password">
+              <button class="connection-gate-password-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button>
+            </div>
           </div>
           <div class="connection-gate-account-actions">
             <button id="connection-gate-reset-submit" type="button">Set new password</button>
@@ -1179,8 +1188,10 @@
               </select>
             </label>
             <label class="settings-field settings-field-full">Layout skin
-              <input id="admin-setting-gui-skin" type="text" maxlength="80" placeholder="layout-phone">
-              <span class="settings-field-hint">Installed skin id, such as layout-default, layout-phone, layout-dock, or mindmap-layout. Blank keeps the app default.</span>
+              <select id="admin-setting-gui-skin">
+                <option value="">App default</option>
+              </select>
+              <span class="settings-field-hint">Installed layout skins. Blank keeps the app default.</span>
             </label>
           </div>
           <div class="settings-panel-head" style="margin-top:14px;">
@@ -3415,11 +3426,11 @@
   <script src="app/card-images.js?v=20260925-ceremonial"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20261003-gui-defaults"></script>
+  <script src="app/lazy-sections.js?v=20261003-gui-skin-select"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20260919-profile-settings"></script>
-  <script src="app/ui-dlc-shop.js?v=20260923-logs"></script>
+  <script src="app/ui-dlc-shop.js?v=20261003-phone-menu"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
   <script src="app/ui-navigation.js?v=20260923-shared"></script>
@@ -3431,7 +3442,7 @@
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
   <script src="app.js?v=20261003-gui-defaults"></script>
-  <script src="app/auth-signup.js?v=20261002-gate-collapse"></script>
+  <script src="app/auth-signup.js?v=20261003-show-password"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>
