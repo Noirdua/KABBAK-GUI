@@ -1422,7 +1422,8 @@
           <span class="admin-user-last-seen">${escapeHtml(lastSeen)}</span>
           <div class="admin-client-actions">
             ${isPendingAccount
-              ? '<button type="button" class="dlc-shop-btn" data-action="verify">Verify</button>'
+              ? `<button type="button" class="dlc-shop-btn" data-action="verify">Verify</button>
+                 <button type="button" class="dlc-shop-btn" data-action="delete">Delete</button>`
               : `<button type="button" class="dlc-shop-btn" data-action="message">Message</button>
                  <button type="button" class="dlc-shop-btn" data-action="edit">Edit</button>
                  ${client.emailVerified === false ? '<button type="button" class="dlc-shop-btn" data-action="verify">Verify</button>' : ""}
