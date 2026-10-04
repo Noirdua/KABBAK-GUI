@@ -28,10 +28,60 @@
     return window.TarotDataService;
   }
 
+  const TROPICAL_SIGNS = [
+    ["♈", "Aries"], ["♉", "Taurus"], ["♊", "Gemini"], ["♋", "Cancer"],
+    ["♌", "Leo"], ["♍", "Virgo"], ["♎", "Libra"], ["♏", "Scorpio"],
+    ["♐", "Sagittarius"], ["♑", "Capricorn"], ["♒", "Aquarius"], ["♓", "Pisces"]
+  ];
+  let openReplyMenu = null;
+
+  function viewerTimeZone() {
+    const location = window.ProfileUi?.getLocation?.() || window.TarotSettingsUi?.getProfileLocation?.() || null;
+    const zone = String(location?.timeZone || "").trim();
+    if (zone) return zone;
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch {
+      return "";
+    }
+  }
+
+  function viewerSkyLabel(date) {
+    if (!window.Astronomy?.SunPosition) return "";
+    let longitude = NaN;
+    try {
+      const position = window.Astronomy.SunPosition(date);
+      longitude = Number(position?.lon ?? position?.elon);
+    } catch {
+      return "";
+    }
+    if (!Number.isFinite(longitude)) return "";
+    const normalized = ((longitude % 360) + 360) % 360;
+    const index = Math.min(11, Math.floor(normalized / 30));
+    const degree = normalized - index * 30;
+    const decan = Math.min(3, Math.floor(degree / 10) + 1);
+    const [symbol, name] = TROPICAL_SIGNS[index];
+    return `${symbol} ${name} ${degree.toFixed(1)}° · Decan ${decan}`;
+  }
+
   function formatDate(value) {
     if (!value) return "";
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
+    if (Number.isNaN(date.getTime())) return "";
+    const zone = viewerTimeZone();
+    const clock = date.toLocaleString(undefined, zone ? { timeZone: zone } : undefined);
+    const sky = viewerSkyLabel(date);
+    return sky ? `${clock} · ${sky}` : clock;
+  }
+
+  function closeReplyMenus() {
+    document.querySelectorAll(".community-reply-actions .community-actions-menu").forEach((menu) => {
+      menu.hidden = true;
+    });
+    document.querySelectorAll(".community-reply-actions .community-actions-toggle").forEach((toggle) => {
+      toggle.setAttribute("aria-expanded", "false");
+    });
+    openReplyMenu = null;
   }
 
   function appendInlines(parent, text) {
@@ -398,39 +448,53 @@
         const when = document.createElement("span");
         when.className = "community-reply-time";
         when.textContent = formatDate(reply.createdAt);
-        head.append(name, when);
+        when.title = "Clock and sun sign use your timezone, not the author's.";
         const text = document.createElement("div");
         text.className = "community-reply-body";
         setFormatted(text, reply.body || "");
-        const quote = document.createElement("button");
-        quote.type = "button";
-        quote.className = "settings-trigger community-reply-quote";
-        quote.textContent = "Quote";
-        quote.addEventListener("click", () => {
-          startQuote(reply);
-        });
-        const report = document.createElement("button");
-        report.type = "button";
-        report.className = "settings-trigger community-reply-report";
-        report.textContent = "Report";
-        report.addEventListener("click", () => {
-          openReport(reply);
-        });
-        const edit = document.createElement("button");
-        edit.type = "button";
-        edit.className = "settings-trigger community-reply-edit";
-        edit.textContent = "Edit";
-        edit.addEventListener("click", () => {
-          startEditReply(reply, text);
-        });
-        const remove = document.createElement("button");
-        remove.type = "button";
-        remove.className = "settings-trigger community-reply-delete";
-        remove.textContent = "Delete";
-        remove.addEventListener("click", () => {
+        const actions = document.createElement("div");
+        actions.className = "community-reply-actions";
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "settings-trigger community-actions-toggle";
+        toggle.textContent = "Actions ▾";
+        toggle.setAttribute("aria-haspopup", "menu");
+        toggle.setAttribute("aria-expanded", "false");
+        const menu = document.createElement("div");
+        menu.className = "community-actions-menu";
+        menu.hidden = true;
+        menu.setAttribute("role", "menu");
+        const addAction = (label, handler) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "community-actions-item";
+          button.textContent = label;
+          button.setAttribute("role", "menuitem");
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            closeReplyMenus();
+            handler();
+          });
+          menu.appendChild(button);
+        };
+        addAction("Quote", () => startQuote(reply));
+        addAction("Report", () => openReport(reply));
+        addAction("Edit", () => startEditReply(reply, text));
+        addAction("Delete", () => {
           void deleteReply(reply.id);
         });
-        head.append(quote, report, edit, remove);
+        toggle.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const willOpen = menu.hidden;
+          closeReplyMenus();
+          if (willOpen) {
+            menu.hidden = false;
+            openReplyMenu = menu;
+            toggle.setAttribute("aria-expanded", "true");
+          }
+        });
+        actions.append(toggle, menu);
+        head.append(name, when, actions);
         if (reply.quote) {
           const quoted = document.createElement("blockquote");
           quoted.className = "community-quote";
@@ -748,16 +812,18 @@
       item.addEventListener("click", () => setActionsOpen(false));
     });
     document.addEventListener("click", (event) => {
-      if (!actionsMenu || actionsMenu.hidden) return;
       const target = event.target;
-      if (target instanceof Node && !actionsMenu.contains(target) && target !== actionsToggle) {
+      if (actionsMenu && !actionsMenu.hidden && target instanceof Node && !actionsMenu.contains(target) && target !== actionsToggle) {
         setActionsOpen(false);
+      }
+      if (openReplyMenu && target instanceof Node && !openReplyMenu.parentElement?.contains(target)) {
+        closeReplyMenus();
       }
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && actionsMenu && !actionsMenu.hidden) {
-        setActionsOpen(false);
-      }
+      if (event.key !== "Escape") return;
+      if (actionsMenu && !actionsMenu.hidden) setActionsOpen(false);
+      closeReplyMenus();
     });
     el("community-report-send")?.addEventListener("click", () => {
       void sendReport();

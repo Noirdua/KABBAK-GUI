@@ -17133,6 +17133,21 @@
       background-color: var(--tt-bg) !important;
       color: var(--tt-text);
     }
+    #planner-section .toastui-calendar-month .toastui-calendar-day-name-item,
+    #planner-section .toastui-calendar-month .toastui-calendar-grid-cell-date,
+    #planner-section .toastui-calendar-month .toastui-calendar-weekday-grid-date,
+    #planner-section .toastui-calendar-month .toastui-calendar-template-monthGridHeader {
+      color: var(--tt-text) !important;
+    }
+    #planner-section .toastui-calendar-month .toastui-calendar-grid-cell-more-events {
+      color: var(--tt-text-muted) !important;
+    }
+    #planner-section .toastui-calendar-month .toastui-calendar-daygrid-cell {
+      background-color: var(--tt-bg);
+    }
+    .toastui-calendar-weekday-event-dot + .toastui-calendar-weekday-event-title {
+      color: inherit;
+    }
     .planner-side {
       min-height: 0;
       overflow: auto;
@@ -18883,9 +18898,13 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
+    }
+    .community-reply-actions {
+      position: relative;
+      margin-left: auto;
     }
     .community-reply-time {
+      min-width: 0;
       font-size: 11px;
       color: var(--tt-text-muted);
     }

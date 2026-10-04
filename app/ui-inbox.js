@@ -82,6 +82,13 @@
     }
   }
 
+  function attachmentUrl(item, att) {
+    if (att?.url) {
+      return window.TarotDataService.buildApiUrl(att.url);
+    }
+    return window.TarotDataService.buildInboxAttachmentUrl(item.scope, item.id, att.id);
+  }
+
   function buildItem(item) {
     // A div (not a button) so attachment links/images can live inside it safely.
     const row = document.createElement("div");
@@ -143,7 +150,7 @@
       const files = document.createElement("span");
       files.className = "inbox-item-files";
       item.attachments.forEach((att) => {
-        const url = window.TarotDataService.buildInboxAttachmentUrl(item.scope, item.id, att.id);
+        const url = attachmentUrl(item, att);
         if (String(att.type || "").startsWith("image/")) {
           const img = document.createElement("img");
           img.className = "inbox-item-thumb";
@@ -230,7 +237,7 @@
     if (!box) return;
     box.textContent = "";
     (item.attachments || []).forEach((att) => {
-      const url = window.TarotDataService.buildInboxAttachmentUrl(item.scope, item.id, att.id);
+      const url = attachmentUrl(item, att);
       if (String(att.type || "").startsWith("image/")) {
         const img = document.createElement("img");
         img.className = "inbox-item-thumb";

@@ -109,7 +109,7 @@
       "app/quiz-connections.js?v=20260923-shared"
     ],
     community: [
-      "app/ui-board.js?v=20260921-board-actions"
+      "app/ui-board.js?v=20261003-board-menu"
     ],
     games: [
       "app/ui-games.js?v=20260917-stargame2"

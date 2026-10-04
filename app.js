@@ -514,8 +514,8 @@ function buildCalendarTheme() {
     },
     month: {
       dayName: { borderLeft: "none", backgroundColor: "inherit" },
-      holidayExceptThisMonth: { color: faded(holiday, 40) },
-      dayExceptThisMonth: { color: faded(text, 32) },
+      holidayExceptThisMonth: { color: holiday },
+      dayExceptThisMonth: { color: textMuted },
       weekend: { backgroundColor: "inherit" },
       moreView: {
         border: `1px solid ${border}`,
