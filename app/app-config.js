@@ -293,8 +293,10 @@
 
   const LOGO_CANDIDATES = ["logo.png", "logo.svg", "logo.webp", "logo.jpg", "logo.jpeg"];
   const SETTINGS_STORAGE_KEY = "tarot-time-settings-v1";
+  const BRANDING_CACHE_KEY = "kabbak-branding-cache-v1";
 
   let serverDefaults = Object.freeze({});
+  let appliedBrandingBase = "";
   let brandingConfig = Object.freeze({
     title: "KABBAK",
     homeLabel: "KABBAK",
@@ -476,6 +478,8 @@
     const title = String(branding?.title || "KABBAK").trim() || "KABBAK";
     const homeLabel = String(branding?.homeLabel || title).trim() || title;
     document.title = title;
+    const loadingMark = document.querySelector(".app-loading-mark");
+    if (loadingMark) loadingMark.textContent = homeLabel;
 
     const homeButton = document.getElementById("open-home");
     if (!(homeButton instanceof HTMLElement)) {
@@ -603,26 +607,104 @@
     }
   }
 
+  function readBrandingCache() {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(BRANDING_CACHE_KEY) || "null");
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function savedApiBaseUrl() {
+    try {
+      return normalizeBaseUrl(window.localStorage.getItem(apiBaseUrlStorageKey) || "");
+    } catch {
+      return "";
+    }
+  }
+
+  function brandingCacheMatches(cached, baseUrl) {
+    const cachedBase = normalizeBaseUrl(cached?.apiBaseUrl);
+    if (!cachedBase) return false;
+    const base = normalizeBaseUrl(baseUrl);
+    if (!base) return true;
+    return cachedBase === base;
+  }
+
+  function writeBrandingCache(payload, baseUrl, logoUrl) {
+    const base = normalizeBaseUrl(baseUrl);
+    if (!base) return;
+    try {
+      window.localStorage.setItem(BRANDING_CACHE_KEY, JSON.stringify({
+        apiBaseUrl: base,
+        title: String(payload?.title || "").trim(),
+        homeLabel: String(payload?.homeLabel || "").trim(),
+        logoUrl: String(logoUrl || "").trim(),
+        overlayBackgroundUrl: resolvePublicApiUrl(payload?.overlayBackgroundUrl, base),
+        faviconUrl: resolvePublicApiUrl(payload?.faviconUrl, base)
+      }));
+    } catch {
+    }
+  }
+
+  function applyCachedBranding() {
+    const cached = readBrandingCache();
+    const base = savedApiBaseUrl() || normalizeBaseUrl(window.TarotAppConfig?.getApiBaseUrl?.() || "");
+    if (!cached || !brandingCacheMatches(cached, base)) return;
+    const title = String(cached.title || "").trim();
+    const homeLabel = String(cached.homeLabel || "").trim();
+    const logoUrl = String(cached.logoUrl || "").trim();
+    if (title || homeLabel || logoUrl) {
+      brandingConfig = normalizeBranding({
+        title: title || undefined,
+        homeLabel: homeLabel || undefined,
+        logo: logoUrl || ""
+      });
+      applyBranding(brandingConfig, logoUrl);
+      window.TarotAppConfig.branding = { ...brandingConfig };
+    }
+    if (cached.overlayBackgroundUrl) applyOverlayBackground(cached.overlayBackgroundUrl, "");
+    if (cached.faviconUrl) applyFavicon(cached.faviconUrl, "");
+  }
+
   async function applyRemoteBranding(brandingPayload, baseUrl) {
     if (!brandingPayload) return;
     const remoteTitle = String(brandingPayload.title || "").trim();
     const remoteHomeLabel = String(brandingPayload.homeLabel || "").trim();
     const remoteLogo = String(brandingPayload.logoUrl || "").trim();
-    if (remoteTitle || remoteHomeLabel || remoteLogo) {
-      brandingConfig = normalizeBranding({
-        title: remoteTitle || undefined,
-        homeLabel: remoteHomeLabel || undefined,
-        logo: remoteLogo || undefined
-      });
-      window.TarotAppConfig.branding = { ...brandingConfig };
-      const logoUrl = await resolveLogoUrl(brandingConfig.logo);
-      applyBranding(brandingConfig, logoUrl);
+    const resolvedLogo = resolvePublicApiUrl(remoteLogo, baseUrl);
+    const cached = readBrandingCache();
+    const base = normalizeBaseUrl(baseUrl);
+    brandingConfig = normalizeBranding({
+      title: remoteTitle || undefined,
+      homeLabel: remoteHomeLabel || undefined,
+      logo: remoteLogo || ""
+    });
+    window.TarotAppConfig.branding = { ...brandingConfig };
+    let logoUrl = "";
+    if (resolvedLogo) {
+      if (cached && brandingCacheMatches(cached, base) && cached.logoUrl === resolvedLogo) {
+        logoUrl = resolvedLogo;
+      } else {
+        logoUrl = await resolveLogoUrl(resolvedLogo);
+      }
     }
+    applyBranding(brandingConfig, logoUrl);
     if (remoteTitle) {
       document.title = remoteTitle;
     }
     applyOverlayBackground(brandingPayload.overlayBackgroundUrl, baseUrl);
     applyFavicon(brandingPayload.faviconUrl, baseUrl);
+    writeBrandingCache(brandingPayload, baseUrl, logoUrl);
+    appliedBrandingBase = base;
+  }
+
+  async function applyConnectedBranding(baseUrl) {
+    const branding = await fetchBrandingPayload(baseUrl);
+    if (!branding) return false;
+    await applyRemoteBranding(branding.payload, branding.base);
+    return true;
   }
 
   function hasUserSavedSettings() {
@@ -635,14 +717,6 @@
 
   async function loadConfigDefaults() {
     try {
-      brandingConfig = Object.freeze({
-        title: "KABBAK",
-        homeLabel: "KABBAK",
-        logoUrl: ""
-      });
-      applyBranding(brandingConfig, "");
-      window.TarotAppConfig.branding = { ...brandingConfig };
-
       const fileConfig = await readFileConfig();
       if (fileConfig?.features) {
         window.TarotAppConfig?.updateFeatures?.(fileConfig.features);
@@ -874,6 +948,10 @@
     },
     getConnectionStorageHealth,
     loadConfigDefaults,
+    applyConnectedBranding,
+    getAppliedBrandingBase() {
+      return appliedBrandingBase;
+    },
     getServerDefaults() {
       return { ...(this.serverDefaults || serverDefaults || {}) };
     },
@@ -884,4 +962,6 @@
     applyFavicon,
     hasUserSavedSettings
   };
+
+  applyCachedBranding();
 })();

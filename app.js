@@ -904,7 +904,9 @@ async function warmActiveDeckCache() {
   });
 }
 
-async function ensureConnectedApp(nextConnectionSettings = null) {
+async function ensureConnectedApp(nextConnectionSettings = null, options = null) {
+  const reveal = !options || options.reveal !== false;
+  const deferWarm = options?.deferWarm === true;
   const configuredConnection = nextConnectionSettings
     ? normalizeConnectionSettingsInput(nextConnectionSettings)
     : getConnectionSettings();
@@ -957,7 +959,7 @@ async function ensureConnectedApp(nextConnectionSettings = null) {
   try {
     await window.TaroTimePluginHost?.refresh?.();
   } catch (_error) {}
-  hideLoadingScreen();
+  if (reveal) hideLoadingScreen();
   if (!hasRenderedConnectedShell) {
     sectionStateUi.setActiveSection?.("home");
     hasRenderedConnectedShell = true;
@@ -974,7 +976,7 @@ async function ensureConnectedApp(nextConnectionSettings = null) {
     setStatus(error?.message || "Connected, but reference data failed to load.");
   }
 
-  await warmActiveDeckCache();
+  if (!deferWarm) await warmActiveDeckCache();
 
   return true;
 }
@@ -1446,19 +1448,36 @@ syncProfileVisibility();
 syncAdminVisibility();
 applyAdminDeepLink();
 
-// Server branding (title, header label, logo, favicon, overlay) belongs to the
-// server we end up connected to. The boot attempt runs before the gate knows a
-// base URL, so re-run it once the connection lands and whenever it changes.
 let brandingBaseUrl = "";
+let brandingRefreshPromise = null;
+
+function normalizeBrandingBase(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
 
 async function refreshServerBranding() {
-  const base = String(window.TarotDataService?.getApiBaseUrl?.() || "").trim();
-  if (!base || base === brandingBaseUrl) {
+  const base = normalizeBrandingBase(
+    window.TarotDataService?.getApiBaseUrl?.() || window.TarotAppConfig?.getApiBaseUrl?.() || ""
+  );
+  if (!base) return;
+  const applied = normalizeBrandingBase(window.TarotAppConfig?.getAppliedBrandingBase?.() || "");
+  if (applied === base || brandingBaseUrl === base) {
+    brandingBaseUrl = base;
     return;
   }
-  brandingBaseUrl = base;
-  await window.TarotAppConfig?.loadConfigDefaults?.();
+  if (brandingRefreshPromise) return brandingRefreshPromise;
+  brandingRefreshPromise = (async () => {
+    const ok = await window.TarotAppConfig?.applyConnectedBranding?.(base);
+    if (ok) brandingBaseUrl = base;
+  })().finally(() => {
+    brandingRefreshPromise = null;
+  });
+  return brandingRefreshPromise;
 }
+
+document.addEventListener("connection:access-updated", () => {
+  void refreshServerBranding();
+});
 
 (async () => {
   const gateUrl = String(document.getElementById("connection-gate-base-url")?.value || "").trim();
@@ -1483,14 +1502,17 @@ async function refreshServerBranding() {
 
   bindConnectionGate();
   bindApiLogout();
-  const connected = await ensureConnectedApp();
+  const connected = await ensureConnectedApp(null, { reveal: false, deferWarm: true });
+  if (connected) {
+    await refreshServerBranding();
+  }
+  hideLoadingScreen();
   if (!connected) {
     // Skip authenticated warmups when the gate is up: they would just fire
     // 401s. They re-run once the connection (or background reconnect) lands.
     return;
   }
-  // Now that we know the server, load its branding/customizations.
-  await refreshServerBranding();
+  void warmActiveDeckCache();
   // Warm reference data only. Section modules load on first navigation.
   await window.TarotAppRuntime?.ensureReferenceData?.();
   window.TarotLazySections?.scheduleIdleWarmup?.(["planets", "cycles", "zodiac"]);
