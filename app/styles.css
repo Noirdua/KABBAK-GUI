@@ -1,8 +1,10 @@
     :root {
-      --font-script-main: "Noto Sans Hebrew", "Noto Serif", "Noto Sans Phoenician", "Segoe UI Symbol", "Arial Unicode MS", sans-serif;
-      --font-script-display: "Noto Sans Hebrew", "Noto Serif", "Noto Sans Phoenician", "Segoe UI Symbol", serif;
-      --font-script-arabic: "Amiri", "Noto Naskh Arabic", "Scheherazade New", "Arabic Typesetting", "Arial Unicode MS", serif;
-      --font-script-enochian: "Enochian", "Petrus Enochian", "Segoe UI Historic", "Segoe UI Symbol", serif;
+      --font-script-main: var(--font-custom-main, "Noto Sans Hebrew"), "Noto Sans Hebrew", "Noto Serif", "Noto Sans Phoenician", "Segoe UI Symbol", "Arial Unicode MS", sans-serif;
+      --font-script-display: var(--font-custom-display, "Noto Sans Hebrew"), "Noto Sans Hebrew", "Noto Serif", "Noto Sans Phoenician", "Segoe UI Symbol", serif;
+      --font-script-arabic: var(--font-custom-arabic, "Amiri"), "Amiri", "Noto Naskh Arabic", "Scheherazade New", "Arabic Typesetting", "Arial Unicode MS", serif;
+      --font-script-enochian: var(--font-custom-enochian, "Enochian"), "Enochian", "Petrus Enochian", "Segoe UI Historic", "Segoe UI Symbol", serif;
+      --font-script-cjk: var(--font-custom-cjk, "Segoe UI"), "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+      --font-family-iching: "IChing";
       --detail-text-scale: 1;
       /* Color theme tokens. These are the "Midnight" (default) values; ui-theme.js
          overrides them inline on <html> when a different preset or custom theme is
@@ -105,7 +107,7 @@
 
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, var(--font-script-main);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, var(--font-script-main), var(--font-script-cjk);
       background: var(--tt-page-bg);
       color: var(--tt-text);
       overflow-x: hidden;
@@ -7340,6 +7342,46 @@
     }
     .iching-line.is-yin::after {
       right: 0;
+    }
+    .iching-font-glyph {
+      font-family: var(--font-family-iching, "IChing");
+      font-weight: 400;
+      font-style: normal;
+      font-synthesis: none;
+      line-height: 1.15;
+      color: var(--tt-text-softer);
+      display: inline-block;
+      user-select: none;
+    }
+    .iching-font-glyph::before {
+      content: attr(data-glyph);
+    }
+    .iching-font-glyph--list {
+      font-size: 30px;
+      width: 1.35em;
+      text-align: center;
+    }
+    .iching-font-glyph--hexagram {
+      font-size: calc(128px * var(--detail-text-scale));
+      display: block;
+      padding: 0.04em 0 0.12em;
+    }
+    .iching-font-glyph--trigram {
+      font-size: calc(78px * var(--detail-text-scale));
+      display: block;
+      padding: 0.04em 0 0.1em;
+    }
+    .list-item:has(.iching-font-glyph) {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      column-gap: 8px;
+      align-items: center;
+    }
+    .list-item:has(.iching-font-glyph) .iching-font-glyph {
+      grid-row: 1 / span 2;
+    }
+    .script-cjk {
+      font-family: var(--font-script-cjk);
     }
     .iching-diagram {
       margin: 6px 0 0;

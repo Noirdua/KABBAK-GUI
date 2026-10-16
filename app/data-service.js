@@ -1325,11 +1325,15 @@
     );
   }
 
-  async function fetchProfileCalendarEvents(fromIso, toIso) {
+  async function fetchProfileCalendarEvents(fromIso, toIso, layers) {
+    // The planner passes its enabled layer filters so the in-app view follows
+    // the toggles even before a subscription selection is saved.
+    const layerList = Array.isArray(layers) ? layers.filter(Boolean) : [];
     return requestJson("GET", buildApiUrl("/api/v1/profile/calendar-events", {
       from: fromIso,
       to: toIso,
-      utcOffsetMinutes: String(-new Date().getTimezoneOffset())
+      utcOffsetMinutes: String(-new Date().getTimezoneOffset()),
+      layers: layerList.length ? layerList.join(",") : undefined
     }));
   }
 

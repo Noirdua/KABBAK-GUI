@@ -13,7 +13,7 @@
     travel: "#f59e0b",
     other: "#94a3b8"
   };
-  const STATE_ICON = { holiday: "#fde68a", moon: "#c7d2fe", astrology: "#fcd34d", notes: "#6366f1", planetary: "#52525b" };
+  const STATE_ICON = { holiday: "#fde68a", moon: "#c7d2fe", astrology: "#fcd34d", notes: "#6366f1", planetary: "#52525b", sun: "#fb923c" };
   const MAX_SEGMENTS_UI = 12;
   const MAX_ATTACHMENTS_UI = 6;
   const MAX_ATTACHMENT_BYTES_UI = 5 * 1024 * 1024;
@@ -25,6 +25,7 @@
     { id: "astrology", text: "Astrology (decans)", defaultOn: false },
     { id: "moon", text: "Moon phases", defaultOn: true },
     { id: "planetary", text: "Planetary hours", defaultOn: false },
+    { id: "sun", text: "Sunrise & sunset", defaultOn: false },
     { id: "holidays", text: "Holidays", defaultOn: true }
   ];
   const FEED_LAYER_IDS = Object.fromEntries(FEED_LAYERS.map((layer) => [layer.id, `planner-feed-layer-${layer.id}`]));
@@ -45,7 +46,8 @@
     { id: "astrology", text: "Astrology", configurable: true },
     { id: "moon", text: "Moon", configurable: true },
     { id: "holidays", text: "Holidays" },
-    { id: "planetary", text: "Planetary hours" }
+    { id: "planetary", text: "Planetary hours" },
+    { id: "sun", text: "Sunrise & sunset", configurable: true }
   ];
   const PLANNER_FILTER_IDS = PLANNER_FILTERS.map((entry) => entry.id);
   const MOON_PHASE_CHOICES = [
@@ -59,8 +61,12 @@
     { value: "degree", label: "Every degree (about daily)" },
     { value: "sign", label: "Sign ingresses only" }
   ];
+  const SUN_EVENT_CHOICES = [
+    { slug: "sunrise", label: "Sunrise" },
+    { slug: "sunset", label: "Sunset" }
+  ];
 
-  let plannerFilterState = { events: true, astrology: true, moon: true, holidays: true, planetary: true };
+  let plannerFilterState = { events: true, astrology: true, moon: true, holidays: true, planetary: true, sun: true };
   let overlayOccurrences = [];
   let planetaryOccurrences = [];
   let filterPopoverEl = null;
@@ -221,10 +227,17 @@
         moonPhases: Array.isArray(options.moonPhases)
           ? options.moonPhases
           : MOON_PHASE_CHOICES.map((phase) => phase.slug),
-        astrologyDetail: options.astrologyDetail || "decan"
+        astrologyDetail: options.astrologyDetail || "decan",
+        sunEvents: Array.isArray(options.sunEvents)
+          ? options.sunEvents
+          : SUN_EVENT_CHOICES.map((entry) => entry.slug)
       };
     }
-    return { moonPhases: MOON_PHASE_CHOICES.map((phase) => phase.slug), astrologyDetail: "decan" };
+    return {
+      moonPhases: MOON_PHASE_CHOICES.map((phase) => phase.slug),
+      astrologyDetail: "decan",
+      sunEvents: SUN_EVENT_CHOICES.map((entry) => entry.slug)
+    };
   }
 
   // Reveal the calendar only once it has been themed and populated.
@@ -255,7 +268,7 @@
     }
   }
 
-  // Per-calendar settings: which moon phases, and how fine-grained astrology is.
+  // Per-calendar settings: moon phases, astrology boundary size, sun boundaries.
   async function openFilterConfig(kind, anchor) {
     if (filterPopoverEl && filterPopoverEl.dataset.kind === kind) {
       closeFilterPopover();
@@ -268,10 +281,15 @@
       // fall back to whatever state we have (defaults)
     }
     const options = readFeedOptions();
+    // Every save sends all options: the server treats an absent array as "all",
+    // so omitting one would reset a previously narrowed selection.
+    const saveOptions = (patch) => saveFeedOptions({ ...options, ...patch });
     const popover = document.createElement("div");
     popover.className = "planner-filter-popover";
     const title = document.createElement("strong");
-    title.textContent = kind === "moon" ? "Moon phases" : "Astrology events";
+    title.textContent = kind === "moon"
+      ? "Moon phases"
+      : (kind === "sun" ? "Sun events" : "Astrology events");
     popover.appendChild(title);
 
     if (kind === "moon") {
@@ -286,12 +304,34 @@
           const selected = MOON_PHASE_CHOICES
             .filter((entry) => popover.querySelector(`[data-phase="${entry.slug}"]`)?.checked)
             .map((entry) => entry.slug);
-          void saveFeedOptions({ moonPhases: selected, astrologyDetail: options.astrologyDetail });
+          void saveOptions({ moonPhases: selected });
         });
         option.appendChild(input);
         option.appendChild(document.createTextNode(` ${phase.label}`));
         popover.appendChild(option);
       });
+    } else if (kind === "sun") {
+      SUN_EVENT_CHOICES.forEach((choice) => {
+        const option = document.createElement("label");
+        option.className = "planner-filter-option";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.setAttribute("data-sun-event", choice.slug);
+        input.checked = options.sunEvents.includes(choice.slug);
+        input.addEventListener("change", () => {
+          const selected = SUN_EVENT_CHOICES
+            .filter((entry) => popover.querySelector(`[data-sun-event="${entry.slug}"]`)?.checked)
+            .map((entry) => entry.slug);
+          void saveOptions({ sunEvents: selected });
+        });
+        option.appendChild(input);
+        option.appendChild(document.createTextNode(` ${choice.label}`));
+        popover.appendChild(option);
+      });
+      const hint = document.createElement("span");
+      hint.className = "settings-field-hint";
+      hint.textContent = "Uses the profile location; without one the feed stays empty.";
+      popover.appendChild(hint);
     } else {
       ASTROLOGY_DETAIL_CHOICES.forEach((choice) => {
         const option = document.createElement("label");
@@ -303,7 +343,7 @@
         input.checked = options.astrologyDetail === choice.value;
         input.addEventListener("change", () => {
           if (input.checked) {
-            void saveFeedOptions({ moonPhases: options.moonPhases, astrologyDetail: choice.value });
+            void saveOptions({ astrologyDetail: choice.value });
           }
         });
         option.appendChild(input);
@@ -366,6 +406,7 @@
     if (id === "astrology") return "astrology";
     if (id === "moon") return "moon";
     if (id === "holiday") return "holidays";
+    if (id === "sun") return "sun";
     if (id === "planetary" || id.startsWith("planet-")) return "planetary";
     return "";
   }
@@ -383,6 +424,7 @@
     if (source === "holiday") return "holiday";
     if (source === "moon") return "moon";
     if (source === "astrology" || source === "day-card") return "astrology";
+    if (source === "sun") return "sun";
     if (source === "planetary") return "planetary";
     if (source === "notes") return "notes";
     return "user";
@@ -465,6 +507,7 @@
     "day-card": "day-card",
     moon: "moon",
     holiday: "holiday",
+    sun: "sun",
     notes: "notes",
     dream: "notes",
     journal: "notes"
@@ -487,7 +530,7 @@
     if (!source) {
       return null;
     }
-    const timed = Boolean(event.time) && (source === "astrology" || source === "moon");
+    const timed = Boolean(event.time) && (source === "astrology" || source === "moon" || source === "sun");
     const occurrence = {
       id: event.id,
       eventId: "",
@@ -504,14 +547,25 @@
     return occurrence;
   }
 
-  // The in-app calendar shows exactly what the profile is subscribed to, from
-  // the same server computation that builds the ICS feed.
+  // The in-app calendar shows the layers its filters ask for, computed by the
+  // same server code that builds the ICS feed. `events` and `planetary` stay
+  // local (profile events API / week-events), so they are not requested here.
+  const OVERLAY_FILTER_IDS = ["notes", "astrology", "moon", "holidays", "sun"];
+
+  function enabledOverlayLayers() {
+    return OVERLAY_FILTER_IDS.filter((id) => plannerFilterState[id] !== false);
+  }
+
   async function buildOverlayOccurrences(from, to) {
     if (typeof window.TarotDataService?.fetchProfileCalendarEvents !== "function") {
       return [];
     }
+    const layers = enabledOverlayLayers();
+    if (!layers.length) {
+      return [];
+    }
     try {
-      const payload = await window.TarotDataService.fetchProfileCalendarEvents(isoDate(from), isoDate(to));
+      const payload = await window.TarotDataService.fetchProfileCalendarEvents(isoDate(from), isoDate(to), layers);
       const events = Array.isArray(payload?.events) ? payload.events : [];
       return events.map(subscriptionOccurrence).filter(Boolean);
     } catch (_error) {
@@ -543,6 +597,8 @@
         calendarId = "moon";
       } else       if (source === "astrology" || source === "day-card") {
         calendarId = "astrology";
+      } else if (source === "sun") {
+        calendarId = "sun";
       } else if (source === "notes") {
         calendarId = "notes";
       }
@@ -556,7 +612,7 @@
     const isDayCard = source === "day-card" || String(occurrence.category || "") === "day-card";
     const textColor = isDayCard
       ? "#f4f4f5"
-      : (source === "moon" || source === "holiday" || source === "astrology" ? "#1f2937" : "#ffffff");
+      : (source === "moon" || source === "holiday" || source === "astrology" || source === "sun" ? "#1f2937" : "#ffffff");
     const chipColor = isDayCard ? "#312e81" : color;
     const title = occurrence.title || "(untitled)";
 

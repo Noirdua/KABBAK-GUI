@@ -591,6 +591,14 @@ const calendar = new tui.Calendar("#calendar", {
       backgroundColor: "#c7d2fe",
       dragBackgroundColor: "#c7d2fe",
       borderColor: "#c7d2fe"
+    },
+    {
+      id: "sun",
+      name: "Sunrise & Sunset",
+      color: "#1f2937",
+      backgroundColor: "#fb923c",
+      dragBackgroundColor: "#fb923c",
+      borderColor: "#fb923c"
     }
   ],
   week: {

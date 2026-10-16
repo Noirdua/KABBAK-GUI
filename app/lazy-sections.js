@@ -60,8 +60,8 @@
     ],
     iching: [
       "app/ui-iching-references.js?v=20260923-shared",
-      "app/ui-iching.js?v=20260914-deck-compare",
-      "app/ui-iching-trigram.js?v=20260820-template",
+      "app/ui-iching.js?v=20261016-fonts",
+      "app/ui-iching-trigram.js?v=20261016-fonts",
       "app/ui-iching-bigram.js?v=20260820-template",
       "app/ui-iching-phase.js?v=20260820-template"
     ],

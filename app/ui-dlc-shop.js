@@ -3838,6 +3838,16 @@
       wrap.hidden = true;
       return wrap;
     }
+    const glyph = window.KabbakFonts?.createGlyph?.(
+      "iching",
+      "binary",
+      chars.join(""),
+      "iching-font-glyph iching-font-glyph--hexagram"
+    );
+    if (glyph) {
+      wrap.appendChild(glyph);
+      return wrap;
+    }
     chars.forEach((char) => {
       const line = document.createElement("span");
       line.className = `tt-hex-line ${char === "1" ? "is-yang" : "is-yin"}`;

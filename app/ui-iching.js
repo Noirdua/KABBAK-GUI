@@ -140,6 +140,15 @@
   }
 
   function createLineStack(binaryPattern, variant = "trigram") {
+    const glyph = window.KabbakFonts?.createGlyph?.(
+      "iching",
+      "binary",
+      binaryPattern,
+      `iching-font-glyph iching-font-glyph--${variant}`
+    );
+    if (glyph) {
+      return glyph;
+    }
     const container = document.createElement("div");
     container.className = `iching-lines iching-lines-${variant}`;
 
@@ -706,6 +715,12 @@
       button.dataset.hexagramNumber = String(entry.number);
       button.setAttribute("role", "option");
 
+      const glyph = window.KabbakFonts?.createGlyph?.(
+        "iching",
+        "hexagram",
+        entry.number,
+        "iching-font-glyph iching-font-glyph--list"
+      );
       const nameEl = document.createElement("span");
       nameEl.className = "list-name";
       const number = Number.isFinite(entry.number) ? `#${entry.number} ` : "";
@@ -717,7 +732,7 @@
       const lower = entry.lowerTrigram || "--";
       metaEl.textContent = `${upper}/${lower} · ${entry.planetaryInfluence || "--"}`;
 
-      button.append(nameEl, metaEl);
+      button.append(...[glyph, nameEl, metaEl].filter(Boolean));
       elements.ichingCardListEl.appendChild(button);
     });
 
@@ -918,6 +933,18 @@
 
     return selectByHexagramNumber(entry.number);
   }
+
+  document.addEventListener("fonts:loaded", () => {
+    if (!state.initialized) {
+      return;
+    }
+    const elements = getElements();
+    renderList(elements);
+    const selected = state.hexagrams.find((hexagram) => hexagram.number === state.selectedNumber);
+    if (selected) {
+      renderDetail(selected, elements);
+    }
+  });
 
   window.IChingSectionUi = {
     ensureIChingSection,

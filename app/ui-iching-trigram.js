@@ -8,6 +8,15 @@
   };
 
   function createLineDiagram(binary) {
+    const glyph = window.KabbakFonts?.createGlyph?.(
+      "iching",
+      "trigram",
+      binary,
+      "iching-font-glyph iching-font-glyph--trigram"
+    );
+    if (glyph) {
+      return glyph;
+    }
     const container = document.createElement("div");
     container.className = "iching-lines";
     if (!binary) {
@@ -37,6 +46,12 @@
         btn.setAttribute("aria-selected", "true");
       }
 
+      const glyph = window.KabbakFonts?.createGlyph?.(
+        "iching",
+        "trigram",
+        trigram.binary,
+        "iching-font-glyph iching-font-glyph--list"
+      );
       const nameEl = document.createElement("span");
       nameEl.className = "list-name";
       nameEl.textContent = trigram.name;
@@ -45,7 +60,7 @@
       metaEl.className = "list-meta";
       metaEl.textContent = `${trigram.element} · ${trigram.attribute}`;
 
-      btn.append(nameEl, metaEl);
+      btn.append(...[glyph, nameEl, metaEl].filter(Boolean));
       btn.addEventListener("click", () => {
         state.selectedName = trigram.name;
         renderList();
@@ -102,6 +117,13 @@
     const countEl = document.getElementById("iching-trigram-count");
     if (countEl) countEl.textContent = String(state.trigrams.length);
   }
+
+  document.addEventListener("fonts:loaded", () => {
+    if (!state.initialized) {
+      return;
+    }
+    selectFirst();
+  });
 
   window.IChingTrigramSectionUi = {
     ensureIChingTrigramSection
