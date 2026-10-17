@@ -29,6 +29,15 @@
     { id: "holidays", text: "Holidays", defaultOn: true }
   ];
   const FEED_LAYER_IDS = Object.fromEntries(FEED_LAYERS.map((layer) => [layer.id, `planner-feed-layer-${layer.id}`]));
+  const FEED_LAYER_COLORS = {
+    user: "#6366F1",
+    notes: "#818CF8",
+    holidays: "#FDE68A",
+    moon: "#C7D2FE",
+    astrology: "#FCD34D",
+    planetary: "#52525B",
+    sun: "#FB923C"
+  };
 
   let bound = false;
   let view = "month";
@@ -1425,7 +1434,7 @@
     if (!feedState?.enabled || !feedState?.token) {
       return "";
     }
-    return window.TarotDataService.buildApiUrl("/api/v1/calendar/feed.ics", { token: feedState.token });
+    return feedUrlForToken(feedState.token);
   }
 
   function setLayerStatus(message, isError = false) {
@@ -1469,6 +1478,199 @@
     feedPrefsSaveTimer = window.setTimeout(run, 350);
   }
 
+  function feedUrlForToken(token) {
+    if (!token || !window.TarotDataService?.buildApiUrl) return "";
+    return window.TarotDataService.buildApiUrl("/api/v1/calendar/feed.ics", { token });
+  }
+
+  function copyText(value, okMessage) {
+    const text = String(value || "");
+    if (!text) return;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => setFeedStatus(okMessage || "URL copied."),
+        () => setFeedStatus("Could not copy. Select the URL and copy it manually.")
+      );
+      return;
+    }
+    setFeedStatus("Select the URL and copy it manually.");
+  }
+
+  async function mutateFeed(payload, pending) {
+    setFeedStatus(pending || "Updating…");
+    feedState = await window.TarotDataService.updateProfileCalendarFeed(payload);
+    applyFeedState();
+  }
+
+  function layerLabel(id) {
+    return FEED_LAYERS.find((layer) => layer.id === id)?.text || id;
+  }
+
+  function ensureFeedCalendars() {
+    let wrap = el("planner-feed-calendars");
+    const card = el("planner-feed")?.querySelector(".planner-modal-card");
+    if (!wrap && card) {
+      wrap = document.createElement("div");
+      wrap.id = "planner-feed-calendars";
+      wrap.className = "planner-feed-calendars";
+      const actions = card.querySelector(".planner-modal-actions");
+      card.insertBefore(wrap, actions || null);
+    }
+    return wrap;
+  }
+
+  function buildFeedCalendarChrome(wrap) {
+    const title = document.createElement("strong");
+    title.textContent = "Separate calendars";
+    wrap.appendChild(title);
+    const copy = document.createElement("p");
+    copy.className = "planner-feed-copy";
+    copy.textContent = "Subscribe to each URL on its own, then set that calendar's color in the app. Google, Apple, and Outlook cannot split one URL into colored groups.";
+    wrap.appendChild(copy);
+    const split = document.createElement("button");
+    split.type = "button";
+    split.className = "planner-btn";
+    split.textContent = "One URL per selected layer";
+    split.addEventListener("click", () => {
+      const layers = selectedFeedLayers();
+      if (!layers.length) {
+        setFeedStatus("Select at least one layer first.");
+        return;
+      }
+      void mutateFeed({ action: "split-calendars", layers }, "Creating calendars…")
+        .then(() => setFeedStatus("Separate URLs ready. Copy each one into your calendar app."))
+        .catch((error) => setFeedStatus(error?.message || "Could not create calendars."));
+    });
+    wrap.appendChild(split);
+    const list = document.createElement("div");
+    list.dataset.feedCalendarList = "1";
+    list.className = "planner-feed-calendars";
+    wrap.appendChild(list);
+    const form = document.createElement("div");
+    form.className = "planner-feed-calendar-form";
+    form.dataset.feedCalendarForm = "1";
+    const name = document.createElement("input");
+    name.type = "text";
+    name.maxLength = 80;
+    name.placeholder = "Calendar name";
+    name.setAttribute("aria-label", "Calendar name");
+    form.appendChild(name);
+    const picks = document.createElement("div");
+    picks.className = "planner-feed-layer-picks";
+    FEED_LAYERS.forEach((layer) => {
+      const label = document.createElement("label");
+      label.className = "planner-check";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = layer.id;
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(` ${layer.text}`));
+      picks.appendChild(label);
+    });
+    form.appendChild(picks);
+    const row = document.createElement("div");
+    row.className = "planner-feed-calendar-actions";
+    const color = document.createElement("input");
+    color.type = "color";
+    color.value = "#6366F1";
+    color.setAttribute("aria-label", "Suggested calendar color");
+    row.appendChild(color);
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "planner-btn";
+    add.textContent = "Add calendar";
+    add.addEventListener("click", () => {
+      const layers = [...picks.querySelectorAll("input:checked")].map((input) => input.value);
+      if (!name.value.trim() || !layers.length) {
+        setFeedStatus("A calendar needs a name and at least one layer.");
+        return;
+      }
+      void mutateFeed({
+        action: "add-calendar",
+        name: name.value.trim(),
+        layers,
+        color: color.value
+      }, "Adding calendar…")
+        .then(() => {
+          name.value = "";
+          picks.querySelectorAll("input").forEach((input) => {
+            input.checked = false;
+          });
+          setFeedStatus("Calendar URL ready. Copy it into your calendar app.");
+        })
+        .catch((error) => setFeedStatus(error?.message || "Could not add the calendar."));
+    });
+    row.appendChild(add);
+    form.appendChild(row);
+    wrap.appendChild(form);
+  }
+
+  function fillFeedCalendarList(list) {
+    if (!list) return;
+    list.textContent = "";
+    const calendars = Array.isArray(feedState?.calendars) ? feedState.calendars : [];
+    if (!calendars.length) {
+      const empty = document.createElement("p");
+      empty.className = "planner-feed-copy";
+      empty.textContent = "No separate calendars yet.";
+      list.appendChild(empty);
+      return;
+    }
+    calendars.forEach((calendar) => {
+      const card = document.createElement("div");
+      card.className = "planner-feed-calendar";
+      const head = document.createElement("div");
+      head.className = "planner-feed-calendar-head";
+      const swatch = document.createElement("span");
+      swatch.className = "planner-feed-swatch";
+      swatch.style.backgroundColor = calendar.color || FEED_LAYER_COLORS[calendar.layers?.[0]] || "#6366F1";
+      head.appendChild(swatch);
+      const title = document.createElement("strong");
+      title.textContent = calendar.name || "Calendar";
+      head.appendChild(title);
+      const meta = document.createElement("span");
+      meta.textContent = (calendar.layers || []).map(layerLabel).join(", ");
+      head.appendChild(meta);
+      card.appendChild(head);
+      const url = document.createElement("input");
+      url.type = "text";
+      url.readOnly = true;
+      url.value = feedState?.enabled && calendar.enabled ? feedUrlForToken(calendar.token) : "";
+      url.placeholder = feedState?.enabled ? "Calendar disabled" : "Enable the feed to use this URL";
+      card.appendChild(url);
+      const actions = document.createElement("div");
+      actions.className = "planner-feed-calendar-actions";
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "planner-btn";
+      copy.textContent = "Copy URL";
+      copy.addEventListener("click", () => copyText(url.value, `Copied ${calendar.name}.`));
+      actions.appendChild(copy);
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "planner-btn planner-danger";
+      remove.textContent = "Remove";
+      remove.addEventListener("click", () => {
+        void mutateFeed({ action: "remove-calendar", calendarId: calendar.id }, "Removing…")
+          .then(() => setFeedStatus("Calendar removed. Unsubscribe that URL in your calendar app too."))
+          .catch((error) => setFeedStatus(error?.message || "Could not remove the calendar."));
+      });
+      actions.appendChild(remove);
+      card.appendChild(actions);
+      list.appendChild(card);
+    });
+  }
+
+  function renderFeedCalendars() {
+    const wrap = ensureFeedCalendars();
+    if (!wrap) return;
+    if (wrap.dataset.ready !== "1") {
+      wrap.dataset.ready = "1";
+      buildFeedCalendarChrome(wrap);
+    }
+    fillFeedCalendarList(wrap.querySelector("[data-feed-calendar-list]"));
+  }
+
   function applyFeedState() {
     const urlInput = el("planner-feed-url");
     const enableButton = el("planner-feed-enable");
@@ -1494,6 +1696,7 @@
     if (copyButton) {
       copyButton.hidden = !enabled;
     }
+    renderFeedCalendars();
   }
 
   async function refreshFeed() {
@@ -1524,19 +1727,7 @@
   }
 
   function copyFeed() {
-    const value = String(el("planner-feed-url")?.value || "");
-    if (!value) {
-      return;
-    }
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(value).then(
-        () => setFeedStatus("Feed URL copied."),
-        () => setFeedStatus("Could not copy. Select the URL and copy it manually.")
-      );
-      return;
-    }
-    el("planner-feed-url")?.select?.();
-    setFeedStatus("Select the URL and copy it manually.");
+    copyText(el("planner-feed-url")?.value, "Combined URL copied.");
   }
 
   function step(direction) {

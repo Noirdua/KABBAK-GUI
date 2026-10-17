@@ -469,7 +469,19 @@
       return code ? (window.TarotDataService?.toApiAssetUrl?.(`img/enochian/char(${code}).png`) || "") : "";
     }
 
+    function enochianFontGlyphHtml(letter, className) {
+      const key = enochianGlyphKey(letter);
+      const fonts = window.KabbakFonts;
+      if (!key || !fonts?.isSymbolLoaded?.("enochian")) return null;
+      const character = fonts.symbol("enochian", "letter", key);
+      const family = fonts.familyForScript("enochian");
+      if (!character || !family) return null;
+      return html`<span class="kabbak-symbol-glyph ${className}" style="font-family: '${family}', sans-serif" data-glyph="${character}" aria-hidden="true"></span>`;
+    }
+
     function enochianGlyphImageHtml(letter, className) {
+      const fontGlyph = enochianFontGlyphHtml(letter, className);
+      if (fontGlyph) return fontGlyph;
       const src = enochianGlyphUrl(letter);
       const key = enochianGlyphKey(letter) || "?";
       if (!src) {
@@ -506,17 +518,37 @@
             ? " alpha-list-glyph--enochian"
             : "";
         glyph.className = "alpha-list-glyph" + glyphVariantClass;
-        if (alphabet === "enochian") {
-          const image = document.createElement("img");
-          image.className = "alpha-enochian-glyph-img alpha-enochian-glyph-img--list";
-          image.src = enochianGlyphUrl(letter);
-          image.alt = `Enochian ${enochianGlyphKey(letter) || "?"}`;
-          image.loading = "lazy";
-          image.decoding = "async";
-          image.addEventListener("error", () => {
-            glyph.textContent = enochianGlyphKey(letter) || "?";
-          });
-          glyph.appendChild(image);
+        const greekFontGlyph = alphabet === "greek" || alphabet === "greekArchaic"
+          ? window.KabbakFonts?.createGlyph?.(
+            "greek",
+            "letter",
+            String(letter?.name || "").toLowerCase(),
+            "alpha-list-glyph alpha-list-glyph--greek"
+          )
+          : null;
+        if (greekFontGlyph) {
+          glyph.appendChild(greekFontGlyph);
+        } else if (alphabet === "enochian") {
+          const fontGlyph = window.KabbakFonts?.createGlyph?.(
+            "enochian",
+            "letter",
+            enochianGlyphKey(letter),
+            "alpha-enochian-glyph-img alpha-enochian-glyph-img--list"
+          );
+          if (fontGlyph) {
+            glyph.appendChild(fontGlyph);
+          } else {
+            const image = document.createElement("img");
+            image.className = "alpha-enochian-glyph-img alpha-enochian-glyph-img--list";
+            image.src = enochianGlyphUrl(letter);
+            image.alt = `Enochian ${enochianGlyphKey(letter) || "?"}`;
+            image.loading = "lazy";
+            image.decoding = "async";
+            image.addEventListener("error", () => {
+              glyph.textContent = enochianGlyphKey(letter) || "?";
+            });
+            glyph.appendChild(image);
+          }
         } else {
           glyph.textContent = displayGlyph(letter);
         }

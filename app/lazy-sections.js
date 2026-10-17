@@ -84,11 +84,11 @@
     ],
     alphabet: [
       "app/ui-alphabet-gematria.js?v=20260921-review-fixes",
-      "app/ui-alphabet-browser.js?v=20260531-greek-gematria-04",
+      "app/ui-alphabet-browser.js?v=20261016-greek-font",
       "app/ui-alphabet-references.js?v=20260923-shared",
-      "app/ui-alphabet-detail.js?v=20260822-rashi",
+      "app/ui-alphabet-detail.js?v=20261016-greek-font",
       "app/ui-alphabet-kabbalah.js?v=20260923-shared",
-      "app/ui-alphabet.js?v=20260921-review-fixes",
+      "app/ui-alphabet.js?v=20261016-greek-font",
       "app/ui-alphabet-text.js?v=20260921-clean-sweep",
       "app/ui-alphabet-reference.js?v=20260921-clean-sweep"
     ],

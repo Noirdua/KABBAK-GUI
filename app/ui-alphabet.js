@@ -232,17 +232,37 @@
     const alphabet = alphabetForLetter(letter);
 
     detailNameEl.replaceChildren();
-    if (alphabet === "enochian") {
-      const image = document.createElement("img");
-      image.className = "alpha-enochian-glyph-img alpha-enochian-glyph-img--detail";
-      image.src = enochianGlyphUrl(letter);
-      image.alt = `Enochian ${enochianGlyphKey(letter) || "?"}`;
-      image.loading = "lazy";
-      image.decoding = "async";
-      image.addEventListener("error", () => {
-        detailNameEl.textContent = enochianGlyphKey(letter) || "?";
-      });
-      detailNameEl.appendChild(image);
+    const greekFontGlyph = alphabet === "greek" || alphabet === "greekArchaic"
+      ? window.KabbakFonts?.createGlyph?.(
+        "greek",
+        "letter",
+        String(letter?.name || "").toLowerCase(),
+        "alpha-detail-glyph alpha-detail-glyph--greek"
+      )
+      : null;
+    if (greekFontGlyph) {
+      detailNameEl.appendChild(greekFontGlyph);
+    } else if (alphabet === "enochian") {
+      const fontGlyph = window.KabbakFonts?.createGlyph?.(
+        "enochian",
+        "letter",
+        enochianGlyphKey(letter),
+        "alpha-enochian-glyph-img alpha-enochian-glyph-img--detail"
+      );
+      if (fontGlyph) {
+        detailNameEl.appendChild(fontGlyph);
+      } else {
+        const image = document.createElement("img");
+        image.className = "alpha-enochian-glyph-img alpha-enochian-glyph-img--detail";
+        image.src = enochianGlyphUrl(letter);
+        image.alt = `Enochian ${enochianGlyphKey(letter) || "?"}`;
+        image.loading = "lazy";
+        image.decoding = "async";
+        image.addEventListener("error", () => {
+          detailNameEl.textContent = enochianGlyphKey(letter) || "?";
+        });
+        detailNameEl.appendChild(image);
+      }
     } else {
       detailNameEl.textContent = displayGlyph(letter);
     }
@@ -667,6 +687,12 @@
   function selectEnochianLetter(id) {
     switchAlphabet("enochian", id);
   }
+
+  document.addEventListener("fonts:loaded", () => {
+    if (!state.initialized || !state.selectedLetter) return;
+    renderList();
+    renderDetail(state.selectedLetter);
+  });
 
   window.AlphabetSectionUi = {
     ensureAlphabetSection,

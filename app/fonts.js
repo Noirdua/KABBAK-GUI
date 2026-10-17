@@ -79,7 +79,8 @@
       return null;
     }
     const element = document.createElement("span");
-    element.className = className || "iching-font-glyph";
+    element.className = `kabbak-symbol-glyph ${className || "iching-font-glyph"}`.trim();
+    element.style.fontFamily = `"${family.family}", sans-serif`;
     element.setAttribute("aria-hidden", "true");
     element.dataset.glyph = character;
     return element;
@@ -201,6 +202,10 @@
     load,
     symbol,
     familyForScript,
+    isSymbolLoaded(script) {
+      const family = findFamily(script);
+      return Boolean(family && family.role === "symbol" && loadedSymbolScripts.has(script));
+    },
     createGlyph,
     getCatalog() {
       return catalog;

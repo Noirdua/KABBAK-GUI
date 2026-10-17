@@ -7343,6 +7343,44 @@
     .iching-line.is-yin::after {
       right: 0;
     }
+    .kabbak-symbol-glyph {
+      font-weight: 400;
+      font-style: normal;
+      font-synthesis: none;
+      line-height: 1;
+      display: inline-block;
+      text-align: center;
+      user-select: none;
+      color: var(--tt-text-softer);
+    }
+    .kabbak-symbol-glyph::before {
+      content: attr(data-glyph);
+    }
+    .kabbak-symbol-glyph.alpha-enochian-glyph-img--list {
+      width: 28px;
+      font-size: 26px;
+    }
+    .kabbak-symbol-glyph.alpha-enochian-glyph-img--detail,
+    .kabbak-symbol-glyph.alpha-enochian-glyph-img--detail-row {
+      width: 72px;
+      height: 72px;
+      font-size: 64px;
+      line-height: 72px;
+    }
+    .kabbak-symbol-glyph.alpha-enochian-glyph-img--sister {
+      width: 28px;
+      min-width: 36px;
+      font-size: 24px;
+    }
+    .alpha-list-glyph .kabbak-symbol-glyph,
+    .alpha-detail-glyph .kabbak-symbol-glyph {
+      color: inherit;
+      font-size: inherit;
+    }
+    .alpha-symbol-case {
+      font-size: 28px;
+      line-height: 1;
+    }
     .iching-font-glyph {
       font-family: var(--font-family-iching, "IChing");
       font-weight: 400;
@@ -17361,6 +17399,39 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+    }
+    .planner-feed-calendars {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .planner-feed-calendar,
+    .planner-feed-calendar-form {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      border: 1px solid var(--tt-border);
+      border-radius: 8px;
+    }
+    .planner-feed-calendar-head,
+    .planner-feed-calendar-actions,
+    .planner-feed-layer-picks {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .planner-feed-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+      border: 1px solid var(--tt-border);
+    }
+    .planner-feed-calendar input[type="text"],
+    .planner-feed-calendar-form input[type="text"] {
+      width: 100%;
     }
     .planner-filter-item {
       position: relative;

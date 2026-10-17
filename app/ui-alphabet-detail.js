@@ -814,13 +814,24 @@
     detailBodyEl.innerHTML = "";
 
     const sections = [];
+    const greekCase = (group, fallback) => {
+      const fonts = window.KabbakFonts;
+      const name = group === "lower" && letter.charFinal && fallback === letter.charFinal
+        ? "sigma-final"
+        : String(letter?.name || "").toLowerCase();
+      if (!fonts?.isSymbolLoaded?.("greek")) return fallback || "—";
+      const character = fonts.symbol("greek", group === "lower" && name === "sigma-final" ? "lower" : group, name);
+      const family = fonts.familyForScript("greek");
+      if (!character || !family) return fallback || "—";
+      return html`<span class="kabbak-symbol-glyph alpha-symbol-case" style="font-family: '${family}', sans-serif" data-glyph="${character}" aria-hidden="true"></span>`;
+    };
     const charRow = letter.charFinal
-      ? html`<dt>Form (final)</dt><dd>${letter.charFinal}</dd>`
+      ? html`<dt>Form (final)</dt><dd>${greekCase("lower", letter.charFinal)}</dd>`
       : "";
     sections.push(context.card("Letter Details", html`
       <dl class="alpha-dl">
-        <dt>Uppercase</dt><dd>${letter.char}</dd>
-        <dt>Lowercase</dt><dd>${letter.charLower || "—"}</dd>
+        <dt>Uppercase</dt><dd>${greekCase("letter", letter.char)}</dd>
+        <dt>Lowercase</dt><dd>${greekCase("lower", letter.charLower)}</dd>
         ${charRow}
         <dt>Name (English)</dt><dd>${letter.displayName}${archaicBadge}</dd>
         <dt>Name (Greek)</dt><dd>${greekNativeNameCombined || "—"}</dd>
@@ -958,7 +969,7 @@
         <dt>Element / Planet</dt><dd>${renderElementOrPlanetValue(letter.elementOrPlanet, context)}</dd>
         ${hasTarotAccess() ? html`<dt>Tarot</dt><dd>${renderTarotValue(letter.tarot, context)}</dd>` : ""}
         <dt>Numerology</dt><dd>${letter.numerology || "—"}</dd>
-          <dt>Glyph Source</dt><dd>API asset: img/enochian (sourced from dCode set)</dd>
+          <dt>Glyph Source</dt><dd>${window.KabbakFonts?.isSymbolLoaded?.("enochian") ? "Enochian font, keyed by letter id" : "API asset: img/enochian (sourced from dCode set)"}</dd>
         <dt>Position</dt><dd>#${letter.index} of 21</dd>
       </dl>
     `));
