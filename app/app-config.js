@@ -631,6 +631,27 @@
     }
   }
 
+  function sharesHost(a, b) {
+    try {
+      return new URL(a).hostname.toLowerCase() === new URL(b).hostname.toLowerCase();
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  async function isApiHealthy(baseUrl) {
+    const base = normalizeBaseUrl(baseUrl);
+    if (!base) return false;
+    try {
+      const response = await fetch(`${base}/api/v1/health`, { cache: "no-cache" });
+      if (!response.ok) return false;
+      const payload = await response.json().catch(() => null);
+      return Boolean(payload && (payload.ok === true || payload.service || payload.status === "ok"));
+    } catch (_error) {
+      return false;
+    }
+  }
+
   function readBrandingCache() {
     try {
       const parsed = JSON.parse(window.localStorage.getItem(BRANDING_CACHE_KEY) || "null");
@@ -819,7 +840,12 @@
           publishedApiBaseUrl = normalizeBaseUrl(published.href);
         } catch (_error) {}
       }
-      const reachableApiBaseUrl = preferReachableBase(publishedApiBaseUrl, branding?.base);
+      let reachableApiBaseUrl = preferReachableBase(publishedApiBaseUrl, branding?.base);
+      if (reachableApiBaseUrl && branding?.base && !sharesHost(reachableApiBaseUrl, branding.base)) {
+        if (!(await isApiHealthy(reachableApiBaseUrl))) {
+          reachableApiBaseUrl = branding.base;
+        }
+      }
       if (reachableApiBaseUrl && reachableApiBaseUrl !== branding?.base) {
         const preferred = await fetchBrandingPayload(reachableApiBaseUrl);
         if (preferred) branding = preferred;
