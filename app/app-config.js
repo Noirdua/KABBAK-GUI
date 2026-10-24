@@ -555,10 +555,19 @@
   // api.example.com on the same server. Probe those siblings so a fresh
   // visitor can discover the server default without a local config.json.
   function apiSiblingCandidates(protocol, hostname) {
-    const parts = String(hostname || "").split(".");
-    if (parts.length < 3) return [];
-    const root = parts.slice(1).join(".");
+    const host = String(hostname || "").toLowerCase();
+    if (!host || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host) || host.includes(":")) return [];
+    const parts = host.split(".");
+    if (parts.length < 2) return [];
+    const root = parts.length === 2 ? host : parts.slice(1).join(".");
     return [`${protocol}//api.${root}`, `${protocol}//${root}`];
+  }
+
+  function isPrivateUrl(value) {
+    if (typeof window.__kabbakIsPrivateHostUrl === "function") {
+      return window.__kabbakIsPrivateHostUrl(value);
+    }
+    return isLoopbackUrl(value);
   }
 
   // When the API publishes a base URL that reuses the host we actually reached,
@@ -569,8 +578,23 @@
     try {
       const pub = new URL(published);
       const base = new URL(reached);
-      if (pub.hostname && base.hostname && pub.hostname.toLowerCase() === base.hostname.toLowerCase()) {
-        return base.origin;
+      if (pub.hostname && base.hostname) {
+        if (pub.hostname.toLowerCase() === base.hostname.toLowerCase()) {
+          return base.origin;
+        }
+        // An internal/loopback published URL (Docker name, localhost, LAN)
+        // cannot be reached by a browser that got here through another host.
+        if (isPrivateUrl(published)) {
+          return base.origin;
+        }
+        // A published URL on the static GUI host is only useful when that host
+        // actually answered. Otherwise use the API host that did answer.
+        if (
+          pub.hostname.toLowerCase() === window.location.hostname.toLowerCase()
+          && base.hostname.toLowerCase() !== window.location.hostname.toLowerCase()
+        ) {
+          return base.origin;
+        }
       }
     } catch (_error) {}
     return published;

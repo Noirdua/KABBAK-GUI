@@ -252,6 +252,21 @@
       }
     }
 
+    function unlockServerForRepair() {
+      if (!isServerLocked()) return;
+      document.documentElement.removeAttribute("data-kabbak-server-locked");
+      if (serverEditorEl) serverEditorEl.hidden = false;
+      if (serverApplyEl) serverApplyEl.hidden = false;
+      if (serverHostEl) serverHostEl.readOnly = false;
+      if (serverPortEl) serverPortEl.readOnly = false;
+      if (serverProtocolEl) serverProtocolEl.disabled = false;
+      if (serverToggleEl) {
+        serverToggleEl.removeAttribute("data-locked");
+        serverToggleEl.removeAttribute("aria-disabled");
+        serverToggleEl.setAttribute("aria-expanded", "true");
+      }
+    }
+
     function syncPortPlaceholder() {
       if (!serverPortEl) {
         return;
@@ -272,6 +287,7 @@
       // request leaves, which would otherwise look like "unreachable".
       if (window.location.protocol === "https:" && /^http:\/\//i.test(base)) {
         setServerHealth("bad");
+        unlockServerForRepair();
         setServerHint(`${base} is blocked: this page is HTTPS and the API is HTTP (mixed content). Use https:// (put the API behind TLS), or serve the GUI over HTTP.`);
         return;
       }
@@ -281,16 +297,32 @@
       try {
         const response = await fetch(`${base}/api/v1/health`, { cache: "no-store" });
         if (response.ok) {
-          setServerHealth("ok");
-          setServerHint(`Connected to ${base}.`);
-        } else {
-          setServerHealth("bad");
-          setServerHint(`${base} answered HTTP ${response.status}. Check that this is the API root.`);
+          const payload = await response.json().catch(() => null);
+          if (payload && (payload.ok === true || payload.service || payload.status === "ok")) {
+            setServerHealth("ok");
+            setServerHint(`Connected to ${base}.`);
+          } else {
+            setServerHealth("bad");
+            unlockServerForRepair();
+            setServerHint(`${base} answered, but it did not look like the KABBAK API. Check that this is the API root (no /api/v1 path) and not the static GUI address.`);
+          }
+          return;
         }
+        setServerHealth("bad");
+        unlockServerForRepair();
+        setServerHint(`${base} answered HTTP ${response.status}. Check that this is the API root.`);
       } catch (_error) {
         setServerHealth("bad");
+        unlockServerForRepair();
         const httpsPage = window.location.protocol === "https:";
-        setServerHint(`Could not reach ${base}.${httpsPage ? " On an HTTPS page the API must also be HTTPS; an http:// API is blocked as mixed content." : ""} Check the host, protocol, and port, and that KABBAK_ALLOWED_ORIGINS includes ${window.location.origin || "this origin"}.`);
+        let detail = "";
+        try {
+          await fetch(`${base}/api/v1/health`, { mode: "no-cors", cache: "no-store" });
+          detail = ` ${base} answered, but the browser could not read it. Check the URL path (it must be the API root, not the static GUI), the reverse proxy rules, and that ${window.location.origin || "this origin"} is allowed for authenticated requests (KABBAK_ALLOWED_ORIGINS).`;
+        } catch (_reachError) {
+          detail = ` ${base} did not answer from this browser. Check the host, protocol, and port, and make sure the API is publicly reachable (the bot may still reach it internally).`;
+        }
+        setServerHint(`Could not reach ${base}.${httpsPage ? " On an HTTPS page the API must also be HTTPS; an http:// API is blocked as mixed content." : ""}${detail}`);
       }
     }
 
@@ -780,7 +812,25 @@
       }
     }
 
+    function isPrivateOrLocalHost(value) {
+      if (typeof window.__kabbakIsPrivateHostUrl === "function") {
+        return window.__kabbakIsPrivateHostUrl(value);
+      }
+      try {
+        const host = new URL(value).hostname.toLowerCase();
+        return !host || host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
+      } catch (_error) {
+        return false;
+      }
+    }
+
     async function prefillServerFromDefaults() {
+      if (window.__kabbakGateProbe) {
+        await Promise.race([
+          window.__kabbakGateProbe.catch(() => ""),
+          new Promise((resolve) => setTimeout(resolve, 5000))
+        ]);
+      }
       if (baseUrl() || window.TarotAppConfig?.getApiBaseUrl?.()) {
         applyKnownServer();
         void probeServerHealth();
@@ -815,7 +865,9 @@
           const response = await fetch(`${candidate}/api/v1/branding`, { cache: "no-cache" });
           if (!response.ok) continue;
           const payload = await response.json().catch(() => null);
-          chosen = withPort(payload?.apiBaseUrl || candidate, payload?.apiPort);
+          const published = payload?.apiBaseUrl ? String(payload.apiBaseUrl).trim() : "";
+          const usePublished = published && !isPrivateOrLocalHost(published);
+          chosen = withPort(usePublished ? published : candidate, usePublished ? payload?.apiPort : undefined);
           if (chosen) break;
         } catch (_error) {}
       }

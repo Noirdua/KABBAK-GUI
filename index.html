@@ -378,7 +378,16 @@
         document.documentElement.setAttribute("data-kabbak-server-locked", "1");
       } else {
         if (editorEl) editorEl.hidden = false;
-        if (toggleEl) toggleEl.setAttribute("aria-expanded", "true");
+        if (applyEl) applyEl.hidden = false;
+        if (hostEl) hostEl.readOnly = false;
+        if (portEl) portEl.readOnly = false;
+        if (protocolEl) protocolEl.disabled = false;
+        if (toggleEl) {
+          toggleEl.setAttribute("aria-expanded", "true");
+          toggleEl.removeAttribute("data-locked");
+          toggleEl.removeAttribute("aria-disabled");
+        }
+        document.documentElement.removeAttribute("data-kabbak-server-locked");
       }
       try {
         if (window.TarotAppConfig && typeof window.TarotAppConfig.updateConnectionSettings === "function") {
@@ -388,14 +397,20 @@
       return shown;
     }
     var seeded = "";
+    var seededLocked = false;
     try {
       var xhr = new XMLHttpRequest();
       xhr.open("GET", "config.json?_=" + Date.now(), false);
       xhr.send(null);
       if (xhr.status >= 200 && xhr.status < 300) {
         var config = JSON.parse(xhr.responseText);
-        seeded = config && config.apiBaseUrl ? String(config.apiBaseUrl) : "";
-        if (seeded) applyServer(seeded, true);
+        seeded = config && config.apiBaseUrl
+          ? String(config.apiBaseUrl).trim().replace(/\/+$/, "")
+          : "";
+        if (seeded) {
+          seededLocked = true;
+          applyServer(seeded, false);
+        }
       }
     } catch (error) {}
     var probes = [];
@@ -404,19 +419,27 @@
       if (value && probes.indexOf(value) < 0) probes.push(value);
     }
     var pageProtocol = location.protocol === "https:" ? "https:" : "http:";
-    pushProbe(seeded);
+    var pageIsPrivate = isPrivateHostUrl(location.origin);
+    if (seeded && (pageIsPrivate || !isPrivateHostUrl(seeded))) {
+      pushProbe(seeded);
+    }
     pushProbe(location.origin);
     if (location.hostname) {
-      var labels = String(location.hostname).split(".");
-      if (labels.length >= 3) {
-        var root = labels.slice(1).join(".");
-        pushProbe(pageProtocol + "//api." + root);
-        pushProbe(pageProtocol + "//" + root);
+      var pageHost = String(location.hostname).toLowerCase();
+      var isIpHost = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(pageHost) || pageHost.indexOf(":") >= 0;
+      if (!isIpHost) {
+        var labels = pageHost.split(".");
+        if (labels.length >= 2) {
+          var root = labels.length === 2 ? pageHost : labels.slice(1).join(".");
+          pushProbe(pageProtocol + "//api." + root);
+          pushProbe(pageProtocol + "//" + root);
+        }
       }
       pushProbe(pageProtocol + "//" + location.hostname + ":3100");
     }
     pushProbe("http://127.0.0.1:3100");
     pushProbe("http://localhost:3100");
+    if (seeded) pushProbe(seeded);
     function isReachableBase(published, candidate) {
       try {
         return new URL(published).hostname.toLowerCase() === new URL(candidate).hostname.toLowerCase();
@@ -424,21 +447,97 @@
         return false;
       }
     }
+    function isPrivateHostUrl(value) {
+      try {
+        var host = new URL(value).hostname.toLowerCase();
+        if (!host || host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]") {
+          return true;
+        }
+        if (!host.includes(".") || /\.(local|internal|lan|home\.arpa|docker)$/i.test(host)) {
+          return true;
+        }
+        var parts = host.split(".");
+        if (parts.length === 4 && parts.every(function (part) { return /^\d+$/.test(part); })) {
+          var first = Number(parts[0]);
+          var second = Number(parts[1]);
+          if (first === 10 || first === 127) return true;
+          if (first === 192 && second === 168) return true;
+          if (first === 172 && second >= 16 && second <= 31) return true;
+          if (first === 169 && second === 254) return true;
+          if (first === 100 && second >= 64 && second <= 127) return true;
+        }
+        return false;
+      } catch (error) {
+        return false;
+      }
+    }
+    var failedProbes = [];
+    var gateProbeResolve = null;
+    window.__kabbakGateProbe = new Promise(function (resolve) {
+      gateProbeResolve = resolve;
+    });
+    function finishGateProbe(value) {
+      if (typeof gateProbeResolve === "function") {
+        gateProbeResolve(value);
+        gateProbeResolve = null;
+      }
+    }
     function probe(index) {
-      if (index >= probes.length) return;
+      if (index >= probes.length) {
+        finishGateProbe("");
+        return;
+      }
       fetch(probes[index] + "/api/v1/branding", { cache: "no-store" }).then(function (response) {
         if (!response.ok) throw new Error("branding");
         return response.json();
-      }).then(function (payload) {
+      }).then(async function (payload) {
         var published = payload && payload.apiBaseUrl ? String(payload.apiBaseUrl) : "";
         // Prefer the candidate origin we actually reached when the published
         // base reuses the same host (drops an internal port like :3100).
-        var chosen = published && !isReachableBase(published, probes[index]) ? published : probes[index];
-        applyServer(chosen, true);
+        var preferPublished = published && !isReachableBase(published, probes[index]);
+        // A private or loopback default (localhost, an internal Docker name,
+        // a LAN address) cannot reach a public browser. Use the address that
+        // actually answered instead, and leave the server editor unlocked so
+        // the address can still be changed.
+        if (preferPublished && isPrivateHostUrl(published)) {
+          preferPublished = false;
+        }
+        // A published URL on the static GUI host is only useful when that host
+        // actually answered. Otherwise use the API host that did answer.
+        if (preferPublished && isReachableBase(published, location.origin) && !isReachableBase(probes[index], location.origin)) {
+          preferPublished = false;
+        }
+        // Never fall back to a published address that already failed.
+        if (preferPublished && failedProbes.indexOf(published) >= 0) {
+          preferPublished = false;
+        }
+        // If the published address is a different host, make sure it is
+        // actually reachable before locking the gate to it. A wrong protocol
+        // (https:// on an HTTP-only port) would otherwise look like a dead
+        // server even though the candidate that just answered is healthy.
+        if (preferPublished) {
+          var publishedHealthy = false;
+          try {
+            var healthResponse = await fetch(published + "/api/v1/health", { cache: "no-store" });
+            if (healthResponse.ok) {
+              var healthPayload = await healthResponse.json().catch(function () { return null; });
+              publishedHealthy = Boolean(healthPayload && (healthPayload.ok === true || healthPayload.service || healthPayload.status === "ok"));
+            }
+          } catch (error) {}
+          if (!publishedHealthy) {
+            failedProbes.push(published);
+            preferPublished = false;
+          }
+        }
+        var chosen = preferPublished ? published : probes[index];
+        applyServer(chosen, seededLocked && probes[index] === seeded);
+        finishGateProbe(chosen);
       }).catch(function () {
+        failedProbes.push(probes[index]);
         probe(index + 1);
       });
     }
+    window.__kabbakIsPrivateHostUrl = isPrivateHostUrl;
     probe(0);
   })();
   </script>
@@ -3425,7 +3524,7 @@
   <script src="app/ui-theme.js?v=20260911-scroll-perf"></script>
   <script src="app/ui-look.js?v=20260826-looks-palettes"></script>
   <script src="app/astro-calcs.js?v=20260923-shared"></script>
-  <script src="app/app-config.js?v=20261024-safe-html"></script>
+  <script src="app/app-config.js?v=20261024-gate-reachable-base"></script>
   <script src="app/fonts.js?v=20261016-enochian-font"></script>
   <script src="app/data-service.js?v=20261012-planner-layers"></script>
   <script src="app/ui-overlay.js?v=20260921-page-settings"></script>
@@ -3454,7 +3553,7 @@
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
   <script src="app.js?v=20261012-sun-layer"></script>
-  <script src="app/auth-signup.js?v=20261003-show-password"></script>
+  <script src="app/auth-signup.js?v=20261024-gate-health-diagnostics"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>
