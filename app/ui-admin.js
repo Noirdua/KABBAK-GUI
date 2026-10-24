@@ -153,7 +153,7 @@
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.setAttribute("aria-label", `${contextLabel} key`);
-    overlay.innerHTML = `
+    overlay.innerHTML = /* html-safe-ignore */ `
       <div class="dlc-settings-overlay-panel">
         <div class="dlc-settings-overlay-head"><strong>${escapeHtml(contextLabel)} — shown once</strong></div>
         <div class="dlc-install-overlay-body">
@@ -187,7 +187,7 @@
       overlay.className = "dlc-settings-overlay dlc-publish-overlay";
       overlay.setAttribute("role", "dialog");
       overlay.setAttribute("aria-modal", "true");
-      overlay.innerHTML = `
+      overlay.innerHTML = /* html-safe-ignore */ `
         <div class="dlc-settings-overlay-panel">
           <div class="dlc-settings-overlay-head"><strong>Publish ${escapeHtml(item.title || item.name)}</strong></div>
           <div class="dlc-install-overlay-body">
@@ -234,7 +234,7 @@
     overlay.className = "dlc-settings-overlay dlc-item-editor-overlay";
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
-    overlay.innerHTML = `
+    overlay.innerHTML = /* html-safe-ignore */ `
       <div class="dlc-settings-overlay-panel dlc-item-editor-panel">
         <div class="dlc-settings-overlay-head">
           <strong>Edit ${escapeHtml(item.title || item.name)}</strong>
@@ -411,7 +411,7 @@
       overlay.className = "dlc-settings-overlay dlc-delete-overlay";
       overlay.setAttribute("role", "dialog");
       overlay.setAttribute("aria-modal", "true");
-      overlay.innerHTML = `
+      overlay.innerHTML = /* html-safe-ignore */ `
         <div class="dlc-settings-overlay-panel dlc-delete-panel">
           <div class="dlc-settings-overlay-head">
             <strong>Delete ${escapeHtml(item.title || item.name)}</strong>
@@ -1220,7 +1220,7 @@
   function createStatCard(label, value, hint) {
     const card = document.createElement("div");
     card.className = "admin-stat-card";
-    card.innerHTML = `
+    card.innerHTML = /* html-safe-ignore */ `
       <span class="admin-stat-label">${escapeHtml(label)}</span>
       <strong class="admin-stat-value">${escapeHtml(value)}</strong>
       ${hint ? `<span class="admin-stat-hint">${escapeHtml(hint)}</span>` : ""}
@@ -1248,7 +1248,7 @@
         const done = Number(job.done) || 0;
         const percent = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : (job.state === "done" ? 100 : 0);
         const detail = [job.current, job.message].filter(Boolean).join(" · ");
-        card.innerHTML = `
+        card.innerHTML = /* html-safe-ignore */ `
           <div class="admin-job-head">
             <strong>${escapeHtml(job.label || job.id || "Job")}</strong>
             <span class="admin-job-state is-${escapeHtml(job.state || "idle")}">${escapeHtml(job.state || "idle")}${total ? ` ${done}/${total}` : ""}</span>
@@ -1300,7 +1300,7 @@
       overviewGrid.innerHTML = "";
       const errorCard = document.createElement("div");
       errorCard.className = "admin-stat-card";
-      errorCard.innerHTML = `
+      errorCard.innerHTML = /* html-safe-ignore */ `
         <span class="admin-stat-label">Error</span>
         <strong class="admin-stat-value">${escapeHtml(error?.message || "Unknown error")}</strong>
         <div class="dlc-shop-actions" style="margin-top:6px;">
@@ -1430,7 +1430,7 @@
         const lastSeen = client.lastSeen ? String(client.lastSeen).replace("T", " ").slice(0, 19) : "never seen";
         const isAdminUser = (client.roles || []).includes("admin") || (client.scopes || []).includes("api:admin");
         const tiersText = (client.roles || []).filter((role) => role !== "admin").map((role) => escapeHtml(role)).join(" · ");
-        row.innerHTML = `
+        row.innerHTML = /* html-safe-ignore */ `
           <span class="admin-user-status ${isOnline ? "is-online" : ""}">${isOnline ? "●" : "○"}</span>
           <div class="admin-client-main">
             <strong>${escapeHtml(displayName)}</strong>
@@ -1514,7 +1514,7 @@
     await loadPermissionCatalog();
     const editor = document.createElement("div");
     editor.className = "admin-client-editor";
-    editor.innerHTML = `
+    editor.innerHTML = /* html-safe-ignore */ `
       <input type="text" class="admin-client-edit-name" maxlength="100" value="${escapeHtml(client.name || "")}" placeholder="Name">
       <select class="admin-client-edit-access">
         <option value="basic"${!isClientAdmin(client) && client.accessLevel === "basic" ? " selected" : ""}>basic</option>
@@ -1700,7 +1700,7 @@
       })
       .join(" · ");
     const priceText = formatPrice(role.price);
-    card.innerHTML = `
+    card.innerHTML = /* html-safe-ignore */ `
       <div class="admin-role-main">
         <div class="dlc-plugin-name-row">
           <strong>${escapeHtml(role.label || role.id)}</strong>
@@ -1789,7 +1789,7 @@
       .filter(Boolean)
       .join(" · ");
     const priceText = formatPrice(level.price);
-    card.innerHTML = `
+    card.innerHTML = /* html-safe-ignore */ `
       <div class="admin-role-main">
         <div class="dlc-plugin-name-row">
           <strong>${escapeHtml(level.label || level.id)}</strong>
@@ -1818,7 +1818,7 @@
     }
     const editor = document.createElement("div");
     editor.className = "admin-role-editor";
-    editor.innerHTML = `
+    editor.innerHTML = /* html-safe-ignore */ `
       <input type="text" class="admin-level-edit-label" maxlength="80" value="${escapeHtml(level.label || "")}" placeholder="Label">
       <input type="text" class="admin-level-edit-description" maxlength="400" value="${escapeHtml(level.description || "")}" placeholder="What this tier does">
       <input type="text" class="admin-level-edit-roles" maxlength="300" value="${escapeHtml((level.roles || []).join(", "))}" placeholder="Default roles (comma separated)">
@@ -1900,7 +1900,7 @@
     }
     const editor = document.createElement("div");
     editor.className = "admin-role-editor";
-    editor.innerHTML = `
+    editor.innerHTML = /* html-safe-ignore */ `
       <input type="text" class="admin-role-edit-label" maxlength="80" value="${escapeHtml(role.label || "")}" placeholder="Label">
       <select class="admin-role-edit-access">
         <option value=""${!role.accessLevel ? " selected" : ""}>(inherit rank)</option>
@@ -2373,7 +2373,7 @@
         rows.forEach(([label, value, envVar]) => {
           const row = document.createElement("div");
           row.className = "admin-env-row";
-          row.innerHTML = `<span class="admin-env-label">${escapeHtml(label)} (restart-only)</span><span class="admin-env-value">${escapeHtml(value)}</span><span class="admin-env-var">${escapeHtml(envVar)}</span>`;
+          row.innerHTML = /* html-safe-ignore */ `<span class="admin-env-label">${escapeHtml(label)} (restart-only)</span><span class="admin-env-value">${escapeHtml(value)}</span><span class="admin-env-var">${escapeHtml(envVar)}</span>`;
           envReadonlyEl.appendChild(row);
         });
       }
@@ -2456,7 +2456,7 @@
         const row = document.createElement("div");
         row.className = "admin-email-event";
         const when = String(event.receivedAt || "").replace("T", " ").slice(0, 19);
-        row.innerHTML = `
+        row.innerHTML = /* html-safe-ignore */ `
           <span class="admin-email-event-type">${escapeHtml(event.type || "unknown")}</span>
           <span class="admin-email-event-recipient">${escapeHtml(event.recipient || "-")}</span>
           <span class="admin-email-event-time">${escapeHtml(when)}</span>
@@ -2742,12 +2742,12 @@
     if (!selectEl) return;
     const current = String(selectEl.value || "");
     const nextItems = Array.isArray(items) ? items : [];
-    const options = [`<option value="">${escapeHtml(allLabel)}</option>`].concat(
+    const options = [/* html-safe-ignore */ `<option value="">${escapeHtml(allLabel)}</option>`].concat(
       nextItems.map((item) => {
         const id = String(item?.id || "").trim();
         if (!id) return "";
         const count = Number(item.count) || 0;
-        return `<option value="${escapeHtml(id)}">${escapeHtml(id)}${count ? ` (${count})` : ""}</option>`;
+        return /* html-safe-ignore */ `<option value="${escapeHtml(id)}">${escapeHtml(id)}${count ? ` (${count})` : ""}</option>`;
       }).filter(Boolean)
     );
     selectEl.innerHTML = options.join("");
@@ -2796,8 +2796,8 @@
         const levelClass = `is-${String(entry.level || "info")}`;
         const time = String(entry.timestamp || "").replace("T", " ").slice(5, 19);
         const meta = [entry.method, entry.statusCode || "", entry.path || ""].filter(Boolean).join(" ");
-        row.innerHTML = `
-          <span class="admin-log-level ${levelClass}">${escapeHtml(String(entry.level || "info").toUpperCase())}</span>
+        row.innerHTML = /* html-safe-ignore */ `
+          <span class="admin-log-level ${escapeHtml(levelClass)}">${escapeHtml(String(entry.level || "info").toUpperCase())}</span>
           <span class="admin-log-time">${escapeHtml(time)}</span>
           <span class="admin-log-group">${escapeHtml(entry.pathGroup || "")}</span>
           <span class="admin-log-event">${escapeHtml(entry.event || "")}</span>
@@ -3055,7 +3055,7 @@
     const head = document.createElement("div");
     head.className = "dlc-kind-head";
     const label = String(options.label || KIND_LABELS[kind] || kind);
-    head.innerHTML = `<strong>${escapeHtml(label)}</strong><span>${Number(count) || 0}</span>`;
+    head.innerHTML = /* html-safe-ignore */ `<strong>${escapeHtml(label)}</strong><span>${Number(count) || 0}</span>`;
     if (typeof options.installAll === "function") {
       const button = document.createElement("button");
       button.type = "button";
@@ -3084,7 +3084,7 @@
     overlay.className = "dlc-settings-overlay";
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
-    overlay.innerHTML = `
+    overlay.innerHTML = /* html-safe-ignore */ `
       <div class="dlc-settings-overlay-panel">
         <div class="dlc-settings-overlay-head"><strong>Installing ${escapeHtml(kindLabel)}</strong></div>
         <div class="dlc-install-overlay-body">
@@ -4269,7 +4269,7 @@
       dlcCatalogEl.innerHTML = "";
       const errorCard = document.createElement("div");
       errorCard.className = "admin-stat-card";
-      errorCard.innerHTML = `
+      errorCard.innerHTML = /* html-safe-ignore */ `
         <span class="admin-stat-label">Error</span>
         <strong class="admin-stat-value">${escapeHtml(error?.message || "Could not load the DLC catalog.")}</strong>
         <div class="dlc-shop-actions" style="margin-top:6px;">

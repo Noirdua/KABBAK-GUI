@@ -490,8 +490,8 @@
       homeButton.className = "topbar-home-button topbar-home-logo-text";
       homeButton.setAttribute("aria-label", homeLabel);
       homeButton.innerHTML =
-        `<img class="topbar-home-logo" src="${escapeHtmlAttr(logoUrl)}" alt="">`
-        + `<span class="topbar-home-text">${escapeHtmlAttr(homeLabel)}</span>`;
+        /* html-safe-ignore */ `<img class="topbar-home-logo" src="${escapeHtmlAttr(logoUrl)}" alt="">`
+        + /* html-safe-ignore */ `<span class="topbar-home-text">${escapeHtmlAttr(homeLabel)}</span>`;
       return;
     }
 

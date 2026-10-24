@@ -1002,7 +1002,7 @@
         const trans = getSceneTransition(scene, nextScene, state.kind || "waking");
         const tEl = document.createElement("div");
         tEl.className = "scene-transition";
-        tEl.innerHTML = `
+        tEl.innerHTML = /* html-safe-ignore */ `
           <div class="trans-meta">
             <span class="trans-graphic">${trans.graphic}</span>
             <span class="trans-label">${escapeHtml(trans.label)}</span>
@@ -1179,9 +1179,9 @@
     modal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:99999;";
     const name = escapeHtml(att.name || "attachment");
     const size = att.size ? ` (${(att.size / 1024).toFixed(1)} KB)` : "";
-    modal.innerHTML = `
+    modal.innerHTML = /* html-safe-ignore */ `
       <div style="background:#1a1a1a;padding:16px;border-radius:8px;max-width:92vw;max-height:92vh;overflow:auto;text-align:center;color:#eee;box-shadow:0 10px 30px rgba(0,0,0,0.6);">
-        <img src="${att.data}" style="max-width:85vw;max-height:75vh;display:block;margin:0 auto 10px;border:1px solid #444;border-radius:4px;" />
+        <img src="${escapeHtml(att.data)}" style="max-width:85vw;max-height:75vh;display:block;margin:0 auto 10px;border:1px solid #444;border-radius:4px;" />
         <div style="font-size:13px;opacity:0.9;">${name}${size}</div>
         <button style="margin-top:12px;padding:6px 14px;background:#333;color:#eee;border:1px solid #555;border-radius:4px;cursor:pointer;">Close</button>
       </div>
@@ -1918,16 +1918,16 @@
       const color = PLANET_ORB_COLORS[planet.id] || "#bbb";
       const tarotUrl = planet.tarotName ? getMoodCardImageUrl(planet.tarotName) : null;
       const face = tarotUrl
-        ? `<img src="${tarotUrl}" alt="${escapeHtml(planet.name)}" style="width:100%;height:100%;object-fit:cover;display:block;" crossorigin="anonymous" />`
-        : `<span style="font-size:${pdf ? "10px" : "13px"};line-height:1;color:${faceColor};">${escapeHtml(planet.symbol || planet.name.slice(0, 1))}</span>`;
-      return `<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:2px;${liftCss};flex:1;min-width:0;">
+        ? /* html-safe-ignore */ `<img src="${escapeHtml(tarotUrl)}" alt="${escapeHtml(planet.name)}" style="width:100%;height:100%;object-fit:cover;display:block;" crossorigin="anonymous" />`
+        : /* html-safe-ignore */ `<span style="font-size:${pdf ? "10px" : "13px"};line-height:1;color:${faceColor};">${escapeHtml(planet.symbol || planet.name.slice(0, 1))}</span>`;
+      return /* html-safe-ignore */ `<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:2px;${liftCss};flex:1;min-width:0;">
         <div style="width:${orbSize};height:${orbSize};border-radius:50%;overflow:hidden;border:1px solid rgba(0,0,0,0.22);background:radial-gradient(circle at 32% 28%, rgba(255,255,255,0.55), transparent 46%), ${color};display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.18);">${face}</div>
         <div style="font-size:${pdf ? "6px" : "9px"};opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${escapeHtml(planet.name || planet.id)}</div>
       </div>`;
     }).join("");
     const lineColor = pdf ? (theme?.border || "#888") : "var(--tt-border-soft)";
-    const line = `<div style="position:absolute;left:5%;right:5%;bottom:${pdf ? "7mm" : "18px"};border-top:1.6px dotted ${lineColor};opacity:0.9;"></div>`;
-    return `<div class="planet-horizon" style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;min-height:${pdf ? "18mm" : "54px"};padding:${pdf ? "1mm 1mm 0" : "8px 4px 0"};">${line}${nodes}</div>`;
+    const line = /* html-safe-ignore */ `<div style="position:absolute;left:5%;right:5%;bottom:${pdf ? "7mm" : "18px"};border-top:1.6px dotted ${lineColor};opacity:0.9;"></div>`;
+    return /* html-safe-ignore */ `<div class="planet-horizon" style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;min-height:${pdf ? "18mm" : "54px"};padding:${pdf ? "1mm 1mm 0" : "8px 4px 0"};">${line}${nodes}</div>`;
   }
 
   async function updateSceneSkyCards() {
@@ -1990,7 +1990,7 @@
       const chip = document.createElement("div");
       chip.className = "profile-scene-sky";
       chip.title = sky.isDaylight ? "Planetary hour (day)" : "Planetary hour (night)";
-      chip.innerHTML = `${imgUrl ? `<img src="${imgUrl}" crossorigin="anonymous" alt="" />` : ""}<span>${escapeHtml(getSceneSkyText(sky))}${durationText ? ` · ${escapeHtml(durationText)}` : ""}</span>`;
+      chip.innerHTML = /* html-safe-ignore */ `${imgUrl ? `<img src="${escapeHtml(imgUrl)}" crossorigin="anonymous" alt="" />` : ""}<span>${escapeHtml(getSceneSkyText(sky))}${durationText ? ` · ${escapeHtml(durationText)}` : ""}</span>`;
       head.insertAdjacentElement("afterend", chip);
     });
 
@@ -2056,7 +2056,7 @@
     if (hasMoon) {
       const moonChip = document.createElement("span");
       moonChip.className = "profile-day-card";
-      moonChip.innerHTML = `<span class="dc-label">Moon</span><span class="dc-name">${escapeHtml(cards.moon.phase)} · ${cards.moon.illuminationPct}%</span>`;
+      moonChip.innerHTML = /* html-safe-ignore */ `<span class="dc-label">Moon</span><span class="dc-name">${escapeHtml(cards.moon.phase)} · ${cards.moon.illuminationPct}%</span>`;
       if (cards.moonTarot) {
         moonChip.title = `Moon tarot: ${cards.moonTarot}`;
       }
@@ -2068,7 +2068,7 @@
       signChip.className = "profile-day-card";
       const signLabel = `${cards.sign.symbol ? `${cards.sign.symbol} ` : ""}${cards.sign.name || cards.sign.id || ""}`.trim();
       const degree = cards.signDegree != null ? `${cards.signDegree}°` : "";
-      signChip.innerHTML = `<span class="dc-label">Sun</span><span class="dc-name">${escapeHtml(signLabel)}${degree ? ` · ${escapeHtml(degree)}` : ""}</span>`;
+      signChip.innerHTML = /* html-safe-ignore */ `<span class="dc-label">Sun</span><span class="dc-name">${escapeHtml(signLabel)}${degree ? ` · ${escapeHtml(degree)}` : ""}</span>`;
       if (cards.sign.tarot?.majorArcana) {
         signChip.title = `Sign tarot: ${cards.sign.tarot.majorArcana}`;
       }
@@ -2078,7 +2078,7 @@
     if (hasCourt) {
       const courtChip = document.createElement("span");
       courtChip.className = "profile-day-card";
-      courtChip.innerHTML = `<span class="dc-label">Court</span><span class="dc-name">${escapeHtml(cards.court)}</span>`;
+      courtChip.innerHTML = /* html-safe-ignore */ `<span class="dc-label">Court</span><span class="dc-name">${escapeHtml(cards.court)}</span>`;
       courtChip.title = `Click to set mood to ${cards.court}`;
       courtChip.addEventListener("click", () => {
         if (state.scenes.length) {
@@ -2097,7 +2097,7 @@
       const decanName = cards.activeDecan || cards.decan;
       const decanChip = document.createElement("span");
       decanChip.className = "profile-day-card";
-      decanChip.innerHTML = `<span class="dc-label">Decan</span><span class="dc-name">${escapeHtml(decanName)}</span>`;
+      decanChip.innerHTML = /* html-safe-ignore */ `<span class="dc-label">Decan</span><span class="dc-name">${escapeHtml(decanName)}</span>`;
       const decanBand = cards.decanDegreeStart != null && cards.decanDegreeEnd != null
         ? ` (${cards.decanDegreeStart}°–${cards.decanDegreeEnd}°)`
         : "";
@@ -2130,7 +2130,7 @@
       holidays.forEach((holiday) => {
         const holidayChip = document.createElement("span");
         holidayChip.className = "profile-day-card is-holiday";
-        holidayChip.innerHTML = `<span class="dc-label">${escapeHtml(holiday.calendarLabel)}</span><span class="dc-name">${escapeHtml(holiday.name)}</span>`;
+        holidayChip.innerHTML = /* html-safe-ignore */ `<span class="dc-label">${escapeHtml(holiday.calendarLabel)}</span><span class="dc-name">${escapeHtml(holiday.name)}</span>`;
         if (holiday.dateText) holidayChip.title = holiday.dateText;
         el.appendChild(holidayChip);
       });
@@ -2820,11 +2820,11 @@
         item.className = "attachment-item";
         let preview = "";
         if (att.type && att.type.startsWith("image/") && att.data) {
-          preview = `<img src="${att.data}" style="max-height:36px; max-width:50px; vertical-align:middle; margin-right:4px; border:1px solid #ccc; border-radius:2px; cursor:pointer;" />`;
+          preview = /* html-safe-ignore */ `<img src="${escapeHtml(att.data)}" style="max-height:36px; max-width:50px; vertical-align:middle; margin-right:4px; border:1px solid #ccc; border-radius:2px; cursor:pointer;" />`;
         } else if (att.type && att.type.startsWith("audio/") && att.data) {
-          preview = `<audio src="${att.data}" controls style="max-width:180px; height:28px; vertical-align:middle; margin-right:4px;"></audio>`;
+          preview = /* html-safe-ignore */ `<audio src="${escapeHtml(att.data)}" controls style="max-width:180px; height:28px; vertical-align:middle; margin-right:4px;"></audio>`;
         }
-        item.innerHTML = `
+        item.innerHTML = /* html-safe-ignore */ `
           ${preview}
           <span class="att-name" title="${escapeHtml(att.name)}">${escapeHtml(att.name)} (${(att.size / 1024).toFixed(1)}KB)</span>
           <button type="button" class="profile-scene-remove" style="margin-left:4px; font-size:11px;">×</button>
@@ -6245,7 +6245,7 @@
     const header = document.createElement("div");
     const kindLabel = kind === "dream" ? "DREAM" : "WAKING";
     header.style.cssText = `text-align:center; margin-bottom:6mm; border-bottom:1px solid ${theme.border}; padding-bottom:4mm;`;
-    header.innerHTML = `
+    header.innerHTML = /* html-safe-ignore */ `
       <div style="font-size:9px; letter-spacing:3px; color:${theme.muted};">KABBAK</div>
       <div style="font-size:20px; font-weight:700; margin:1.5mm 0; color:${theme.accentSoft};">Journal</div>
       <div style="display:inline-block; padding:1px 8px; border-radius:999px; font-size:9px; font-weight:700; letter-spacing:0.5px; background:${kindColor}; color:${badgeFg};">${kindLabel}</div>
@@ -6256,10 +6256,10 @@
     root.appendChild(header);
 
     const tarotCardImg = (url, alt, widthMm) =>
-      `<img src="${url}" style="width:${widthMm}mm; aspect-ratio:2.75/4.75; object-fit:contain; height:auto; border-radius:2px; border:1px solid ${theme.border}; display:block; background:${theme.deep};" crossorigin="anonymous" alt="${escapeHtml(alt)}" />`;
+      /* html-safe-ignore */ `<img src="${escapeHtml(url)}" style="width:${widthMm}mm; aspect-ratio:2.75/4.75; object-fit:contain; height:auto; border-radius:2px; border:1px solid ${theme.border}; display:block; background:${theme.deep};" crossorigin="anonymous" alt="${escapeHtml(alt)}" />`;
 
     const stackedField = (label, value) =>
-      `<div style="margin-top:1.6mm;"><div style="font-size:7px; color:${theme.muted}; letter-spacing:0.4px;">${label}</div><div style="font-size:9px; line-height:1.25; word-break:break-word;">${escapeHtml(String(value || "—").trim() || "—")}</div></div>`;
+      /* html-safe-ignore */ `<div style="margin-top:1.6mm;"><div style="font-size:7px; color:${theme.muted}; letter-spacing:0.4px;">${label}</div><div style="font-size:9px; line-height:1.25; word-break:break-word;">${escapeHtml(String(value || "—").trim() || "—")}</div></div>`;
 
     // Day context: date cards plus the related dates/observances that fall on
     // this entry's day (sign, moon, weekday ruler, holidays/festivals).
@@ -6278,12 +6278,12 @@
     if (hasDayContext) {
       const dcWrap = document.createElement("div");
       dcWrap.style.cssText = `margin:2mm 0 3mm; padding:2.5mm 3mm; border-radius:4px; background:${theme.bg}; border:1px solid ${theme.border}; color:${theme.text};`;
-      let dcHtml = `<div style="font-size:8px; margin-bottom:1.5mm; color:${theme.muted}; letter-spacing:0.4px;">DATE CONTEXT — ${escapeHtml(formatEntryDate(occurredOn) || occurredOn)}</div>`;
+      let dcHtml = /* html-safe-ignore */ `<div style="font-size:8px; margin-bottom:1.5mm; color:${theme.muted}; letter-spacing:0.4px;">DATE CONTEXT — ${escapeHtml(formatEntryDate(occurredOn) || occurredOn)}</div>`;
       dcHtml += `<div style="display:flex; gap:4mm; align-items:flex-start;">`;
 
       const cardBlock = (label, name) => {
         const url = getMoodCardImageUrl(name);
-        return `
+        return /* html-safe-ignore */ `
           <div style="flex:0 0 38mm; font-size:8px; text-align:center;">
             <div style="font-size:7px; color:${theme.dim};">${label}</div>
             ${url ? tarotCardImg(url, name, 38) : `<strong style="font-size:9px;">${escapeHtml(name)}</strong>`}
@@ -6330,21 +6330,21 @@
       if (metaRows.length) {
         dcHtml += `<div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:1.2mm;">`;
         metaRows.forEach(([label, value]) => {
-          dcHtml += `<div><div style="font-size:7px; color:${theme.dim}; letter-spacing:0.4px;">${label}</div><div style="font-size:9px; line-height:1.3;">${escapeHtml(value)}</div></div>`;
+          dcHtml += /* html-safe-ignore */ `<div><div style="font-size:7px; color:${theme.dim}; letter-spacing:0.4px;">${label}</div><div style="font-size:9px; line-height:1.3;">${escapeHtml(value)}</div></div>`;
         });
         dcHtml += `</div>`;
       }
       dcHtml += `</div>`;
 
       if (holidays.length) {
-        dcHtml += `<div style="margin-top:2mm; padding-top:1.5mm; border-top:1px dashed ${theme.border};">`;
-        dcHtml += `<div style="font-size:7px; color:${theme.dim}; letter-spacing:0.4px; margin-bottom:1mm;">OBSERVANCES</div>`;
+        dcHtml += /* html-safe-ignore */ `<div style="margin-top:2mm; padding-top:1.5mm; border-top:1px dashed ${theme.border};">`;
+        dcHtml += /* html-safe-ignore */ `<div style="font-size:7px; color:${theme.dim}; letter-spacing:0.4px; margin-bottom:1mm;">OBSERVANCES</div>`;
         holidays.forEach((holiday) => {
           const meta = [holiday.calendarLabel, holiday.dateText].filter(Boolean).join(" · ");
           const description = holiday.description
             ? ` — ${holiday.description.length > 160 ? `${holiday.description.slice(0, 157)}…` : holiday.description}`
             : "";
-          dcHtml += `<div style="font-size:9px; line-height:1.35; margin-bottom:0.6mm;"><strong>${escapeHtml(holiday.name)}</strong>${meta ? ` <span style="color:${theme.muted}; font-size:8px;">(${escapeHtml(meta)})</span>` : ""}${escapeHtml(description)}</div>`;
+          dcHtml += /* html-safe-ignore */ `<div style="font-size:9px; line-height:1.35; margin-bottom:0.6mm;"><strong>${escapeHtml(holiday.name)}</strong>${meta ? ` <span style="color:${theme.muted}; font-size:8px;">(${escapeHtml(meta)})</span>` : ""}${escapeHtml(description)}</div>`;
         });
         dcHtml += `</div>`;
       }
@@ -6393,7 +6393,7 @@
             }
           }
           const hourImg = sky.tarotName ? getMoodCardImageUrl(sky.tarotName) : null;
-          hourHtml = `<div style="margin-top:2mm; font-size:8px; color:${theme.muted};">
+          hourHtml = /* html-safe-ignore */ `<div style="margin-top:2mm; font-size:8px; color:${theme.muted};">
             <div style="font-size:7px; color:${theme.dim}; letter-spacing:0.4px;">PLANETARY HOUR</div>
             ${hourImg ? `<div style="margin:1mm 0;">${tarotCardImg(hourImg, sky.tarotName || "hour", 32)}</div>` : ""}
             <div style="font-size:8px; line-height:1.3;">${escapeHtml(getSceneSkyText(sky))}${escapeHtml(durationSuffix)}</div>
@@ -6409,7 +6409,7 @@
               }));
               const positions = Array.isArray(snapshot?.stats?.planetPositions) ? snapshot.stats.planetPositions : [];
               if (positions.length) {
-                positionsHtml = `<div style="font-size:7px; color:${theme.muted}; margin-bottom:1mm;">SKY · ${positions.map((p) => `${escapeHtml(p.symbol || "")} ${escapeHtml(p.sign?.name || "")} ${Number(p.degreeInSign).toFixed(1)}°`).join(" · ")}</div>`;
+                positionsHtml = /* html-safe-ignore */ `<div style="font-size:7px; color:${theme.muted}; margin-bottom:1mm;">SKY · ${positions.map((p) => `${escapeHtml(p.symbol || "")} ${escapeHtml(p.sign?.name || "")} ${Number(p.degreeInSign).toFixed(1)}°`).join(" · ")}</div>`;
               }
             } catch (_err) {
               // Planet positions are optional; skip silently if the API cannot answer.
@@ -6422,14 +6422,14 @@
       const cardUrl = getMoodCardImageUrl(mood);
       let moodHtml = "";
       if (cardUrl) {
-        moodHtml = `
+        moodHtml = /* html-safe-ignore */ `
           <div style="text-align:center;">
             <div style="font-size:7px; opacity:0.6; margin-bottom:1mm;">MOOD</div>
             ${tarotCardImg(cardUrl, mood, 44)}
             <div style="margin-top:1mm; font-size:8px; font-weight:600; word-break:break-word; line-height:1.15;">${escapeHtml(mood)}</div>
           </div>`;
       } else if (mood) {
-        moodHtml = `<div style="font-size:8px;"><span style="opacity:0.6;">MOOD</span><br><strong style="font-size:9px;">${escapeHtml(mood)}</strong></div>`;
+        moodHtml = /* html-safe-ignore */ `<div style="font-size:8px;"><span style="opacity:0.6;">MOOD</span><br><strong style="font-size:9px;">${escapeHtml(mood)}</strong></div>`;
       }
 
       let attachmentsHtml = "";
@@ -6441,28 +6441,28 @@
           const imgBlocks = imageAtts.map(a => {
             const name = escapeHtml(a.name || 'attachment');
             const size = a.size ? ` (${(a.size/1024).toFixed(0)}KB)` : '';
-              return `<div style="margin:2mm 0 0; text-align:left;">
-              <img src="${a.data}" style="max-width:78mm; max-height:92mm; width:auto; height:auto; object-fit:contain; border:1px solid ${theme.border}; border-radius:3px; display:block;" crossorigin="anonymous" alt="${name}" />
+              return /* html-safe-ignore */ `<div style="margin:2mm 0 0; text-align:left;">
+              <img src="${escapeHtml(a.data)}" style="max-width:78mm; max-height:92mm; width:auto; height:auto; object-fit:contain; border:1px solid ${theme.border}; border-radius:3px; display:block;" crossorigin="anonymous" alt="${name}" />
               <div style="font-size:7px; color:${theme.muted}; margin-top:1px;">${name}${size}</div>
             </div>`;
           }).join('');
-          content += `<div style="margin-top:1mm;">${imgBlocks}</div>`;
+          content += /* html-safe-ignore */ `<div style="margin-top:1mm;">${imgBlocks}</div>`;
         }
         if (nonImageAtts.length) {
           const list = nonImageAtts.map(a => escapeHtml(a.name + (a.size ? ` (${(a.size/1024).toFixed(0)}KB)` : ''))).join(' • ');
-          content += `<div style="font-size:8px; color:${theme.muted}; margin-top:1mm;">${list}</div>`;
+          content += /* html-safe-ignore */ `<div style="font-size:8px; color:${theme.muted}; margin-top:1mm;">${list}</div>`;
         } else if (!imageAtts.length) {
           const list = s.attachments.map(a => escapeHtml(a.name + (a.size ? ` (${(a.size/1024).toFixed(0)}KB)` : ''))).join(' • ');
-          content = `<div style="font-size:8px; color:${theme.muted};">${list}</div>`;
+          content = /* html-safe-ignore */ `<div style="font-size:8px; color:${theme.muted};">${list}</div>`;
         }
-        attachmentsHtml = `<div style="margin-top:2.5mm;"><div style="font-size:7px; opacity:0.6;">ATTACHMENTS</div>${content}</div>`;
+        attachmentsHtml = /* html-safe-ignore */ `<div style="margin-top:2.5mm;"><div style="font-size:7px; opacity:0.6;">ATTACHMENTS</div>${content}</div>`;
       }
 
       const leftMetaHtml = kind === "dream"
-        ? `${stackedField("ATMOSPHERE", s.atmosphere)}${stackedField("EMOTION", s.emotion)}${s.steps ? `<div style="margin-top:1.6mm;"><div style="font-size:7px; opacity:0.6;">THE THREAD</div><div style="font-size:9px; white-space:pre-wrap;">${s.steps}</div></div>` : ""}`
+        ? /* html-safe-ignore */ `${stackedField("ATMOSPHERE", s.atmosphere)}${stackedField("EMOTION", s.emotion)}${s.steps ? `<div style="margin-top:1.6mm;"><div style="font-size:7px; opacity:0.6;">THE THREAD</div><div style="font-size:9px; white-space:pre-wrap;">${escapeHtml(s.steps)}</div></div>` : ""}`
         : `${stackedField("TIME", `${s.time || "—"}${s.endTime ? ` – ${s.endTime}` : ""}`)}${stackedField("SCENARIO", s.scenario)}${stackedField("SCENERY", s.place)}${stackedField("EMOTION", s.emotion)}`;
 
-      const leftColumn = `
+      const leftColumn = /* html-safe-ignore */ `
         <div style="flex:0 0 48mm; margin-right:4mm;">
           ${moodHtml}
           ${hourHtml}
@@ -6470,14 +6470,14 @@
           ${leftMetaHtml}
         </div>`;
 
-      const rightContent = `
+      const rightContent = /* html-safe-ignore */ `
         <div style="flex:1; min-width:0;">
-          ${s.thoughts ? `<div style="margin-bottom:2.5mm;"><div style="font-size:7px; opacity:0.6;">${kind === "dream" ? "THE DREAM" : "ACT"}</div><div style="font-size:9px; white-space:pre-wrap;">${s.thoughts}</div></div>` : ""}
-          ${s.notes ? `<div style="margin-bottom:2.5mm;"><div style="font-size:7px; opacity:0.6;">${kind === "dream" ? "AFTERTASTE" : "DIRECTION"}</div><div style="font-size:9px; white-space:pre-wrap;">${s.notes}</div></div>` : ""}
+          ${s.thoughts ? `<div style="margin-bottom:2.5mm;"><div style="font-size:7px; opacity:0.6;">${kind === "dream" ? "THE DREAM" : "ACT"}</div><div style="font-size:9px; white-space:pre-wrap;">${escapeHtml(s.thoughts)}</div></div>` : ""}
+          ${s.notes ? `<div style="margin-bottom:2.5mm;"><div style="font-size:7px; opacity:0.6;">${kind === "dream" ? "AFTERTASTE" : "DIRECTION"}</div><div style="font-size:9px; white-space:pre-wrap;">${escapeHtml(s.notes)}</div></div>` : ""}
           ${attachmentsHtml}
         </div>`;
 
-      block.innerHTML = `
+      block.innerHTML = /* html-safe-ignore */ `
          <div style="font-size:8px; opacity:0.6; margin-bottom:1.5mm;">${kind === "dream" ? "PASSAGE" : "SCENE"} ${i + 1}</div>
         <div style="display:flex; align-items:flex-start;">
           ${leftColumn}
@@ -6504,7 +6504,7 @@
         const horizonHtml = buildPlanetHorizonHtml(seq, { pdf: true, theme });
         const tDiv = document.createElement("div");
         tDiv.style.cssText = `margin:2mm 4mm 3mm; color:${theme.muted};`;
-        tDiv.innerHTML = `<div style="font-size:8px; display:flex; align-items:center; gap:4px; margin-bottom:1mm;">
+        tDiv.innerHTML = /* html-safe-ignore */ `<div style="font-size:8px; display:flex; align-items:center; gap:4px; margin-bottom:1mm;">
           <span>${escapeHtml(trans.label)}</span>
           ${seqText ? `<span style="color:${theme.dim};">· ${escapeHtml(seqText)}</span>` : ""}
         </div>${horizonHtml}`;

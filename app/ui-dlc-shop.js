@@ -1572,7 +1572,7 @@
 
     const listHead = document.createElement("div");
     listHead.className = "dlc-settings-row-head";
-    listHead.innerHTML = `<strong>Library</strong><span class="settings-field-hint">${adminMode ? "Upload once. Check songs for this playlist, then Save Playlist." : "Songs assigned to the selected playlist."}</span>`;
+    listHead.innerHTML = /* html-safe-ignore */ `<strong>Library</strong><span class="settings-field-hint">${adminMode ? "Upload once. Check songs for this playlist, then Save Playlist." : "Songs assigned to the selected playlist."}</span>`;
     settingsBody.appendChild(listHead);
 
     const listEl = document.createElement("div");
@@ -1900,7 +1900,7 @@
       const row = document.createElement("div");
       row.className = "dlc-link-entry";
       row.dataset.image = String(link.image || "");
-      row.innerHTML = `
+      row.innerHTML = /* html-safe-ignore */ `
         <div class="dlc-link-entry-media">
           <img class="dlc-link-entry-preview" alt="" ${link.image ? `src="${escapeHtml(imageUrl(link.image))}"` : ""}>
           <button type="button" class="dlc-shop-btn" data-action="upload" ${adminMode ? "" : "disabled"}>Image</button>
@@ -2081,7 +2081,7 @@
     function addEntry(category = {}) {
       const row = document.createElement("div");
       row.className = "dlc-link-entry";
-      row.innerHTML = `
+      row.innerHTML = /* html-safe-ignore */ `
         <div class="dlc-settings-config-row">
           <label class="settings-field">Name<input data-field="name" type="text" placeholder="Music" ${adminMode ? "" : "readonly"}></label>
           <label class="settings-field">Search<input data-field="search" type="text" placeholder="album:*,artist:*" ${adminMode ? "" : "readonly"}></label>
@@ -2389,7 +2389,7 @@
           const change = event.granted?.length
             ? `+${event.granted.join(", ")}`
             : (event.revoked?.length ? `−${event.revoked.join(", ")}` : (event.note || ""));
-          row.innerHTML = `
+          row.innerHTML = /* html-safe-ignore */ `
             <span class="admin-email-event-type">${escapeHtml(event.type || "unknown")}</span>
             <span class="admin-email-event-recipient">${escapeHtml(event.clientId || event.customerId || "—")} ${escapeHtml(change)}</span>
             <span class="admin-email-event-time">${escapeHtml(when)}</span>
@@ -4400,10 +4400,10 @@
     overlay.className = "dlc-settings-overlay dlc-create-overlay";
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
-    overlay.innerHTML = `
+    overlay.innerHTML = /* html-safe-ignore */ `
       <div class="dlc-settings-overlay-panel">
         <div class="dlc-settings-overlay-head">
-          <strong>${editing ? `Edit ${editItem.title || editItem.name}` : "Create DLC"}</strong>
+          <strong>${editing ? `Edit ${escapeHtml(editItem.title || editItem.name)}` : "Create DLC"}</strong>
           <button type="button" class="dlc-shop-btn" data-action="close">Close</button>
         </div>
         <div class="dlc-settings-overlay-body">
@@ -5158,7 +5158,7 @@
       const raw = findRawReference(entry.id, entry.title) || entry;
       const pop = document.createElement("div");
       pop.className = "dlc-settings-overlay dlc-ref-detail-overlay";
-      pop.innerHTML = `
+      pop.innerHTML = /* html-safe-ignore */ `
         <div class="dlc-settings-overlay-panel">
           <div class="dlc-settings-overlay-head">
             <strong>${escapeHtml(entry.title || entry.id || "Entry")}</strong>
@@ -5852,7 +5852,7 @@
       const pop = document.createElement("div");
       pop.className = "dlc-settings-overlay dlc-deck-rename-overlay";
       pop.setAttribute("role", "dialog");
-      pop.innerHTML = `
+      pop.innerHTML = /* html-safe-ignore */ `
         <div class="dlc-settings-overlay-panel dlc-deck-rename-panel">
           <div class="dlc-settings-overlay-head">
             <strong>${escapeHtml(title)}</strong>
@@ -7410,7 +7410,7 @@
   function createKindHeading(kind, count) {
     const head = document.createElement("div");
     head.className = "dlc-kind-head";
-    head.innerHTML = `<strong>${escapeHtml(KIND_LABELS[kind] || kind)}</strong><span>${Number(count) || 0}</span>`;
+    head.innerHTML = /* html-safe-ignore */ `<strong>${escapeHtml(KIND_LABELS[kind] || kind)}</strong><span>${Number(count) || 0}</span>`;
     return head;
   }
 
