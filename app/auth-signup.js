@@ -1,4 +1,4 @@
-/* auth-signup.js — username/password sign-in, trial signup, and email
+/* auth-signup.js — username/email + password sign-in, trial signup, and email
  * verification in the connection gate. On success it seeds the gate's API key
  * (hidden behind the "advanced" option) and triggers the normal connect flow. */
 (function () {
@@ -216,8 +216,8 @@
           ? serverLabelEl.textContent
           : baseUrl();
         copyEl.textContent = baseUrl()
-          ? `Sign in with your username and password. Server ${label} is filled in.`
-          : "Sign in with your username and password. Tap Server to set the API address.";
+          ? `Sign in with your username or email and password. Server ${label} is filled in.`
+          : "Sign in with your username or email and password. Tap Server to set the API address.";
       }
     }
 
@@ -590,7 +590,7 @@
     async function submitLogin() {
       const username = String(loginUsernameEl?.value || "").trim();
       const password = String(loginPasswordEl?.value || "");
-      if (!username) { setStatus("Enter your username.", "error"); loginUsernameEl?.focus(); return; }
+      if (!username) { setStatus("Enter your username or email.", "error"); loginUsernameEl?.focus(); return; }
       if (!password) { setStatus("Enter your password.", "error"); loginPasswordEl?.focus(); return; }
 
       setBusy(true);
@@ -600,6 +600,7 @@
         if (!result.ok) {
           if (result.error === "email_not_verified") {
             state.username = username;
+            if (verifyEmailEl && username.includes("@")) verifyEmailEl.textContent = username;
             showStep("verify");
           }
           setStatus(result.message, "error");
@@ -734,7 +735,7 @@
       if (advancedEl) advancedEl.hidden = !open;
       if (panelEl) panelEl.hidden = open;
       if (advancedToggleEl) {
-        advancedToggleEl.textContent = open ? "Sign in with username" : "Use an API key instead";
+        advancedToggleEl.textContent = open ? "Sign in with username/email" : "Use an API key instead";
         advancedToggleEl.setAttribute("aria-expanded", open ? "true" : "false");
       }
       if (open) {
@@ -751,7 +752,7 @@
     captchaRefreshEl?.addEventListener("click", () => { void refreshChallenge(); });
     advancedToggleEl?.addEventListener("click", () => setAdvancedOpen(advancedEl.hidden));
     signinSwitchEl?.addEventListener("click", () => {
-      setStatus("Sign in with your username and password.", "default");
+      setStatus("Sign in with your username or email and password.", "default");
       showStep("login");
       loginUsernameEl?.focus();
     });

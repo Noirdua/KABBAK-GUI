@@ -220,7 +220,7 @@
     <div class="connection-gate-card" role="dialog" aria-modal="true" aria-labelledby="connection-gate-title">
       <div class="connection-gate-eyebrow">Account</div>
       <h1 id="connection-gate-title" class="connection-gate-title">Sign in to KABBAK</h1>
-      <p id="connection-gate-copy" class="connection-gate-copy">Sign in with your username and password. Tap Server to set the API address.</p>
+      <p id="connection-gate-copy" class="connection-gate-copy">Sign in with your username or email and password. Tap Server to set the API address.</p>
       <div class="connection-gate-server">
         <button id="connection-gate-server-toggle" class="connection-gate-server-btn" type="button" data-health="unknown" aria-expanded="false" aria-controls="connection-gate-server-editor">
           <span class="connection-gate-server-dot" aria-hidden="true"></span>
@@ -247,7 +247,7 @@
       <div id="connection-gate-account" class="connection-gate-account">
         <div class="connection-gate-step" data-account-step="login">
           <div class="connection-gate-account-fields">
-            <input id="connection-gate-login-username" name="kabbak-username" type="text" autocomplete="off" placeholder="Username" aria-label="Username" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
+            <input id="connection-gate-login-username" name="kabbak-username" type="text" autocomplete="off" placeholder="Username or email" aria-label="Username or email" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
             <div class="connection-gate-password">
               <input id="connection-gate-login-password" name="kabbak-password" type="password" autocomplete="off" placeholder="Password" aria-label="Password" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
               <button class="connection-gate-password-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button>
@@ -362,7 +362,7 @@
       if (protocolEl) protocolEl.value = url.protocol;
       if (portEl) portEl.value = url.port;
       if (labelEl) labelEl.textContent = url.host;
-      if (copyEl) copyEl.textContent = "Sign in with your username and password.";
+      if (copyEl) copyEl.textContent = "Sign in with your username or email and password.";
       if (lock) {
         // Locked to the server default: show only the status light + name.
         if (editorEl) editorEl.hidden = true;
@@ -3553,7 +3553,7 @@
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
   <script src="app.js?v=20261012-sun-layer"></script>
-  <script src="app/auth-signup.js?v=20261024-gate-health-diagnostics"></script>
+  <script src="app/auth-signup.js?v=20261025-login-email-v2"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">
       <strong>Caching Content</strong>
