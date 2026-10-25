@@ -18,6 +18,8 @@
   const DEFAULT_SKIN_ID = "layout-default";
   const NATIVE_SKIN_ID = "layout-phone";
   let refreshPromise = null;
+  let refreshAccessKey = "";
+  let refreshAgain = false;
   let activeSkinId = null;
   // Set while loading opted-in "public" plugins before the app is authenticated,
   // so their assets load straight from the API (no key/blob).
@@ -659,9 +661,6 @@
   }
 
   async function refresh() {
-    if (refreshPromise) {
-      return refreshPromise;
-    }
     const service = window.TarotDataService;
     const access = window.TarotAppConfig?.getConnectionAccess?.();
     if (!service || typeof service.requestJson !== "function" || typeof service.buildApiUrl !== "function") {
@@ -673,6 +672,19 @@
     if (!authenticated && !publicBase) {
       return [];
     }
+    const accessKey = authenticated ? "authenticated" : `public:${publicBase}`;
+    if (refreshPromise) {
+      if (refreshAccessKey && refreshAccessKey !== accessKey) {
+        refreshAgain = true;
+      }
+      const result = await refreshPromise;
+      if (refreshAgain) {
+        refreshAgain = false;
+        return refresh();
+      }
+      return result;
+    }
+    refreshAccessKey = accessKey;
     refreshPromise = (async () => {
       try {
         let plugins = [];
@@ -746,6 +758,7 @@
       }
     })().finally(() => {
       refreshPromise = null;
+      refreshAccessKey = "";
     });
     return refreshPromise;
   }

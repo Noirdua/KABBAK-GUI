@@ -2215,6 +2215,24 @@
     );
     body.appendChild(rowThree);
 
+    const supportRow = document.createElement("div");
+    supportRow.className = "dlc-settings-config-row";
+    supportRow.append(
+      makeField("Trial support email (optional)", "supportEmail", { type: "email", placeholder: "support@example.com" }),
+      makeField("Trial support phone (optional)", "supportPhone", { type: "tel", placeholder: "+1 555 0100" })
+    );
+    body.appendChild(supportRow);
+
+    const supportHint = document.createElement("span");
+    supportHint.className = "settings-field-hint";
+    supportHint.textContent = "Shown when a trial has ended, so the user knows who to contact. Leave either blank to omit it.";
+    body.appendChild(supportHint);
+
+    const manageHint = document.createElement("span");
+    manageHint.className = "settings-field-hint";
+    manageHint.textContent = "Extend or reactivate an expired trial, verify it, reset its key, or delete it in Admin → Users → Demo & Trial Accounts.";
+    body.appendChild(manageHint);
+
     const levelHint = document.createElement("span");
     levelHint.className = "settings-field-hint";
     levelHint.textContent = "Access level names come from the API access policy (for example basic, premium, pro+). New trials default to the default trial length.";
@@ -2222,12 +2240,31 @@
 
     const actions = document.createElement("div");
     actions.className = "dlc-shop-actions";
+    const manageBtn = document.createElement("button");
+    manageBtn.type = "button";
+    manageBtn.className = "dlc-shop-btn";
+    manageBtn.textContent = "Open Demo & Trial Accounts";
+    manageBtn.disabled = !adminMode;
+    manageBtn.addEventListener("click", () => {
+      document.querySelector(".dlc-settings-overlay .dlc-settings-overlay-head .dlc-shop-btn")?.click();
+      document.getElementById("open-admin")?.click();
+      document.getElementById("admin-tab-clients")?.click();
+      const scrollToPanel = (attempt = 0) => {
+        const panel = document.getElementById("demo-users-admin-panel");
+        if (panel) {
+          panel.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+        if (attempt < 20) setTimeout(() => scrollToPanel(attempt + 1), 150);
+      };
+      setTimeout(scrollToPanel, 150);
+    });
     const saveBtn = document.createElement("button");
     saveBtn.type = "button";
     saveBtn.className = "dlc-shop-btn";
     saveBtn.textContent = adminMode ? "Save Settings" : "Admin key required to edit";
     saveBtn.disabled = !adminMode;
-    actions.appendChild(saveBtn);
+    actions.append(manageBtn, saveBtn);
     body.appendChild(actions);
 
     const field = (name) => body.querySelector(`[data-field='${name}']`);
@@ -2246,6 +2283,8 @@
       field("maxDemoAccounts").value = String(settings.maxDemoAccounts ?? 0);
       field("maxTrialAccounts").value = String(settings.maxTrialAccounts ?? 0);
       field("gateAccountId").value = String(settings.gateAccountId || "");
+      field("supportEmail").value = String(settings.supportEmail || "");
+      field("supportPhone").value = String(settings.supportPhone || "");
     } catch (error) {
       status.set(`Could not load settings. ${error?.message || ""}`.trim(), true);
     }
@@ -2269,7 +2308,9 @@
               defaultTrialDays: Number(field("defaultTrialDays").value) || 0,
               maxDemoAccounts: Number(field("maxDemoAccounts").value) || 0,
               maxTrialAccounts: Number(field("maxTrialAccounts").value) || 0,
-              gateAccountId: String(field("gateAccountId").value || "").trim()
+              gateAccountId: String(field("gateAccountId").value || "").trim(),
+              supportEmail: String(field("supportEmail").value || "").trim(),
+              supportPhone: String(field("supportPhone").value || "").trim()
             }
           }
         );
