@@ -4,6 +4,16 @@
 (function () {
   "use strict";
 
+  const CUSTOM_SETTINGS_PLUGINS = new Set([
+    "music-player",
+    "homepage",
+    "links",
+    "hydrus-network",
+    "demo-users",
+    "layout-phone",
+    "stripe"
+  ]);
+
   function getElements() {
     return {
       installedEl: document.getElementById("dlc-plugins-installed"),
@@ -2230,7 +2240,7 @@
 
     const manageHint = document.createElement("span");
     manageHint.className = "settings-field-hint";
-    manageHint.textContent = "Extend or reactivate an expired trial, verify it, reset its key, or delete it in Admin → Users → Demo & Trial Accounts.";
+    manageHint.textContent = "Extend or reactivate an expired trial, verify it, reset its key, or delete it in the Demo & Trial Accounts section of this page.";
     body.appendChild(manageHint);
 
     const levelHint = document.createElement("span");
@@ -2243,21 +2253,22 @@
     const manageBtn = document.createElement("button");
     manageBtn.type = "button";
     manageBtn.className = "dlc-shop-btn";
-    manageBtn.textContent = "Open Demo & Trial Accounts";
+    manageBtn.textContent = "Manage accounts";
     manageBtn.disabled = !adminMode;
     manageBtn.addEventListener("click", () => {
-      document.querySelector(".dlc-settings-overlay .dlc-settings-overlay-head .dlc-shop-btn")?.click();
-      document.getElementById("open-admin")?.click();
-      document.getElementById("admin-tab-clients")?.click();
-      const scrollToPanel = (attempt = 0) => {
-        const panel = document.getElementById("demo-users-admin-panel");
-        if (panel) {
-          panel.scrollIntoView({ behavior: "smooth", block: "start" });
-          return;
-        }
-        if (attempt < 20) setTimeout(() => scrollToPanel(attempt + 1), 150);
-      };
-      setTimeout(scrollToPanel, 150);
+      const overlay = manageBtn.closest(".dlc-settings-overlay");
+      const accountsPanel = overlay ? null : document.querySelector("[data-demo-users-accounts]");
+      if (accountsPanel) {
+        accountsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      overlay?.remove();
+      if (window.TaroTimeAdminUi?.openPluginPage) {
+        window.TaroTimeAdminUi.openPluginPage("demo-users");
+      } else {
+        window.__kabbakAdminPendingPluginPage = "demo-users";
+        document.getElementById("open-admin")?.click();
+      }
     });
     const saveBtn = document.createElement("button");
     saveBtn.type = "button";
@@ -3058,6 +3069,28 @@
     await renderPhoneMenuEditor(body, status);
   }
 
+  function renderPluginSettingsInto(container, plugin) {
+    if (!container) return Promise.resolve();
+    const render = plugin?.name === "music-player"
+      ? renderMusicPlayerSettings
+      : plugin?.name === "homepage"
+        ? renderHomepageSettings
+        : plugin?.name === "links"
+          ? renderLinksSettings
+          : plugin?.name === "hydrus-network"
+            ? renderHydrusNetworkSettings
+            : plugin?.name === "demo-users"
+              ? renderDemoUsersSettings
+              : plugin?.name === "layout-phone"
+                ? renderLayoutPhoneSettings
+                : plugin?.name === "stripe"
+                  ? renderStripeSettings
+                  : renderGenericConfigSettings;
+    return Promise.resolve(render(container, plugin)).then(() => {
+      if (isAdmin()) renderPluginLogs(container, plugin);
+    });
+  }
+
   function openPluginSettings(cardEl, plugin) {
     if (plugin?.name === "menu-plugin") {
       if (!isAdmin()) {
@@ -3075,24 +3108,7 @@
     }
     const settingsEl = createPluginSettingsShell(cardEl, `${plugin?.title || plugin?.name} Settings`);
     if (!settingsEl) return;
-    const render = plugin?.name === "music-player"
-      ? renderMusicPlayerSettings
-      : plugin?.name === "homepage"
-        ? renderHomepageSettings
-        : plugin?.name === "links"
-          ? renderLinksSettings
-          : plugin?.name === "hydrus-network"
-            ? renderHydrusNetworkSettings
-            : plugin?.name === "demo-users"
-              ? renderDemoUsersSettings
-              : plugin?.name === "layout-phone"
-                ? renderLayoutPhoneSettings
-                : plugin?.name === "stripe"
-                  ? renderStripeSettings
-                  : renderGenericConfigSettings;
-    void Promise.resolve(render(settingsEl, plugin)).then(() => {
-      if (isAdmin()) renderPluginLogs(settingsEl, plugin);
-    });
+    void renderPluginSettingsInto(settingsEl, plugin);
   }
 
   // --- Create DLC (text first; plugin keeps the old scaffold) -----------------
@@ -7593,6 +7609,12 @@
     },
     openPluginSettings(cardEl, plugin) {
       return openPluginSettings(cardEl, plugin);
+    },
+    renderPluginSettingsInto(container, plugin) {
+      return renderPluginSettingsInto(container, plugin);
+    },
+    hasPluginSettings(pluginName) {
+      return CUSTOM_SETTINGS_PLUGINS.has(String(pluginName || "").trim());
     },
     openCreatePlugin(hostEl, options) {
       return openCreateDlc(hostEl, options);

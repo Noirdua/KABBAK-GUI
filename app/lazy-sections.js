@@ -134,7 +134,7 @@
       "app/ui-natal.js?v=20260917-natal-place"
     ],
     admin: [
-      "app/ui-admin.js?v=20261024-safe-html"
+      "app/ui-admin.js?v=20261026-plugin-admin-pages-v5"
     ],
     profile: [
       "app/ui-post-editor.js?v=20260917-quote-meta",

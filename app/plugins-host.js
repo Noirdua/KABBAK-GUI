@@ -12,6 +12,7 @@
   const loadedAssets = new Set();
   const relocatedNodes = [];
   const pendingCatalog = new Map();
+  const adminPages = new Map();
   const SKIN_ROLES = new Set(["skin", "overhaul", "ui"]);
   const ACTIVE_SKIN_STORAGE_KEY = "kabbak-active-skin";
   const AUTO_PHONE_BROWSER_KEY = "kabbak-phone-auto-browser";
@@ -708,6 +709,7 @@
               continue;
             }
             unmountPlugin(name);
+            removeAdminPagesForPlugin(name);
             // Forget the old registration and assets so a reinstall (with
             // possibly new code) loads fresh instead of reusing stale closures.
             registered.delete(name);
@@ -750,6 +752,7 @@
           unmountPlugin(activeSkinId);
         }
         document.dispatchEvent(new CustomEvent("taro-plugins-ready"));
+        document.dispatchEvent(new CustomEvent("plugin:catalog-updated"));
         emitSkinChanged();
         return plugins;
       } catch (error) {
@@ -761,6 +764,38 @@
       refreshAccessKey = "";
     });
     return refreshPromise;
+  }
+
+  function removeAdminPagesForPlugin(pluginName) {
+    const id = String(pluginName || "").trim();
+    if (!id || !adminPages.delete(id)) return;
+    document.dispatchEvent(new CustomEvent("plugin:admin-page-removed", { detail: { id } }));
+  }
+
+  function registerAdminPage(page) {
+    if (!page || !page.id || typeof page.mount !== "function") return;
+    const id = String(page.id).trim();
+    if (!id) return;
+    adminPages.set(id, {
+      id,
+      label: String(page.label || page.title || id),
+      title: String(page.title || page.label || id),
+      description: String(page.description || ""),
+      group: String(page.group || "Plugins"),
+      order: Number(page.order) || 0,
+      mount: page.mount
+    });
+    document.dispatchEvent(new CustomEvent("plugin:admin-page", { detail: { id } }));
+  }
+
+  function listAdminPages() {
+    return [...adminPages.values()]
+      .map(({ mount, ...meta }) => ({ ...meta }))
+      .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
+  }
+
+  function getAdminPage(id) {
+    return adminPages.get(String(id || "").trim()) || null;
   }
 
   window.TaroTimePluginHost = {
@@ -781,6 +816,9 @@
       mountPlugin(id);
     },
     refresh,
+    registerAdminPage,
+    listAdminPages,
+    getAdminPage,
     assetUrl,
     listNav,
     listSkins,

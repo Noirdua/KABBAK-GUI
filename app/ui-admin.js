@@ -125,6 +125,7 @@
     const statusWrap = statusText.closest(".settings-page-status");
     if (statusWrap) {
       statusWrap.dataset.tone = isError ? "error" : "neutral";
+      statusWrap.hidden = !String(text || "").trim();
     }
   }
 
@@ -472,22 +473,306 @@
 
   // --- Tabs ------------------------------------------------------------------
 
-  function activateTab(tabId) {
-    document.querySelectorAll(".admin-tab").forEach((tab) => {
-      const active = tab.id === tabId;
-      tab.classList.toggle("is-active", active);
-      tab.setAttribute("aria-selected", active ? "true" : "false");
+  const ADMIN_PAGES = {
+    overview: ["Home", "Overview", "Clients, catalog, jobs, and anything that needs attention."],
+    clients: ["People", "Users", "API keys, permissions, and profile activity."],
+    tiers: ["People", "Tiers", "Base access ranks and the subscriber tiers you define."],
+    plugins: ["Catalog", "Plugins & DLC", "Install, publish, and import catalog items."],
+    messages: ["Inbox", "Messages", "Broadcasts, history, replies, and community reports."],
+    "server:connection": ["System", "Connection", "Default host, CORS, request limits, and the encryption secret."],
+    "server:branding": ["System", "Branding", "Tab title, logo, and what new visitors see first."],
+    "server:email": ["System", "Email", "How verification mail is sent, and recent delivery events."],
+    "server:signup": ["System", "Signup", "Self-serve signup and the trial key policy."],
+    "server:logs": ["System", "Logs", "In-memory request log and background jobs."]
+  };
+  let activeAdminPanel = "overview";
+  let activeServerPage = "connection";
+  let pluginAdminPages = [];
+  let pluginSettingsCatalog = [];
+  const mountedPluginAdminPages = new Set();
+
+  function pluginPageSlug(id) {
+    return String(id || "").trim().replace(/[^a-zA-Z0-9_-]+/g, "-");
+  }
+
+  function buildAutoPluginSettingsPage(plugin) {
+    const name = String(plugin?.name || "").trim();
+    const title = String(plugin?.title || name);
+    return {
+      id: name,
+      label: title,
+      title,
+      description: String(plugin?.description || `Settings for ${title}.`),
+      group: "Plugins",
+      order: plugin?.customSettings ? 100 : 300,
+      auto: true,
+      mount(container) {
+        container.replaceChildren();
+        const panel = document.createElement("div");
+        panel.className = "settings-panel settings-panel-wide";
+        const head = document.createElement("div");
+        head.className = "settings-panel-head";
+        const strong = document.createElement("strong");
+        strong.textContent = `${title} settings`;
+        const copy = document.createElement("span");
+        copy.textContent = plugin?.customSettings
+          ? "Plugin settings, status, and recent activity."
+          : "Advanced config and entry script. Changes apply when the plugin reloads.";
+        head.append(strong, copy);
+        const body = document.createElement("div");
+        panel.append(head, body);
+        container.appendChild(panel);
+        if (typeof window.TaroTimeDlcShop?.renderPluginSettingsInto === "function") {
+          void window.TaroTimeDlcShop.renderPluginSettingsInto(body, plugin);
+        } else {
+          const hint = document.createElement("span");
+          hint.className = "settings-field-hint";
+          hint.textContent = "Plugin settings are unavailable. Reload the page.";
+          body.appendChild(hint);
+        }
+      }
+    };
+  }
+
+  async function loadPluginSettingsPages() {
+    try {
+      const payload = await requestJson("GET", "/api/v1/plugins");
+      const plugins = (Array.isArray(payload?.plugins) ? payload.plugins : [])
+        .filter((plugin) => plugin?.name && plugin.name !== "menu-plugin");
+      const checks = await Promise.all(plugins.map(async (plugin) => {
+        const customSettings = window.TaroTimeDlcShop?.hasPluginSettings?.(plugin.name) === true;
+        if (customSettings) return { ...plugin, customSettings: true };
+        try {
+          const configPayload = await requestJson("GET", `/api/v1/plugins/${encodeURIComponent(plugin.name)}/config`);
+          const config = configPayload?.config;
+          const hasConfig = Boolean(config && typeof config === "object" && Object.keys(config).length);
+          return hasConfig ? { ...plugin, customSettings: false } : null;
+        } catch (_error) {
+          return null;
+        }
+      }));
+      pluginSettingsCatalog = checks
+        .filter(Boolean)
+        .sort((a, b) => Number(b.customSettings) - Number(a.customSettings)
+          || String(a.title || a.name).localeCompare(String(b.title || b.name)));
+      syncPluginAdminPages();
+    } catch (_error) {
+      pluginSettingsCatalog = [];
+      syncPluginAdminPages();
+    }
+  }
+
+  function syncPluginAdminPages() {
+    const nav = document.getElementById("admin-plugin-nav");
+    const label = document.getElementById("admin-plugin-nav-label");
+    const panels = document.getElementById("admin-plugin-panels");
+    if (!nav || !panels) return;
+    const host = window.TaroTimePluginHost;
+    const registered = typeof host?.listAdminPages === "function" ? host.listAdminPages() : [];
+    const autoPages = pluginSettingsCatalog
+      .filter((plugin) => !registered.some((page) => page.id === plugin.name))
+      .map(buildAutoPluginSettingsPage);
+    const pages = [...registered, ...autoPages];
+    pluginAdminPages = pages;
+    const ids = new Set(pages.map((page) => page.id));
+    [...nav.querySelectorAll("[data-plugin-admin-page]")].forEach((button) => {
+      if (!ids.has(button.dataset.pluginAdminPage)) button.remove();
+    });
+    [...panels.querySelectorAll("[data-plugin-admin-panel]")].forEach((panel) => {
+      if (ids.has(panel.dataset.pluginAdminPanel)) return;
+      const id = panel.dataset.pluginAdminPanel;
+      const mount = panel.querySelector("[data-plugin-admin-mount]");
+      if (typeof mount?._pluginUnmount === "function") {
+        try { mount._pluginUnmount(); } catch (_error) {}
+      }
+      panel.remove();
+      mountedPluginAdminPages.delete(id);
+      if (activeAdminPanel === `plugin:${id}`) {
+        document.getElementById("admin-tab-overview")?.click();
+      }
+    });
+    pages.forEach((page) => {
+      const slug = pluginPageSlug(page.id);
+      const active = activeAdminPanel === `plugin:${page.id}`;
+      let button = [...nav.querySelectorAll("[data-plugin-admin-page]")].find((item) => item.dataset.pluginAdminPage === page.id);
+      if (!button) {
+        button = document.createElement("button");
+        button.type = "button";
+        button.className = "admin-tab";
+        button.dataset.pluginAdminPage = page.id;
+        button.addEventListener("click", () => activatePluginPage(page.id));
+        nav.appendChild(button);
+      }
+      button.id = `admin-tab-plugin-${slug}`;
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-selected", active ? "true" : "false");
+      button.classList.toggle("is-active", active);
+      button.textContent = page.label || page.title || page.id;
+      if (!document.getElementById(`admin-panel-plugin-${slug}`)) {
+        const panel = document.createElement("section");
+        panel.id = `admin-panel-plugin-${slug}`;
+        panel.className = "admin-panel";
+        panel.dataset.pluginAdminPanel = page.id;
+        panel.hidden = true;
+        const mount = document.createElement("div");
+        mount.className = "admin-plugin-page-mount";
+        mount.dataset.pluginAdminMount = page.id;
+        panel.appendChild(mount);
+        panels.appendChild(panel);
+      }
+    });
+    const hasPages = pages.length > 0;
+    if (label) label.hidden = !hasPages;
+    nav.hidden = !hasPages;
+    const demoHint = document.getElementById("admin-demo-users-hint");
+    if (demoHint) demoHint.hidden = !ids.has("demo-users");
+  }
+
+  function activatePluginPage(pageId) {
+    const id = String(pageId || "").trim();
+    const page = pluginAdminPages.find((entry) => entry.id === id);
+    if (!page) return false;
+    noteAdminPanel(`plugin:${id}`);
+    document.querySelectorAll(".admin-tab, .admin-subtab").forEach((item) => {
+      item.classList.remove("is-active");
+      item.setAttribute("aria-selected", "false");
+    });
+    const tab = document.getElementById(`admin-tab-plugin-${pluginPageSlug(id)}`);
+    if (tab) {
+      tab.classList.add("is-active");
+      tab.setAttribute("aria-selected", "true");
+    }
+    document.querySelectorAll(".admin-panel").forEach((panel) => {
+      panel.hidden = panel.id !== `admin-panel-plugin-${pluginPageSlug(id)}`;
+    });
+    const actions = document.querySelector(".admin-hero-actions .admin-actions");
+    if (actions) {
+      actions.hidden = true;
+      const menu = document.getElementById("admin-actions-menu");
+      const toggle = document.getElementById("admin-actions-toggle");
+      if (menu) menu.hidden = true;
+      if (toggle) toggle.setAttribute("aria-expanded", "false");
+    }
+    const kickerEl = document.getElementById("admin-page-kicker");
+    const titleEl = document.getElementById("admin-page-title");
+    const copyEl = document.getElementById("admin-page-copy");
+    if (kickerEl) kickerEl.textContent = page.group || "Plugins";
+    if (titleEl) titleEl.textContent = page.title || page.label || id;
+    if (copyEl) copyEl.textContent = page.description || "";
+    const panel = document.getElementById(`admin-panel-plugin-${pluginPageSlug(id)}`);
+    const mount = panel?.querySelector("[data-plugin-admin-mount]");
+    const fullPage = typeof page.mount === "function"
+      ? page
+      : (typeof window.TaroTimePluginHost?.getAdminPage === "function"
+        ? window.TaroTimePluginHost.getAdminPage(id)
+        : null);
+    if (mount && !mountedPluginAdminPages.has(id) && typeof fullPage?.mount === "function") {
+      mountedPluginAdminPages.add(id);
+      try {
+        const result = fullPage.mount(mount, {
+          id,
+          openSection(sectionId) {
+            window.TarotSectionStateUi?.setActiveSection?.(sectionId);
+          }
+        });
+        if (typeof result === "function") mount._pluginUnmount = result;
+      } catch (error) {
+        mount.textContent = `Could not open ${page.label || id}. ${error?.message || ""}`;
+      }
+    }
+    document.dispatchEvent(new CustomEvent("admin:plugin-page-shown", { detail: { id } }));
+    syncLogPolling();
+    return true;
+  }
+
+  function setAdminPageHeader(panelId, serverPage) {
+    const key = panelId === "server" ? `server:${serverPage || "connection"}` : panelId;
+    const page = ADMIN_PAGES[key] || ADMIN_PAGES.overview;
+    const kickerEl = document.getElementById("admin-page-kicker");
+    const titleEl = document.getElementById("admin-page-title");
+    const copyEl = document.getElementById("admin-page-copy");
+    if (kickerEl) kickerEl.textContent = page[0];
+    if (titleEl) titleEl.textContent = page[1];
+    if (copyEl) copyEl.textContent = page[2];
+  }
+
+  function showServerPage(page) {
+    const name = page || "connection";
+    if (activeServerPage !== name) setStatus("");
+    activeServerPage = name;
+    document.querySelectorAll("[data-server-pane]").forEach((pane) => {
+      pane.hidden = pane.getAttribute("data-server-pane") !== name;
+    });
+    document.querySelectorAll("[data-server-page]").forEach((button) => {
+      const active = button.getAttribute("data-server-page") === name;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    const savebar = document.querySelector("[data-server-savebar]");
+    if (savebar) savebar.hidden = name === "logs";
+    setAdminPageHeader("server", name);
+  }
+
+  function showMessagesPane(page) {
+    const name = page || "sent";
+    document.querySelectorAll("[data-messages-pane]").forEach((pane) => {
+      pane.hidden = pane.getAttribute("data-messages-pane") !== name;
+    });
+    document.querySelectorAll("[data-messages-page]").forEach((button) => {
+      const active = button.getAttribute("data-messages-page") === name;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-selected", active ? "true" : "false");
+    });
+  }
+
+  function noteAdminPanel(panelId) {
+    const entering = activeAdminPanel !== panelId;
+    activeAdminPanel = panelId;
+    if (entering) setStatus("");
+    return entering;
+  }
+
+  function activateTab(tabId, serverPage) {
+    const tab = document.getElementById(tabId);
+    const selectedPanel = tabId.split("-").pop();
+    document.querySelectorAll(".admin-tab").forEach((item) => {
+      const active = selectedPanel === "server" ? false : item.id === tabId;
+      item.classList.toggle("is-active", active);
+      item.setAttribute("aria-selected", active ? "true" : "false");
     });
     const panelIds = ["overview", "clients", "tiers", "plugins", "messages", "server"];
-    const selectedPanel = tabId.split("-").pop();
+    document.querySelectorAll("[data-plugin-admin-panel]").forEach((panel) => {
+      panel.hidden = true;
+    });
     panelIds.forEach((panelId) => {
       const panel = document.getElementById(`admin-panel-${panelId}`);
       if (panel) {
         panel.hidden = panelId !== selectedPanel;
       }
     });
+    const actions = document.querySelector(".admin-hero-actions .admin-actions");
+    if (actions) {
+      const showActions = selectedPanel === "messages";
+      actions.hidden = !showActions;
+      if (!showActions) {
+        const menu = document.getElementById("admin-actions-menu");
+        const toggle = document.getElementById("admin-actions-toggle");
+        if (menu) menu.hidden = true;
+        if (toggle) toggle.setAttribute("aria-expanded", "false");
+      }
+    }
     if (selectedPanel === "messages") {
+      showMessagesPane("sent");
       void renderAdminMessages();
+    }
+    if (selectedPanel === "server") {
+      showServerPage(serverPage || tab?.dataset.serverPage || "connection");
+    } else {
+      document.querySelectorAll(".admin-subtab").forEach((item) => {
+        item.classList.remove("is-active");
+        item.setAttribute("aria-selected", "false");
+      });
+      setAdminPageHeader(selectedPanel);
     }
   }
 
@@ -1204,15 +1489,47 @@
     ["overview", "clients", "tiers", "plugins", "messages", "server"].forEach((panelId) => {
       const tab = document.getElementById(`admin-tab-${panelId}`);
       if (tab) {
-        tab.addEventListener("click", () => activateTab(`admin-tab-${panelId}`));
+        tab.addEventListener("click", () => {
+          tab.dataset.adminEntering = noteAdminPanel(panelId) ? "1" : "0";
+          activateTab(`admin-tab-${panelId}`, panelId === "server" ? tab.dataset.serverPage : undefined);
+        });
       }
     });
-    const backBtn = document.getElementById("close-admin");
-    if (backBtn) {
-      backBtn.addEventListener("click", () => {
-        document.getElementById("open-home")?.click();
+    document.querySelectorAll(".admin-subtab").forEach((button) => {
+      button.addEventListener("click", () => {
+        noteAdminPanel("server");
+        const page = button.dataset.serverPage || "connection";
+        activateTab("admin-tab-server", page);
+        if (page === "logs") {
+          void loadLogs();
+        } else {
+          if (!serverSettingsLoaded) void loadServerSettings({ quiet: true });
+          if (page === "connection") void loadJobs();
+        }
+        syncLogPolling();
       });
-    }
+    });
+    document.querySelectorAll("[data-messages-page]").forEach((button) => {
+      button.addEventListener("click", () => showMessagesPane(button.dataset.messagesPage));
+    });
+    document.querySelectorAll("[data-admin-jump]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const jump = button.dataset.adminJump;
+        if (jump === "server") {
+          const page = button.dataset.serverJump || "connection";
+          if (page === "connection") {
+            document.getElementById("admin-tab-server")?.click();
+          } else {
+            document.querySelector(`.admin-subtab[data-server-page="${page}"]`)?.click();
+          }
+          return;
+        }
+        document.getElementById(`admin-tab-${jump}`)?.click();
+        if (jump === "messages" && button.dataset.messagesJump) {
+          showMessagesPane(button.dataset.messagesJump);
+        }
+      });
+    });
   }
 
   // --- Overview --------------------------------------------------------------
@@ -1294,9 +1611,9 @@
       overviewGrid.appendChild(createStatCard("DLC Repo", overview?.dlcRepo?.present ? "checked out" : "missing", overview?.dlcRepo?.present ? `${overview.dlcRepo.branch || "?"} · ${overview.dlcRepo.url || ""}` : "run dlc init"));
       overviewGrid.appendChild(createStatCard("Server Time", String(overview?.serverTime || "").replace("T", " ").slice(0, 19), ""));
       renderJobs(overview?.jobs);
-      setStatus("Admin overview loaded.");
+      if (activeAdminPanel === "overview") setStatus("Admin overview loaded.");
     } catch (error) {
-      setStatus(`Could not load overview. ${error?.message || ""}`, true);
+      if (activeAdminPanel === "overview") setStatus(`Could not load overview. ${error?.message || ""}`, true);
       overviewGrid.innerHTML = "";
       const errorCard = document.createElement("div");
       errorCard.className = "admin-stat-card";
@@ -1499,9 +1816,9 @@
         clientsTable.appendChild(row);
       });
 
-      setStatus(`Users loaded (${clients.length}).`);
+      if (activeAdminPanel === "clients") setStatus(`Users loaded (${clients.length}).`);
     } catch (error) {
-      setStatus(`Could not load users. ${error?.message || ""}`, true);
+      if (activeAdminPanel === "clients") setStatus(`Could not load users. ${error?.message || ""}`, true);
     }
   }
 
@@ -1739,7 +2056,7 @@
     try {
       catalog = await requestJson("GET", "/api/v1/admin/tiers");
     } catch (error) {
-      setStatus(`Could not load tiers. ${error?.message || ""}`, true);
+      if (activeAdminPanel === "tiers") setStatus(`Could not load tiers. ${error?.message || ""}`, true);
       return;
     }
     renderRoleFlagInputs(catalog, null);
@@ -1772,7 +2089,7 @@
       delete createRolesEl.dataset.ready;
     }
 
-    setStatus(`Tiers loaded (${catalog.baseTiers?.length || 0} base, ${catalog.customTiers?.length || 0} custom).`);
+    if (activeAdminPanel === "tiers") setStatus(`Tiers loaded (${catalog.baseTiers?.length || 0} base, ${catalog.customTiers?.length || 0} custom).`);
   }
 
   function renderLevelCard(level, catalog) {
@@ -2033,6 +2350,7 @@
   // --- Server settings & logs -------------------------------------------------
 
   let serverSettingsRequest = 0;
+  let serverSettingsLoaded = false;
 
   function setSettingsSaveStatus(text, isError = false) {
     const { settingsSaveStatusEl } = getElements();
@@ -2378,6 +2696,7 @@
         });
       }
       if (!options.quiet) setStatus("Server settings loaded.");
+      serverSettingsLoaded = true;
     } catch (error) {
       if (requestId !== serverSettingsRequest || options.quiet) return;
       setStatus(`Could not load server settings. ${error?.message || ""}`, true);
@@ -2737,6 +3056,13 @@
   }
 
   let logPollTimer = null;
+  const LOG_RENDER_STEP = 100;
+  let logEntriesCache = [];
+  let logToneFilter = "all";
+  let logRenderLimit = LOG_RENDER_STEP;
+  let logRenderSignature = "";
+  let logExpandedKeys = new Set();
+  let logEntriesByKey = new Map();
 
   function syncLogSelect(selectEl, items, allLabel) {
     if (!selectEl) return;
@@ -2756,7 +3082,366 @@
     }
   }
 
-  async function loadLogs() {
+  function formatLogBytes(bytes) {
+    const value = Number(bytes) || 0;
+    if (value < 1024) return `${value} B`;
+    if (value < 1024 * 1024) return `${(value / 1024).toFixed(value < 10 * 1024 ? 1 : 0)} KB`;
+    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function formatLogDuration(ms) {
+    const value = Number(ms) || 0;
+    if (value < 1000) return `${Math.round(value)} ms`;
+    return `${(value / 1000).toFixed(value < 10000 ? 2 : 1)} s`;
+  }
+
+  function humanizeLogToken(value) {
+    return String(value || "")
+      .replace(/^api[_-]?/i, "")
+      .replace(/[_:]+/g, " ")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .replace(/\bId\b/g, "ID")
+      .replace(/\bIp\b/g, "IP")
+      .replace(/\bDlc\b/g, "DLC")
+      .trim();
+  }
+
+  function resolveLogTone(entry) {
+    const structured = entry?.structured && typeof entry.structured === "object" ? entry.structured : {};
+    if (String(entry?.event || "") === "api_request_complete") {
+      const status = Number(structured.statusCode) || 0;
+      if (status >= 500) return "error";
+      if (status >= 400) return "warn";
+      if (status >= 200 && status < 300) return "success";
+      return "info";
+    }
+    const level = String(entry?.level || "info");
+    if (level === "error") return "error";
+    if (level === "warn") return "warn";
+    return "info";
+  }
+
+  function logEntryKey(entry) {
+    const structured = entry?.structured || {};
+    return [
+      entry?.timestamp || "",
+      entry?.event || "",
+      entry?.path || "",
+      structured.statusCode || "",
+      String(entry?.message || "").slice(0, 80)
+    ].join("|");
+  }
+
+  function logEntryMatchesTone(entry) {
+    if (logToneFilter === "all") return true;
+    if (logToneFilter === "slow") return Number(entry?.structured?.durationMs || 0) >= 1000;
+    if (logToneFilter === "actions") return /^api_(admin|dlc)/.test(String(entry?.event || ""));
+    return resolveLogTone(entry) === logToneFilter;
+  }
+
+  function isLogViewNoise(entry) {
+    if (String(entry?.event || "") !== "api_request_complete") return false;
+    const structured = entry?.structured || {};
+    const status = Number(structured.statusCode || 0);
+    if (status >= 400) return false;
+    const method = String(structured.method || entry?.method || "").toUpperCase();
+    if (method === "OPTIONS" && status === 204) return true;
+    const path = String(entry?.path || "").split("?")[0];
+    return path === "/api/v1/admin/logs" || path === "/api/v1/admin/jobs";
+  }
+
+  function describeLogEntry(entry) {
+    const structured = entry?.structured && typeof entry.structured === "object" ? entry.structured : {};
+    const event = String(entry?.event || "");
+    const chips = [];
+    if (event === "api_request_complete") {
+      const status = Number(structured.statusCode) || 0;
+      const duration = Number(structured.durationMs) || 0;
+      if (status) {
+        chips.push({
+          label: String(status),
+          tone: status >= 500 ? "error" : status >= 400 ? "warn" : status >= 300 ? "info" : "success"
+        });
+      }
+      chips.push({ label: formatLogDuration(duration), tone: duration >= 1000 ? "warn" : "neutral" });
+      if (Number(structured.bytesSent) > 0) {
+        chips.push({ label: formatLogBytes(structured.bytesSent), tone: "neutral" });
+      }
+      chips.push({
+        label: structured.clientId || (structured.authenticated ? "signed in" : "public"),
+        tone: "brand"
+      });
+      return { title: `${structured.method || "?"} ${structured.path || "/"}`, chips };
+    }
+    if (event === "api_bandwidth_summary") {
+      chips.push({ label: `${Number(structured.requests) || 0} requests`, tone: "neutral" });
+      (Array.isArray(structured.topRouteGroups) ? structured.topRouteGroups : []).slice(0, 3).forEach((group) => {
+        chips.push({ label: String(group), tone: "brand" });
+      });
+      return { title: `Bandwidth · ${formatLogBytes(structured.bytesSent)} sent`, chips };
+    }
+    if (event === "api_ip_banned") {
+      chips.push({ label: `${Number(structured.retryAfterSeconds) || 0}s`, tone: "warn" });
+      return { title: `Banned ${structured.ip || "an IP address"}`, chips };
+    }
+    if (event === "api_admin_mutation") {
+      chips.push({ label: structured.actorClientId || "admin", tone: "brand" });
+      ["targetClientId", "targetMessageId", "roleId", "levelId", "itemName", "sourceId"].forEach((key) => {
+        if (structured[key]) chips.push({ label: String(structured[key]), tone: "neutral" });
+      });
+      return { title: `Admin · ${humanizeLogToken(structured.action || "mutation")}`, chips };
+    }
+    if (event === "api_dlc_mutation" || event === "api_dlc" || event === "api_dlc_error") {
+      if (structured.itemName) chips.push({ label: String(structured.itemName), tone: "brand" });
+      if (structured.message) chips.push({ label: String(structured.message), tone: "neutral" });
+      return {
+        title: `${event === "api_dlc_error" ? "DLC failed" : "DLC"} · ${humanizeLogToken(structured.action || "change")}`,
+        chips
+      };
+    }
+    if (event === "api_integration_error") {
+      if (structured.status) chips.push({ label: `HTTP ${structured.status}`, tone: "warn" });
+      if (structured.message) chips.push({ label: String(structured.message), tone: "neutral" });
+      return { title: `Integration · ${humanizeLogToken(structured.integration || "error")}`, chips };
+    }
+    let title;
+    if (event) {
+      title = humanizeLogToken(event);
+      if (structured.message) chips.push({ label: String(structured.message), tone: "neutral" });
+    } else {
+      title = String(entry?.message || "Log line").slice(0, 220);
+    }
+    if (entry?.pathGroup) chips.push({ label: entry.pathGroup, tone: "group" });
+    return { title, chips };
+  }
+
+  function logDetailPairs(entry) {
+    const structured = entry?.structured && typeof entry.structured === "object" ? entry.structured : null;
+    if (!structured) return [];
+    const formatters = {
+      durationMs: (value) => formatLogDuration(value),
+      bytesSent: (value) => formatLogBytes(value),
+      bytesSentMB: (value) => `${value} MB`
+    };
+    return Object.entries(structured)
+      .filter(([key, value]) => key !== "event" && value !== "" && value !== null && value !== undefined)
+      .map(([key, value]) => {
+        let text;
+        if (value && typeof value === "object") text = JSON.stringify(value);
+        else if (formatters[key]) text = formatters[key](value);
+        else text = String(value);
+        return { label: humanizeLogToken(key), value: text };
+      });
+  }
+
+  function logDayKey(date) {
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return "unknown";
+    return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+  }
+
+  function logDayLabel(date) {
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return "Unknown time";
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    const sameDay = (left, right) => logDayKey(left) === logDayKey(right);
+    if (sameDay(parsed, today)) return `Today · ${parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+    if (sameDay(parsed, yesterday)) return `Yesterday · ${parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+    return parsed.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  }
+
+  function renderLogSummary(entries) {
+    const summaryEl = document.getElementById("admin-log-summary");
+    if (!summaryEl) return;
+    const counts = { all: entries.length, error: 0, warn: 0, slow: 0, actions: 0 };
+    entries.forEach((entry) => {
+      const tone = resolveLogTone(entry);
+      if (tone === "error") counts.error += 1;
+      if (tone === "warn") counts.warn += 1;
+      if (Number(entry?.structured?.durationMs || 0) >= 1000) counts.slow += 1;
+      if (/^api_(admin|dlc)/.test(String(entry?.event || ""))) counts.actions += 1;
+    });
+    const tiles = [
+      ["all", "All", counts.all],
+      ["error", "Errors", counts.error],
+      ["warn", "Warnings", counts.warn],
+      ["slow", "Slow", counts.slow],
+      ["actions", "Admin & DLC", counts.actions]
+    ];
+    summaryEl.innerHTML = /* html-safe-ignore */ `
+      <div class="admin-log-stats">
+        ${tiles.map(([tone, label, count]) => `
+          <button type="button" class="admin-log-stat is-${escapeHtml(tone)}${logToneFilter === tone ? " is-active" : ""}" data-log-tone="${escapeHtml(tone)}">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(String(count))}</strong>
+          </button>
+        `).join("")}
+      </div>
+    `;
+    const groups = [...entries.reduce((map, entry) => {
+      const group = String(entry?.pathGroup || "other");
+      map.set(group, (map.get(group) || 0) + 1);
+      return map;
+    }, new Map()).entries()]
+      .map(([id, count]) => ({ id, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+    if (groups.length) {
+      const activeGroup = String(document.getElementById("admin-log-group")?.value || "");
+      const row = document.createElement("div");
+      row.className = "admin-log-route-chips";
+      const label = document.createElement("span");
+      label.className = "admin-log-route-label";
+      label.textContent = "Top paths";
+      row.appendChild(label);
+      groups.forEach((group) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `admin-log-route-chip${activeGroup === group.id ? " is-active" : ""}`;
+        button.dataset.logRoute = group.id;
+        button.textContent = `${group.id} · ${group.count}`;
+        row.appendChild(button);
+      });
+      summaryEl.appendChild(row);
+    }
+    if (logToneFilter !== "all") {
+      const clear = document.createElement("button");
+      clear.type = "button";
+      clear.className = "admin-log-route-chip is-clear";
+      clear.dataset.logTone = "all";
+      clear.textContent = "Clear quick filter";
+      summaryEl.appendChild(clear);
+    }
+  }
+
+  function buildLogEntryRow(entry, key) {
+    const row = document.createElement("details");
+    row.className = "admin-log-entry";
+    row.dataset.tone = resolveLogTone(entry);
+    row.dataset.logKey = key;
+    if (logExpandedKeys.has(key)) row.open = true;
+    const { title, chips } = describeLogEntry(entry);
+    const parsed = new Date(entry.timestamp);
+    const validTime = !Number.isNaN(parsed.getTime());
+    const timeLabel = validTime
+      ? parsed.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      : String(entry.timestamp || "").slice(11, 19);
+    const timeTitle = validTime ? parsed.toLocaleString() : String(entry.timestamp || "");
+    const eventLabel = entry.event && entry.event !== "api_request_complete" ? humanizeLogToken(entry.event) : "";
+    const pairs = logDetailPairs(entry);
+    const rawText = entry.structured ? JSON.stringify(entry.structured, null, 2) : String(entry.message || "");
+    row.innerHTML = /* html-safe-ignore */ `
+      <summary>
+        <span class="admin-log-dot" aria-hidden="true"></span>
+        <span class="admin-log-time" title="${escapeHtml(timeTitle)}">${escapeHtml(timeLabel)}</span>
+        <span class="admin-log-title">${escapeHtml(title)}</span>
+        <span class="admin-log-chips">
+          ${chips.map((chip) => `<span class="admin-log-chip is-${escapeHtml(chip.tone)}">${escapeHtml(chip.label)}</span>`).join("")}
+          ${eventLabel ? `<span class="admin-log-event-label">${escapeHtml(eventLabel)}</span>` : ""}
+        </span>
+      </summary>
+      <div class="admin-log-detail">
+        ${pairs.length ? `<dl class="admin-log-fields">${pairs.map((pair) => `<dt>${escapeHtml(pair.label)}</dt><dd>${escapeHtml(pair.value)}</dd>`).join("")}</dl>` : ""}
+        <div class="admin-log-raw-head">
+          <span>Raw</span>
+          <button type="button" class="dlc-shop-btn" data-log-copy="1">Copy</button>
+        </div>
+        <pre class="admin-log-raw">${escapeHtml(rawText.slice(0, 4000))}</pre>
+      </div>
+    `;
+    return row;
+  }
+
+  function renderLogList() {
+    const { logListEl } = getElements();
+    if (!logListEl) return;
+    const visible = logEntriesCache.filter(logEntryMatchesTone);
+    const shown = visible.slice(0, logRenderLimit);
+    const scrollTop = logListEl.scrollTop;
+    const previousHeight = logListEl.scrollHeight;
+    const wasAtTop = scrollTop <= 2;
+    logListEl.innerHTML = "";
+    logEntriesByKey = new Map();
+    if (!shown.length) {
+      const empty = document.createElement("div");
+      empty.className = "admin-log-empty";
+      if (!logEntriesCache.length) {
+        empty.innerHTML = /* html-safe-ignore */ `
+          <strong>No log entries yet.</strong>
+          <span class="settings-field-hint">Set Request Log Mode to <code>all</code> under Connection to capture every request.</span>
+        `;
+      } else if (logToneFilter !== "all") {
+        empty.innerHTML = /* html-safe-ignore */ `
+          <strong>Nothing in this quick filter.</strong>
+          <button type="button" class="dlc-shop-btn" data-log-tone="all">Show all entries</button>
+        `;
+      } else {
+        empty.innerHTML = /* html-safe-ignore */ `
+          <strong>No entries match these filters.</strong>
+          <button type="button" class="dlc-shop-btn" data-log-reset="1">Clear filters</button>
+        `;
+      }
+      logListEl.appendChild(empty);
+      return;
+    }
+    let currentDay = "";
+    shown.forEach((entry) => {
+      const key = logEntryKey(entry);
+      logEntriesByKey.set(key, entry);
+      const dayKey = logDayKey(entry.timestamp);
+      if (dayKey !== currentDay) {
+        currentDay = dayKey;
+        const heading = document.createElement("div");
+        heading.className = "admin-log-day";
+        heading.textContent = logDayLabel(entry.timestamp);
+        logListEl.appendChild(heading);
+      }
+      logListEl.appendChild(buildLogEntryRow(entry, key));
+    });
+    if (visible.length > shown.length) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "admin-log-more";
+      more.dataset.logMore = "1";
+      more.textContent = `Show ${Math.min(LOG_RENDER_STEP, visible.length - shown.length)} older entries (${shown.length} of ${visible.length})`;
+      logListEl.appendChild(more);
+    }
+    if (wasAtTop) {
+      logListEl.scrollTop = 0;
+    } else {
+      logListEl.scrollTop = scrollTop + Math.max(0, logListEl.scrollHeight - previousHeight);
+    }
+  }
+
+  function renderLogView() {
+    renderLogSummary(logEntriesCache);
+    renderLogList();
+  }
+
+  function resetLogFilters() {
+    const { logLevelEl, logGroupEl, logEventEl, logSinceEl, logSearchEl } = getElements();
+    if (logLevelEl) logLevelEl.value = "all";
+    if (logGroupEl) logGroupEl.value = "";
+    if (logEventEl) logEventEl.value = "";
+    if (logSinceEl) logSinceEl.value = "";
+    if (logSearchEl) logSearchEl.value = "";
+    logToneFilter = "all";
+    logRenderLimit = LOG_RENDER_STEP;
+    void loadLogs({ force: true });
+  }
+
+  async function loadJobs() {
+    try {
+      const payload = await requestJson("GET", "/api/v1/admin/jobs");
+      if (payload?.jobs) renderJobs(payload.jobs);
+    } catch (_error) {
+    }
+  }
+
+  async function loadLogs(options = {}) {
     const { logLevelEl, logGroupEl, logEventEl, logSinceEl, logSearchEl, logListEl } = getElements();
     if (!logListEl) return;
     try {
@@ -2771,53 +3456,45 @@
       if (event) params.set("event", event);
       if (query) params.set("q", query);
       if (sinceMinutes) params.set("sinceMinutes", sinceMinutes);
-      const [payload, jobsPayload] = await Promise.all([
-        requestJson("GET", `/api/v1/admin/logs?${params.toString()}`),
-        requestJson("GET", "/api/v1/admin/jobs").catch(() => null)
-      ]);
-      if (jobsPayload?.jobs) {
-        renderJobs(jobsPayload.jobs);
-      }
-      const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+      const payload = await requestJson("GET", `/api/v1/admin/logs?${params.toString()}`);
+      const entries = (Array.isArray(payload?.entries) ? payload.entries : []).filter((entry) => !isLogViewNoise(entry));
       const facets = payload?.facets && typeof payload.facets === "object" ? payload.facets : {};
       syncLogSelect(logGroupEl, facets.pathGroups, "All paths");
       syncLogSelect(logEventEl, facets.events, "All events");
-      logListEl.innerHTML = "";
-      if (!entries.length) {
-        const empty = document.createElement("span");
-        empty.className = "settings-field-hint";
-        empty.textContent = "No log entries match these filters.";
-        logListEl.appendChild(empty);
+      const signature = entries
+        .map((entry) => `${entry.timestamp || ""}|${entry.level || ""}|${entry.event || ""}|${entry.path || ""}`)
+        .join("~") + JSON.stringify(facets);
+      logEntriesCache = entries;
+      if (!options.force && signature === logRenderSignature) {
         return;
       }
-      entries.forEach((entry) => {
-        const row = document.createElement("div");
-        row.className = "admin-log-row";
-        const levelClass = `is-${String(entry.level || "info")}`;
-        const time = String(entry.timestamp || "").replace("T", " ").slice(5, 19);
-        const meta = [entry.method, entry.statusCode || "", entry.path || ""].filter(Boolean).join(" ");
-        row.innerHTML = /* html-safe-ignore */ `
-          <span class="admin-log-level ${escapeHtml(levelClass)}">${escapeHtml(String(entry.level || "info").toUpperCase())}</span>
-          <span class="admin-log-time">${escapeHtml(time)}</span>
-          <span class="admin-log-group">${escapeHtml(entry.pathGroup || "")}</span>
-          <span class="admin-log-event">${escapeHtml(entry.event || "")}</span>
-          ${meta ? `<span class="admin-log-meta">${escapeHtml(meta)}</span>` : ""}
-          <span class="admin-log-message">${escapeHtml(String(entry.message || "").slice(0, 400))}</span>
-        `;
-        logListEl.appendChild(row);
-      });
+      logRenderSignature = signature;
+      renderLogView();
     } catch (error) {
-      // Silent for polling; surface once via status only on manual refresh.
+      const summaryEl = document.getElementById("admin-log-summary");
+      if (summaryEl && !logEntriesCache.length) {
+        summaryEl.innerHTML = /* html-safe-ignore */ `
+          <p class="settings-field-hint">Could not load logs: ${escapeHtml(error?.message || "unknown error")}</p>
+        `;
+      }
     }
   }
 
   function syncLogPolling() {
     const { logAutoRefreshEl } = getElements();
     const activePanel = String(window.TarotSectionStateUi?.getActiveSection?.() || "");
-    const shouldPoll = logAutoRefreshEl?.checked === true;
-    if (shouldPoll && activePanel === "admin") {
+    const shouldPoll = logAutoRefreshEl?.checked === true
+      && activePanel === "admin"
+      && activeAdminPanel === "server"
+      && activeServerPage === "logs";
+    if (shouldPoll) {
       if (!logPollTimer) {
         logPollTimer = window.setInterval(() => {
+          const section = String(window.TarotSectionStateUi?.getActiveSection?.() || "");
+          if (section !== "admin" || activeAdminPanel !== "server" || activeServerPage !== "logs") {
+            syncLogPolling();
+            return;
+          }
           void loadLogs();
         }, 3000);
       }
@@ -2962,7 +3639,9 @@
     [logLevelEl, logGroupEl, logEventEl, logSinceEl].forEach((el) => {
       if (!el) return;
       el.addEventListener("change", () => {
-        void loadLogs();
+        logToneFilter = "all";
+        logRenderLimit = LOG_RENDER_STEP;
+        void loadLogs({ force: true });
       });
     });
     if (logSearchEl) {
@@ -2971,8 +3650,71 @@
         if (searchTimer) window.clearTimeout(searchTimer);
         searchTimer = window.setTimeout(() => {
           searchTimer = null;
-          void loadLogs();
+          logToneFilter = "all";
+          logRenderLimit = LOG_RENDER_STEP;
+          void loadLogs({ force: true });
         }, 300);
+      });
+    }
+    const logSummaryEl = document.getElementById("admin-log-summary");
+    if (logSummaryEl) {
+      logSummaryEl.addEventListener("click", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target) return;
+        const tone = target.closest("[data-log-tone]");
+        if (tone) {
+          logToneFilter = tone.getAttribute("data-log-tone") || "all";
+          logRenderLimit = LOG_RENDER_STEP;
+          renderLogView();
+          return;
+        }
+        const route = target.closest("[data-log-route]");
+        if (route) {
+          if (logGroupEl) logGroupEl.value = route.getAttribute("data-log-route") || "";
+          logToneFilter = "all";
+          logRenderLimit = LOG_RENDER_STEP;
+          void loadLogs({ force: true });
+        }
+      });
+    }
+    const logListEl = document.getElementById("admin-log-list");
+    if (logListEl) {
+      logListEl.addEventListener("toggle", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement) || !target.classList.contains("admin-log-entry")) return;
+        const key = target.dataset.logKey || "";
+        if (target.open) logExpandedKeys.add(key);
+        else logExpandedKeys.delete(key);
+      }, true);
+      logListEl.addEventListener("click", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target) return;
+        if (target.closest("[data-log-more]")) {
+          logRenderLimit += LOG_RENDER_STEP;
+          renderLogList();
+          return;
+        }
+        const copy = target.closest("[data-log-copy]");
+        if (copy) {
+          const row = copy.closest(".admin-log-entry");
+          const entry = row ? logEntriesByKey.get(row.dataset.logKey) : null;
+          if (entry) {
+            copyText(
+              entry.structured ? JSON.stringify(entry.structured, null, 2) : String(entry.message || ""),
+              "Log entry"
+            );
+          }
+          return;
+        }
+        if (target.closest("[data-log-reset]")) {
+          resetLogFilters();
+          return;
+        }
+        if (target.closest("[data-log-tone]")) {
+          logToneFilter = "all";
+          logRenderLimit = LOG_RENDER_STEP;
+          renderLogView();
+        }
       });
     }
     if (logAutoRefreshEl) {
@@ -2980,7 +3722,7 @@
     }
     if (logRefreshBtn) {
       logRefreshBtn.addEventListener("click", () => {
-        void loadLogs();
+        void loadLogs({ force: true });
       });
     }
     if (logClearBtn) {
@@ -2988,7 +3730,7 @@
         try {
           await requestJson("DELETE", "/api/v1/admin/logs");
           setStatus("Log buffer cleared.");
-          void loadLogs();
+          void loadLogs({ force: true });
         } catch (error) {
           setStatus(`Could not clear logs. ${error?.message || ""}`, true);
         }
@@ -4316,6 +5058,18 @@
   }
 
   function init() {
+    syncPluginAdminPages();
+    void loadPluginSettingsPages();
+    document.addEventListener("plugin:admin-page", syncPluginAdminPages);
+    document.addEventListener("plugin:admin-page-removed", () => {
+      void loadPluginSettingsPages();
+    });
+    document.addEventListener("plugin:catalog-updated", () => {
+      void loadPluginSettingsPages();
+    });
+    document.addEventListener("taro-plugin-content-updated", () => {
+      void loadPluginSettingsPages();
+    });
     bindTabs();
     bindActions();
     bindClientCreate();
@@ -4393,8 +5147,7 @@
       });
     }
     const createPluginBtn = document.getElementById("admin-create-plugin");
-    if (createPluginBtn) {
-      createPluginBtn.addEventListener("click", () => {
+    if (createPluginBtn) {      createPluginBtn.addEventListener("click", () => {
         const { dlcCatalogEl } = getElements();
         if (window.TaroTimeDlcShop?.openCreateDlc) {
           window.TaroTimeDlcShop.openCreateDlc(dlcCatalogEl, {
@@ -4441,14 +5194,20 @@
         void loadPlugins();
       }
       if (panelId === "server") {
-        void loadServerSettings();
-        void loadLogs();
+        if (!serverSettingsLoaded) void loadServerSettings({ quiet: true });
+        void loadJobs();
       }
     };
 
     document.querySelectorAll(".admin-tab").forEach((tab) => {
+      if (tab.dataset.pluginAdminPage) return;
       tab.addEventListener("click", () => {
-        refreshPanel(String(tab.id).replace("admin-tab-", ""));
+        const panelId = String(tab.id).replace("admin-tab-", "");
+        if (tab.dataset.adminEntering !== "0") {
+          refreshPanel(panelId);
+        } else if (panelId === "server") {
+          void loadJobs();
+        }
         syncLogPolling();
       });
     });
@@ -4468,11 +5227,42 @@
     if (openAdminBtn) {
       openAdminBtn.addEventListener("click", () => {
         void loadOverview();
+        syncLogPolling();
       });
     }
 
+    document.getElementById("admin-open-demo-users")?.addEventListener("click", () => {
+      window.TaroTimeAdminUi?.openPluginPage?.("demo-users");
+    });
+
     syncGate();
+    const pendingPluginPage = String(window.__kabbakAdminPendingPluginPage || "").trim();
+    if (pendingPluginPage) {
+      window.__kabbakAdminPendingPluginPage = "";
+      activatePluginPage(pendingPluginPage);
+    }
   }
+
+  window.TaroTimeAdminUi = {
+    ...(window.TaroTimeAdminUi || {}),
+    openPluginPage(pageId) {
+      const id = String(pageId || "").trim();
+      if (!id) return false;
+      syncPluginAdminPages();
+      const activeSection = String(window.TarotSectionStateUi?.getActiveSection?.() || "");
+      if (activeSection !== "admin") {
+        document.getElementById("open-admin")?.click();
+      }
+      if (document.getElementById(`admin-tab-plugin-${pluginPageSlug(id)}`)) {
+        return activatePluginPage(id);
+      }
+      window.__kabbakAdminPendingPluginPage = id;
+      if (activeSection === "admin") {
+        document.dispatchEvent(new CustomEvent("plugin:admin-page"));
+      }
+      return false;
+    }
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init, { once: true });

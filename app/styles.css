@@ -3457,6 +3457,9 @@
       gap: 8px;
       margin-bottom: 12px;
     }
+    .admin-jobs[hidden] {
+      display: none;
+    }
     .admin-job-card {
       padding: 10px 12px;
       border: 1px solid var(--tt-border);
@@ -3496,74 +3499,274 @@
       color: #94a3b8;
       font-size: 12px;
     }
-    .admin-log-filters {
+    #admin-section .admin-log-summary {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    #admin-section .admin-log-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+      gap: 8px;
+    }
+    #admin-section .admin-log-stat {
+      display: grid;
+      gap: 2px;
+      padding: 8px 10px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: var(--tt-bg-deep);
+      color: var(--tt-text);
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+    }
+    #admin-section .admin-log-stat span {
+      color: var(--tt-text-muted);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    #admin-section .admin-log-stat strong {
+      color: var(--tt-text-bright);
+      font-size: 19px;
+      line-height: 1.1;
+    }
+    #admin-section .admin-log-stat.is-error strong { color: #fca5a5; }
+    #admin-section .admin-log-stat.is-warn strong { color: #fde68a; }
+    #admin-section .admin-log-stat.is-slow strong { color: #fdba74; }
+    #admin-section .admin-log-stat.is-actions strong { color: #c4b5fd; }
+    #admin-section .admin-log-stat:hover {
+      border-color: color-mix(in srgb, var(--tt-brand) 55%, transparent);
+    }
+    #admin-section .admin-log-stat.is-active {
+      border-color: color-mix(in srgb, var(--tt-brand) 75%, transparent);
+      background: color-mix(in srgb, var(--tt-brand) 16%, var(--tt-bg-deep));
+    }
+    #admin-section .admin-log-route-chips {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+    #admin-section .admin-log-route-label {
+      color: var(--tt-text-muted);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    #admin-section .admin-log-route-chip {
+      max-width: 280px;
+      padding: 4px 10px;
+      border: 1px solid var(--tt-border);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--tt-text-cool);
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #admin-section .admin-log-route-chip:hover,
+    #admin-section .admin-log-route-chip.is-active {
+      border-color: color-mix(in srgb, var(--tt-brand) 65%, transparent);
+      background: color-mix(in srgb, var(--tt-brand) 16%, transparent);
+      color: var(--tt-text-bright);
+    }
+    #admin-section .admin-log-route-chip.is-clear {
+      margin-left: auto;
+    }
+    #admin-section .admin-log-filters {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       align-items: center;
       margin-bottom: 10px;
     }
-    .admin-log-filters .dlc-menu-preset-select {
+    #admin-section .admin-log-filters .dlc-menu-preset-select {
       max-width: 180px;
     }
-    .admin-log-filters #admin-log-search {
+    #admin-section .admin-log-filters #admin-log-search {
+      flex: 1 1 220px;
       min-width: 180px;
-      flex: 1;
-      max-width: 280px;
+      max-width: none;
     }
-    .admin-log-list {
+    #admin-section .admin-log-list {
       display: grid;
-      gap: 4px;
-      max-height: 480px;
+      gap: 2px;
+      max-height: 560px;
       overflow: auto;
-      padding: 8px;
+      padding: 6px;
       border: 1px solid var(--tt-border);
-      border-radius: 10px;
-      background: rgba(8, 8, 14, 0.7);
-      font-family: monospace;
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--tt-bg-deepest) 74%, transparent);
     }
-    .admin-log-row {
+    #admin-section .admin-log-day {
+      position: sticky;
+      top: -6px;
+      z-index: 2;
+      margin: 2px -6px 0;
+      padding: 10px 12px 6px;
+      background: color-mix(in srgb, var(--tt-bg-deepest) 96%, transparent);
+      backdrop-filter: blur(6px);
+      color: var(--tt-text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    #admin-section .admin-log-entry {
+      border-radius: 8px;
+    }
+    #admin-section .admin-log-entry > summary {
       display: flex;
-      gap: 10px;
-      align-items: baseline;
+      align-items: center;
       flex-wrap: wrap;
-      padding: 3px 4px;
-      border-radius: 6px;
+      gap: 4px 10px;
+      padding: 7px 9px;
+      border-radius: 8px;
+      cursor: pointer;
+      list-style: none;
+    }
+    #admin-section .admin-log-entry > summary::-webkit-details-marker {
+      display: none;
+    }
+    #admin-section .admin-log-entry > summary:hover {
+      background: color-mix(in srgb, var(--tt-surface) 70%, transparent);
+    }
+    #admin-section .admin-log-entry[open] > summary {
+      background: color-mix(in srgb, var(--tt-surface) 85%, transparent);
+    }
+    #admin-section .admin-log-dot {
+      flex: 0 0 auto;
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #7dd3fc;
+    }
+    #admin-section .admin-log-entry[data-tone="success"] .admin-log-dot { background: #86efac; }
+    #admin-section .admin-log-entry[data-tone="warn"] .admin-log-dot { background: #fde68a; }
+    #admin-section .admin-log-entry[data-tone="error"] .admin-log-dot { background: #fca5a5; }
+    #admin-section .admin-log-time {
+      color: var(--tt-text-muted);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    #admin-section .admin-log-title {
+      flex: 1 1 260px;
+      min-width: 0;
+      color: var(--tt-text-bright);
+      font-size: 12px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #admin-section .admin-log-entry[data-tone="error"] .admin-log-title {
+      color: #fecaca;
+    }
+    #admin-section .admin-log-chips {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-left: auto;
+    }
+    #admin-section .admin-log-chip {
+      max-width: 260px;
+      padding: 1px 7px;
+      border: 1px solid var(--tt-border);
+      border-radius: 999px;
+      color: var(--tt-text-cool);
+      font-size: 10px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #admin-section .admin-log-chip.is-success { border-color: rgba(134, 239, 172, 0.4); color: #bbf7d0; }
+    #admin-section .admin-log-chip.is-warn { border-color: rgba(253, 230, 138, 0.4); color: #fde68a; }
+    #admin-section .admin-log-chip.is-error { border-color: rgba(252, 165, 165, 0.45); color: #fecaca; }
+    #admin-section .admin-log-chip.is-info { border-color: rgba(125, 211, 252, 0.4); color: #bae6fd; }
+    #admin-section .admin-log-chip.is-brand { border-color: rgba(196, 181, 253, 0.35); color: #ddd6fe; }
+    #admin-section .admin-log-chip.is-group { border-color: rgba(103, 232, 249, 0.28); color: #67e8f9; }
+    #admin-section .admin-log-event-label {
+      color: var(--tt-text-muted);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    #admin-section .admin-log-detail {
+      display: grid;
+      gap: 8px;
+      padding: 4px 10px 12px 26px;
+    }
+    #admin-section .admin-log-fields {
+      display: grid;
+      grid-template-columns: minmax(110px, 170px) minmax(0, 1fr);
+      gap: 4px 14px;
+      margin: 0;
+      font-size: 11px;
+    }
+    #admin-section .admin-log-fields dt {
+      color: var(--tt-text-muted);
+    }
+    #admin-section .admin-log-fields dd {
+      margin: 0;
+      color: var(--tt-text);
+      word-break: break-word;
+    }
+    #admin-section .admin-log-raw-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--tt-text-muted);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    #admin-section .admin-log-raw {
+      margin: 0;
+      max-height: 240px;
+      overflow: auto;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.32);
+      color: #cbd5e1;
       font-size: 11px;
       line-height: 1.5;
-    }
-    .admin-log-row:hover {
-      background: rgba(139, 92, 246, 0.08);
-    }
-    .admin-log-level {
-      font-weight: 700;
-      font-size: 10px;
-      min-width: 44px;
-    }
-    .admin-log-level.is-info { color: #7dd3fc; }
-    .admin-log-level.is-warn { color: #fde68a; }
-    .admin-log-level.is-error { color: #fca5a5; }
-    .admin-log-group {
-      color: #67e8f9;
-      white-space: nowrap;
-    }
-    .admin-log-meta {
-      color: #a78bfa;
-      white-space: nowrap;
-    }
-    .admin-log-event {
-      color: #c4b5fd;
-      white-space: nowrap;
-    }
-    .admin-log-time {
-      color: #64748b;
-      white-space: nowrap;
-    }
-    .admin-log-message {
-      color: #94a3b8;
+      white-space: pre-wrap;
       word-break: break-word;
-      flex: 1;
-      min-width: 200px;
+    }
+    #admin-section .admin-log-empty {
+      display: grid;
+      gap: 8px;
+      justify-items: center;
+      padding: 26px 12px;
+      color: var(--tt-text-muted);
+      text-align: center;
+    }
+    #admin-section .admin-log-empty strong {
+      color: var(--tt-text-bright);
+    }
+    #admin-section .admin-log-more {
+      justify-self: center;
+      margin: 10px 0 4px;
+      padding: 6px 14px;
+      border: 1px solid var(--tt-border);
+      border-radius: 999px;
+      background: var(--tt-bg-deep);
+      color: var(--tt-text);
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    #admin-section .admin-log-more:hover {
+      border-color: color-mix(in srgb, var(--tt-brand) 60%, transparent);
+      background: color-mix(in srgb, var(--tt-brand) 14%, transparent);
     }
     .admin-tab {
       padding: 7px 14px;
@@ -3588,6 +3791,215 @@
     }
     .admin-panel[hidden] {
       display: none;
+    }
+    #admin-section .admin-shell {
+      display: grid;
+      grid-template-columns: 232px minmax(0, 1fr);
+      min-height: 100%;
+      align-items: start;
+    }
+    #admin-section .admin-side {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      max-height: calc(100dvh - 61px);
+      overflow: auto;
+      padding: 18px 12px 28px;
+      border-right: 1px solid var(--tt-border);
+      background: color-mix(in srgb, var(--tt-bg-deepest) 92%, transparent);
+      box-sizing: border-box;
+    }
+    #admin-section .admin-side-title {
+      display: block;
+      margin-top: 4px;
+      color: var(--tt-text-bright);
+      font-size: 18px;
+    }
+    #admin-section .admin-nav {
+      display: grid;
+      gap: 2px;
+      margin-top: 16px;
+    }
+    #admin-section .admin-plugin-nav {
+      display: grid;
+      gap: 2px;
+    }
+    #admin-section .admin-plugin-page-mount {
+      display: grid;
+      gap: 16px;
+    }
+    #admin-section .admin-nav-label {
+      margin: 14px 10px 4px;
+      color: var(--tt-text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    #admin-section .admin-tab,
+    #admin-section .admin-subtab {
+      display: flex;
+      width: 100%;
+      text-align: left;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--tt-text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+    }
+    #admin-section .admin-subtab {
+      padding-left: 22px;
+      color: var(--tt-text-cool);
+      font-size: 12px;
+    }
+    #admin-section .admin-tab:hover,
+    #admin-section .admin-subtab:hover {
+      background: color-mix(in srgb, var(--tt-surface) 80%, transparent);
+    }
+    #admin-section .admin-tab.is-active,
+    #admin-section .admin-subtab.is-active {
+      background: color-mix(in srgb, var(--tt-brand) 22%, transparent);
+      color: var(--tt-text-bright);
+    }
+    #admin-section .admin-main {
+      min-width: 0;
+      display: grid;
+      align-content: start;
+      gap: 14px;
+      padding: clamp(16px, 2.4vw, 28px);
+      box-sizing: border-box;
+    }
+    #admin-section .admin-main-hero {
+      margin-bottom: 0;
+      max-width: 1080px;
+    }
+    #admin-section .admin-main-hero .settings-page-title {
+      font-size: clamp(24px, 3vw, 32px);
+    }
+    #admin-section .admin-main > .settings-page-status,
+    #admin-section .admin-panel {
+      max-width: 1080px;
+    }
+    #admin-section .admin-shortcuts,
+    #admin-section .admin-subnav,
+    #admin-section .admin-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    #admin-section .admin-shortcut,
+    #admin-section .admin-subnav-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--tt-border);
+      border-radius: 999px;
+      background: var(--tt-bg-deep);
+      color: var(--tt-text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+    }
+    #admin-section .admin-subnav-btn.is-active,
+    #admin-section .admin-shortcut:hover,
+    #admin-section .admin-subnav-btn:hover {
+      border-color: color-mix(in srgb, var(--tt-brand) 70%, transparent);
+      background: color-mix(in srgb, var(--tt-brand) 18%, transparent);
+      color: var(--tt-text-bright);
+    }
+    #admin-section .admin-drawer {
+      padding: 0;
+    }
+    #admin-section .admin-drawer > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 16px 18px;
+      color: var(--tt-text-bright);
+      font-weight: 700;
+    }
+    #admin-section .admin-drawer > summary::-webkit-details-marker {
+      display: none;
+    }
+    #admin-section .admin-drawer > summary::before {
+      content: "▸ ";
+      color: var(--tt-brand);
+    }
+    #admin-section .admin-drawer[open] > summary::before {
+      content: "▾ ";
+    }
+    #admin-section .admin-drawer-body {
+      display: grid;
+      gap: 12px;
+      padding: 0 18px 18px;
+    }
+    #admin-section [data-server-pane][hidden],
+    #admin-section [data-messages-pane][hidden],
+    #admin-section .admin-savebar[hidden] {
+      display: none;
+    }
+    #admin-section .admin-savebar {
+      position: sticky;
+      bottom: 12px;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: 1080px;
+      padding: 12px 14px;
+      border: 1px solid var(--tt-border);
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--tt-bg-deepest) 94%, transparent);
+      box-sizing: border-box;
+    }
+    #admin-section .settings-panel-head.admin-messages-log-head {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
+    }
+    @media (max-width: 860px) {
+      #admin-section .admin-shell {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      #admin-section .admin-side {
+        position: sticky;
+        top: 0;
+        max-height: none;
+        border-right: 0;
+        border-bottom: 1px solid var(--tt-border);
+        padding: 10px 12px;
+      }
+      #admin-section .admin-side-head {
+        display: none;
+      }
+      #admin-section .admin-nav {
+        display: flex;
+        gap: 6px;
+        margin-top: 0;
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+      #admin-section .admin-plugin-nav {
+        display: contents;
+      }
+      #admin-section .admin-nav-label {
+        display: none;
+      }
+      #admin-section .admin-tab,
+      #admin-section .admin-subtab {
+        width: auto;
+        white-space: nowrap;
+        padding: 6px 10px;
+        border: 1px solid var(--tt-border);
+        border-radius: 999px;
+      }
+      #admin-section .admin-subtab {
+        padding-left: 10px;
+      }
     }
     .admin-overview-grid {
       display: grid;
@@ -4036,6 +4448,9 @@
       flex-direction: column;
       gap: 4px;
       box-sizing: border-box;
+    }
+    .settings-page-status[hidden] {
+      display: none;
     }
     .settings-page-status[data-tone="info"] {
       border-color: rgba(59, 130, 246, 0.55);

@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20261016-greek-font">
+  <link rel="stylesheet" href="app/styles.css?v=20261026-plugin-admin-pages-v5">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     #app-loading-screen {
@@ -984,71 +984,94 @@
   </section>
   <section id="settings-section" hidden></section>
   <section id="admin-section" hidden>
-    <div class="settings-page-shell">
-      <div class="settings-page-hero">
-        <div>
+    <div class="admin-shell">
+      <aside class="admin-side" aria-label="Admin navigation">
+        <div class="admin-side-head">
           <div class="settings-page-eyebrow">Administration</div>
-          <h1 class="settings-page-title">Admin Panel</h1>
-          <p class="settings-page-copy">Manage API clients, the DLC catalog, plugins, and the user registry.</p>
+          <strong class="admin-side-title">Dashboard</strong>
+        </div>
+        <nav class="admin-nav" aria-label="Admin panels">
+          <p class="admin-nav-label">Home</p>
+          <button id="admin-tab-overview" class="admin-tab is-active" type="button" role="tab" aria-selected="true">Overview</button>
+          <p class="admin-nav-label">People</p>
+          <button id="admin-tab-clients" class="admin-tab" type="button" role="tab" aria-selected="false">Users</button>
+          <button id="admin-tab-tiers" class="admin-tab" type="button" role="tab" aria-selected="false">Tiers</button>
+          <p class="admin-nav-label">Catalog</p>
+          <button id="admin-tab-plugins" class="admin-tab" type="button" role="tab" aria-selected="false">Plugins &amp; DLC</button>
+          <p class="admin-nav-label">Inbox</p>
+          <button id="admin-tab-messages" class="admin-tab" type="button" role="tab" aria-selected="false">Messages</button>
+          <p class="admin-nav-label">System</p>
+          <button id="admin-tab-server" class="admin-tab" type="button" role="tab" aria-selected="false" data-server-page="connection">Connection</button>
+          <button id="admin-nav-branding" class="admin-subtab" type="button" data-server-page="branding">Branding</button>
+          <button id="admin-nav-email" class="admin-subtab" type="button" data-server-page="email">Email</button>
+          <button id="admin-nav-signup" class="admin-subtab" type="button" data-server-page="signup">Signup</button>
+          <button id="admin-nav-logs" class="admin-subtab" type="button" data-server-page="logs">Logs</button>
+          <p id="admin-plugin-nav-label" class="admin-nav-label" hidden>Plugins</p>
+          <div id="admin-plugin-nav" class="admin-plugin-nav" hidden></div>
+        </nav>
+      </aside>
+      <div class="admin-main">
+      <div class="settings-page-hero admin-main-hero">
+        <div>
+          <div id="admin-page-kicker" class="settings-page-eyebrow">Home</div>
+          <h1 id="admin-page-title" class="settings-page-title">Overview</h1>
+          <p id="admin-page-copy" class="settings-page-copy">Clients, catalog, jobs, and anything that needs attention.</p>
         </div>
         <div class="admin-hero-actions">
-          <div class="admin-actions">
+          <div class="admin-actions" hidden>
             <button id="admin-actions-toggle" class="settings-page-back" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="admin-actions-menu">Actions ▾</button>
             <div id="admin-actions-menu" class="admin-actions-menu" role="menu" aria-label="Admin actions" hidden>
               <button id="admin-action-send-message" class="admin-actions-item" type="button" role="menuitem">Send message…</button>
             </div>
           </div>
-          <button id="close-admin" class="settings-page-back" type="button">Back</button>
         </div>
-      </div>
-      <div class="admin-tabs" role="tablist" aria-label="Admin panels">
-        <button id="admin-tab-overview" class="admin-tab is-active" type="button" role="tab" aria-selected="true">Overview</button>
-        <button id="admin-tab-clients" class="admin-tab" type="button" role="tab" aria-selected="false">Users</button>
-        <button id="admin-tab-tiers" class="admin-tab" type="button" role="tab" aria-selected="false">Tiers</button>
-        <button id="admin-tab-plugins" class="admin-tab" type="button" role="tab" aria-selected="false">Plugins &amp; DLC</button>
-        <button id="admin-tab-messages" class="admin-tab" type="button" role="tab" aria-selected="false">Messages</button>
-        <button id="admin-tab-server" class="admin-tab" type="button" role="tab" aria-selected="false">Server</button>
       </div>
       <div id="admin-status" class="settings-page-status" data-tone="neutral" aria-live="polite">
         <span id="admin-status-text" class="settings-page-status-text">Loading admin data…</span>
       </div>
       <section id="admin-panel-overview" class="admin-panel">
         <div id="admin-jobs-overview" class="admin-jobs" hidden></div>
+        <div class="admin-shortcuts">
+          <button type="button" class="admin-shortcut" data-admin-jump="messages" data-messages-jump="reports">Reports</button>
+          <button type="button" class="admin-shortcut" data-admin-jump="server" data-server-jump="email">Email</button>
+          <button type="button" class="admin-shortcut" data-admin-jump="server" data-server-jump="logs">Logs</button>
+          <button type="button" class="admin-shortcut" data-admin-jump="clients">Users</button>
+        </div>
         <div id="admin-overview-grid" class="admin-overview-grid"></div>
       </section>
       <section id="admin-panel-clients" class="admin-panel" hidden>
         <div class="settings-panel settings-panel-wide">
           <div class="settings-panel-head">
-            <strong>Create User / API Client</strong>
-            <span>Omit id and key to have them generated. The full key is shown once after creation.</span>
-          </div>
-          <div class="settings-grid admin-client-create-grid">
-            <label class="settings-field">Name              <input id="admin-client-name" type="text" maxlength="100" placeholder="e.g. Mystic Maya">
-            </label>
-            <label class="settings-field">Client Id (optional)              <input id="admin-client-id" type="text" maxlength="100" placeholder="auto-generated">
-            </label>
-            <label class="settings-field">Access Level              <select id="admin-client-access">
-                <option value="basic">basic</option>
-                <option value="premium" selected>premium</option>
-                <option value="pro+">pro+</option>
-                <option value="admin">admin</option>
-              </select>
-            </label>
-            <div class="settings-field settings-field-full">Permissions              <div id="admin-client-roles" class="admin-permission-grid" role="group" aria-label="Permissions"></div>
-              <span id="admin-client-roles-hint" class="settings-field-hint">Optional roles defined in the Tiers tab.</span>
-            </div>
-            <label class="settings-field settings-field-full">API Key (optional)              <input id="admin-client-key" type="text" maxlength="200" placeholder="auto-generated">
-            </label>
-          </div>
-          <button id="admin-client-create" class="settings-button-primary" type="button">Create Client</button>
-        </div>
-        <div class="settings-panel settings-panel-wide">
-          <div class="settings-panel-head">
             <strong>Users</strong>
-            <span>Merged view: API keys, permissions (roles), and profile activity. Presence reflects activity in the last 10 minutes.</span>
+            <span>API keys, permissions, and profile activity. Presence is the last 10 minutes.</span>
           </div>
           <div id="admin-clients-table" class="admin-clients-table"></div>
         </div>
+        <details class="settings-panel settings-panel-wide admin-drawer">
+          <summary>New user</summary>
+          <div class="admin-drawer-body">
+            <p class="settings-field-hint">Omit id and key to have them generated. The full key is shown once.</p>
+            <div class="settings-grid admin-client-create-grid">
+              <label class="settings-field">Name              <input id="admin-client-name" type="text" maxlength="100" placeholder="e.g. Mystic Maya">
+              </label>
+              <label class="settings-field">Client Id (optional)              <input id="admin-client-id" type="text" maxlength="100" placeholder="auto-generated">
+              </label>
+              <label class="settings-field">Access Level              <select id="admin-client-access">
+                  <option value="basic">basic</option>
+                  <option value="premium" selected>premium</option>
+                  <option value="pro+">pro+</option>
+                  <option value="admin">admin</option>
+                </select>
+              </label>
+              <div class="settings-field settings-field-full">Permissions              <div id="admin-client-roles" class="admin-permission-grid" role="group" aria-label="Permissions"></div>
+                <span id="admin-client-roles-hint" class="settings-field-hint">Optional roles defined under Tiers.</span>
+              </div>
+              <label class="settings-field settings-field-full">API Key (optional)              <input id="admin-client-key" type="text" maxlength="200" placeholder="auto-generated">
+              </label>
+            </div>
+            <button id="admin-client-create" class="settings-button-primary" type="button">Create Client</button>
+          </div>
+        </details>
       </section>
       <section id="admin-panel-tiers" class="admin-panel" hidden>
         <div class="settings-panel settings-panel-wide">
@@ -1060,9 +1083,15 @@
         </div>
         <div class="settings-panel settings-panel-wide">
           <div class="settings-panel-head">
-            <strong>Create Tier</strong>
-            <span>Custom subscriber tiers bundle an access rank, capabilities, limits, and pricing. Pricing is stored now and plugs into a payment provider later. Assign tiers to clients in the API Clients tab.</span>
+            <strong>Custom Tiers</strong>
+            <span>Subscriber tiers you define. Grants merge across a client's tiers — the highest limit wins. The built-in admin tier always grants admin access.</span>
           </div>
+          <div id="admin-roles-list" class="admin-roles-list"></div>
+        </div>
+        <details class="settings-panel settings-panel-wide admin-drawer">
+          <summary>New tier</summary>
+          <div class="admin-drawer-body">
+          <p class="settings-field-hint">Bundles an access rank, capabilities, limits, and a price. Assign it from a user's editor.</p>
           <div class="settings-grid admin-client-create-grid">
             <label class="settings-field">Tier Id              <input id="admin-role-id" type="text" maxlength="40" placeholder="e.g. mystic-moon">
             </label>
@@ -1092,23 +1121,24 @@
           </div>
           <div id="admin-role-capabilities" class="admin-role-flags"></div>
           <div id="admin-role-limits" class="admin-role-limits"></div>
-          <div class="dlc-shop-actions" style="margin-top:10px;">
+          <div class="dlc-shop-actions">
             <button id="admin-role-create" class="settings-button-primary" type="button">Create Tier</button>
           </div>
-        </div>
-        <div class="settings-panel settings-panel-wide">
-          <div class="settings-panel-head">
-            <strong>Custom Tiers</strong>
-            <span>Subscriber tiers you define. Grants merge across a client's tiers — the highest limit wins. The built-in admin tier always grants admin access.</span>
           </div>
-          <div id="admin-roles-list" class="admin-roles-list"></div>
-        </div>
+        </details>
       </section>
       <section id="admin-panel-plugins" class="admin-panel" hidden>
         <div class="settings-panel settings-panel-wide">
           <div class="settings-panel-head">
             <strong>DLC Catalog</strong>
-            <span>Everything in one list: installed items get Uninstall, plugins get Settings, available items get Install. Packs are curated lists.</span>
+            <span>Installed items can be uninstalled. Available items can be installed. Packs are curated lists.</span>
+          </div>
+          <div class="admin-toolbar">
+            <button id="admin-dlc-repos-open" class="dlc-shop-btn" type="button" title="Manage DLC repositories">Repositories</button>
+            <button id="admin-dlc-refresh" class="dlc-shop-btn" type="button" title="Pull latest DLC repos and reload plugins">Refresh</button>
+            <button id="admin-create-plugin" class="dlc-shop-btn" type="button">Create DLC</button>
+            <button id="admin-import-dlc" class="dlc-shop-btn" type="button">Import DLC</button>
+            <input id="admin-import-dlc-file" type="file" accept=".zip,application/zip" hidden>
           </div>
           <div class="admin-dlc-search-row">
             <input id="admin-dlc-search" type="search" class="admin-dlc-search" placeholder="Search DLC by name, title, or id…" autocomplete="off" spellcheck="false">
@@ -1131,56 +1161,69 @@
             <span class="settings-field-hint" id="admin-dlc-publish-status"></span>
           </div>
           <div id="admin-dlc-catalog" class="dlc-plugin-list"></div>
-          <div class="dlc-shop-actions" style="margin-top:10px;">
-            <button id="admin-dlc-repos-open" class="dlc-shop-btn" type="button" title="Manage DLC repositories">Repositories</button>
-            <button id="admin-dlc-refresh" class="dlc-shop-btn" type="button" title="Pull latest DLC repos and reload plugins">Refresh</button>
-            <button id="admin-create-plugin" class="dlc-shop-btn" type="button">Create DLC</button>
-            <button id="admin-import-dlc" class="dlc-shop-btn" type="button">Import DLC</button>
-            <input id="admin-import-dlc-file" type="file" accept=".zip,application/zip" hidden>
-          </div>
         </div>
       </section>
       <section id="admin-panel-messages" class="admin-panel" hidden>
-        <div class="settings-panel settings-panel-wide">
+        <div class="admin-subnav" role="tablist" aria-label="Message views">
+          <button type="button" class="admin-subnav-btn is-active" data-messages-page="sent" aria-selected="true">Sent</button>
+          <button type="button" class="admin-subnav-btn" data-messages-page="history" aria-selected="false">History</button>
+          <button type="button" class="admin-subnav-btn" data-messages-page="replies" aria-selected="false">Replies</button>
+          <button type="button" class="admin-subnav-btn" data-messages-page="reports" aria-selected="false">Reports</button>
+          <button type="button" class="admin-subnav-btn" data-messages-page="digest" aria-selected="false">Digest</button>
+        </div>
+        <div class="settings-panel settings-panel-wide" data-messages-pane="sent">
           <div class="settings-panel-head">
-            <strong>Sent Messages</strong>
+            <strong>Sent</strong>
             <span>Broadcasts appear in every user's inbox. Deleting one removes it everywhere.</span>
           </div>
-          <div class="dlc-shop-actions" style="margin-top:10px;">
+          <div class="admin-toolbar">
             <button id="admin-messages-refresh" class="dlc-shop-btn" type="button">Refresh</button>
             <button id="admin-messages-compose" class="settings-button-primary" type="button">Send message…</button>
           </div>
-          <div class="admin-digest-row">
-            <label class="planner-check"><input id="admin-digest-enabled" type="checkbox"> Nightly digest</label>
-            <label class="planner-field admin-digest-hour">Hour              <input id="admin-digest-hour" type="number" min="0" max="23" step="1" value="8">
-            </label>
-            <button id="admin-digest-save" class="dlc-shop-btn" type="button">Save digest</button>
-            <span id="admin-digest-status" class="settings-field-hint" aria-live="polite"></span>
-          </div>
           <div id="admin-messages-list" class="admin-messages-list"></div>
-          <div class="admin-messages-log-head">
+        </div>
+        <div class="settings-panel settings-panel-wide" data-messages-pane="history" hidden>
+          <div class="settings-panel-head admin-messages-log-head">
             <strong>Send history</strong>
             <button id="admin-message-log-clear" class="dlc-shop-btn" type="button">Clear history</button>
           </div>
           <div id="admin-message-log-list" class="admin-messages-list"></div>
-          <div class="admin-messages-log-head">
+        </div>
+        <div class="settings-panel settings-panel-wide" data-messages-pane="replies" hidden>
+          <div class="settings-panel-head admin-messages-log-head">
             <strong>Replies</strong>
             <button id="admin-replies-clear" class="dlc-shop-btn" type="button">Clear replies</button>
           </div>
           <div id="admin-replies-list" class="admin-messages-list"></div>
-          <div class="admin-messages-log-head">
+        </div>
+        <div class="settings-panel settings-panel-wide" data-messages-pane="reports" hidden>
+          <div class="settings-panel-head admin-messages-log-head">
             <strong>Community reports</strong>
             <button id="admin-reports-clear" class="dlc-shop-btn" type="button">Clear reports</button>
           </div>
           <div id="admin-reports-list" class="admin-messages-list"></div>
         </div>
+        <div class="settings-panel settings-panel-wide" data-messages-pane="digest" hidden>
+          <div class="settings-panel-head">
+            <strong>Nightly digest</strong>
+            <span>One summary message, sent at this hour.</span>
+          </div>
+          <div class="admin-digest-row">
+            <label class="planner-check"><input id="admin-digest-enabled" type="checkbox"> Enabled</label>
+            <label class="planner-field admin-digest-hour">Hour              <input id="admin-digest-hour" type="number" min="0" max="23" step="1" value="8">
+            </label>
+            <button id="admin-digest-save" class="dlc-shop-btn" type="button">Save digest</button>
+            <span id="admin-digest-status" class="settings-field-hint" aria-live="polite"></span>
+          </div>
+        </div>
       </section>
       <section id="admin-panel-server" class="admin-panel" hidden>
-        <div class="settings-panel settings-panel-wide">
+        <div class="settings-panel settings-panel-wide" data-server-pane="connection">
           <div class="settings-panel-head">
-            <strong>Server Settings</strong>
-            <span>Editable values apply immediately and persist across restarts. Only port and host require a restart.</span>
+            <strong>Connection</strong>
+            <span>Default host, CORS, and request limits. Editable values apply immediately. The process port and host still need a restart.</span>
           </div>
+          <div id="admin-jobs-server" class="admin-jobs" hidden></div>
           <div class="settings-grid admin-client-create-grid">
             <label class="settings-field">Default connection host              <input id="admin-setting-client-api-host" type="text" maxlength="200" placeholder="localhost" autocomplete="off" spellcheck="false">
               <span class="settings-field-hint">Prefills the connection gate, including a private window. Env: KABBAK_CLIENT_API_BASE_URL</span>
@@ -1227,6 +1270,15 @@
               <label class="settings-field-hint" style="display:flex;align-items:center;gap:6px;">
                 <input id="admin-setting-secret-clear" type="checkbox"> Clear saved secret              </label>
             </div>
+          </div>
+          <div id="admin-env-readonly" class="admin-env-readonly"></div>
+        </div>
+        <div class="settings-panel settings-panel-wide" data-server-pane="branding" hidden>
+          <div class="settings-panel-head">
+            <strong>Branding</strong>
+            <span>Tab title, logo, and what a new visitor sees before they save their own look.</span>
+          </div>
+          <div class="settings-grid admin-client-create-grid">
             <label class="settings-field">Browser tab title              <input id="admin-setting-browser-title" type="text" maxlength="100" placeholder="KABBAK">
               <span class="settings-field-hint">Env: KABBAK_BROWSER_TITLE — blank uses the app default</span>
             </label>
@@ -1303,9 +1355,11 @@
               <span class="settings-field-hint">Installed layout skins. Blank keeps the app default.</span>
             </label>
           </div>
-          <div class="settings-panel-head" style="margin-top:14px;">
+        </div>
+        <div class="settings-panel settings-panel-wide" data-server-pane="email" hidden>
+          <div class="settings-panel-head">
             <strong>Email</strong>
-            <span>Verification codes and password resets. Resend or SMTP; secrets are stored but never shown again.</span>
+            <span>Verification codes and password resets. Secrets are stored but never shown again.</span>
           </div>
           <div class="settings-grid admin-client-create-grid">
             <label class="settings-field">Method              <select id="admin-setting-mail-transport">
@@ -1404,7 +1458,9 @@
               <span class="settings-field-hint">Delivery, bounce, and complaint callbacks from the provider webhook.</span>
             </div>
           </div>
-          <div class="settings-panel-head" style="margin-top:14px;">
+        </div>
+        <div class="settings-panel settings-panel-wide" data-server-pane="signup" hidden>
+          <div class="settings-panel-head">
             <strong>Signup &amp; trials</strong>
             <span>Self-serve account signup and trial key policy.</span>
           </div>
@@ -1428,48 +1484,56 @@
             <label class="settings-field">Public API URL              <input id="admin-setting-public-api-url" type="url" maxlength="300" placeholder="https://api.example.com">
               <span class="settings-field-hint">Env: KABBAK_PUBLIC_API_URL — base used in verification email links</span>
             </label>
-          </div>
-          <div id="admin-env-readonly" class="admin-env-readonly"></div>
-          <div class="dlc-shop-actions" style="margin-top:10px;">
-            <button id="admin-settings-save" class="settings-button-primary" type="button">Save Settings</button>
-            <span id="admin-settings-save-status" class="settings-field-hint" aria-live="polite"></span>
+            <div id="admin-demo-users-hint" class="settings-field settings-field-full" hidden>
+              <span class="settings-field-hint">Demo logins, handed-out trial accounts, and the plugin's trial defaults and support contacts are managed by the Demo Users plugin.</span>
+              <div class="dlc-shop-actions">
+                <button id="admin-open-demo-users" class="dlc-shop-btn" type="button">Open Demo Users</button>
+              </div>
+            </div>
           </div>
         </div>
-        <div id="admin-jobs-server" class="admin-jobs" hidden></div>
-        <div class="settings-panel settings-panel-wide">
+        <div class="admin-savebar" data-server-savebar>
+          <button id="admin-settings-save" class="settings-button-primary" type="button">Save Settings</button>
+          <span class="settings-field-hint">Saves connection, branding, email, and signup together.</span>
+          <span id="admin-settings-save-status" class="settings-field-hint" aria-live="polite"></span>
+        </div>
+        <div class="settings-panel settings-panel-wide" data-server-pane="logs" hidden>
           <div class="settings-panel-head">
-            <strong>Server Logs</strong>
-            <span>Live view of the in-memory log buffer (requests, bandwidth summaries, errors).</span>
+            <strong>Logs</strong>
+            <span>Recent server activity, grouped so you can scan it. Click a line for details. Viewer polling and OPTIONS preflights are hidden.</span>
           </div>
+          <div id="admin-log-summary" class="admin-log-summary"></div>
           <div class="admin-log-filters">
-            <select id="admin-log-level" class="dlc-menu-preset-select" title="Level">
+            <input id="admin-log-search" type="search" placeholder="Search path, event, message" maxlength="120" aria-label="Search logs">
+            <select id="admin-log-level" class="dlc-menu-preset-select" title="Level" aria-label="Log level">
               <option value="all">All levels</option>
               <option value="info">Info</option>
               <option value="warn">Warn</option>
               <option value="error">Error</option>
             </select>
-            <select id="admin-log-group" class="dlc-menu-preset-select" title="Path group">
+            <select id="admin-log-group" class="dlc-menu-preset-select" title="Path group" aria-label="Path group">
               <option value="">All paths</option>
             </select>
-            <select id="admin-log-event" class="dlc-menu-preset-select" title="Event">
+            <select id="admin-log-event" class="dlc-menu-preset-select" title="Event" aria-label="Event">
               <option value="">All events</option>
             </select>
-            <select id="admin-log-since" class="dlc-menu-preset-select" title="Time range">
+            <select id="admin-log-since" class="dlc-menu-preset-select" title="Time range" aria-label="Time range">
               <option value="">All time</option>
               <option value="5">Last 5 min</option>
               <option value="15">Last 15 min</option>
               <option value="60">Last hour</option>
               <option value="360">Last 6 hours</option>
             </select>
-            <input id="admin-log-search" type="search" placeholder="Search path, event, message" maxlength="120">
             <label class="dlc-menu-hide-label">
-              <input id="admin-log-autorefresh" type="checkbox" checked>              Auto-refresh (3s)            </label>
+              <input id="admin-log-autorefresh" type="checkbox" checked>              Live            </label>
             <button id="admin-log-refresh" class="dlc-shop-btn" type="button">Refresh</button>
             <button id="admin-log-clear" class="dlc-shop-btn" type="button">Clear Buffer</button>
           </div>
           <div id="admin-log-list" class="admin-log-list"></div>
         </div>
       </section>
+      <div id="admin-plugin-panels"></div>
+      </div>
     </div>
   </section>
   <div id="admin-message-modal" class="planner-modal" hidden>
@@ -3531,7 +3595,7 @@
   <script src="app/ui-page-settings.js?v=20260921-appbar-settings"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
   <script src="app/ui-library-marks.js?v=20260919-actions-webp"></script>
-  <script src="app/plugins-host.js?v=20261025-login-refresh"></script>
+  <script src="app/plugins-host.js?v=20261026-plugin-admin-pages-v5"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
   <script src="app/card-images.js?v=20260925-ceremonial"></script>
@@ -3541,7 +3605,7 @@
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20261003-app-keys"></script>
-  <script src="app/ui-dlc-shop.js?v=20261025-trial-manage-v2"></script>
+  <script src="app/ui-dlc-shop.js?v=20261026-plugin-admin-pages-v5"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
   <script src="app/ui-navigation.js?v=20260923-shared"></script>
