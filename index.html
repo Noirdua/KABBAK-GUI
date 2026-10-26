@@ -63,6 +63,28 @@
       color: #8b7fb8;
       letter-spacing: 0.06em;
     }
+    .app-loading-progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: min(320px, 72vw);
+    }
+    .app-loading-progress-wrap[hidden] {
+      display: none;
+    }
+    .app-loading-progress-wrap progress {
+      flex: 1;
+      height: 8px;
+      border-radius: 999px;
+      accent-color: #8b5cf6;
+    }
+    .app-loading-progress-wrap span {
+      min-width: 34px;
+      color: #8b7fb8;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
     @keyframes app-loading-spin {
       to { transform: rotate(360deg); }
     }
@@ -104,8 +126,12 @@
   <div id="app-loading-screen" aria-hidden="true">
     <div class="app-loading-inner">
       <div class="app-loading-mark">KABBAK</div>
-      <div class="app-loading-spinner" aria-label="Loading"></div>
-      <div class="app-loading-note">Loading the interface…</div>
+      <div class="app-loading-spinner" id="app-loading-spinner" aria-label="Loading"></div>
+      <div class="app-loading-note" id="app-loading-note">Loading the interface…</div>
+      <div class="app-loading-progress-wrap" id="app-loading-progress-wrap" hidden>
+        <progress id="app-loading-progress" max="100" value="0"></progress>
+        <span id="app-loading-progress-label">0%</span>
+      </div>
     </div>
   </div>
   <script>
@@ -3615,8 +3641,8 @@
   <script src="app/ui-planner.js?v=20261016-feed-calendars"></script>
   <script src="app/ui-inbox.js?v=20261003-broadcast-url"></script>
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
-  <script src="app/ui-cache-loader.js?v=20260907-defer-magick"></script>
-  <script src="app.js?v=20261012-sun-layer"></script>
+  <script src="app/ui-cache-loader.js?v=20261026-splash-cache"></script>
+  <script src="app.js?v=20261026-splash-cache"></script>
   <script src="app/auth-signup.js?v=20261025-login-email-v2"></script>
   <div id="cache-loader-overlay" class="cache-loader-overlay" hidden aria-hidden="true">
     <div class="cache-loader-card" role="status" aria-live="polite">

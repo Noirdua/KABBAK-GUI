@@ -179,7 +179,7 @@ function hideLoadingScreen() {
 }
 
 // Never leave the splash up forever, even if boot hits an unexpected error.
-window.setTimeout(hideLoadingScreen, 15000);
+window.setTimeout(hideLoadingScreen, 30000);
 
 // --- Mobile zoom reset --------------------------------------------------------
 // Zoom is disabled entirely via the viewport meta (maximum-scale=1,
@@ -1519,6 +1519,9 @@ document.addEventListener("connection:access-updated", () => {
       currentSettings = { ...initialSettings };
       appRuntime.applySettings?.(initialSettings);
     }
+    try {
+      await warmActiveDeckCache();
+    } catch (_error) {}
   }
   hideLoadingScreen();
   if (!connected) {
@@ -1526,7 +1529,6 @@ document.addEventListener("connection:access-updated", () => {
     // 401s. They re-run once the connection (or background reconnect) lands.
     return;
   }
-  void warmActiveDeckCache();
   // Warm reference data only. Section modules load on first navigation.
   await window.TarotAppRuntime?.ensureReferenceData?.();
   window.TarotLazySections?.scheduleIdleWarmup?.(["planets", "cycles", "zodiac"]);
