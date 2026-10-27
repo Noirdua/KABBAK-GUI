@@ -2,6 +2,7 @@
   "use strict";
 
   const SEEN_KEY = "kabbak-board-seen-at";
+  const ENOCHIAN_MARKER = window.KabbakEditor?.enochianMarker || "\uE000";
   let bound = false;
   let topics = [];
   let contributors = [];
@@ -212,8 +213,12 @@
 
   function setFormatted(node, text) {
     if (!node) return;
+    const raw = String(text || "");
+    const marked = raw.startsWith(ENOCHIAN_MARKER);
+    const source = marked ? raw.slice(ENOCHIAN_MARKER.length) : raw;
+    node.classList.toggle("is-enochian-content", marked);
     node.textContent = "";
-    node.appendChild(renderMarkdown(text));
+    node.appendChild(renderMarkdown(source));
   }
 
   function applyFormat(area, format) {
@@ -644,7 +649,7 @@
   function startQuote(reply) {
     const area = el("community-reply-body");
     if (!area) return;
-    const excerpt = String(reply.body || "").split("\n")[0].slice(0, 200);
+    const excerpt = String(reply.body || "").replace(/^\uE000/, "").split("\n")[0].slice(0, 200);
     area.value = `> ${reply.authorName || "Someone"}: ${excerpt}\n\n`;
     area.focus();
   }

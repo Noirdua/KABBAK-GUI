@@ -20359,3 +20359,7 @@ input.kabbak-editor-input,
 .kabbak-keyboard-close {
   cursor: pointer;
 }
+
+.is-enochian-content {
+  font-family: var(--font-script-enochian);
+}

@@ -1,6 +1,8 @@
 (function () {
   "use strict";
 
+  const ENOCHIAN_MARKER = window.KabbakEditor?.enochianMarker || "\uE000";
+
   const state = {
     initialized: false
   };
@@ -344,6 +346,9 @@
         editor.setAttribute("aria-multiline", "true");
         editor.setAttribute("data-placeholder", index === 0 ? "State the theory…" : "Add another thought…");
         editor.innerHTML = block.html || "";
+        if (String(block.html || "").startsWith(ENOCHIAN_MARKER)) {
+          editor.classList.add("kabbak-script-enochian");
+        }
         syncPostEditorEmptyState(editor);
         bodyEl.appendChild(editor);
       }

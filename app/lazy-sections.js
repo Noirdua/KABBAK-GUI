@@ -109,7 +109,7 @@
       "app/quiz-connections.js?v=20260923-shared"
     ],
     community: [
-      "app/ui-board.js?v=20261027-shared-editor-v2"
+      "app/ui-board.js?v=20261027-enochian-persist"
     ],
     games: [
       "app/ui-games.js?v=20260917-stargame2"
@@ -137,8 +137,8 @@
       "app/ui-admin.js?v=20261027-text-editor"
     ],
     profile: [
-      "app/ui-post-editor.js?v=20261027-text-editor",
-      "app/ui-profile.js?v=20261027-shared-editor"
+      "app/ui-post-editor.js?v=20261027-enochian-persist",
+      "app/ui-profile.js?v=20261027-enochian-persist"
     ]
   };
 

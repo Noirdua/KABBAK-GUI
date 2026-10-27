@@ -3,6 +3,7 @@
 
   const SCRIPT_KEY = "kabbak-editor-keyboard-script";
   const POSITION_KEY = "kabbak-keyboard-position";
+  const ENOCHIAN_MARKER = "\uE000";
   const SCRIPT_FONT_STACK = "\"Noto Sans Hebrew\", \"Noto Serif\", \"Amiri\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif";
 
   const SCRIPTS = [
@@ -99,6 +100,65 @@
   function prepareField(field) {
     if (!(field instanceof HTMLElement)) return;
     field.classList.add("kabbak-editor-input");
+    if (hasEnochianMarker(field)) {
+      field.classList.add("kabbak-script-enochian");
+    }
+  }
+
+  function fieldContent(field) {
+    if (field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement) {
+      return String(field.value || "");
+    }
+    if (field instanceof HTMLElement && field.isContentEditable) {
+      return String(field.textContent || "");
+    }
+    return "";
+  }
+
+  function hasEnochianMarker(field) {
+    return fieldContent(field).startsWith(ENOCHIAN_MARKER);
+  }
+
+  function setEnochianMarker(field, enabled) {
+    if (!(field instanceof HTMLElement) || field.dataset.kabbakPlain === "1") return;
+    if (field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement) {
+      const value = String(field.value || "");
+      const marked = value.startsWith(ENOCHIAN_MARKER);
+      if (enabled && !marked) {
+        const start = field.selectionStart ?? value.length;
+        const end = field.selectionEnd ?? start;
+        field.value = ENOCHIAN_MARKER + value;
+        state.selectionStart = start + 1;
+        state.selectionEnd = end + 1;
+        field.setSelectionRange(state.selectionStart, state.selectionEnd);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      } else if (!enabled && marked) {
+        const start = Math.max(0, (field.selectionStart ?? value.length) - 1);
+        const end = Math.max(0, (field.selectionEnd ?? start) - 1);
+        field.value = value.slice(ENOCHIAN_MARKER.length);
+        state.selectionStart = Math.min(start, field.value.length);
+        state.selectionEnd = Math.min(end, field.value.length);
+        field.setSelectionRange(state.selectionStart, state.selectionEnd);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      return;
+    }
+    if (field.isContentEditable) {
+      const marked = String(field.textContent || "").startsWith(ENOCHIAN_MARKER);
+      if (enabled && !marked) {
+        field.insertAdjacentText("afterbegin", ENOCHIAN_MARKER);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        saveSelection();
+      } else if (!enabled && marked) {
+        const walker = document.createTreeWalker(field, NodeFilter.SHOW_TEXT);
+        const first = walker.nextNode();
+        if (first && String(first.textContent || "").startsWith(ENOCHIAN_MARKER)) {
+          first.textContent = first.textContent.slice(ENOCHIAN_MARKER.length);
+        }
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        saveSelection();
+      }
+    }
   }
 
   function ensureOverlay() {
@@ -359,7 +419,11 @@
 
   function applyScriptFont(field) {
     if (!(field instanceof HTMLElement)) return;
-    field.classList.toggle("kabbak-script-enochian", state.scriptId === "enochian");
+    const wantEnochian = state.scriptId === "enochian";
+    field.classList.toggle("kabbak-script-enochian", wantEnochian);
+    if (!wantEnochian) {
+      setEnochianMarker(field, false);
+    }
   }
 
   function saveSelection() {
@@ -390,7 +454,7 @@
     state.overlay.hidden = false;
     state.restorePosition?.();
     document.documentElement.classList.add("kabbak-keyboard-open");
-    state.scriptId = readScript();
+    state.scriptId = hasEnochianMarker(field) ? "enochian" : readScript();
     state.caseId = "";
     applyScriptFont(field);
     renderKeys();
@@ -419,6 +483,11 @@
       closeKeyboard();
       return;
     }
+    const isEditable = target.isContentEditable;
+    const wasMarked = hasEnochianMarker(target);
+    if (!isEditable && state.scriptId === "enochian") {
+      setEnochianMarker(target, true);
+    }
     if (target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement) {
       const start = target.selectionStart ?? state.selectionStart ?? target.value.length;
       const end = target.selectionEnd ?? state.selectionEnd ?? start;
@@ -435,6 +504,9 @@
       try {
         document.execCommand("insertText", false, text);
       } catch (_error) {}
+      if (state.scriptId === "enochian" && !wasMarked) {
+        setEnochianMarker(target, true);
+      }
       saveSelection();
     }
   }
@@ -483,10 +555,14 @@
       return;
     }
     if (target.isContentEditable) {
+      const wasMarked = hasEnochianMarker(target);
       focusField();
       try {
         document.execCommand("insertHTML", false, "<br>");
       } catch (_error) {}
+      if (state.scriptId === "enochian" && !wasMarked) {
+        setEnochianMarker(target, true);
+      }
       saveSelection();
       return;
     }
@@ -670,6 +746,7 @@
   function enhanceKeyboardOnly(field, host) {
     if (!(field instanceof HTMLElement)) return null;
     prepareField(field);
+    field.dataset.kabbakPlain = "1";
     if (field.dataset.kabbakKeyboard === "1") return null;
     field.dataset.kabbakKeyboard = "1";
     const toolbar = document.createElement("div");
@@ -685,6 +762,7 @@
 
   window.KabbakEditor = {
     scriptFontStack: SCRIPT_FONT_STACK,
+    enochianMarker: ENOCHIAN_MARKER,
     openKeyboard,
     closeKeyboard,
     addKeyboardButton,

@@ -1,6 +1,8 @@
 (function () {
   "use strict";
 
+  const ENOCHIAN_MARKER = window.KabbakEditor?.enochianMarker || "\uE000";
+
   const state = {
     initialized: false,
     loading: false,
@@ -2522,6 +2524,9 @@
     } else {
       editor.innerHTML = "";
     }
+    if (String(value || "").startsWith(ENOCHIAN_MARKER)) {
+      editor.classList.add("kabbak-script-enochian");
+    }
     window.KabbakEditor?.addKeyboardButton?.(toolbar, editor);
 
     // Quick notes can be dragged from the Quick Notes list and dropped here.
@@ -4588,11 +4593,15 @@
   // anywhere in the thread.
   // Post HTML is sanitized server-side, so it is safe to render here.
   function appendFormatted(parent, html, className, options = {}) {
+    const raw = String(html || "");
+    const marked = raw.startsWith(ENOCHIAN_MARKER);
+    const source = marked ? raw.slice(ENOCHIAN_MARKER.length) : raw;
     const node = makeEl("div", className || "profile-post-rich");
+    node.classList.toggle("is-enochian-content", marked);
     if (options.plain) {
-      node.textContent = String(html || "");
+      node.textContent = source;
     } else {
-      node.innerHTML = String(html || "");
+      node.innerHTML = source;
     }
     parent.appendChild(node);
     return node;
