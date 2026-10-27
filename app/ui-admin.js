@@ -515,9 +515,7 @@
         const strong = document.createElement("strong");
         strong.textContent = `${title} settings`;
         const copy = document.createElement("span");
-        copy.textContent = plugin?.customSettings
-          ? "Plugin settings, status, and recent activity."
-          : "Advanced config and entry script. Changes apply when the plugin reloads.";
+        copy.textContent = "Plugin settings, status, and recent activity.";
         head.append(strong, copy);
         const body = document.createElement("div");
         panel.append(head, body);
@@ -538,23 +536,11 @@
     try {
       const payload = await requestJson("GET", "/api/v1/plugins");
       const plugins = (Array.isArray(payload?.plugins) ? payload.plugins : [])
-        .filter((plugin) => plugin?.name && plugin.name !== "menu-plugin");
-      const checks = await Promise.all(plugins.map(async (plugin) => {
-        const customSettings = window.TaroTimeDlcShop?.hasPluginSettings?.(plugin.name) === true;
-        if (customSettings) return { ...plugin, customSettings: true };
-        try {
-          const configPayload = await requestJson("GET", `/api/v1/plugins/${encodeURIComponent(plugin.name)}/config`);
-          const config = configPayload?.config;
-          const hasConfig = Boolean(config && typeof config === "object" && Object.keys(config).length);
-          return hasConfig ? { ...plugin, customSettings: false } : null;
-        } catch (_error) {
-          return null;
-        }
-      }));
-      pluginSettingsCatalog = checks
-        .filter(Boolean)
-        .sort((a, b) => Number(b.customSettings) - Number(a.customSettings)
-          || String(a.title || a.name).localeCompare(String(b.title || b.name)));
+        .filter((plugin) => plugin?.name);
+      pluginSettingsCatalog = plugins
+        .filter((plugin) => window.TaroTimeDlcShop?.hasPluginSettings?.(plugin.name) === true)
+        .map((plugin) => ({ ...plugin, customSettings: true }))
+        .sort((a, b) => String(a.title || a.name).localeCompare(String(b.title || b.name)));
       syncPluginAdminPages();
     } catch (_error) {
       pluginSettingsCatalog = [];
@@ -4594,25 +4580,29 @@
               });
             });
           }
-          const settingsBtn = document.createElement("button");
-          settingsBtn.type = "button";
-          settingsBtn.className = "dlc-shop-btn";
-          settingsBtn.textContent = "Settings";
-          settingsBtn.title = `Configure ${item.title || item.name}`;
-          card.querySelector(".dlc-plugin-actions")?.appendChild(settingsBtn);
-          settingsBtn.addEventListener("click", () => {
-            if (item.name === "menu-plugin") {
-              if (window.TaroTimeDlcShop?.openMenuEditorInto) {
-                window.TaroTimeDlcShop.openMenuEditorInto(card);
+          const hasDesignedSettings = item.name === "menu-plugin"
+            || window.TaroTimeDlcShop?.hasPluginSettings?.(item.name) === true;
+          if (hasDesignedSettings) {
+            const settingsBtn = document.createElement("button");
+            settingsBtn.type = "button";
+            settingsBtn.className = "dlc-shop-btn";
+            settingsBtn.textContent = "Settings";
+            settingsBtn.title = `Configure ${item.title || item.name}`;
+            card.querySelector(".dlc-plugin-actions")?.appendChild(settingsBtn);
+            settingsBtn.addEventListener("click", () => {
+              if (item.name === "menu-plugin") {
+                if (window.TaroTimeDlcShop?.openMenuEditorInto) {
+                  window.TaroTimeDlcShop.openMenuEditorInto(card);
+                } else {
+                  setStatus("Menu editor is available in Settings > DLC Shop & Plugins.", true);
+                }
+              } else if (window.TaroTimeDlcShop?.openPluginSettings) {
+                window.TaroTimeDlcShop.openPluginSettings(card, item);
               } else {
-                setStatus("Menu editor is available in Settings > DLC Shop & Plugins.", true);
+                setStatus("Plugin settings are available in Settings > DLC Shop & Plugins.", true);
               }
-            } else if (window.TaroTimeDlcShop?.openPluginSettings) {
-              window.TaroTimeDlcShop.openPluginSettings(card, item);
-            } else {
-              setStatus("Plugin settings are available in Settings > DLC Shop & Plugins.", true);
-            }
-          });
+            });
+          }
         }
 
         dlcCatalogEl.appendChild(card);
@@ -5060,6 +5050,7 @@
   function init() {
     syncPluginAdminPages();
     void loadPluginSettingsPages();
+    window.KabbakEditor?.enhanceKeyboardOnly?.(document.getElementById("admin-message-body"));
     document.addEventListener("plugin:admin-page", syncPluginAdminPages);
     document.addEventListener("plugin:admin-page-removed", () => {
       void loadPluginSettingsPages();

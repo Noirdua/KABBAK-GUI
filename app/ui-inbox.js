@@ -54,18 +54,11 @@
     if (node) node.textContent = message || "";
   }
 
-  function showButton(show) {
-    const button = el("open-inbox");
-    if (button) button.hidden = !show;
-  }
-
   async function refreshBadge() {
     if (!isEnabled()) {
-      showButton(false);
       setBadge(0);
       return;
     }
-    showButton(true);
     try {
       const inbox = await window.TarotDataService.fetchInbox();
       items = Array.isArray(inbox?.items) ? inbox.items : [];
@@ -386,6 +379,10 @@
   }
 
   function openModal() {
+    if (!isEnabled()) {
+      window.TarotSectionStateUi?.setActiveSection?.("settings");
+      return;
+    }
     const modal = el("inbox-modal");
     if (modal) modal.hidden = false;
     // Always start on the list view.
@@ -417,6 +414,7 @@
 
   function init() {
     el("open-inbox")?.addEventListener("click", openModal);
+    window.KabbakEditor?.enhanceKeyboardOnly?.(el("inbox-reply-body"));
     el("inbox-close")?.addEventListener("click", closeModal);
     el("inbox-detail-back")?.addEventListener("click", closeDetail);
     el("inbox-reply-send")?.addEventListener("click", () => {
@@ -446,6 +444,9 @@
       });
     });
     document.addEventListener("connection:updated", () => {
+      void refreshBadge();
+    });
+    document.addEventListener("connection:access-updated", () => {
       void refreshBadge();
     });
 

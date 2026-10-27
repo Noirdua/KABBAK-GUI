@@ -11,7 +11,8 @@
     "hydrus-network",
     "demo-users",
     "layout-phone",
-    "stripe"
+    "stripe",
+    "menu-plugin"
   ]);
 
   function getElements() {
@@ -181,10 +182,12 @@
       settingsBtn.className = "dlc-shop-btn";
       settingsBtn.textContent = "Settings";
       settingsBtn.title = `Configure ${plugin.title || plugin.name}`;
-      card.querySelector(".dlc-plugin-actions")?.appendChild(settingsBtn);
-      settingsBtn.addEventListener("click", () => {
-        openPluginSettings(card, plugin);
-      });
+      if (CUSTOM_SETTINGS_PLUGINS.has(plugin.name) || plugin.name === "menu-plugin") {
+        card.querySelector(".dlc-plugin-actions")?.appendChild(settingsBtn);
+        settingsBtn.addEventListener("click", () => {
+          openPluginSettings(card, plugin);
+        });
+      }
 
       if (plugin.role === "skin") {
         const activeSkin = window.TaroTimePluginHost?.getActiveSkin?.() || "";
@@ -227,8 +230,11 @@
       .filter((unit) => unit.id);
   }
 
-  async function openMenuEditor() {
-    const settingsEl = openSettingsOverlay("Menu Order");
+  async function openMenuEditor(container = null) {
+    const settingsEl = container || openSettingsOverlay("Menu Order");
+    if (container) {
+      container.replaceChildren();
+    }
     const editor = document.createElement("div");
     editor.className = "dlc-menu-editor";
     settingsEl.appendChild(editor);
@@ -3071,6 +3077,9 @@
 
   function renderPluginSettingsInto(container, plugin) {
     if (!container) return Promise.resolve();
+    if (plugin?.name === "menu-plugin") {
+      return Promise.resolve(openMenuEditor(container));
+    }
     const render = plugin?.name === "music-player"
       ? renderMusicPlayerSettings
       : plugin?.name === "homepage"
@@ -7605,7 +7614,10 @@
 
   window.TaroTimeDlcShop = {
     openMenuEditorInto(cardEl) {
-      return openMenuEditor(cardEl);
+      return openMenuEditor();
+    },
+    renderMenuEditorInto(container) {
+      return openMenuEditor(container);
     },
     openPluginSettings(cardEl, plugin) {
       return openPluginSettings(cardEl, plugin);

@@ -267,7 +267,7 @@
       if (!id) return null;
       return {
         id,
-        label: String(button.textContent || "").replace("▾", "").trim(),
+        label: String(button.dataset.menuLabel || button.getAttribute("aria-label") || button.textContent || "").replace("▾", "").trim(),
         hidden: Boolean(button.hidden)
       };
     };

@@ -83,7 +83,7 @@
       "app/ui-cube.js?v=20260921-review-fixes"
     ],
     alphabet: [
-      "app/ui-alphabet-gematria.js?v=20260921-review-fixes",
+      "app/ui-alphabet-gematria.js?v=20261027-enochian-keyboard",
       "app/ui-alphabet-browser.js?v=20261016-greek-font",
       "app/ui-alphabet-references.js?v=20260923-shared",
       "app/ui-alphabet-detail.js?v=20261016-greek-font",
@@ -109,7 +109,7 @@
       "app/quiz-connections.js?v=20260923-shared"
     ],
     community: [
-      "app/ui-board.js?v=20261003-board-menu"
+      "app/ui-board.js?v=20261027-shared-editor-v2"
     ],
     games: [
       "app/ui-games.js?v=20260917-stargame2"
@@ -134,11 +134,11 @@
       "app/ui-natal.js?v=20260917-natal-place"
     ],
     admin: [
-      "app/ui-admin.js?v=20261026-plugin-admin-pages-v5"
+      "app/ui-admin.js?v=20261027-text-editor"
     ],
     profile: [
-      "app/ui-post-editor.js?v=20260917-quote-meta",
-      "app/ui-profile.js?v=20261024-safe-html"
+      "app/ui-post-editor.js?v=20261027-text-editor",
+      "app/ui-profile.js?v=20261027-shared-editor"
     ]
   };
 

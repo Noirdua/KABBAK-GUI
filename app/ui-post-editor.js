@@ -155,8 +155,9 @@
   function ensurePostTools() {
     const { postToolsEl } = getElements();
     if (!postToolsEl || postToolsEl.childElementCount) return;
+    postToolsEl.classList.add("kabbak-editor-toolbar");
     POST_HTML_TOOLS.forEach((tool) => {
-      const button = makeEl("button", "profile-format-btn", tool.label);
+      const button = makeEl("button", "profile-format-btn kabbak-editor-btn", tool.label);
       button.type = "button";
       button.title = tool.title;
       button.addEventListener("mousedown", (event) => {
@@ -167,7 +168,7 @@
       });
       postToolsEl.appendChild(button);
     });
-    const link = makeEl("button", "profile-format-btn", "Link");
+    const link = makeEl("button", "profile-format-btn kabbak-editor-btn", "Link");
     link.type = "button";
     link.title = "Link";
     link.addEventListener("mousedown", (event) => {
@@ -179,6 +180,16 @@
       syncActivePostEditor();
     });
     postToolsEl.appendChild(link);
+    const keyboard = makeEl("button", "profile-format-btn kabbak-editor-btn", "⌨");
+    keyboard.type = "button";
+    keyboard.title = "Language keyboard";
+    keyboard.setAttribute("aria-label", "Open the language keyboard");
+    keyboard.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      const editor = getActivePostEditor();
+      if (editor) window.KabbakEditor?.openKeyboard?.(editor);
+    });
+    postToolsEl.appendChild(keyboard);
   }
 
   let composerEvidence = [];
@@ -327,7 +338,7 @@
         marker.title = evidenceMeta(block.evidenceId).title || "Evidence";
         bodyEl.appendChild(marker);
       } else {
-        const editor = makeEl("div", "profile-post-block-text");
+        const editor = makeEl("div", "profile-post-block-text kabbak-editor-input");
         editor.setAttribute("contenteditable", "true");
         editor.setAttribute("role", "textbox");
         editor.setAttribute("aria-multiline", "true");

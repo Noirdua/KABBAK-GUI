@@ -191,12 +191,14 @@
     const greekUpper = collectAlphabetChars(greekEntries, ["char"]);
     const greekLower = collectAlphabetChars(greekEntries, ["charLower"]);
     const arabicChars = collectAlphabetChars(alphabets.arabic, ["char"]);
+    const enochianChars = collectAlphabetChars(alphabets.enochian, ["char"]);
 
     return [
       { id: "english", label: "English", defaultCase: "lower", cases: { lower: englishLower, upper: englishUpper }, nameByChar: buildLetterNameMap("english") },
       { id: "hebrew", label: "Hebrew", defaultCase: "single", cases: { single: hebrewChars }, nameByChar: buildLetterNameMap("hebrew") },
       { id: "greek", label: "Greek", defaultCase: "upper", cases: { upper: greekUpper, lower: greekLower }, nameByChar: buildLetterNameMap("greek") },
-      { id: "arabic", label: "Arabic", defaultCase: "single", cases: { single: arabicChars }, nameByChar: buildLetterNameMap("arabic") }
+      { id: "arabic", label: "Arabic", defaultCase: "single", cases: { single: arabicChars }, nameByChar: buildLetterNameMap("arabic") },
+      { id: "enochian", label: "Enochian", defaultCase: "single", cases: { single: enochianChars }, nameByChar: buildLetterNameMap("enochian") }
     ].filter((layout) => Object.values(layout.cases || {}).some((chars) => Array.isArray(chars) && chars.length > 0));
   }
 
@@ -330,6 +332,9 @@
     });
     keyboardGridEl.replaceChildren(fragment);
     keyboardGridEl.setAttribute("lang", state.keyboardScriptId);
+    keyboardGridEl.setAttribute("dir", "ltr");
+    keyboardGridEl.dataset.script = state.keyboardScriptId;
+    document.getElementById("alphabet-section")?.setAttribute("data-keyboard-script", state.keyboardScriptId);
 
     syncKeyboardCaseToggle(keyboardActionsEl, activeLayout);
   }

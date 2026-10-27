@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20261026-plugin-admin-pages-v5">
+  <link rel="stylesheet" href="app/styles.css?v=20261027-draggable-keyboard">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     #app-loading-screen {
@@ -221,7 +221,7 @@
       <div class="topbar-dropdown" aria-label="Social menu">
         <button id="open-community-menu" class="settings-trigger" type="button" aria-pressed="false" aria-haspopup="menu" aria-controls="community-subpages" aria-expanded="false">Social ▾</button>
         <div id="community-subpages" class="topbar-dropdown-menu" role="menu" aria-label="Social subpages">
-          <button id="open-inbox" class="settings-trigger topbar-sub-trigger topbar-menu-inbox" type="button" role="menuitem" hidden>Inbox<span id="inbox-badge" class="topbar-badge" hidden></span></button>
+          <button id="open-inbox" class="settings-trigger topbar-sub-trigger topbar-menu-inbox" type="button" role="menuitem" aria-label="Inbox">Inbox<span id="inbox-badge" class="topbar-badge" hidden></span></button>
           <button id="open-community" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Board</button>
           <button id="open-quiz" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Quiz</button>
           <button id="open-games" class="settings-trigger topbar-sub-trigger" type="button" role="menuitem">Games</button>
@@ -2560,7 +2560,7 @@
       <aside class="community-list-panel">
         <div class="community-head">
           <strong>Community</strong>
-          <button id="community-new" class="settings-trigger" type="button">New topic</button>
+          <button id="community-home" class="community-overview-btn" type="button">Overview</button>
         </div>
         <div id="community-topic-list" class="community-topic-list" role="listbox" aria-label="Board topics"></div>
         <div class="community-posters">
@@ -2582,18 +2582,20 @@
         </div>
         <div id="community-topic-view" class="community-topic-view" hidden>
           <div class="community-topic-header">
-            <h2 id="community-topic-title">--</h2>
-            <div id="community-topic-meta" class="community-topic-meta"></div>
-            <div class="community-topic-actions">
-              <button id="community-topic-actions-toggle" class="settings-trigger community-actions-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="community-topic-actions-menu">Actions ▾</button>
-              <div id="community-topic-actions-menu" class="community-actions-menu" role="menu" aria-label="Topic actions" hidden>
-                <button id="community-topic-watch" class="community-actions-item" type="button" role="menuitem">Watch</button>
-                <button id="community-topic-edit" class="community-actions-item" type="button" role="menuitem">Edit</button>
-                <button id="community-topic-pin" class="community-actions-item" type="button" role="menuitem">Pin</button>
-                <button id="community-topic-report" class="community-actions-item" type="button" role="menuitem">Report</button>
-                <button id="community-topic-delete" class="community-actions-item" type="button" role="menuitem">Delete</button>
+            <div class="community-topic-title-row">
+              <h2 id="community-topic-title">--</h2>
+              <div class="community-topic-actions">
+                <button id="community-topic-actions-toggle" class="settings-trigger community-actions-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="community-topic-actions-menu">Actions ▾</button>
+                <div id="community-topic-actions-menu" class="community-actions-menu" role="menu" aria-label="Topic actions" hidden>
+                  <button id="community-topic-watch" class="community-actions-item" type="button" role="menuitem">Watch</button>
+                  <button id="community-topic-edit" class="community-actions-item" type="button" role="menuitem">Edit</button>
+                  <button id="community-topic-pin" class="community-actions-item" type="button" role="menuitem">Pin</button>
+                  <button id="community-topic-report" class="community-actions-item" type="button" role="menuitem">Report</button>
+                  <button id="community-topic-delete" class="community-actions-item" type="button" role="menuitem">Delete</button>
+                </div>
               </div>
             </div>
+            <div id="community-topic-meta" class="community-topic-meta"></div>
           </div>
           <div id="community-topic-editor" class="community-topic-editor" hidden>
             <label class="community-field">Title              <input id="community-edit-title" type="text" maxlength="200" autocomplete="off">
@@ -2606,11 +2608,17 @@
             </div>
           </div>
           <div id="community-topic-body" class="community-topic-body"></div>
+          <div class="community-section-head">
+            <strong>Replies</strong>
+            <span id="community-reply-count" class="community-topic-meta"></span>
+          </div>
           <div id="community-replies" class="community-replies"></div>
-          <label class="community-field">Reply            <textarea id="community-reply-body" rows="3" maxlength="5000"></textarea>
-          </label>
-          <div class="community-actions">
-            <button id="community-reply-post" class="settings-button-primary" type="button">Post reply</button>
+          <div class="community-reply-compose">
+            <label class="community-field">Reply              <textarea id="community-reply-body" rows="3" maxlength="5000"></textarea>
+            </label>
+            <div class="community-actions">
+              <button id="community-reply-post" class="settings-button-primary" type="button">Post reply</button>
+            </div>
           </div>
           <div id="community-report-box" class="community-report-box" hidden>
             <label class="community-field">Report reason              <textarea id="community-report-reason" rows="2" maxlength="500"></textarea>
@@ -2622,7 +2630,15 @@
           </div>
           <div id="community-reply-status" class="community-status" aria-live="polite"></div>
         </div>
-        <p id="community-empty" class="body-text">Select a topic or start a new one.</p>
+        <div id="community-empty" class="community-landing">
+          <div class="community-landing-kicker">Community board</div>
+          <h2>Select a topic or start a new one.</h2>
+          <p class="community-landing-copy">Ask a question, share a reading, or leave a note for everyone. Replies keep their order and can carry a quote.</p>
+          <div class="community-landing-actions">
+            <button id="community-new" class="settings-button-primary" type="button">New topic</button>
+          </div>
+          <div id="community-landing-stats" class="community-landing-stats"></div>
+        </div>
       </section>
     </div>
   </section>
@@ -3621,17 +3637,18 @@
   <script src="app/ui-page-settings.js?v=20260921-appbar-settings"></script>
   <script src="app/ui-tandem.js?v=20260915-tandem"></script>
   <script src="app/ui-library-marks.js?v=20260919-actions-webp"></script>
-  <script src="app/plugins-host.js?v=20261026-plugin-admin-pages-v5"></script>
+  <script src="app/plugins-host.js?v=20261026-menu-labels"></script>
   <script src="app/cache-manager.js?v=20260911-http-cache-keep"></script>
   <script src="app/calendar-events.js?v=20260807-perf-02"></script>
   <script src="app/card-images.js?v=20260925-ceremonial"></script>
   <script src="app/ui-now-helpers.js?v=20260807-deck-active-fix"></script>
   <script src="app/ui-now.js?v=20260916-sky-revamp"></script>
-  <script src="app/lazy-sections.js?v=20261016-greek-font"></script>
+  <script src="app/ui-text-editor.js?v=20261027-draggable-keyboard"></script>
+  <script src="app/lazy-sections.js?v=20261027-enochian-keyboard"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
   <script src="app/ui-settings.js?v=20261003-app-keys"></script>
-  <script src="app/ui-dlc-shop.js?v=20261026-plugin-admin-pages-v5"></script>
+  <script src="app/ui-dlc-shop.js?v=20261026-menu-order-inline"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
   <script src="app/ui-navigation.js?v=20260923-shared"></script>
@@ -3639,7 +3656,7 @@
   <script src="app/ui-home-calendar.js?v=20260807-sky-settings-v2"></script>
   <script src="app/ui-section-state.js?v=20260920-review-fixes"></script>
   <script src="app/ui-planner.js?v=20261016-feed-calendars"></script>
-  <script src="app/ui-inbox.js?v=20261003-broadcast-url"></script>
+  <script src="app/ui-inbox.js?v=20261027-text-editor"></script>
   <script src="app/app-runtime.js?v=20260917-cleanup"></script>
   <script src="app/ui-cache-loader.js?v=20261026-splash-cache"></script>
   <script src="app.js?v=20261026-splash-cache"></script>

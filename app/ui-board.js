@@ -4,6 +4,7 @@
   const SEEN_KEY = "kabbak-board-seen-at";
   let bound = false;
   let topics = [];
+  let contributors = [];
   let currentTopicId = "";
   let currentTopic = null;
   let lastSeenAt = 0;
@@ -334,9 +335,46 @@
   }
 
   function attachFormatBar(area) {
-    if (!(area instanceof HTMLTextAreaElement) || area.dataset.formatBar === "1") return;
-    area.dataset.formatBar = "1";
-    area.insertAdjacentElement("beforebegin", makeFormatBar(area));
+    if (!(area instanceof HTMLTextAreaElement)) return;
+    window.KabbakEditor?.mountMarkdown?.(area);
+  }
+
+  function renderLandingStats() {
+    const host = el("community-landing-stats");
+    if (!host) return;
+    const replyCount = topics.reduce((sum, topic) => sum + (Number(topic.replyCount) || 0), 0);
+    const topPoster = contributors[0];
+    const stats = [
+      ["Topics", String(topics.length)],
+      ["Replies", String(replyCount)],
+      ["Top poster", topPoster ? String(topPoster.name || topPoster.clientId || "Anonymous") : "—"]
+    ];
+    host.replaceChildren();
+    stats.forEach(([label, value]) => {
+      const card = document.createElement("div");
+      card.className = "community-landing-stat";
+      const labelEl = document.createElement("span");
+      labelEl.textContent = label;
+      const valueEl = document.createElement("strong");
+      valueEl.textContent = value;
+      valueEl.title = value;
+      card.append(labelEl, valueEl);
+      host.appendChild(card);
+    });
+  }
+
+  function showLanding() {
+    currentTopicId = "";
+    currentTopic = null;
+    show(el("community-compose"), false);
+    show(el("community-topic-view"), false);
+    show(el("community-empty"), true);
+    el("community-topic-actions-menu")?.setAttribute("hidden", "hidden");
+    el("community-topic-actions-toggle")?.setAttribute("aria-expanded", "false");
+    closeReport();
+    renderTopicList();
+    renderLandingStats();
+    void loadTopics();
   }
 
   function renderTopicList() {
@@ -388,6 +426,7 @@
       const result = await service().fetchBoardTopics();
       topics = Array.isArray(result?.topics) ? result.topics : [];
       renderTopicList();
+      renderLandingStats();
       void loadContributors();
     } catch (error) {
       const list = el("community-topic-list");
@@ -432,6 +471,10 @@
     if (replies) {
       replies.textContent = "";
       const list = Array.isArray(topic.replies) ? topic.replies : [];
+      const replyCount = el("community-reply-count");
+      if (replyCount) {
+        replyCount.textContent = `${list.length} repl${list.length === 1 ? "y" : "ies"}`;
+      }
       if (!list.length) {
         const empty = document.createElement("p");
         empty.className = "body-text";
@@ -645,13 +688,14 @@
     if (!list || typeof service()?.fetchBoardContributors !== "function") return;
     try {
       const result = await service().fetchBoardContributors(10);
-      const contributors = Array.isArray(result?.contributors) ? result.contributors : [];
+      contributors = Array.isArray(result?.contributors) ? result.contributors : [];
       list.textContent = "";
       if (!contributors.length) {
         const empty = document.createElement("span");
         empty.className = "community-topic-item-meta";
         empty.textContent = "No posts yet.";
         list.appendChild(empty);
+        renderLandingStats();
         return;
       }
       contributors.forEach((entry, index) => {
@@ -665,8 +709,11 @@
         row.append(name, count);
         list.appendChild(row);
       });
+      renderLandingStats();
     } catch (_error) {
+      contributors = [];
       list.textContent = "";
+      renderLandingStats();
     }
   }
 
@@ -762,13 +809,16 @@
       }
     });
     actions.append(save, cancel);
-    wrap.append(makeFormatBar(area), area, actions);
+    const toolbar = window.KabbakEditor?.markdownToolbar?.(area);
+    if (toolbar) wrap.appendChild(toolbar);
+    wrap.append(area, actions);
     bodyNode.replaceWith(wrap);
   }
 
   function bind() {
     if (bound) return;
     bound = true;
+    el("community-home")?.addEventListener("click", showLanding);
     el("community-new")?.addEventListener("click", openCompose);
     el("community-cancel")?.addEventListener("click", () => {
       show(el("community-compose"), false);

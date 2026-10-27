@@ -2368,7 +2368,7 @@
     span.textContent = labelText;
 
     const toolbar = document.createElement("div");
-    toolbar.className = "profile-rich-toolbar";
+    toolbar.className = "profile-rich-toolbar kabbak-editor-toolbar";
     const richCmds = [
       { cmd: "bold", label: "B", title: "Bold" },
       { cmd: "italic", label: "I", title: "Italic" },
@@ -2381,6 +2381,7 @@
     richCmds.forEach(({ cmd, label: btnLabel, title }) => {
       const btn = document.createElement("button");
       btn.type = "button";
+      btn.className = "kabbak-editor-btn";
       btn.textContent = btnLabel;
       btn.title = title || cmd;
       btn.addEventListener("click", (e) => {
@@ -2416,6 +2417,7 @@
     // Quote
     const quoteBtn = document.createElement("button");
     quoteBtn.type = "button";
+    quoteBtn.className = "kabbak-editor-btn";
     quoteBtn.textContent = "❝";
     quoteBtn.title = "Blockquote";
     quoteBtn.addEventListener("click", (e) => {
@@ -2431,6 +2433,7 @@
     // Inline code
     const codeBtn = document.createElement("button");
     codeBtn.type = "button";
+    codeBtn.className = "kabbak-editor-btn";
     codeBtn.textContent = "<>";
     codeBtn.title = "Inline code";
     codeBtn.addEventListener("click", (e) => {
@@ -2462,6 +2465,7 @@
     // Code block (pre)
     const preBtn = document.createElement("button");
     preBtn.type = "button";
+    preBtn.className = "kabbak-editor-btn";
     preBtn.textContent = "pre";
     preBtn.title = "Code block";
     preBtn.addEventListener("click", (e) => {
@@ -2477,6 +2481,7 @@
     // Clear formatting
     const clearBtn = document.createElement("button");
     clearBtn.type = "button";
+    clearBtn.className = "kabbak-editor-btn";
     clearBtn.textContent = "⌫";
     clearBtn.title = "Remove formatting";
     clearBtn.addEventListener("click", (e) => {
@@ -2492,6 +2497,7 @@
     if (options.notesPicker) {
       const noteBtn = document.createElement("button");
       noteBtn.type = "button";
+      noteBtn.className = "kabbak-editor-btn";
       noteBtn.textContent = "Note";
       noteBtn.title = "Insert a saved note";
       noteBtn.addEventListener("click", (event) => {
@@ -2506,6 +2512,7 @@
 
     const editor = document.createElement("div");
     editor.className = fieldClass;
+    editor.classList.add("kabbak-editor-input");
     editor.contentEditable = "true";
     editor.setAttribute("data-placeholder", placeholder);
     if (value && /<[^>]+>/.test(value)) {
@@ -2515,6 +2522,7 @@
     } else {
       editor.innerHTML = "";
     }
+    window.KabbakEditor?.addKeyboardButton?.(toolbar, editor);
 
     // Quick notes can be dragged from the Quick Notes list and dropped here.
     editor.addEventListener("dragover", (event) => {
@@ -3039,6 +3047,7 @@
     textArea.rows = 4;
     textArea.maxLength = 1000;
     textArea.value = note.text || "";
+    window.KabbakEditor?.enhanceKeyboardOnly?.(textArea);
     textLabel.appendChild(textArea);
 
     body.append(timeLabel, textLabel);
@@ -4190,7 +4199,7 @@
     if (!textarea) return null;
     const bar = document.createElement("div");
     bar.id = "profile-page-format-bar";
-    bar.className = "profile-format-bar";
+    bar.className = "profile-format-bar kabbak-editor-toolbar";
     PROFILE_HTML_TOOLS.forEach((tool) => {
       const button = document.createElement("button");
       button.type = "button";
@@ -4248,6 +4257,8 @@
 
     const label = textarea.closest(".profile-page-editor-label") || textarea;
     (label.parentElement || label).insertBefore(bar, label);
+    textarea.classList.add("kabbak-editor-input");
+    window.KabbakEditor?.addKeyboardButton?.(bar, textarea);
     return bar;
   }
 
@@ -5851,6 +5862,7 @@
     elements.quickNoteSaveBtn?.addEventListener("click", () => {
       void saveQuickNote();
     });
+    window.KabbakEditor?.enhanceKeyboardOnly?.(elements.quickNoteInputEl, document.querySelector(".profile-quicknote-input-row"));
     elements.cacheNowBtn?.addEventListener("click", () => {
       void cacheAppNow();
     });
@@ -6606,6 +6618,35 @@
     }
   }
 
+  // The notebook is a singleton panel shared by the Journal and Notes pages.
+  // The coordinator makes sure the previous page releases it before the next
+  // one mounts, regardless of section-event listener order.
+  let activeJournalPage = null;
+
+  function showJournalPage(root, helpers, options) {
+    if (!(root instanceof HTMLElement)) {
+      return () => {};
+    }
+    if (activeJournalPage?.root === root) {
+      return activeJournalPage.cleanup;
+    }
+    if (activeJournalPage) {
+      try { activeJournalPage.cleanup(); } catch (_error) {}
+      activeJournalPage = null;
+    }
+    const cleanup = mountJournal(root, helpers, options);
+    activeJournalPage = { root, cleanup };
+    return cleanup;
+  }
+
+  function releaseJournalPage(root) {
+    if (!activeJournalPage || activeJournalPage.root !== root) {
+      return;
+    }
+    try { activeJournalPage.cleanup(); } catch (_error) {}
+    activeJournalPage = null;
+  }
+
   // Mount the notebook into the Journal plugin page. The existing panel is
   // relocated (listeners and state intact) so the whole feature is reused.
   function mountJournal(root, helpers, options) {
@@ -6632,7 +6673,7 @@
     notesPanelEl.classList.toggle("journal-view-note", mode === "note");
     const heading = notesPanelEl.querySelector(".profile-notebook-head h2");
     if (heading) {
-      heading.textContent = mode === "note" ? "Note" : "Diary";
+      heading.textContent = mode === "note" ? "Notes" : "Diary";
     }
     root.appendChild(notesPanelEl);
     if (mode === "diary") {
@@ -6680,6 +6721,8 @@
     getLocation,
     addToPost,
     mountJournal,
+    showJournalPage,
+    releaseJournalPage,
     recordQuizAttempt,
     refreshProfile
   };

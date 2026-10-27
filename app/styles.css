@@ -15344,8 +15344,7 @@
       line-height: 1.5;
       color: var(--tt-text);
     }
-    html[data-personal-features="off"] [data-personal-feature],
-    html[data-personal-features="off"] #open-inbox {
+    html[data-personal-features="off"] [data-personal-feature] {
       display: none !important;
     }
     .profile-settings-pad {
@@ -19261,6 +19260,86 @@
       justify-content: space-between;
       gap: 8px;
     }
+    .community-overview-btn {
+      padding: 3px 9px;
+      border: 1px solid var(--tt-border);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--tt-text-muted);
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .community-overview-btn:hover,
+    .community-overview-btn:focus-visible {
+      border-color: color-mix(in srgb, var(--tt-accent) 60%, var(--tt-border));
+      color: var(--tt-text-bright);
+    }
+    .community-landing {
+      display: grid;
+      flex: 1;
+      align-content: center;
+      gap: 14px;
+      width: 100%;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 20px 4px;
+      box-sizing: border-box;
+    }
+    .community-landing[hidden] {
+      display: none !important;
+    }
+    .community-landing-kicker {
+      color: var(--tt-text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .community-landing h2 {
+      margin: 0;
+      color: var(--tt-text-bright);
+      font-size: clamp(22px, 3vw, 30px);
+      line-height: 1.15;
+    }
+    .community-landing-copy {
+      max-width: 60ch;
+      margin: 0;
+      color: var(--tt-text-cool);
+      line-height: 1.6;
+    }
+    .community-landing-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .community-landing-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+    }
+    .community-landing-stat {
+      display: grid;
+      gap: 2px;
+      padding: 10px 12px;
+      border: 1px solid var(--tt-border);
+      border-radius: 10px;
+      background: var(--tt-bg-deep);
+    }
+    .community-landing-stat span {
+      color: var(--tt-text-muted);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .community-landing-stat strong {
+      color: var(--tt-text-bright);
+      font-size: 18px;
+      line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .community-topic-list {
       display: flex;
       flex-direction: column;
@@ -19307,6 +19386,16 @@
       flex-direction: column;
       gap: 10px;
     }
+    .community-compose {
+      padding: 16px;
+      border: 1px solid var(--tt-border);
+      border-radius: 12px;
+      background: var(--tt-bg-deep);
+      box-sizing: border-box;
+    }
+    .community-topic-view {
+      gap: 12px;
+    }
     .community-compose[hidden],
     .community-topic-view[hidden],
     .community-topic-editor[hidden],
@@ -19334,6 +19423,11 @@
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
+      width: fit-content;
+      padding: 4px;
+      border: 1px solid var(--tt-border);
+      border-radius: 8px;
+      background: var(--tt-bg);
     }
     .community-format-btn {
       min-width: 28px;
@@ -19434,7 +19528,23 @@
     .community-topic-header {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 6px;
+      padding: 14px 16px;
+      border: 1px solid var(--tt-border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--tt-bg-deep) 84%, transparent);
+      box-sizing: border-box;
+    }
+    .community-topic-title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .community-topic-title-row h2 {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
     .community-topic-header h2 {
       margin: 0;
@@ -19446,20 +19556,70 @@
       color: var(--tt-text-muted);
     }
     .community-topic-body {
+      padding: 16px;
+      border: 1px solid var(--tt-border);
+      border-left: 3px solid color-mix(in srgb, var(--tt-accent) 55%, var(--tt-border));
+      border-radius: 10px;
+      background: var(--tt-bg-deep);
+      box-sizing: border-box;
       white-space: pre-wrap;
       font-size: 14px;
+      line-height: 1.6;
       color: var(--tt-text-soft);
+    }
+    .community-section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 2px;
+    }
+    .community-section-head strong {
+      color: var(--tt-text-bright);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
     }
     .community-replies {
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
+    .community-replies > .body-text {
+      margin: 0;
+      padding: 12px 14px;
+      border: 1px dashed var(--tt-border);
+      border-radius: 10px;
+    }
     .community-reply {
-      padding: 8px 10px;
-      border-radius: 8px;
+      padding: 12px;
+      border-radius: 10px;
       border: 1px solid var(--tt-border);
+      background: color-mix(in srgb, var(--tt-bg-deep) 86%, transparent);
+    }
+    .community-reply-body {
+      margin-top: 8px;
+      line-height: 1.55;
+    }
+    .community-reply-compose {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 14px;
+      border: 1px solid var(--tt-border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--tt-bg-deep) 78%, transparent);
+      box-sizing: border-box;
+    }
+    .community-topic-editor {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--tt-border);
+      border-radius: 12px;
       background: var(--tt-bg-deep);
+      box-sizing: border-box;
     }
     .community-reply-head {
       display: flex;
@@ -19509,15 +19669,23 @@
       color: #4ade80;
     }
     .community-topic-actions {
+      position: relative;
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 4px;
+      flex: 0 0 auto;
+      justify-content: flex-end;
+      gap: 0;
+      flex-wrap: nowrap;
+      margin-top: 0;
     }
-    .community-topic-editor {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+    .community-actions-toggle {
+      width: auto;
+      min-height: 30px;
+      height: 30px;
+      padding: 4px 10px;
+      font-size: 12px;
+      line-height: 1;
+      justify-content: center;
+      white-space: nowrap;
     }
     .community-reply-editor {
       display: flex;
@@ -19927,3 +20095,267 @@
     .now-location-label {
       font-weight: 600;
     }
+
+.kabbak-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px;
+  border: 1px solid var(--tt-border);
+  border-radius: 8px;
+  background: var(--tt-bg);
+  box-sizing: border-box;
+}
+.kabbak-editor-toolbar--compact {
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.kabbak-editor-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--tt-border);
+  border-radius: 6px;
+  background: var(--tt-surface);
+  color: var(--tt-text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.kabbak-editor-btn:hover,
+.kabbak-editor-btn:focus-visible {
+  border-color: var(--tt-accent);
+  background: var(--tt-surface-alt);
+  color: var(--tt-text-bright);
+}
+.kabbak-editor-keyboard-btn {
+  font-size: 15px;
+}
+.kabbak-editor-input,
+textarea.kabbak-editor-input,
+input.kabbak-editor-input,
+[contenteditable="true"].kabbak-editor-input,
+.community-topic-body,
+.community-reply-body,
+.profile-post-rich,
+.profile-post-entry-body {
+  font-family: "Noto Sans Hebrew", "Noto Serif", "Amiri", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+html.kabbak-keyboard-open {
+  scroll-padding-bottom: 380px;
+}
+.kabbak-keyboard {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  z-index: 420;
+  width: min(720px, calc(100vw - 24px));
+  transform: translateX(-50%);
+}
+.kabbak-keyboard[hidden] {
+  display: none !important;
+}
+.kabbak-keyboard-panel {
+  display: grid;
+  gap: 8px;
+  max-height: min(58vh, 420px);
+  padding: 10px;
+  border: 1px solid var(--tt-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--tt-bg-deepest) 96%, transparent);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  box-sizing: border-box;
+}
+.kabbak-keyboard-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kabbak-keyboard-head strong {
+  flex: 1 1 auto;
+  color: var(--tt-text-bright);
+  font-size: 13px;
+}
+.kabbak-keyboard-script {
+  max-width: 140px;
+  padding: 4px 8px;
+  border: 1px solid var(--tt-border);
+  border-radius: 8px;
+  background: var(--tt-surface);
+  color: var(--tt-text);
+  font: inherit;
+  font-size: 12px;
+}
+.kabbak-keyboard-close {
+  padding: 4px 10px;
+  border: 1px solid var(--tt-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tt-text-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.kabbak-keyboard-close:hover {
+  color: var(--tt-text-bright);
+  border-color: var(--tt-accent);
+}
+.kabbak-keyboard-keys {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 6px;
+  overflow: auto;
+  padding: 2px;
+}
+.kabbak-key {
+  min-height: 36px;
+  padding: 6px;
+  border: 1px solid var(--tt-border);
+  border-radius: 8px;
+  background: var(--tt-surface);
+  color: var(--tt-text);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.kabbak-key:hover,
+.kabbak-key:focus-visible {
+  border-color: var(--tt-accent);
+  background: var(--tt-surface-alt);
+  color: var(--tt-text-bright);
+}
+.kabbak-keyboard-keys[data-script="hebrew"] .kabbak-key {
+  font-family: "Noto Sans Hebrew", sans-serif;
+  font-size: 18px;
+}
+.kabbak-keyboard-keys[data-script="greek"] .kabbak-key {
+  font-family: "Noto Serif", serif;
+  font-size: 17px;
+}
+.kabbak-keyboard-keys[data-script="arabic"] .kabbak-key {
+  font-family: "Amiri", "Noto Naskh Arabic", serif;
+  font-size: 19px;
+}
+.kabbak-keyboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.kabbak-keyboard-action {
+  padding: 5px 12px;
+  border: 1px solid var(--tt-border);
+  border-radius: 999px;
+  background: var(--tt-surface);
+  color: var(--tt-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.kabbak-keyboard-action:hover,
+.kabbak-keyboard-action:focus-visible {
+  border-color: var(--tt-accent);
+  color: var(--tt-text-bright);
+}
+@media (max-width: 640px) {
+  .kabbak-keyboard {
+    bottom: 0;
+    width: 100%;
+  }
+  .kabbak-keyboard-panel {
+    border-radius: 14px 14px 0 0;
+    max-height: 62vh;
+  }
+  .kabbak-keyboard-keys {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  html.kabbak-keyboard-open {
+    scroll-padding-bottom: 440px;
+  }
+}
+
+.kabbak-editor-input.kabbak-script-enochian,
+textarea.kabbak-script-enochian,
+input.kabbak-script-enochian,
+[contenteditable="true"].kabbak-script-enochian {
+  font-family: var(--font-script-enochian);
+}
+.kabbak-keyboard-keys[data-script="enochian"] .kabbak-key {
+  font-family: var(--font-script-enochian);
+  font-size: 18px;
+}
+#alphabet-section[data-keyboard-script="hebrew"] .alpha-gematria-keyboard-key {
+  font-family: var(--font-script-main);
+}
+#alphabet-section[data-keyboard-script="greek"] .alpha-gematria-keyboard-key {
+  font-family: "Noto Serif", var(--font-script-main), serif;
+}
+#alphabet-section[data-keyboard-script="arabic"] .alpha-gematria-keyboard-key {
+  font-family: var(--font-script-arabic);
+}
+#alphabet-section[data-keyboard-script="enochian"] .alpha-gematria-keyboard-key,
+#alphabet-section[data-keyboard-script="enochian"] .alpha-gematria-input,
+#alphabet-section[data-keyboard-script="enochian"] .alpha-gematria-result {
+  font-family: var(--font-script-enochian);
+}
+#alphabet-section[data-keyboard-script="greek"] .alpha-gematria-input,
+#alphabet-section[data-keyboard-script="greek"] .alpha-gematria-result {
+  font-family: "Noto Serif", var(--font-script-main), serif;
+}
+#alphabet-section[data-keyboard-script="arabic"] .alpha-gematria-input,
+#alphabet-section[data-keyboard-script="arabic"] .alpha-gematria-result {
+  font-family: var(--font-script-arabic);
+}
+
+.kabbak-editor-input,
+textarea.kabbak-editor-input,
+input.kabbak-editor-input,
+[contenteditable="true"].kabbak-editor-input {
+  direction: ltr;
+  unicode-bidi: bidi-override;
+  text-align: left;
+}
+.community-topic-body,
+.community-reply-body,
+.profile-post-rich,
+.profile-post-entry-body {
+  direction: ltr;
+  unicode-bidi: bidi-override;
+  text-align: left;
+}
+.alpha-gematria-input,
+.alpha-gematria-result,
+.alpha-gematria-breakdown {
+  direction: ltr;
+  unicode-bidi: bidi-override;
+  text-align: left;
+}
+
+.kabbak-keyboard-head {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.kabbak-keyboard-head.is-dragging {
+  cursor: grabbing;
+}
+.kabbak-keyboard-grip {
+  color: var(--tt-text-muted);
+  font-size: 14px;
+  letter-spacing: 2px;
+  cursor: grab;
+}
+.kabbak-keyboard-script,
+.kabbak-keyboard-close {
+  cursor: pointer;
+}
