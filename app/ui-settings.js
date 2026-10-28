@@ -665,6 +665,7 @@
       birthTime: normalizeBirthTime(birthTimeEl?.value || saved.birthTime)
     });
     saveSettings(next);
+    applyExternalSettings(next);
     emitSettingsUpdated(next);
 
     const statusEl = document.getElementById("profile-timing-status");

@@ -192,7 +192,12 @@
   }
 
   function loadActiveThemeId() {
-    const stored = String(window.localStorage.getItem(ACTIVE_THEME_STORAGE_KEY) || "").trim();
+    let stored = "";
+    try {
+      stored = String(window.localStorage.getItem(ACTIVE_THEME_STORAGE_KEY) || "").trim();
+    } catch (_error) {
+      stored = "";
+    }
     state.activeThemeId = stored || DEFAULT_THEME_ID;
   }
 

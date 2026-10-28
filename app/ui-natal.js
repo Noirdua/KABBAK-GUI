@@ -67,9 +67,14 @@
   }
 
   function getProfileBirth() {
-    const settings = window.TarotNatal?.getSettings?.()
-      || window.TarotSettingsUi?.loadSavedSettings?.()
-      || {};
+    const currentSettings = window.TarotNatal?.getSettings?.() || {};
+    const savedSettings = window.TarotSettingsUi?.loadSavedSettings?.() || {};
+    const settings = {
+      ...savedSettings,
+      ...currentSettings,
+      birthDate: currentSettings.birthDate || savedSettings.birthDate || "",
+      birthTime: currentSettings.birthTime || savedSettings.birthTime || ""
+    };
     const location = window.ProfileUi?.getLocation?.()
       || window.TarotSettingsUi?.getProfileLocation?.()
       || null;
@@ -240,11 +245,21 @@
     }
   }
 
-  async function applyProfileToForm() {
+  async function applyProfileToForm(options = {}) {
     const els = getElements();
     const profile = getProfileBirth();
-    if (!profile.date && els.sourceManualEl && isProfileSource()) {
-      els.sourceManualEl.checked = true;
+    const allowManualFallback = options?.allowManualFallback === true;
+    if (!profile.date && isProfileSource()) {
+      if (allowManualFallback && els.sourceManualEl) {
+        els.sourceManualEl.checked = true;
+      } else {
+        setStatus("No birth date saved in your profile. Set one in Profile → Settings, or switch to Manual.", "error");
+      }
+    } else if (isProfileSource() && profile.date) {
+      const statusEl = document.getElementById("natal-status");
+      if (statusEl?.textContent?.startsWith("No birth date saved")) {
+        setStatus("");
+      }
     }
     if (els.locationLabelEl) {
       els.locationLabelEl.textContent = isProfileSource()
@@ -546,6 +561,10 @@
 
   async function castChart() {
     const service = window.TarotDataService;
+    if (isProfileSource() && !getProfileBirth().date) {
+      setStatus("No birth date saved in your profile. Set one in Profile → Settings, or switch to Manual.", "error");
+      return;
+    }
     const input = readForm();
     if (!input.date) {
       setStatus("Set a birth date first.", "error");
@@ -612,6 +631,7 @@
       void applyProfileToForm();
     });
     els.sourceManualEl?.addEventListener("change", () => {
+      setStatus("");
       syncSourceLock();
     });
     els.timeUnknownEl?.addEventListener("change", () => {
@@ -643,7 +663,7 @@
   async function ensureNatalPanel() {
     bind();
     await loadNatalCountries();
-    await applyProfileToForm();
+    await applyProfileToForm({ allowManualFallback: true });
     const input = readForm();
     if (input.date && (Number.isFinite(Number(input.geo?.latitude)) || input.geo?.countryId)) {
       await castChart();

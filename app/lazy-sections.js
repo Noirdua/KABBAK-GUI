@@ -131,7 +131,7 @@
       "app/ui-num-pad.js?v=20260921-review-fixes"
     ],
     natal: [
-      "app/ui-natal.js?v=20260917-natal-place"
+      "app/ui-natal.js?v=20261028-natal-profile-fix"
     ],
     admin: [
       "app/ui-admin.js?v=20261027-text-editor"
