@@ -418,7 +418,6 @@
       label: "Terminal variant",
       storageKey: "kabbak-skin-variant-layout-terminal",
       options: [
-        ["", "Server default"],
         ["terminal", "Terminal (default)"],
         ["green", "Terminal green"],
         ["amber", "Amber"]
@@ -475,12 +474,14 @@
       select.appendChild(option);
     });
     const saved = readLocalSkinVariant(config.storageKey);
-    select.value = config.options.some(([value]) => value === saved) ? saved : "";
+    const effective = String(document.querySelector(".terminal-layout")?.dataset.variant || "");
+    const selected = saved || (config.options.some(([value]) => value === effective) ? effective : config.options[0]?.[0] || "");
+    select.value = selected;
     if (hint) {
       hint.hidden = false;
-      hint.textContent = select.value
+      hint.textContent = saved
         ? "Applies to this browser."
-        : "Using the server's default variant.";
+        : "Showing the server's current terminal theme.";
     }
   }
 
@@ -1228,7 +1229,7 @@
           hint.hidden = false;
           hint.textContent = uiSkinVariantEl.value
             ? "Applies to this browser."
-            : "Using the server's default variant.";
+            : "Showing the server's current terminal theme.";
         }
       });
     }
