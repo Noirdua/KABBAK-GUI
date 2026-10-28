@@ -134,7 +134,7 @@
       "app/ui-natal.js?v=20261028-natal-profile-fix"
     ],
     admin: [
-      "app/ui-admin.js?v=20261027-text-editor"
+      "app/ui-admin.js?v=20261028-dlc-publish-version-v2"
     ],
     profile: [
       "app/ui-post-editor.js?v=20261027-enochian-persist",

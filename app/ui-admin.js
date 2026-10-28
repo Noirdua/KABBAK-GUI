@@ -3991,6 +3991,39 @@
     return `${item?.kind || ""}:${item?.name || ""}`;
   }
 
+  function compareDlcVersions(left, right) {
+    const parse = (value) => String(value || "")
+      .trim()
+      .replace(/^v/i, "")
+      .split(/[^0-9]+/)
+      .filter(Boolean)
+      .map((part) => Number.parseInt(part, 10) || 0);
+    const a = parse(left);
+    const b = parse(right);
+    const length = Math.max(a.length, b.length);
+    for (let index = 0; index < length; index += 1) {
+      const leftPart = a[index] || 0;
+      const rightPart = b[index] || 0;
+      if (leftPart !== rightPart) return leftPart - rightPart;
+    }
+    return 0;
+  }
+
+  function isDlcLocalVersionNewer(item) {
+    const latestVersion = String(item?.latestVersion || "").trim();
+    if (!latestVersion) return true;
+    return compareDlcVersions(item?.version, latestVersion) > 0;
+  }
+
+  function isDlcPublishable(item) {
+    const reason = String(item?.publishPendingReason || "");
+    const allowSameVersion = reason === "notpublished" || reason === "no checkout";
+    return item?.kind !== "pack"
+      && item?.downloaded === true
+      && item?.publishPending === true
+      && (allowSameVersion || isDlcLocalVersionNewer(item));
+  }
+
   function defaultPublishMessage(item) {
     return `Update ${item?.kind || "item"}: ${item?.name || ""}`;
   }
@@ -4010,7 +4043,7 @@
   }
 
   function pruneDlcSelection() {
-    const present = new Set(allDlcItems.map((item) => dlcItemKey(item)));
+    const present = new Set(allDlcItems.filter(isDlcPublishable).map((item) => dlcItemKey(item)));
     [...dlcSelected].forEach((key) => {
       if (!present.has(key)) dlcSelected.delete(key);
     });
@@ -4210,7 +4243,10 @@
         message: job.message
       });
       const match = allDlcItems.find((entry) => dlcItemKey(entry) === dlcItemKey(job.item));
-      if (match) match.publishPending = false;
+      if (match) {
+        match.publishPending = false;
+        match.publishPendingReason = "uptodate";
+      }
       dlcSelected.delete(dlcItemKey(job.item));
       job.ok = true;
       const okText = result?.note
@@ -4272,7 +4308,7 @@
   }
 
   async function publishSelectedDlc() {
-    const items = allDlcItems.filter((item) => dlcSelected.has(dlcItemKey(item)));
+    const items = allDlcItems.filter((item) => dlcSelected.has(dlcItemKey(item)) && isDlcPublishable(item));
     if (!items.length) return;
     items.forEach((item) => enqueueDlcPublish(item, defaultPublishMessage(item)));
   }
@@ -4422,7 +4458,7 @@
 
         const actionRow = card.querySelector(".dlc-plugin-actions");
 
-        if (item?.downloaded === true && kind !== "pack") {
+        if (isDlcPublishable(item)) {
           const nameRow = card.querySelector(".dlc-plugin-name-row");
           const selectWrap = document.createElement("label");
           selectWrap.className = "dlc-select-box";
@@ -4487,7 +4523,8 @@
 
         const itemKey = dlcItemKey(item);
         const publishing = dlcPublishing.has(itemKey);
-        if (kind !== "pack" && item?.downloaded === true && (item?.publishPending === true || publishing)) {
+        const publishable = isDlcPublishable(item);
+        if (kind !== "pack" && item?.downloaded === true && (publishable || publishing)) {
           const publishBtn = document.createElement("button");
           publishBtn.type = "button";
           publishBtn.className = "dlc-shop-btn";
@@ -4497,6 +4534,9 @@
           const publishStatus = document.createElement("span");
           publishStatus.className = "dlc-publish-status settings-field-hint";
           if (publishing) publishStatus.textContent = "In queue…";
+          else if (item.latestVersion && String(item.latestVersion) !== String(item.version)) {
+            publishStatus.textContent = `Repo v${item.latestVersion}`;
+          }
           actionRow?.append(publishBtn, publishStatus);
           publishBtn.addEventListener("click", async () => {
             if (publishBtn.disabled || dlcPublishing.has(itemKey)) return;
@@ -4510,6 +4550,13 @@
             publishBtn.textContent = "Publishing…";
             publishStatus.textContent = "In queue…";
           });
+        } else if (kind !== "pack" && item?.downloaded === true && item?.publishPending === true) {
+          const hint = document.createElement("span");
+          hint.className = "dlc-publish-status settings-field-hint";
+          hint.textContent = item.latestVersion
+            ? `Local changes at v${item.version} — repo has v${item.latestVersion}; bump the version to publish.`
+            : "Local changes — bump the version to publish.";
+          actionRow?.append(hint);
         }
 
         if (isInstalled && kind !== "pack") {
@@ -4967,7 +5014,10 @@
       const map = new Map((result?.statuses || []).map((entry) => [`${entry.kind}:${entry.name}`, entry]));
       allDlcItems.forEach((item) => {
         const status = map.get(`${item.kind}:${item.name}`);
-        if (status) item.publishPending = status.pending === true;
+        if (status) {
+          item.publishPending = status.pending === true;
+          item.publishPendingReason = String(status.reason || "");
+        }
       });
     } catch (_error) {
       // Leave publishPending undefined (Publish stays hidden) on failure.
