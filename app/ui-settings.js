@@ -413,11 +413,92 @@
     document.body.dataset.menuLayout = normalizeMenuLayout(menuLayout);
   }
 
+  const SKIN_VARIANTS = {
+    "layout-terminal": {
+      label: "Terminal variant",
+      storageKey: "kabbak-skin-variant-layout-terminal",
+      options: [
+        ["", "Server default"],
+        ["terminal", "Terminal (default)"],
+        ["green", "Terminal green"],
+        ["amber", "Amber"]
+      ]
+    }
+  };
+  const TERMINAL_SKIN_ID = "layout-terminal";
+  const TERMINAL_VARIANT_KEY = SKIN_VARIANTS[TERMINAL_SKIN_ID].storageKey;
+
+  function isLegacyTerminalVariantSkin(skin) {
+    const id = String(skin?.id || "").trim().toLowerCase();
+    const name = String(skin?.name || "").trim().toLowerCase();
+    if (id === TERMINAL_SKIN_ID || (!id && !name)) return false;
+    const haystack = `${id} ${name}`;
+    return haystack.includes("terminal") && haystack.includes("green");
+  }
+
+  function readLocalSkinVariant(key) {
+    try {
+      return String(window.localStorage.getItem(key) || "").trim();
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function writeLocalSkinVariant(key, value) {
+    try {
+      if (value) window.localStorage.setItem(key, value);
+      else window.localStorage.removeItem(key);
+    } catch (_error) {}
+  }
+
+  function syncUiSkinVariantSelect() {
+    const uiSkinEl = document.getElementById("ui-skin");
+    const row = document.getElementById("ui-skin-variant-row");
+    const label = document.getElementById("ui-skin-variant-label");
+    const select = document.getElementById("ui-skin-variant");
+    const hint = document.getElementById("ui-skin-variant-hint");
+    if (!row || !select) return;
+    const config = SKIN_VARIANTS[String(uiSkinEl?.value || "")];
+    if (!config) {
+      row.hidden = true;
+      if (hint) hint.hidden = true;
+      select.innerHTML = "";
+      return;
+    }
+    row.hidden = false;
+    if (label) label.textContent = config.label;
+    select.innerHTML = "";
+    config.options.forEach(([value, text]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      select.appendChild(option);
+    });
+    const saved = readLocalSkinVariant(config.storageKey);
+    select.value = config.options.some(([value]) => value === saved) ? saved : "";
+    if (hint) {
+      hint.hidden = false;
+      hint.textContent = select.value
+        ? "Applies to this browser."
+        : "Using the server's default variant.";
+    }
+  }
+
   function syncUiSkinSelect() {
     const uiSkinEl = document.getElementById("ui-skin");
     if (!uiSkinEl) return;
-    const skins = window.TaroTimePluginHost?.listSkins?.() || [];
-    const active = window.TaroTimePluginHost?.getActiveSkin?.() || "";
+    const allSkins = window.TaroTimePluginHost?.listSkins?.() || [];
+    const hasMainTerminal = allSkins.some((skin) => skin.id === TERMINAL_SKIN_ID);
+    let active = window.TaroTimePluginHost?.getActiveSkin?.() || "";
+    const legacyActive = allSkins.find((skin) => skin.id === active && isLegacyTerminalVariantSkin(skin));
+    if (hasMainTerminal && legacyActive) {
+      writeLocalSkinVariant(TERMINAL_VARIANT_KEY, "green");
+      window.TaroTimePluginHost?.setActiveSkin?.(TERMINAL_SKIN_ID);
+      active = TERMINAL_SKIN_ID;
+    }
+    const skins = hasMainTerminal
+      ? allSkins.filter((skin) => !isLegacyTerminalVariantSkin(skin))
+      : allSkins;
     uiSkinEl.innerHTML = "";
     if (!skins.length) {
       const defaultOption = document.createElement("option");
@@ -432,6 +513,7 @@
       uiSkinEl.appendChild(option);
     });
     uiSkinEl.value = skins.some((skin) => skin.id === active) ? active : (skins[0]?.id || "");
+    syncUiSkinVariantSelect();
   }
 
   function normalizeBirthDate(value) {
@@ -1128,6 +1210,26 @@
     if (uiSkinEl) {
       uiSkinEl.addEventListener("change", () => {
         window.TaroTimePluginHost?.setActiveSkin?.(uiSkinEl.value);
+        syncUiSkinVariantSelect();
+      });
+    }
+    const uiSkinVariantEl = document.getElementById("ui-skin-variant");
+    if (uiSkinVariantEl) {
+      uiSkinVariantEl.addEventListener("change", () => {
+        const skinId = String(document.getElementById("ui-skin")?.value || "");
+        const variantConfig = SKIN_VARIANTS[skinId];
+        if (!variantConfig) return;
+        writeLocalSkinVariant(variantConfig.storageKey, uiSkinVariantEl.value);
+        document.dispatchEvent(new CustomEvent("kabbak:skin-variant", {
+          detail: { skin: skinId, variant: uiSkinVariantEl.value }
+        }));
+        const hint = document.getElementById("ui-skin-variant-hint");
+        if (hint) {
+          hint.hidden = false;
+          hint.textContent = uiSkinVariantEl.value
+            ? "Applies to this browser."
+            : "Using the server's default variant.";
+        }
       });
     }
     document.addEventListener("taro-plugins-ready", syncUiSkinSelect);

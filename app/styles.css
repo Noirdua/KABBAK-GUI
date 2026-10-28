@@ -20431,3 +20431,8 @@ input.kabbak-editor-input,
   gap: 4px;
   padding-right: 4px;
 }
+
+#ui-skin-variant-row[hidden],
+#ui-skin-variant-hint[hidden] {
+  display: none !important;
+}

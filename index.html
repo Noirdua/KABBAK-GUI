@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="node_modules/@fontsource/amiri/arabic-700.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-naskh-arabic/arabic-400.css">
   <link rel="stylesheet" href="node_modules/@fontsource/noto-rashi-hebrew/400.css">
-  <link rel="stylesheet" href="app/styles.css?v=20261028-script-fonts">
+  <link rel="stylesheet" href="app/styles.css?v=20261028-skin-variants">
   <link rel="stylesheet" href="app/ui-look.css?v=20260912-kind-active">
   <style>
     #app-loading-screen {
@@ -836,6 +836,11 @@
               </select>
             </label>
             <p class="profile-settings-hint">Installed layout plugins. Only one is active.</p>
+            <label class="profile-settings-row" for="ui-skin-variant" id="ui-skin-variant-row" hidden>
+              <span id="ui-skin-variant-label">Variant</span>
+              <select id="ui-skin-variant"></select>
+            </label>
+            <p id="ui-skin-variant-hint" class="profile-settings-hint" hidden>Applies to this browser.</p>
           </section>
           <section class="profile-settings-group">
             <h3>Look</h3>
@@ -3647,7 +3652,7 @@
   <script src="app/lazy-sections.js?v=20261028-dlc-publish-version-v2"></script>
   <script src="app/ui-sequence-nav.js?v=20260820-template"></script>
   <script src="app/ui-search-text.js?v=20260811-link-search-01"></script>
-  <script src="app/ui-settings.js?v=20261028-natal-profile-fix"></script>
+  <script src="app/ui-settings.js?v=20261028-skin-variants"></script>
   <script src="app/ui-dlc-shop.js?v=20261028-terminal-themes"></script>
 
   <script src="app/ui-chrome.js?v=20260915-cube-ux"></script>
