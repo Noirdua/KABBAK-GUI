@@ -556,6 +556,25 @@
       editor.appendChild(warning);
     }
 
+    let rowFilter = "";
+    const filterRow = document.createElement("div");
+    filterRow.className = "dlc-menu-filter-row";
+    const filterInput = document.createElement("input");
+    filterInput.type = "search";
+    filterInput.className = "dlc-menu-filter-input";
+    filterInput.placeholder = "Filter menu entries by name, id, or keyword";
+    filterInput.maxLength = 120;
+    filterInput.setAttribute("aria-label", "Filter menu entries");
+    const filterCount = document.createElement("span");
+    filterCount.className = "dlc-menu-filter-count";
+    filterCount.textContent = `${rows.length} entries`;
+    filterInput.addEventListener("input", () => {
+      rowFilter = filterInput.value.trim().toLowerCase();
+      renderRows();
+    });
+    filterRow.append(filterInput, filterCount);
+    editor.appendChild(filterRow);
+
     const listEl = document.createElement("div");
     listEl.className = "dlc-menu-rows";
     editor.appendChild(listEl);
@@ -571,14 +590,53 @@
     let dragSourceIndex = -1;
     // Rows whose submenu editor is expanded (keyed by row object).
     const expandedSubmenuRows = new Set();
-    const moveRowTo = (fromIndex, toIndex) => {
+    const moveRowTo = (fromIndex, toIndex, options = {}) => {
       if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
       if (fromIndex >= rows.length || toIndex >= rows.length) return;
       const [moved] = rows.splice(fromIndex, 1);
       rows.splice(toIndex, 0, moved);
       renderRows();
       renderLinkReport();
+      if (options.focus) {
+        const rowEl = [...listEl.children].find((item) => item.dataset.menuIndex === String(toIndex));
+        const positionInput = rowEl?.querySelector(".dlc-menu-position-input");
+        positionInput?.focus();
+        positionInput?.select?.();
+        rowEl?.scrollIntoView({ block: "nearest" });
+      }
     };
+
+    function createPositionInput(index, row) {
+      const input = document.createElement("input");
+      input.type = "number";
+      input.className = "dlc-menu-position-input";
+      input.min = "1";
+      input.max = String(rows.length);
+      input.step = "1";
+      input.value = String(index + 1);
+      input.title = "Position in the full menu (1 = top). Type a number and press Enter.";
+      input.setAttribute("aria-label", `Position for ${row.label || row.id || "menu entry"}`);
+      input.addEventListener("change", () => {
+        const requested = Number.parseInt(input.value, 10);
+        if (!Number.isFinite(requested)) {
+          input.value = String(index + 1);
+          return;
+        }
+        const target = Math.max(0, Math.min(rows.length - 1, requested - 1));
+        if (target === index) {
+          input.value = String(index + 1);
+          return;
+        }
+        moveRowTo(index, target, { focus: true });
+      });
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          input.blur();
+        }
+      });
+      return input;
+    }
 
     function attachDragHandlers(rowEl, index) {
       const handle = rowEl.querySelector(".dlc-menu-drag-handle");
@@ -622,16 +680,30 @@
 
     function renderRows() {
       listEl.innerHTML = "";
+      const query = rowFilter.trim().toLowerCase();
       if (!rows.length) {
         const empty = document.createElement("span");
         empty.className = "settings-field-hint";
         empty.textContent = "No menu items configured. Add entries below or from the link report.";
         listEl.appendChild(empty);
+        filterCount.textContent = "0 entries";
         return;
       }
+      let visibleCount = 0;
       rows.forEach((row, index) => {
+        const haystack = [
+          row.label,
+          row.id,
+          row.keywords,
+          ...(row.children || []).map((child) => `${child.id} ${child.label || ""} ${child.keywords || ""}`)
+        ].join(" ").toLowerCase();
+        if (query && !haystack.includes(query)) {
+          return;
+        }
+        visibleCount += 1;
         const rowEl = document.createElement("div");
         rowEl.className = "dlc-menu-row dlc-menu-row-block";
+        rowEl.dataset.menuIndex = String(index);
 
         if (row.type === "search") {
           rowEl.classList.add("dlc-menu-row-header");
@@ -672,6 +744,7 @@
             removeRow(index);
           });
           rowTop.appendChild(dragHandle);
+          rowTop.appendChild(createPositionInput(index, row));
           rowTop.appendChild(labelInput);
           rowTop.appendChild(upBtn);
           rowTop.appendChild(downBtn);
@@ -719,6 +792,7 @@
           removeBtn.title = "Remove header";
           removeBtn.addEventListener("click", () => removeRow(index));
           rowTop.appendChild(dragHandle);
+          rowTop.appendChild(createPositionInput(index, row));
           rowTop.appendChild(labelInput);
           rowTop.appendChild(upBtn);
           rowTop.appendChild(downBtn);
@@ -784,6 +858,7 @@
         });
 
         rowTop.appendChild(dragHandle);
+        rowTop.appendChild(createPositionInput(index, row));
         rowTop.appendChild(labelInput);
         rowTop.appendChild(enabledCheckbox);
         rowTop.appendChild(upBtn);
@@ -854,14 +929,55 @@
                 return { id: resolved, label: existingChild?.label || "", enabled: existingChild?.enabled !== false, keywords: existingChild?.keywords || "" };
               });
           });
+          childrenInput.addEventListener("change", () => {
+            renderRows();
+            renderLinkReport();
+          });
           submenuPanel.appendChild(childrenInput);
           if (row.children.length) {
             const childrenInfo = document.createElement("div");
             childrenInfo.className = "dlc-menu-children-info";
-            row.children.forEach((child) => {
+            row.children.forEach((child, childIndex) => {
               const childDataset = datasetForId(child.id);
               const childLine = document.createElement("div");
               childLine.className = "dlc-menu-children-line";
+              const childPosition = document.createElement("input");
+              childPosition.type = "number";
+              childPosition.className = "dlc-menu-child-position";
+              childPosition.min = "1";
+              childPosition.max = String(row.children.length);
+              childPosition.step = "1";
+              childPosition.value = String(childIndex + 1);
+              childPosition.dataset.childIndex = String(childIndex);
+              childPosition.title = "Child position within this submenu";
+              childPosition.setAttribute("aria-label", `Position for child ${displayMenuId(child.id)}`);
+              childPosition.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  childPosition.blur();
+                }
+              });
+              childPosition.addEventListener("change", () => {
+                const requested = Number.parseInt(childPosition.value, 10);
+                if (!Number.isFinite(requested)) {
+                  childPosition.value = String(childIndex + 1);
+                  return;
+                }
+                const target = Math.max(0, Math.min(row.children.length - 1, requested - 1));
+                if (target === childIndex) {
+                  childPosition.value = String(childIndex + 1);
+                  return;
+                }
+                const [moved] = row.children.splice(childIndex, 1);
+                row.children.splice(target, 0, moved);
+                renderRows();
+                renderLinkReport();
+                const parentIndex = rows.indexOf(row);
+                const parentEl = [...listEl.children].find((item) => item.dataset.menuIndex === String(parentIndex));
+                const focusInput = parentEl?.querySelector(`.dlc-menu-child-position[data-child-index="${target}"]`);
+                focusInput?.focus();
+                focusInput?.select?.();
+              });
               const childText = document.createElement("span");
               if (isMenuGroupId(child.id)) {
                 childText.textContent = `└ ${displayMenuId(child.id)} → menu group — use its subpages instead`;
@@ -877,6 +993,7 @@
               childKeywords.addEventListener("input", () => {
                 child.keywords = childKeywords.value.trim();
               });
+              childLine.appendChild(childPosition);
               childLine.appendChild(childText);
               childLine.appendChild(childKeywords);
               childrenInfo.appendChild(childLine);
@@ -889,6 +1006,13 @@
         attachDragHandlers(rowEl, index);
         listEl.appendChild(rowEl);
       });
+      if (!visibleCount) {
+        const empty = document.createElement("span");
+        empty.className = "settings-field-hint";
+        empty.textContent = "No menu entries match this filter.";
+        listEl.appendChild(empty);
+      }
+      filterCount.textContent = query ? `${visibleCount} / ${rows.length}` : `${rows.length} entries`;
     }
 
     function renderLinkReport() {

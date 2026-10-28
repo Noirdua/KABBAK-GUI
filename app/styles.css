@@ -1,9 +1,11 @@
     :root {
-      --font-script-main: var(--font-custom-main, "Noto Sans Hebrew"), "Noto Sans Hebrew", "Noto Serif", "Noto Sans Phoenician", "Segoe UI Symbol", "Arial Unicode MS", sans-serif;
-      --font-script-display: var(--font-custom-display, "Noto Sans Hebrew"), "Noto Sans Hebrew", "Noto Serif", "Noto Sans Phoenician", "Segoe UI Symbol", serif;
+      --font-script-main: var(--font-custom-main, "Noto Sans Hebrew"), "Noto Sans Hebrew", "Noto Serif", var(--font-custom-arabic, "Amiri"), "Amiri", "Noto Naskh Arabic", "Noto Sans Phoenician", "Segoe UI Symbol", "Arial Unicode MS", sans-serif;
+      --font-script-display: var(--font-custom-display, "Noto Sans Hebrew"), "Noto Sans Hebrew", "Noto Serif", var(--font-custom-arabic, "Amiri"), "Amiri", "Noto Naskh Arabic", "Noto Sans Phoenician", "Segoe UI Symbol", serif;
       --font-script-arabic: var(--font-custom-arabic, "Amiri"), "Amiri", "Noto Naskh Arabic", "Scheherazade New", "Arabic Typesetting", "Arial Unicode MS", serif;
       --font-script-enochian: var(--font-custom-enochian, "Enochian"), "Enochian", "Petrus Enochian", "Segoe UI Historic", "Segoe UI Symbol", serif;
       --font-script-cjk: var(--font-custom-cjk, "Segoe UI"), "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+      --font-script-glyphs: "Noto Sans Hebrew", "Noto Serif", var(--font-custom-arabic, "Amiri"), "Amiri", "Noto Naskh Arabic", "Noto Sans Phoenician";
+      --font-ui-script: var(--font-custom-main, "Noto Sans Hebrew"), "Noto Sans Hebrew", "Noto Serif", var(--font-custom-arabic, "Amiri"), "Amiri", "Noto Naskh Arabic", "Noto Sans Phoenician", system-ui, -apple-system, "Segoe UI", Roboto, var(--font-script-cjk), "Segoe UI Symbol", "Arial Unicode MS", sans-serif;
       --font-family-iching: "IChing";
       --detail-text-scale: 1;
       /* Color theme tokens. These are the "Midnight" (default) values; ui-theme.js
@@ -107,7 +109,7 @@
 
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, var(--font-script-main), var(--font-script-cjk);
+      font-family: var(--font-ui-script);
       background: var(--tt-page-bg);
       color: var(--tt-text);
       overflow-x: hidden;
@@ -1619,7 +1621,7 @@
       background: transparent;
       color: var(--tt-text);
       font-size: 12px;
-      font-family: monospace;
+      font-family: var(--font-script-glyphs), monospace;
       cursor: pointer;
       word-break: break-all;
     }
@@ -1650,7 +1652,7 @@
       border-radius: 8px;
       background: var(--tt-bg-deep);
       color: var(--tt-text);
-      font-family: monospace;
+      font-family: var(--font-script-glyphs), monospace;
       font-size: 12px;
       line-height: 1.5;
       white-space: pre;
@@ -2406,7 +2408,7 @@
       border: 1px solid var(--tt-border);
       background: var(--tt-bg-deepest);
       color: var(--tt-text);
-      font-family: monospace;
+      font-family: var(--font-script-glyphs), monospace;
       font-size: 12px;
       resize: vertical;
     }
@@ -2560,7 +2562,7 @@
       margin-left: auto;
       color: #64748b;
       font-size: 11px;
-      font-family: monospace;
+      font-family: var(--font-script-glyphs), monospace;
     }
     .dlc-create-overlay .dlc-settings-overlay-panel {
       width: min(1180px, 100%);
@@ -2852,7 +2854,7 @@
     }
     .dlc-ref-entry-key {
       color: var(--tt-accent-soft) !important;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 11px !important;
     }
     .dlc-ref-detail-overlay {
@@ -2908,7 +2910,7 @@
     .dlc-ref-detail-fold summary span {
       color: var(--tt-text-dim);
       font-size: 11px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, monospace;
     }
     .dlc-ref-detail-fold {
       border: 1px solid var(--tt-border);
@@ -3146,7 +3148,7 @@
     }
     .dlc-deck-slot-file {
       color: var(--tt-text-dim);
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, monospace;
       word-break: break-all;
     }
     .dlc-deck-slot.is-assign,
@@ -4082,7 +4084,7 @@
     .admin-client-id {
       color: #64748b;
       font-size: 11px;
-      font-family: monospace;
+      font-family: var(--font-script-glyphs), monospace;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -4097,7 +4099,7 @@
     .admin-client-key-preview {
       color: #94a3b8;
       font-size: 11px;
-      font-family: monospace;
+      font-family: var(--font-script-glyphs), monospace;
     }
     .admin-client-actions {
       display: flex;
@@ -4133,7 +4135,7 @@
       color: #fbbf24;
       font-size: 13px;
       word-break: break-all;
-      font-family: monospace;
+      font-family: var(--font-script-glyphs), monospace;
       user-select: all;
     }
     .admin-users-list {
@@ -4565,7 +4567,7 @@
       border-radius: 8px;
       background: var(--tt-bg-deep);
       color: var(--tt-text);
-      font-family: ui-monospace, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, monospace;
       font-size: 12px;
       word-break: break-all;
     }
@@ -4979,7 +4981,7 @@
     .tarot-relation-detail-meta {
       font-size: 12px;
       color: var(--tt-text-muted);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
     .tarot-relation-detail-data {
       font-size: 12px;
@@ -4987,7 +4989,7 @@
       color: var(--tt-text-soft);
       white-space: pre-wrap;
       margin: 0;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
     /* Kabbalah path cross-reference panel in tarot detail */
@@ -7631,7 +7633,7 @@
     .iching-line-label {
       font-size: 11px;
       color: var(--tt-text-muted);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       letter-spacing: 0.05em;
     }
     .iching-lines {
@@ -9303,6 +9305,7 @@
     .kab-path-lbl {
       fill: #ded4ff;
       fill-opacity: 0.78;
+      font-family: var(--font-script-main);
       font-weight: 700;
       paint-order: stroke fill;
       stroke: rgba(9, 8, 18, 0.85);
@@ -10748,7 +10751,7 @@
       font-size: 28px;
       min-width: 36px;
       text-align: center;
-      font-family: "Segoe UI", "Noto Sans Hebrew", "Noto Serif", serif;
+      font-family: var(--font-script-main);
       color: #e0d0ff;
       line-height: 1;
     }
@@ -13143,7 +13146,7 @@
       border: 1px solid var(--tt-border);
       background: var(--tt-bg-deep);
       color: var(--tt-text);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 13px;
       line-height: 1;
       cursor: pointer;
@@ -13179,7 +13182,7 @@
       border: 1px solid var(--tt-border-soft);
       border-radius: 999px;
       background: var(--tt-bg-deep);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 12px;
       color: var(--tt-text);
       padding: 0 8px;
@@ -13333,7 +13336,7 @@
       margin-right: 6px;
     }
     .gods-hebrew {
-      font-family: 'Segoe UI', 'Noto Sans Hebrew', serif;
+      font-family: var(--font-script-main);
       font-size: 22px;
       color: #e0d0ff;
       margin-right: 8px;
@@ -13411,13 +13414,13 @@
     .zod-badge--quad  { background: var(--tt-surface); color: var(--tt-text-soft); }
     .zod-hebrew-glyph {
       font-size: 48px;
-      font-family: "Segoe UI", "Noto Sans Hebrew", "Noto Serif", serif;
+      font-family: var(--font-script-main);
       color: #e0d0ff;
       line-height: 1;
     }
     .zod-detail-name {
       font-size: 52px;
-      font-family: "Segoe UI", "Noto Serif", serif;
+      font-family: var(--font-script-main);
     }
     .zod-decan-row {
       display: flex;
@@ -13443,7 +13446,7 @@
     }
     .zod-decan-card-btn:hover { background: #312e81; border-color: var(--tt-accent-strong); color: var(--tt-accent-pale); }
     .zod-tetra {
-      font-family: "Segoe UI", "Noto Sans Hebrew", serif;
+      font-family: var(--font-script-main);
       font-size: 15px;
       letter-spacing: 2px;
       color: #e0d0ff;
@@ -14136,7 +14139,7 @@
       text-align: right;
       white-space: nowrap;
       font-variant-numeric: tabular-nums;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
     .now-countdown-next {
       white-space: normal;
@@ -15226,7 +15229,7 @@
     #profile-page-html {
       width: 100%;
       box-sizing: border-box;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 13px;
       padding: 10px;
       border-radius: 8px;
@@ -16642,13 +16645,13 @@
       background: var(--tt-bg-deepest);
       padding: 4px 6px;
       border-radius: 3px;
-      font-family: monospace;
+      font-family: var(--font-script-glyphs), monospace;
       font-size: 11px;
       overflow-x: auto;
     }
     .profile-field .scene-thoughts[contenteditable] code,
     .profile-field .scene-notes[contenteditable] code {
-      font-family: monospace;
+      font-family: var(--font-script-glyphs), monospace;
       background: var(--tt-bg-deepest);
       padding: 1px 3px;
       border-radius: 2px;
@@ -19488,7 +19491,7 @@
     }
     .community-topic-body code,
     .community-reply-body code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.9em;
       padding: 1px 4px;
       border-radius: 4px;
@@ -19864,7 +19867,7 @@
     }
     .games-hangman-gallows {
       margin: 0;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 16px;
       line-height: 1.15;
       color: var(--tt-text-bright);
@@ -19889,7 +19892,7 @@
       border-radius: 8px;
       border: 1px solid var(--tt-border);
       background: var(--tt-bg-deepest);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-family: var(--font-script-glyphs), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 12px;
       color: var(--tt-text-muted);
     }
@@ -20362,4 +20365,69 @@ input.kabbak-editor-input,
 
 .is-enochian-content {
   font-family: var(--font-script-enochian);
+}
+
+.dlc-menu-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+.dlc-menu-filter-input {
+  flex: 1 1 220px;
+  min-width: 160px;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 1px solid var(--tt-border);
+  border-radius: 6px;
+  background: var(--tt-bg-deepest);
+  color: var(--tt-text);
+  font: inherit;
+  font-size: 12px;
+}
+.dlc-menu-filter-count {
+  color: var(--tt-text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.dlc-menu-position-input,
+.dlc-menu-child-position {
+  flex: 0 0 auto;
+  width: 3.2em;
+  box-sizing: border-box;
+  padding: 4px 2px;
+  border: 1px solid var(--tt-border);
+  border-radius: 6px;
+  background: var(--tt-bg-deepest);
+  color: var(--tt-text);
+  font: inherit;
+  font-size: 11px;
+  text-align: center;
+}
+.dlc-menu-child-position {
+  width: 3em;
+  padding: 3px 2px;
+  font-size: 10px;
+}
+.dlc-menu-children-line {
+  flex-wrap: wrap;
+}
+#admin-section .dlc-menu-rows {
+  max-height: none;
+}
+
+.dlc-settings-overlay .dlc-menu-editor {
+  margin-top: 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dlc-settings-overlay .dlc-menu-rows {
+  flex: 1;
+  min-height: 140px;
+  max-height: none;
+  overflow: auto;
+  gap: 4px;
+  padding-right: 4px;
 }

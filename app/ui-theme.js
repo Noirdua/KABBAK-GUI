@@ -8,6 +8,7 @@
 
   const ACTIVE_THEME_STORAGE_KEY = "tarot-time-active-theme-v1";
   const CUSTOM_THEMES_STORAGE_KEY = "tarot-time-custom-themes-v1";
+  const USER_CHOICE_STORAGE_KEY = "tarot-time-theme-choice-v1";
   const DEFAULT_THEME_ID = "midnight";
 
   // Base tokens a theme (built-in or custom) must supply. Every other --tt-*
@@ -263,13 +264,24 @@
     state.activeThemeId = normalizedId;
     if (persist) {
       persistActiveThemeId(normalizedId);
+      markUserThemeChoice();
     }
     return normalizedId;
   }
 
+  function markUserThemeChoice() {
+    try {
+      window.localStorage.setItem(USER_CHOICE_STORAGE_KEY, "1");
+    } catch (_error) {}
+  }
+
   function hasStoredActiveTheme() {
     try {
-      return Boolean(String(window.localStorage.getItem(ACTIVE_THEME_STORAGE_KEY) || "").trim());
+      if (window.localStorage.getItem(USER_CHOICE_STORAGE_KEY) === "1") {
+        return true;
+      }
+      const stored = String(window.localStorage.getItem(ACTIVE_THEME_STORAGE_KEY) || "").trim();
+      return Boolean(stored) && stored !== DEFAULT_THEME_ID && !stored.startsWith("server-");
     } catch {
       return false;
     }
@@ -313,7 +325,9 @@
     if (source.theme && typeof source.theme === "object") {
       const registered = registerServerTheme(source.theme);
       if (registered) {
-        return applyThemeById(registered.id, { persist: onlyIfUnset });
+        const applied = applyThemeById(registered.id, { persist: false });
+        refreshThemeEditor();
+        return applied;
       }
     }
 
@@ -322,7 +336,16 @@
       return getActiveThemeId();
     }
 
-    return applyThemeById(themeId, { persist: onlyIfUnset });
+    const applied = applyThemeById(themeId, { persist: false });
+    refreshThemeEditor();
+    return applied;
+  }
+
+  function refreshThemeEditor() {
+    if (!document.getElementById("theme-preset-list")) return;
+    renderPresetList();
+    syncEditorInputsFromBase(getActiveThemeBase());
+    syncUpdateButtonVisibility();
   }
 
   function previewThemeTokens(base) {
