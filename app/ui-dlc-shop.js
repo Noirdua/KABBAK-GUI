@@ -11,6 +11,7 @@
     "hydrus-network",
     "demo-users",
     "layout-phone",
+    "layout-terminal",
     "stripe",
     "menu-plugin"
   ]);
@@ -3098,6 +3099,188 @@
     renderRows();
   }
 
+  async function renderLayoutTerminalSettings(settingsEl, plugin) {
+    const status = createSettingsStatus(settingsEl);
+    const service = window.TarotDataService;
+    const adminMode = isAdmin();
+    const body = document.createElement("div");
+    body.className = "dlc-plugin-settings-body";
+    settingsEl.appendChild(body);
+
+    const hint = document.createElement("span");
+    hint.className = "settings-field-hint";
+    hint.textContent = "Choose the terminal palette. The green and amber themes replace the old separate terminal variants; uninstall any duplicate terminal skin. Changes apply to this skin immediately after saving.";
+    body.appendChild(hint);
+
+    let config = {
+      theme: "terminal",
+      followTheme: false,
+      colors: {},
+      brand: "kabbak",
+      byline: "correspondence archive",
+      showSearch: true,
+      sidebarWidth: 264
+    };
+    let loadError = "";
+    try {
+      const payload = await service.requestJson("GET", service.buildApiUrl(`/api/v1/plugins/${plugin.name}/config`));
+      const loaded = payload?.config;
+      if (loaded && typeof loaded === "object" && !Array.isArray(loaded)) {
+        config = { ...config, ...loaded, colors: loaded.colors && typeof loaded.colors === "object" ? loaded.colors : {} };
+      }
+    } catch (error) {
+      loadError = `Could not load the saved terminal settings (${error?.message || "request failed"}).`;
+    }
+    if (loadError) {
+      const warning = document.createElement("span");
+      warning.className = "settings-field-hint";
+      warning.textContent = loadError;
+      body.appendChild(warning);
+    }
+
+    const mirrorName = document.createElement("span");
+    mirrorName.className = "settings-field-hint";
+    mirrorName.textContent = "Theme colors apply to the terminal chrome, navigation, and page accents.";
+    body.appendChild(mirrorName);
+
+    const makeLabel = (text) => {
+      const label = document.createElement("label");
+      label.className = "settings-field";
+      label.appendChild(document.createTextNode(text));
+      return label;
+    };
+
+    const themeLabel = makeLabel("Terminal theme");
+    const themeSelect = document.createElement("select");
+    [
+      ["terminal", "Terminal (default)"],
+      ["green", "Terminal green"],
+      ["amber", "Amber"]
+    ].forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      themeSelect.appendChild(option);
+    });
+    themeSelect.value = ["terminal", "green", "amber"].includes(config.theme) ? config.theme : "terminal";
+    themeSelect.disabled = !adminMode;
+    themeLabel.appendChild(themeSelect);
+    body.appendChild(themeLabel);
+
+    const followLabel = document.createElement("label");
+    followLabel.className = "dlc-menu-hide-label";
+    const followInput = document.createElement("input");
+    followInput.type = "checkbox";
+    followInput.checked = config.followTheme === true;
+    followInput.disabled = !adminMode;
+    followLabel.append(followInput, document.createTextNode("Follow the app color theme"));
+    body.appendChild(followLabel);
+
+    const followHint = document.createElement("span");
+    followHint.className = "settings-field-hint";
+    followHint.textContent = "When enabled, the app theme wins over the terminal theme select.";
+    body.appendChild(followHint);
+
+    const brandLabel = makeLabel("Sidebar brand");
+    const brandInput = document.createElement("input");
+    brandInput.type = "text";
+    brandInput.maxLength = 40;
+    brandInput.value = String(config.brand || "kabbak");
+    brandInput.disabled = !adminMode;
+    brandLabel.appendChild(brandInput);
+    body.appendChild(brandLabel);
+
+    const bylineLabel = makeLabel("Sidebar byline");
+    const bylineInput = document.createElement("input");
+    bylineInput.type = "text";
+    bylineInput.maxLength = 80;
+    bylineInput.value = String(config.byline || "");
+    bylineInput.disabled = !adminMode;
+    bylineLabel.appendChild(bylineInput);
+    body.appendChild(bylineLabel);
+
+    const searchLabel = document.createElement("label");
+    searchLabel.className = "dlc-menu-hide-label";
+    const searchInput = document.createElement("input");
+    searchInput.type = "checkbox";
+    searchInput.checked = config.showSearch !== false;
+    searchInput.disabled = !adminMode;
+    searchLabel.append(searchInput, document.createTextNode("Show the sidebar search"));
+    body.appendChild(searchLabel);
+
+    const widthLabel = makeLabel("Sidebar width (220–340)");
+    const widthInput = document.createElement("input");
+    widthInput.type = "number";
+    widthInput.min = "220";
+    widthInput.max = "340";
+    widthInput.step = "1";
+    widthInput.value = String(Math.min(340, Math.max(220, Number(config.sidebarWidth) || 264)));
+    widthInput.disabled = !adminMode;
+    widthLabel.appendChild(widthInput);
+    body.appendChild(widthLabel);
+
+    const clearLabel = document.createElement("label");
+    clearLabel.className = "dlc-menu-hide-label";
+    const clearInput = document.createElement("input");
+    clearInput.type = "checkbox";
+    clearInput.disabled = !adminMode;
+    clearLabel.append(clearInput, document.createTextNode("Clear custom color overrides when saving"));
+    body.appendChild(clearLabel);
+    if (Object.keys(config.colors || {}).length) {
+      const customHint = document.createElement("span");
+      customHint.className = "settings-field-hint";
+      customHint.textContent = `Custom overrides are active (${Object.keys(config.colors).join(", ")}); they take precedence over the theme preset.`;
+      body.appendChild(customHint);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "dlc-shop-actions";
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "settings-button-primary";
+    save.textContent = "Save terminal layout";
+    save.disabled = !adminMode;
+    actions.appendChild(save);
+    body.appendChild(actions);
+    if (!adminMode) {
+      const locked = document.createElement("span");
+      locked.className = "settings-field-hint";
+      locked.textContent = "An admin key is required to change the terminal layout.";
+      body.appendChild(locked);
+    }
+
+    followInput.addEventListener("change", () => {
+      themeSelect.disabled = !adminMode || followInput.checked;
+    });
+    themeSelect.disabled = !adminMode || followInput.checked;
+
+    save.addEventListener("click", async () => {
+      save.disabled = true;
+      try {
+        const next = {
+          ...config,
+          theme: themeSelect.value,
+          followTheme: followInput.checked,
+          brand: brandInput.value.trim() || "kabbak",
+          byline: bylineInput.value.trim(),
+          showSearch: searchInput.checked,
+          sidebarWidth: Math.min(340, Math.max(220, Number(widthInput.value) || 264)),
+          colors: clearInput.checked ? {} : (config.colors || {})
+        };
+        await service.requestJson("POST", service.buildApiUrl(`/api/v1/plugins/${plugin.name}/config`), { config: next });
+        config = next;
+        document.dispatchEvent(new CustomEvent("taro-plugin-config-updated", {
+          detail: { pluginName: plugin.name, config: next }
+        }));
+        status.set("Terminal layout saved.");
+      } catch (error) {
+        status.set(`Could not save terminal layout. ${error?.message || ""}`, true);
+      } finally {
+        save.disabled = !adminMode;
+      }
+    });
+  }
+
   async function renderLayoutPhoneSettings(settingsEl) {
     const status = createSettingsStatus(settingsEl);
     const body = document.createElement("div");
@@ -3216,9 +3399,11 @@
               ? renderDemoUsersSettings
               : plugin?.name === "layout-phone"
                 ? renderLayoutPhoneSettings
-                : plugin?.name === "stripe"
-                  ? renderStripeSettings
-                  : renderGenericConfigSettings;
+                : plugin?.name === "layout-terminal"
+                  ? renderLayoutTerminalSettings
+                  : plugin?.name === "stripe"
+                    ? renderStripeSettings
+                    : renderGenericConfigSettings;
     return Promise.resolve(render(container, plugin)).then(() => {
       if (isAdmin()) renderPluginLogs(container, plugin);
     });
